@@ -4014,3 +4014,19 @@ $env:GOWORK='off'; go test ./... -count=1
   - `repo/MyFlowHub-Win/frontend`：`npm run build`
 - 实施说明：
   - 本轮为历史上下文延续，直接在现有主工作区推进并提交；无新增独立 worktree 需要清理。
+
+---
+## [2026-03-18] Workflow归档 - Win：DAG 节点 ID 自动生成 + 工具栏图标化
+- 归档文档：
+  - `docs/change/2026-03-18_win-dag-nodeid-icons.md`
+- 分仓结果：
+  - `repo/MyFlowHub-Win`：已合并到 `main`（Win @ `b0b6968`）
+- 主要结果：
+  - Add Node 弹窗自动生成唯一 `Node ID`（默认 `n1/n2/...`），仍允许手动修改并做重复校验（大小写敏感）。
+  - Node Detail 支持修改 `Node ID`，并自动同步更新所有 `edges[].from/to` 引用（改名进入 undo/redo 历史）。
+  - Flow Editor 顶部工具条 + Add/Remove Node/Edge 统一改为图标按钮，并用 Tooltip 提示功能（对齐 Showcase 顶部）。
+- 验证：
+  - `repo/MyFlowHub-Win`：`go test ./... -count=1`
+  - `repo/MyFlowHub-Win/frontend`：`npm ci`、`npm run build`
+- 原 plan（归档）：
+  - `docs/plan_archive/plan_archive_2026-03-18_win-dag-nodeid-icons.md`
