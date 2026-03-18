@@ -3886,3 +3886,131 @@ $env:GOWORK='off'; go test ./... -count=1
   - `Get-ChildItem worktrees` 仅剩上述三个保留项
   - 各仓 `git worktree list` 均仅剩主工作区
 - 计划来源：`todo.md`
+
+---
+## [2026-03-15] Workflow归档 - RFCOMM 短写修复与 Win 发布对齐
+- 归档文档：
+  - `docs/change/2026-03-15_rfcomm-write-contract-fix.md`
+  - `docs/change/2026-03-15_sdk-rfcomm-write-contract-fix.md`
+  - `docs/change/2026-03-15_win-rfcomm-write-bump.md`
+- 分仓结果：
+  - `repo/MyFlowHub-Core`：已合并到 `master`（HEAD: `73938c9`），已发布 tag `v0.4.3`
+  - `repo/MyFlowHub-SDK`：已合并到 `main`（HEAD: `6549eb4`），已发布 tag `v0.1.5`
+  - `repo/MyFlowHub-Win`：已合并到 `main`（HEAD: `48b57a1`），已发布 tag `v0.0.5`
+- 主要结果：
+  - Core 新增统一 `write-all` 写出契约，修复字节流短写导致的半帧阻塞
+  - `HeaderTcp` 帧写出与 RFCOMM connection 直接发送路径统一改为“写满后返回”
+  - SDK `Session.Send` 对齐到相同语义，客户端不再依赖单次 `Write`
+  - Win 依赖升级到 `myflowhub-core v0.4.3`、`myflowhub-sdk v0.1.5`
+  - Win release 已重新发布，供真实 RFCOMM 场景验证
+- 验证：
+  - `repo/MyFlowHub-Core`：`GOWORK=off go test ./... -count=1`
+  - `repo/MyFlowHub-SDK`：`GOWORK=off go test ./... -count=1`
+  - `repo/MyFlowHub-Win`：`GOWORK=off go test ./... -count=1`
+- 计划来源：
+  - `worktrees/fix-rfcomm-write-contract/repo/MyFlowHub-Core/plan.md`
+  - `worktrees/fix-sdk-rfcomm-write-contract/repo/MyFlowHub-SDK/plan.md`
+  - `worktrees/chore-win-rfcomm-write-bump/repo/MyFlowHub-Win/plan.md`
+
+---
+## [2026-03-15] Workflow归档 - Windows RFCOMM 连接中止修复
+- 归档文档：
+  - `docs/change/2026-03-15_windows-rfcomm-abort-fix.md`
+- 分仓结果：
+  - `repo/MyFlowHub-Core`：已合并到 `master`（HEAD 含 merge `fix/rfcomm-win-abort`），已发布 tag `v0.4.4`
+- 主要结果：
+  - 修复 Windows RFCOMM `Read` 的 EOF 语义（0 字节返回显式 `io.EOF`）
+  - 修复 Windows RFCOMM `Write` 在 `WSAEMSGSIZE` 场景下的降级分块发送
+  - 补充 Windows 回归测试：EOF 语义与消息尺寸边界
+- 验证：
+  - `repo/MyFlowHub-Core`：`GOWORK=off go test ./listener/rfcomm_listener -count=1`
+  - `repo/MyFlowHub-Core`：`GOWORK=off go test ./... -count=1`
+- 计划来源：
+  - `worktrees/fix-rfcomm-win-abort/repo/MyFlowHub-Core/plan.md`
+
+---
+## [2026-03-15] Workflow归档 - 下游依赖对齐 Core v0.4.4
+- 归档文档：
+  - `docs/change/2026-03-15_bump-core-v0.4.4-sdk.md`
+  - `docs/change/2026-03-15_bump-core-v0.4.4-server.md`
+  - `docs/change/2026-03-15_bump-core-v0.4.4-win.md`
+- 分仓结果：
+  - `repo/MyFlowHub-SDK`：已合并到 `main`，已发布 tag `v0.1.6`
+  - `repo/MyFlowHub-Server`：已合并到 `main`，已发布 tag `v0.0.8`
+  - `repo/MyFlowHub-Win`：已合并到 `main`，已发布 tag `v0.0.6`
+- 主要结果：
+  - SDK 依赖升级到 `myflowhub-core v0.4.4`
+  - Server 依赖升级到 `myflowhub-core v0.4.4`
+  - Win 依赖升级到 `myflowhub-core v0.4.4`、`myflowhub-sdk v0.1.6`
+- 验证：
+  - `repo/MyFlowHub-SDK`：`GOWORK=off go test ./... -count=1`
+  - `repo/MyFlowHub-Server`：`GOWORK=off go test ./... -count=1`
+  - `repo/MyFlowHub-Win`：`GOWORK=off go test ./... -count=1`
+- 计划来源：
+  - `worktrees/chore-bump-core-v0.4.4-sdk/repo/MyFlowHub-SDK/todo.md`
+  - `worktrees/chore-bump-core-v0.4.4-server/repo/MyFlowHub-Server/todo.md`
+  - `worktrees/chore-bump-core-v0.4.4-win/repo/MyFlowHub-Win/todo.md`
+
+---
+## [2026-03-15] Workflow归档 - Windows RFCOMM 流式读写修复
+- 归档文档：
+  - `docs/change/2026-03-15_windows-rfcomm-stream-fix.md`
+- 分仓结果：
+  - `repo/MyFlowHub-Core`：已合并到 `master`（HEAD: `6107826`），已发布 tag `v0.4.5`
+- 主要结果：
+  - Win RFCOMM Pipe 增加内部读缓存，修复“连接成功但 register/login 无返回”的流式读取兼容问题
+  - 写路径改为受控分块发送并保留 `WSAEMSGSIZE` 降级，降低蓝牙栈消息边界差异影响
+  - 补充回归测试：小块读取缓存复用与写入分块上限
+- 验证：
+  - `repo/MyFlowHub-Core`：`GOWORK=off go test ./listener/rfcomm_listener -count=1`
+  - `repo/MyFlowHub-Core`：`GOWORK=off go test ./... -count=1`
+- 计划来源：
+  - `worktrees/fix-rfcomm-win-stream/repo/MyFlowHub-Core/plan.md`
+
+---
+## [2026-03-15] Workflow归档 - 下游依赖对齐 Core v0.4.5
+- 归档文档：
+  - `docs/change/2026-03-15_bump-core-v0.4.5-sdk.md`
+  - `docs/change/2026-03-15_bump-core-v0.4.5-server.md`
+  - `docs/change/2026-03-15_bump-core-v0.4.5-win.md`
+- 分仓结果：
+  - `repo/MyFlowHub-SDK`：已合并到 `main`，已发布 tag `v0.1.7`
+  - `repo/MyFlowHub-Server`：已合并到 `main`，已发布 tag `v0.0.9`
+  - `repo/MyFlowHub-Win`：已合并到 `main`，已发布 tag `v0.0.7`
+- 主要结果：
+  - SDK 依赖升级到 `myflowhub-core v0.4.5`
+  - Server 依赖升级到 `myflowhub-core v0.4.5`
+  - Win 依赖升级到 `myflowhub-core v0.4.5`、`myflowhub-sdk v0.1.7`
+- 验证：
+  - `repo/MyFlowHub-SDK`：`GOWORK=off go test ./... -count=1`
+  - `repo/MyFlowHub-Server`：`GOWORK=off go test ./... -count=1`
+  - `repo/MyFlowHub-Win`：`GOWORK=off go test ./... -count=1`
+- 计划来源：
+  - `worktrees/chore-bump-core-v0.4.5-sdk/repo/MyFlowHub-SDK/todo.md`
+  - `worktrees/chore-bump-core-v0.4.5-server/repo/MyFlowHub-Server/todo.md`
+  - `worktrees/chore-bump-core-v0.4.5-win/repo/MyFlowHub-Win/todo.md`
+
+---
+## [2026-03-18] Workflow归档 - Flow 事件模式扩展 + Exec 能力注册中心加固 + Win 能力选择器
+- 归档文档：
+  - `docs/change/2026-03-18_exec-capability-registry-hardening.md`
+  - `docs/change/2026-03-18_flow-event-received-trigger-mode.md`
+  - `docs/change/2026-03-18_win-flow-exec-capability-picker.md`
+- 分仓结果：
+  - `repo/MyFlowHub-SubProto`：`main` 已提交（`28e791b`）
+  - `repo/MyFlowHub-Proto`：`main` 已提交（`7eef50d`）
+  - `repo/MyFlowHub-Server`：`main` 已提交（`099cab8`）
+  - `repo/MyFlowHub-Win`：`main` 已提交（`df592e6`）
+- 主要结果：
+  - `flow.event` 新增 `event_mode=publish|received|any`，支持 `topicbus.received` 触发。
+  - `exec` 能力注册中心补齐 `cap_sync_resp` 失败自愈、连接关闭清理、`cap.sync/query` 权限校验。
+  - Win Flow 编辑器新增 exec 能力选择器（查询后回填 `target+method`），保持 exec 定点调用语义不变。
+- 验证：
+  - `repo/MyFlowHub-SubProto/flow`：`go test ./...`
+  - `repo/MyFlowHub-SubProto/topicbus`：`go test ./...`
+  - `repo/MyFlowHub-SubProto/exec`：`go test ./...`
+  - `repo/MyFlowHub-Proto`：`go test ./...`
+  - `repo/MyFlowHub-Win`：`go test ./...`
+  - `repo/MyFlowHub-Win/frontend`：`npm run build`
+- 实施说明：
+  - 本轮为历史上下文延续，直接在现有主工作区推进并提交；无新增独立 worktree 需要清理。
