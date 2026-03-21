@@ -21,8 +21,10 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-03-21_codex-mcp-runtime-cleanup.md](2026-03-21_codex-mcp-runtime-cleanup.md)
 - [2026-03-21_docs-entry-index.md](2026-03-21_docs-entry-index.md)
 - [2026-03-21_global-plan-slim.md](2026-03-21_global-plan-slim.md)
+- [2026-03-21_repo-plan-worktree-cleanup.md](2026-03-21_repo-plan-worktree-cleanup.md)
 - [2026-03-21_repos-guide-slim.md](2026-03-21_repos-guide-slim.md)
 - [2026-03-21_server-docs-flow-delete.md](2026-03-21_server-docs-flow-delete.md)
 - [2026-03-14_cleanup-residual-worktrees.md](2026-03-14_cleanup-residual-worktrees.md)

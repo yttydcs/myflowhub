@@ -14,7 +14,7 @@
 - 当前无根级进行中的 Checklist。
 - 如后续开启新的全局 workflow：
   - 根级 `plan.md` 只保留一行摘要、状态和入口链接。
-  - 详细执行计划放到对应 worktree 根目录的 `plan.md` / `todo.md`，或对应仓库的 `repo/*/plan.md`。
+  - 详细执行计划放到对应 worktree 根目录的 `plan.md` / `todo.md`。
   - workflow 完成后，将详细内容归档到 `docs/plan_archive/` 与 `docs/change/`，并从这里移除正文。
 
 ## Documentation Map
@@ -26,8 +26,9 @@
   - 记录仓库职责、依赖边界、推进顺序、接手说明。
 - `plan.md`
   - 记录全局当前状态、进行中事项入口、文档分工。
-- `repo/*/plan.md`
-  - 记录各仓当前主线计划或最近一次收敛后的仓内计划。
+- `repo/*`
+  - 各个实际源码仓库。
+  - 仓库主线不再长期保留已完成 workflow 的 `plan.md` / `todo.md`；这类文档应优先存在于 worktree 并在完成后归档到 `docs/`。
 - `docs/change/`
   - 记录已完成变更的背景、结果、验证、影响与回滚。
   - 入口索引：`docs/change/README.md`
@@ -50,4 +51,5 @@
 ## Maintenance Rules
 - 已完成内容不再直接写回根级 `plan.md` 正文。
 - 根级 `plan.md` 优先做索引，不重复拷贝 `docs/change/` 或 `docs/plan_archive/` 的大段内容。
+- `repo/*` 主线目录不应堆积历史 workflow 的 `plan.md` / `todo.md`；若仍需仓内长期说明，应改写到 README 或正式 docs。
 - 若后续发现某段历史内容仍只存在于临时计划中，应先归档到 `docs/`，再在根级 `plan.md` 保留简要引用。
