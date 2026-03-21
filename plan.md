@@ -4030,3 +4030,35 @@ $env:GOWORK='off'; go test ./... -count=1
   - `repo/MyFlowHub-Win/frontend`：`npm ci`、`npm run build`
 - 原 plan（归档）：
   - `docs/plan_archive/plan_archive_2026-03-18_win-dag-nodeid-icons.md`
+
+## 2026-03-21 Workflow Merge Archive
+
+### MyFlowHub-Proto / feat/proto-deploy-delete
+- Commit: `52f6870`
+- Worktree plan merged from: `repo/MyFlowHub-Proto/repo/MyFlowHub-Proto/worktrees/feat-proto-deploy-delete/plan.md`
+- Mainline plan location: `repo/MyFlowHub-Proto/plan.md`
+- Status: completed and merged to `main`
+
+### MyFlowHub-SubProto / feat/subproto-deploy-delete
+- Commit: `f4e0fbb`
+- Worktree plan merged from: `repo/MyFlowHub-SubProto/repo/MyFlowHub-SubProto/worktrees/feat-subproto-deploy-delete/plan.md`
+- Mainline plan location: `repo/MyFlowHub-SubProto/plan.md`
+- Status: completed and merged to `main`
+
+### MyFlowHub-Server / chore/protocol-delete-docs
+- Commit: `a2ce21d`
+- Worktree plan merged from: `repo/MyFlowHub-Server/repo/MyFlowHub-Server/worktrees/chore-protocol-delete-docs/plan.md`
+- Mainline plan location: `repo/MyFlowHub-Server/plan.md`
+- Status: completed and merged to `main`
+
+### MyFlowHub-Win / feat/win-project-center
+- Commit: `b0360ed`
+- Worktree plan merged from: `repo/MyFlowHub-Win/repo/MyFlowHub-Win/worktrees/feat-win-project-center/plan.md`
+- Mainline plan location: `repo/MyFlowHub-Win/plan.md`
+- Status: completed and merged to `main`
+
+### Global docs/change migrated
+- `docs/change/2026-03-21_proto-flow-delete.md`
+- `docs/change/2026-03-21_subproto-flow-delete.md`
+- `docs/change/2026-03-21_server-docs-flow-delete.md`
+- `docs/change/2026-03-21_win-flow-project-center.md`
