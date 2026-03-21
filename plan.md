@@ -40,6 +40,8 @@
 ## Historical Entry Points
 - 文档总入口：`docs/README.md`
 - 根级旧版全量历史：`docs/plan_archive/plan_archive_2026-03-21_global-plan-pre-slim.md`
+- `Codex MCP runtime cleanup` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_codex-mcp-runtime-cleanup.md`
+- `Codex MCP runtime cleanup` 变更归档：`docs/change/2026-03-21_codex-mcp-runtime-cleanup.md`
 - 变更归档总索引：`docs/change/README.md`
 - 计划归档总索引：`docs/plan_archive/README.md`
 - 历史 workflow 计划正文：`docs/plan_archive/`
