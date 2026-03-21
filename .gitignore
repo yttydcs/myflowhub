@@ -1,0 +1,58 @@
+# Root gitignore for the MyFlowHub3 workspace
+
+# Local SDK / large vendor-like directories (should not be committed)
+/_android-sdk/
+
+# Temp / scratch outputs
+/_tmp/
+/.tmp/
+
+# Local agent/dev tooling
+/.claude/
+
+# Local multi-checkout worktrees (ephemeral)
+/worktrees/
+/repo/
+/repo/worktrees/
+
+# Go build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.a
+*.o
+*.obj
+
+# Go tooling output
+coverage*.out
+*.prof
+*.pprof
+
+# Common build/output folders (workspace-level)
+/bin/
+/dist/
+/build/
+/out/
+
+# Android build outputs (workspace-level)
+*.apk
+*.aab
+*.aar
+
+# Logs
+*.log
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.ace-tool/
