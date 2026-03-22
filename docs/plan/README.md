@@ -53,6 +53,7 @@
 - [plan_archive_2026-02-20_server-use-subproto-remaining-modules.md](plan_archive_2026-02-20_server-use-subproto-remaining-modules.md)
 
 ## Win
+- [plan_archive_2026-03-22_win-card-header-simplify.md](plan_archive_2026-03-22_win-card-header-simplify.md)
 - [plan_archive_2026-03-22_win-page-hero-simplify.md](plan_archive_2026-03-22_win-page-hero-simplify.md)
 - [plan_archive_2026-03-22_win-settings-i18n.md](plan_archive_2026-03-22_win-settings-i18n.md)
 - [plan_archive_2026-03-22_win-sidebar-toggle-polish.md](plan_archive_2026-03-22_win-sidebar-toggle-polish.md)
