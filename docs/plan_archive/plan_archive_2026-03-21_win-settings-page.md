@@ -1,0 +1,406 @@
+# Win 设置页面 Workflow Plan
+
+## Workflow 信息
+
+- 仓库：`MyFlowHub-Win`
+- 分支：`feat/win-settings-page`
+- Base：`main`
+- Worktree：`D:\project\MyFlowHub3\worktrees\MyFlowHub-Win-settings-page`
+- 当前阶段：`4. 归档变更`
+- 状态：`阶段 1/2/3.1/3.2/3.3 已完成，归档已生成`
+
+## 目标
+
+- 为 Win 客户端新增独立的 `Settings` 页面。
+- 在侧边栏新增一级菜单入口，沿用当前控制台视觉风格。
+- 将应用级配置集中到设置页管理，并新增 `About` 区域展示版本信息等内容。
+
+## 当前状态
+
+- 已完成当前 workflow 的独占分支与独占 worktree 创建。
+- 已完成需求分析与架构设计，尚未开始业务代码修改。
+- 现有 `Home` 页承担了部分设置持久化职责，设置页需要将其收敛为独立配置入口。
+- 现有仓库没有现成的 About / App Version API，需要在 Go 侧补充。
+
+## 阶段记录
+
+### 1. 需求分析
+
+- 已确认：
+  - 页面入口：侧边栏新增一级菜单。
+  - 页面职责：应用设置页。
+  - 设置范围（已确认部分）：
+    - 默认地址
+    - 默认设备 ID
+    - 自动连接
+    - 自动登录
+    - 界面偏好
+      - 默认启动页：`Home / Devices / Flow / Settings`
+      - 紧凑模式：`舒适 / 紧凑`
+      - 减少动效
+    - About 区域，用于展示版本信息等
+      - 应用版本
+      - 构建时间
+      - 构建模式
+      - Git 提交短 SHA
+      - 平台与架构
+      - Go 版本
+      - Wails 版本
+      - 当前 Profile 名称
+      - 本地路径：`Base Dir / settingsPath / keysPath`
+  - 允许调整：可将 Home 中现有默认连接配置迁移或镜像到 Settings。
+  - 存储方式：沿用现有本地持久化方式。
+  - 生效方式：点击保存后生效。
+  - 需要提供：恢复默认值。
+  - UI：无单独设计稿，沿用当前 Win 控制台风格。
+- 已核对的实现事实：
+  - 默认地址当前仅存在于 `frontend/src/pages/Home.vue` 本地状态中，未进入 `HomeState` 持久化结构。
+  - 默认设备 ID / 自动连接 / 自动登录 / nodeId / hubId / role 通过 `App.LoadHomeState` / `App.SaveHomeState` 本地持久化。
+  - 当前仓库无现成的 About / App Version 查询 API。
+- 目标：
+  - 提供统一的本地应用设置入口，避免连接默认值和界面偏好分散在多个页面中。
+  - 保持 `Home` 页作为连接与登录操作页，不再让其承担全部设置管理职责。
+- 范围：
+  - 必须做：
+    - 新增 `Settings` 路由与页面
+    - 侧边栏一级菜单入口
+    - 默认连接设置持久化与恢复默认值
+    - 三项界面偏好落地
+    - About 信息展示
+    - `Home` 与设置模型的兼容调整
+  - 可选：
+    - 在 `Home` 中增加跳转或提示，说明默认值来源于 `Settings`
+  - 不做：
+    - 新主题体系
+    - 多语言
+    - 字号自定义
+    - 独立设置窗口
+- 使用场景：
+  - 首次安装后配置默认连接参数并保存
+  - 切换 Profile 后查看该 Profile 对应的设置
+  - 调整启动页、紧凑模式、减少动效等 UI 偏好
+  - 查看当前版本、构建与本地配置路径，便于排障与审计
+- 功能需求：
+  - 能加载当前 Profile 的已保存设置
+  - 能编辑并保存默认地址、默认设备 ID、自动连接、自动登录
+  - 能编辑并保存默认启动页、密度模式、减少动效
+  - 能恢复默认设置
+  - 能展示只读 About 信息
+  - `Home` 页仍可正常连接、登录、清除本地 auth，并与设置值兼容
+- 非功能需求：
+  - 性能：设置加载为单次读取，避免重复 I/O；UI 偏好应用不应触发整页重渲染风暴
+  - 可读性：设置模型、About 模型、UI 偏好应用逻辑分层明确
+  - 可扩展性：后续增加更多设置项时，不要求重构 `HomeState`
+  - 架构：保持 `App -> storage`、`frontend -> App bindings` 的单向依赖
+  - 安全：仅本地读取应用元信息，不暴露敏感密钥内容
+  - 可维护性：保留现有 `HomeState` 兼容语义，减少对其它页面的影响
+- 输入输出：
+  - 输入：
+    - 用户在 Settings 页面提交的设置表单
+    - 当前 Profile 信息
+    - Go 运行时 / build info / 存储路径
+  - 输出：
+    - 保存后的设置快照
+    - 应用到 UI 的偏好状态
+    - About 只读信息卡片
+- 边界异常：
+  - 地址为空时回退到默认地址
+  - 设备 ID 为空时禁止登录，但允许保存空默认值
+  - 本地存储未初始化时返回错误提示
+  - `debug.ReadBuildInfo()` 缺失时 About 需要优雅回退
+  - localStorage 不可用时，默认启动页与 UI 偏好仍以后端设置为真源，但启动前预应用能力降级
+- 验收标准：
+  - 侧边栏出现 `Settings` 一级菜单，移动端横向导航也能访问
+  - 保存后重新打开应用，默认地址、默认设备 ID、自动连接、自动登录、三项界面偏好保持
+  - 点击“恢复默认值”后，设置恢复到定义的默认快照
+  - `Home` 页加载默认地址与默认设备 ID；自动连接 / 自动登录行为与保存设置一致
+  - About 正常展示约定字段，字段缺失时有明确回退值
+  - 构建与关键测试通过
+- 风险：
+  - `HomeState` 与新设置模型并存，若边界处理不清晰，容易造成双写冲突
+  - 默认启动页需要在路由初始化前生效，必须处理同步启动路径
+  - 紧凑模式需通过全局样式开关落地，若选择器设计过宽会引发 UI 回归
+  - About 的构建信息在 dev/release 下可用性不同，需要回退策略
+
+### 2. 架构设计
+
+- 总体方案（采用）：
+  - 新增独立的 `AppSettingsState` / `AppAboutState` Go API，与现有 `HomeState` 分层。
+  - `HomeState` 继续负责已保存的 auth 身份快照（`nodeId / hubId / role`），并保留兼容字段直到前端迁移完成。
+  - `AppSettingsState` 负责默认连接配置与界面偏好，`Settings` 页面只与该模型交互。
+  - 前端新增 `appSettings` store，负责：
+    - 调用 Go API 读取 / 保存 / 重置设置
+    - 将“默认启动页 / 紧凑模式 / 减少动效”镜像到 `localStorage`
+    - 将 UI 偏好应用到 `document.documentElement` / `body`
+  - 路由根路径 `/` 改为根据本地镜像的默认启动页重定向，避免启动后再二次跳转。
+- 选型理由 / 备选对比：
+  - 方案 A：继续扩展 `HomeState`，把所有设置都塞进去。
+    - 优点：改动文件少
+    - 缺点：`Home` 与 `Settings` 职责混杂，About 也会被塞进 Home 域，后续扩展差
+  - 方案 B：新增独立 `AppSettingsState` + `AppAboutState`。
+    - 优点：职责清晰、可扩展、对 `Home` 影响可控
+    - 缺点：需要补充新 API 与一个前端 store
+  - 采用方案 B。
+- 模块职责：
+  - `app_settings.go`：
+    - 定义设置与 About 数据结构
+    - 实现设置加载 / 保存 / 重置 / About 查询
+    - 负责设置项校验与默认值回退
+  - `app_home.go`：
+    - 保留 auth 快照能力
+    - 补充与设置模型的兼容读取，避免其它页面回归
+  - `frontend/src/stores/appSettings.ts`：
+    - 维护当前设置表单快照
+    - 应用 UI 偏好
+    - 管理本地启动偏好镜像
+  - `frontend/src/router/index.ts`：
+    - 读取默认启动页镜像并决定 `/` 的重定向目标
+  - `frontend/src/layout/AppShell.vue`：
+    - 增加 `Settings` 菜单入口
+  - `frontend/src/pages/Settings.vue`：
+    - 实现设置表单、保存、恢复默认值、About 信息展示
+  - `frontend/src/pages/Home.vue`：
+    - 从新设置模型读取默认地址 / 默认设备 ID / 自动连接 / 自动登录
+    - 保留连接、登录、清除 auth 的运行时操作
+- 数据 / 调用流：
+  - App 启动：
+    - `router` 先从 `localStorage` 读取默认启动页，决定 `/` 重定向
+    - `main.ts` 启动时应用本地 UI 偏好镜像，降低闪烁
+  - 页面加载：
+    - `Settings` 页面调用 `appSettings.load()`
+    - `Home` 页面加载 `HomeState` 与 `AppSettingsState`，分别填充 auth 快照与默认配置
+  - 保存设置：
+    - Settings 表单校验 -> `App.SaveSettingsState` -> 返回归一化快照 -> store 更新 -> 更新 localStorage 镜像 -> 应用 UI 偏好 -> toast
+  - 恢复默认：
+    - 点击按钮 -> `App.ResetSettingsState` -> 同上
+  - About：
+    - `App.AboutState` 读取 build info / runtime / profile state -> 前端只读展示
+- 接口草案：
+  - Go：
+    - `SettingsState() (AppSettingsState, error)`
+    - `SaveSettingsState(state AppSettingsState) (AppSettingsState, error)`
+    - `ResetSettingsState() (AppSettingsState, error)`
+    - `AboutState() (AppAboutState, error)`
+  - 前端 store：
+    - `load()`
+    - `save(draft)`
+    - `reset()`
+    - `loadAbout()`
+    - `applyUIPreferences(settings)`
+    - `readStartupRoute()`
+- 错误与安全：
+  - 所有 Go API 在 `store == nil` 时返回显式错误
+  - 地址、设备 ID、默认启动页、密度枚举做白名单校验
+  - About 只返回版本与路径等元信息，不返回密钥内容
+  - 前端保存失败时不更新本地镜像，避免“UI 已变更但后端未保存”的假成功
+- 性能策略：
+  - 设置与 About 分别单次读取，避免页面渲染中重复请求
+  - UI 偏好应用只写少量 `dataset` / class，不触发大规模计算
+  - 默认启动页使用本地镜像同步读取，避免首屏等待异步 Wails API
+- 测试策略：
+  - Go：为设置默认值、保存校验、About 回退字段补测试
+  - 前端：至少完成构建校验；如环境允许，使用 chrome-devtools 冒烟验证 Settings 页面保存 / 恢复默认 / About 展示
+  - 集成：验证切换 Profile 后设置隔离
+- 可扩展性设计点：
+  - 设置项集中到 `AppSettingsState`，后续可按分组继续扩展
+  - UI 偏好应用封装到 store 内，不把 DOM 读写散落在页面
+  - About 使用显式结构体，不直接暴露原始 build info，便于稳定前端字段
+
+### 3.1 计划拆分
+
+- 项目目标与当前状态：
+  - 目标：交付 Win 独立 Settings 页面、默认配置持久化、三项 UI 偏好、About 信息展示。
+  - 当前状态：初始化完成，需求与架构已确认，尚未进入编码。
+- 可执行任务清单（Checklist）：
+  - [x] `T1` Go：新增设置与 About API，并补齐持久化默认值
+  - [x] `T2` Frontend Infra：新增设置 store，接入启动页与全局 UI 偏好
+  - [x] `T3` Frontend Page：新增 Settings 页面并调整 Home / 导航接入
+  - [x] `T4` Verification：补测试、构建验证、Code Review、归档
+- 任务明细：
+  - `T1`
+    - 标题：Go 设置模型与 About API
+    - Owner：`主Agent`
+    - Worktree：`D:\project\MyFlowHub3\worktrees\MyFlowHub-Win-settings-page`
+    - Plan：`D:\project\MyFlowHub3\worktrees\MyFlowHub-Win-settings-page\plan.md`
+    - 目标：
+      - 引入 `AppSettingsState` / `AppAboutState`
+      - 保存默认地址、默认设备 ID、自动连接、自动登录、UI 偏好
+      - 提供恢复默认值与 About 查询
+    - 涉及文件 / 模块：
+      - `app_settings.go`（新增）
+      - `app_home.go`
+      - `app.go`（如需共用辅助函数）
+      - `*_test.go`（新增）
+    - Write set：
+      - Go 根目录 `app*.go`
+    - 验收条件：
+      - 新 API 能返回归一化设置
+      - 默认地址被持久化
+      - About 返回约定字段且缺失时可回退
+    - 测试点：
+      - 默认值加载
+      - 保存校验
+      - 重置默认
+      - About 字段回退
+    - 回滚点：
+      - 回滚新增 `app_settings.go` 与对应 `app_home.go` 兼容修改
+    - 依赖：
+      - 无
+    - 风险与注意事项：
+      - 不得破坏现有 `HomeState` 读写语义
+  - `T2`
+    - 标题：前端设置基础设施与全局偏好应用
+    - Owner：`主Agent`
+    - Worktree：`D:\project\MyFlowHub3\worktrees\MyFlowHub-Win-settings-page`
+    - Plan：`D:\project\MyFlowHub3\worktrees\MyFlowHub-Win-settings-page\plan.md`
+    - 目标：
+      - 新增 `appSettings` store
+      - 接入默认启动页路由
+      - 接入紧凑模式 / 减少动效的全局样式开关
+    - 涉及文件 / 模块：
+      - `frontend/src/stores/appSettings.ts`（新增）
+      - `frontend/src/router/index.ts`
+      - `frontend/src/main.ts`
+      - `frontend/src/style.css`
+    - Write set：
+      - `frontend/src/stores/appSettings.ts`
+      - `frontend/src/router/index.ts`
+      - `frontend/src/main.ts`
+      - `frontend/src/style.css`
+    - 验收条件：
+      - `/` 能按默认启动页跳转
+      - 保存后 UI 偏好立即生效
+      - localStorage 镜像与后端设置保持一致
+    - 测试点：
+      - 默认启动页保存后重开仍生效
+      - 紧凑模式 / 减少动效切换即时生效
+    - 回滚点：
+      - 回滚 store、router、style 相关改动
+    - 依赖：
+      - `T1` 提供最终字段结构
+    - 风险与注意事项：
+      - localStorage 仅作启动镜像，不得成为真源
+  - `T3`
+    - 标题：Settings 页面、导航入口与 Home 兼容调整
+    - Owner：`主Agent`
+    - Worktree：`D:\project\MyFlowHub3\worktrees\MyFlowHub-Win-settings-page`
+    - Plan：`D:\project\MyFlowHub3\worktrees\MyFlowHub-Win-settings-page\plan.md`
+    - 目标：
+      - 新增 `Settings` 页面
+      - 在侧边栏与移动端导航中接入入口
+      - 让 `Home` 使用新的默认设置模型，同时保留连接/登录操作
+    - 涉及文件 / 模块：
+      - `frontend/src/pages/Settings.vue`（新增）
+      - `frontend/src/layout/AppShell.vue`
+      - `frontend/src/pages/Home.vue`
+      - `frontend/src/router/index.ts`
+    - Write set：
+      - `frontend/src/pages/Settings.vue`
+      - `frontend/src/layout/AppShell.vue`
+      - `frontend/src/pages/Home.vue`
+      - `frontend/src/router/index.ts`
+    - 验收条件：
+      - Settings 页可完整展示并保存设置 / 恢复默认 / About
+      - 导航入口可见且高亮正确
+      - Home 行为与设置值兼容，不引入明显回归
+    - 测试点：
+      - 保存设置后 Home 默认值同步
+      - 切换 Profile 后页面重载对应设置
+      - 移动端横向导航可访问 Settings
+    - 回滚点：
+      - 回滚页面与导航接入
+    - 依赖：
+      - `T1`
+      - `T2`
+    - 风险与注意事项：
+      - `frontend/src/router/index.ts` 与 `T2` 存在写集冲突，集成时需统一处理
+  - `T4`
+    - 标题：验证、Review 与归档
+    - Owner：`主Agent`
+    - Worktree：`D:\project\MyFlowHub3\worktrees\MyFlowHub-Win-settings-page`
+    - Plan：`D:\project\MyFlowHub3\worktrees\MyFlowHub-Win-settings-page\plan.md`
+    - 目标：
+      - 执行测试 / 构建 / 冒烟验证
+      - 完成 3.3 Code Review
+      - 生成 `docs/change`
+    - 涉及文件 / 模块：
+      - 测试命令输出
+      - `docs/change/YYYY-MM-DD_win-settings-page.md`
+    - Write set：
+      - `docs/change/**`
+      - 必要的测试修正文件
+    - 验收条件：
+      - Review 通过
+      - 变更归档完整
+    - 测试点：
+      - `go test ./...`
+      - `npm run build`
+      - 如环境允许，页面冒烟验证
+    - 回滚点：
+      - 回滚单独验证或文档改动
+    - 依赖：
+      - `T1`
+      - `T2`
+      - `T3`
+- 关键上下文引用：
+  - `app_home.go`
+  - `internal/storage/store.go`
+  - `frontend/src/router/index.ts`
+  - `frontend/src/layout/AppShell.vue`
+  - `frontend/src/pages/Home.vue`
+- 当前阶段结论：
+  - 计划已确认，可进入 `3.2 代码编写`
+  - 阻塞：`否`
+
+### 3.2 代码编写
+
+- 并行性评估：
+  - 从任务拆分上，Go 与 Frontend 存在可独立 write set。
+  - 但当前运行时规则要求只有在用户显式授权委派时才可调用子Agent，因此本次未使用子Agent。
+- 代码实现结论：
+  - `T1` 已完成：
+    - 新增 `AppSettingsState` / `AppAboutState`
+    - 新增 `SettingsState` / `SaveSettingsState` / `ResetSettingsState` / `AboutState`
+    - 新增对应 Go 单测
+  - `T2` 已完成：
+    - 新增前端 `appSettings` store
+    - 启动页本地镜像、密度 / 动效全局应用已接入
+  - `T3` 已完成：
+    - 新增 `Settings` 页面
+    - 导航与路由已接入
+    - `Home` 已改为消费 Settings 的默认值
+- 执行验证：
+  - `GOWORK=off go test ./... -count=1`
+  - `GOWORK=off wails generate module`
+  - `npm install`
+  - `npm run build`
+- 结果：通过
+
+### 3.3 Code Review
+
+- 结论：`通过`
+- 审查项：
+  - 需求覆盖：`通过`
+    - 设置页、导航入口、默认配置、三项界面偏好、About 信息均已覆盖。
+  - 架构合理性：`通过`
+    - 设置与 About 从 `HomeState` 中分离为独立模型；`Home` 回到运行时入口职责。
+  - 性能风险：`通过`
+    - 设置保存改为单 key JSON，避免多 key 重复 I/O；启动页与 UI 偏好走同步镜像以降低首屏等待。
+    - 残余风险：前端 bundle 仍有 >500 kB warning，本次未做代码分包。
+  - 可读性与一致性：`通过`
+    - 前端保持现有 card / shell 风格；配置加载与 UI 偏好应用集中到 store。
+  - 可扩展性与配置化：`通过`
+    - 新设置项可继续追加到 `AppSettingsState`；About 为显式结构体。
+  - 稳定性与安全：`通过`
+    - Go 侧对存储未初始化做显式错误；About 仅暴露元信息与路径，不包含密钥内容。
+  - 测试覆盖情况：`通过`
+    - Go 单测覆盖默认值、回退、保存、重置、About；前端完成构建验证。
+    - 测试缺口：浏览器级 DOM 冒烟因 `chrome-devtools-mcp` 现有 browser profile 被占用，未留存成功记录。
+  - 子Agent治理与审计：`通过`
+    - 未使用子Agent，原因已记录为“当前运行时规则未获用户显式授权”。
+
+### 4. 归档变更
+
+- 已完成：
+  - 已生成 `docs/change/2026-03-21_win-settings-page.md`
+  - 归档包含：背景、变更内容、任务映射、设计权衡、测试结果、回滚方案、子Agent轨迹

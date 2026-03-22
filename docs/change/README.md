@@ -38,6 +38,7 @@
 - [2026-02-18_docs-consistency.md](2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+- [2026-03-21_proto-exec-cap-query-baseline.md](2026-03-21_proto-exec-cap-query-baseline.md)
 - [2026-03-21_proto-flow-delete.md](2026-03-21_proto-flow-delete.md)
 - [2026-03-17_exec-capability-registry-protocol-draft.md](2026-03-17_exec-capability-registry-protocol-draft.md)
 - [2026-03-15_windows-rfcomm-stream-fix.md](2026-03-15_windows-rfcomm-stream-fix.md)
@@ -65,6 +66,8 @@
 - [2026-02-10_hdrtcp-v2_core.md](2026-02-10_hdrtcp-v2_core.md)
 
 ## Server / SubProto
+- [2026-03-21_server-flow-contract-align.md](2026-03-21_server-flow-contract-align.md)
+- [2026-03-21_flow-id-guard-and-contract-align.md](2026-03-21_flow-id-guard-and-contract-align.md)
 - [2026-03-21_subproto-flow-delete.md](2026-03-21_subproto-flow-delete.md)
 - [2026-03-18_flow-event-received-trigger-mode.md](2026-03-18_flow-event-received-trigger-mode.md)
 - [2026-03-18_exec-capability-registry-upstream-sync-query-fallback.md](2026-03-18_exec-capability-registry-upstream-sync-query-fallback.md)
@@ -128,6 +131,29 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-22_win-settings-i18n.md](2026-03-22_win-settings-i18n.md)
+- [2026-03-22_win-sidebar-toggle-polish.md](2026-03-22_win-sidebar-toggle-polish.md)
+- [2026-03-22_topicbus-window-layout.md](2026-03-22_topicbus-window-layout.md)
+- [2026-03-22_topicbus-settings-pane.md](2026-03-22_topicbus-settings-pane.md)
+- [2026-03-22_showcase-header-icon-actions.md](2026-03-22_showcase-header-icon-actions.md)
+- [2026-03-21_win-settings-page.md](2026-03-21_win-settings-page.md)
+- [2026-03-21_win-sidebar-toggle.md](2026-03-21_win-sidebar-toggle.md)
+- [2026-03-21_showcase-header-align.md](2026-03-21_showcase-header-align.md)
+- [2026-03-21_topicbus-window-console.md](2026-03-21_topicbus-window-console.md)
+- [2026-03-21_showcase-window-title-trim.md](2026-03-21_showcase-window-title-trim.md)
+- [2026-03-21_win-editor-header-title-trim.md](2026-03-21_win-editor-header-title-trim.md)
+- [2026-03-21_win-editor-chrome-trim.md](2026-03-21_win-editor-chrome-trim.md)
+- [2026-03-21_win-frontend-build-chain.md](2026-03-21_win-frontend-build-chain.md)
+- [2026-03-21_win-proto-cap-query-baseline.md](2026-03-21_win-proto-cap-query-baseline.md)
+- [2026-03-21_showcase-ui-simplify.md](2026-03-21_showcase-ui-simplify.md)
+- [2026-03-21_win-showcase-editor-minimal.md](2026-03-21_win-showcase-editor-minimal.md)
+- [2026-03-21_win-canvas-drag-state.md](2026-03-21_win-canvas-drag-state.md)
+- [2026-03-21_win-canvas-connectors.md](2026-03-21_win-canvas-connectors.md)
+- [2026-03-21_showcase-center-editor.md](2026-03-21_showcase-center-editor.md)
+- [2026-03-21_win-flow-method-capability-query-node.md](2026-03-21_win-flow-method-capability-query-node.md)
+- [2026-03-21_varpool-tab-layout.md](2026-03-21_varpool-tab-layout.md)
+- [2026-03-21_flow-editor-method-selector-dialog.md](2026-03-21_flow-editor-method-selector-dialog.md)
+- [2026-03-21_flow-project-center-editor.md](2026-03-21_flow-project-center-editor.md)
 - [2026-03-21_win-flow-project-center.md](2026-03-21_win-flow-project-center.md)
 - [2026-03-18_win-flow-exec-capability-picker.md](2026-03-18_win-flow-exec-capability-picker.md)
 - [2026-03-18_win-dag-nodeid-icons.md](2026-03-18_win-dag-nodeid-icons.md)

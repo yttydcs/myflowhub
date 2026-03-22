@@ -9,6 +9,14 @@
 - 客户端基础能力以 `MyFlowHub-SDK` 为统一入口；`MyFlowHub-Win`、`MyFlowHub-Android`、`MyFlowHub-MetricsNode` 作为上层应用尽量复用 SDK / Core / Proto。
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
+- `2026-03-22`：`MyFlowHub-Win` 已完成 `Settings` 置底、`Other` 分组、全局语言设置与现有前端页面 i18n 基础接入；详见 `docs/change/2026-03-22_win-settings-i18n.md` 与 `docs/plan_archive/plan_archive_2026-03-22_win-settings-i18n.md`。
+- `2026-03-22`：`MyFlowHub-Win` 已完成 TopicBus 独立窗口头部精简，并将 `Event Cache Settings` 迁移到 `Settings` 页面；详见 `docs/change/2026-03-22_topicbus-settings-pane.md` 与 `docs/plan_archive/plan_archive_2026-03-22_win-topicbus-settings-pane.md`。
+- `2026-03-22`：`MyFlowHub-Win` 已完成 TopicBus 默认目标迁移到 `Settings`、`Overview` 单列化、`Channels` 集中订阅管理与独立窗口目标收敛；详见 `docs/change/2026-03-22_topicbus-target-settings.md` 与 `docs/plan_archive/plan_archive_2026-03-22_win-topicbus-target-settings.md`。
+- `2026-03-22`：`MyFlowHub-SubProto/flow` 已修复 `set/delete` 状态一致性、远端失败显式响应和 run 保留策略；详见 `docs/change/2026-03-22_flow-state-route-retention.md`。
+- `2026-03-22`：`MyFlowHub-Win` 左侧边栏已进一步收敛，菜单按钮迁移到顶部连接状态左侧，收起态 tooltip 与滚动宽度对齐问题已补齐；详见 `docs/change/2026-03-22_win-sidebar-toggle-polish.md`。
+- `2026-03-21`：`flow` 子协议已补齐 `run/status/list/get` 契约，且 `flow_id` 已收紧为 UUID 校验；详见 `docs/change/2026-03-21_server-flow-contract-align.md` 与 `docs/change/2026-03-21_flow-id-guard-and-contract-align.md`。
+- `2026-03-21`：`MyFlowHub-Win` 左侧边栏已移除顶部 `Session` 卡片，并支持收起为窄栏图标导航；详见 `docs/change/2026-03-21_win-sidebar-toggle.md`。
+- `2026-03-21`：`MyFlowHub-Win` 已新增独立 `Settings` 页面，覆盖默认地址、默认设备 ID、自动连接、自动登录、界面偏好与 About 信息展示；详见 `docs/change/2026-03-21_win-settings-page.md`。
 
 ## Active Items
 - 当前无根级进行中的 Checklist。
@@ -41,8 +49,61 @@
 ## Historical Entry Points
 - 文档总入口：`docs/README.md`
 - 根级旧版全量历史：`docs/plan_archive/plan_archive_2026-03-21_global-plan-pre-slim.md`
+- `Flow 子协议契约补齐` 变更归档：`docs/change/2026-03-21_server-flow-contract-align.md`
+- `Flow ID 防护与契约对齐` 变更归档：`docs/change/2026-03-21_flow-id-guard-and-contract-align.md`
+- `Proto exec cap_query 基线确认` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_proto-exec-cap-query-baseline.md`
+- `Proto exec cap_query 基线确认` 变更归档：`docs/change/2026-03-21_proto-exec-cap-query-baseline.md`
+- `Win 对齐 Proto exec cap_query 基线恢复构建` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-proto-cap-query-baseline.md`
+- `Win 对齐 Proto exec cap_query 基线恢复构建` 变更归档：`docs/change/2026-03-21_win-proto-cap-query-baseline.md`
+- `Win 前端构建链路恢复` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-frontend-build-chain.md`
+- `Win 前端构建链路恢复` 变更归档：`docs/change/2026-03-21_win-frontend-build-chain.md`
+- `Win Flow 编辑器文案精简` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-editor-chrome-trim.md`
+- `Win Flow 编辑器文案精简` 变更归档：`docs/change/2026-03-21_win-editor-chrome-trim.md`
+- `Win Flow 编辑器顶部标题移除` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-editor-header-title-trim.md`
+- `Win Flow 编辑器顶部标题移除` 变更归档：`docs/change/2026-03-21_win-editor-header-title-trim.md`
 - `Codex MCP runtime cleanup` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_codex-mcp-runtime-cleanup.md`
 - `Codex MCP runtime cleanup` 变更归档：`docs/change/2026-03-21_codex-mcp-runtime-cleanup.md`
+- `Win Flow 项目中心与编辑器收敛` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-flow-project-center-editor.md`
+- `Win Flow 项目中心与编辑器收敛` 变更归档：`docs/change/2026-03-21_flow-project-center-editor.md`
+- `Win VarPool 页签化单列重构` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-varpool-tab-layout.md`
+- `Win VarPool 页签化单列重构` 变更归档：`docs/change/2026-03-21_varpool-tab-layout.md`
+- `Win Flow 编辑器方法选择与抽屉样式收敛` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-flow-editor-method-selector-dialog.md`
+- `Win Flow 编辑器方法选择与抽屉样式收敛` 变更归档：`docs/change/2026-03-21_flow-editor-method-selector-dialog.md`
+- `Win Flow 方法能力按指定节点查询` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-flow-method-capability-query-node.md`
+- `Win Flow 方法能力按指定节点查询` 变更归档：`docs/change/2026-03-21_win-flow-method-capability-query-node.md`
+- `Win Showcase Center 与独立编辑窗口重构` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-showcase-center-editor.md`
+- `Win Showcase Center 与独立编辑窗口重构` 变更归档：`docs/change/2026-03-21_showcase-center-editor.md`
+- `Win Showcase 界面进一步精简` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-showcase-ui-simplify.md`
+- `Win Showcase 界面进一步精简` 变更归档：`docs/change/2026-03-21_showcase-ui-simplify.md`
+- `Win Showcase 编辑窗口进一步极简化` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-showcase-editor-minimal.md`
+- `Win Showcase 编辑窗口进一步极简化` 变更归档：`docs/change/2026-03-21_win-showcase-editor-minimal.md`
+- `Win Showcase 窗口标题占位精简` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-showcase-window-title-trim.md`
+- `Win Showcase 窗口标题占位精简` 变更归档：`docs/change/2026-03-21_showcase-window-title-trim.md`
+- `Win Showcase 头部对齐 Flow` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-showcase-header-align.md`
+- `Win Showcase 头部对齐 Flow` 变更归档：`docs/change/2026-03-21_showcase-header-align.md`
+- `Win TopicBus 双段式页面与独立频道窗口` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-topicbus-window-console.md`
+- `Win TopicBus 双段式页面与独立频道窗口` 变更归档：`docs/change/2026-03-21_topicbus-window-console.md`
+- `Win TopicBus 独立窗口布局精简` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-22_win-topicbus-window-layout.md`
+- `Flow 状态一致性、转发失败响应与 run 保留修复` 变更归档：`docs/change/2026-03-22_flow-state-route-retention.md`
+- `Win Showcase 顶部按钮图标化` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-22_win-showcase-header-icon-actions.md`
+- `Win Showcase 顶部按钮图标化` 变更归档：`docs/change/2026-03-22_showcase-header-icon-actions.md`
+- `Win TopicBus 独立窗口布局精简` 变更归档：`docs/change/2026-03-22_topicbus-window-layout.md`
+- `Win TopicBus 头部精简与设置迁移` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-22_win-topicbus-settings-pane.md`
+- `Win TopicBus 头部精简与设置迁移` 变更归档：`docs/change/2026-03-22_topicbus-settings-pane.md`
+- `Win TopicBus 默认目标设置与频道总览收敛` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-22_win-topicbus-target-settings.md`
+- `Win TopicBus 默认目标设置与频道总览收敛` 变更归档：`docs/change/2026-03-22_topicbus-target-settings.md`
+- `Win 左侧边栏二次收敛` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-22_win-sidebar-toggle-polish.md`
+- `Win 左侧边栏二次收敛` 变更归档：`docs/change/2026-03-22_win-sidebar-toggle-polish.md`
+- `Win 设置页分组与 i18n` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-22_win-settings-i18n.md`
+- `Win 设置页分组与 i18n` 变更归档：`docs/change/2026-03-22_win-settings-i18n.md`
+- `Win 左侧边栏收起改造` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-sidebar-toggle.md`
+- `Win 左侧边栏收起改造` 变更归档：`docs/change/2026-03-21_win-sidebar-toggle.md`
+- `Win 设置页面` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-settings-page.md`
+- `Win 设置页面` 变更归档：`docs/change/2026-03-21_win-settings-page.md`
+- `Win Flow 画布拖拽连线修复` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-canvas-drag-state.md`
+- `Win Flow 画布拖拽连线修复` 变更归档：`docs/change/2026-03-21_win-canvas-drag-state.md`
+- `Win Flow 画布连线与头尾辨识修复` workflow 计划归档：`docs/plan_archive/plan_archive_2026-03-21_win-canvas-connectors.md`
+- `Win Flow 画布连线与头尾辨识修复` 变更归档：`docs/change/2026-03-21_win-canvas-connectors.md`
 - 变更归档总索引：`docs/change/README.md`
 - 计划归档总索引：`docs/plan_archive/README.md`
 - 历史 workflow 计划正文：`docs/plan_archive/`
