@@ -14,6 +14,8 @@
 ## Current Specs
 - [protocol_map.md](protocol_map.md)
   - 来自 `MyFlowHub-Proto` 的协议映射同步副本
+- [management-config-layering.md](management-config-layering.md)
+  - 管理子协议中的节点显示名与 `hubruntime` 配置分层约束
 - [../../repo/MyFlowHub-Server/docs/specs/README.md](../../repo/MyFlowHub-Server/docs/specs/README.md)
   - Server 仓库的长期协议与核心框架规范入口
 

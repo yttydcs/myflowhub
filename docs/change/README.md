@@ -41,6 +41,7 @@
 - [2026-02-18_docs-consistency.md](2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+- [2026-03-22_management-node-display-name.md](2026-03-22_management-node-display-name.md)
 - [2026-03-21_proto-exec-cap-query-baseline.md](2026-03-21_proto-exec-cap-query-baseline.md)
 - [2026-03-21_proto-flow-delete.md](2026-03-21_proto-flow-delete.md)
 - [2026-03-17_exec-capability-registry-protocol-draft.md](2026-03-17_exec-capability-registry-protocol-draft.md)
@@ -69,6 +70,8 @@
 - [2026-02-10_hdrtcp-v2_core.md](2026-02-10_hdrtcp-v2_core.md)
 
 ## Server / SubProto
+- [2026-03-22_hubruntime-layered-config-persistence.md](2026-03-22_hubruntime-layered-config-persistence.md)
+- [2026-03-22_management-display-name-and-persistence-hook.md](2026-03-22_management-display-name-and-persistence-hook.md)
 - [2026-03-22_flow-data-dag-runtime.md](2026-03-22_flow-data-dag-runtime.md)
 - [2026-03-22_server-flow-data-dag-docs.md](2026-03-22_server-flow-data-dag-docs.md)
 - [2026-03-21_server-flow-contract-align.md](2026-03-21_server-flow-contract-align.md)
@@ -136,6 +139,7 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-22_devices-node-display-name.md](2026-03-22_devices-node-display-name.md)
 - [2026-03-22_win-translation-settings.md](2026-03-22_win-translation-settings.md)
 - [2026-03-22_win-flow-data-dag-editor.md](2026-03-22_win-flow-data-dag-editor.md)
 - [2026-03-22_flow-list-inline-meta.md](2026-03-22_flow-list-inline-meta.md)

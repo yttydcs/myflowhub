@@ -12,8 +12,8 @@
 - 可被反复引用的验收标准
 
 ## Current Status
-- 当前尚无独立叶子文档。
-- 本轮仅补齐 taxonomy 与入口，不虚构新的产品需求。
+- [management-node-display-name.md](management-node-display-name.md)
+  - 设备管理中的节点显示名需求、范围与验收口径。
 
 ## Rules
 - 使用稳定文件名，不使用日期前缀。

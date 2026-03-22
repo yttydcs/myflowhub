@@ -33,12 +33,15 @@
 - [plan_archive_2026-02-18_docs-consistency.md](plan_archive_2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+- [plan_archive_2026-03-22_proto-management-node-display-name.md](plan_archive_2026-03-22_proto-management-node-display-name.md)
 - [plan_archive_2026-03-21_proto-exec-cap-query-baseline.md](plan_archive_2026-03-21_proto-exec-cap-query-baseline.md)
 - [plan_archive_2026-03-14_bump-core-v0.4.0-remaining.md](plan_archive_2026-03-14_bump-core-v0.4.0-remaining.md)
 - [plan_archive_2026-03-12_transport-pipe-core.md](plan_archive_2026-03-12_transport-pipe-core.md)
 - [plan_archive_2026-02-20_proto-protocol-mapgen.md](plan_archive_2026-02-20_proto-protocol-mapgen.md)
 
 ## Server / SubProto
+- [plan_archive_2026-03-22_server-management-node-display-name.md](plan_archive_2026-03-22_server-management-node-display-name.md)
+- [plan_archive_2026-03-22_subproto-management-node-display-name.md](plan_archive_2026-03-22_subproto-management-node-display-name.md)
 - [plan_archive_2026-03-22_flow-data-dag-runtime.md](plan_archive_2026-03-22_flow-data-dag-runtime.md)
 - [plan_archive_2026-03-22_server-flow-data-dag-docs.md](plan_archive_2026-03-22_server-flow-data-dag-docs.md)
 - [plan_archive_2026-03-12_transport-pipe-subproto.md](plan_archive_2026-03-12_transport-pipe-subproto.md)
@@ -55,6 +58,7 @@
 - [plan_archive_2026-02-20_server-use-subproto-remaining-modules.md](plan_archive_2026-02-20_server-use-subproto-remaining-modules.md)
 
 ## Win
+- [plan_archive_2026-03-22_win-management-node-display-name.md](plan_archive_2026-03-22_win-management-node-display-name.md)
 - [plan_archive_2026-03-22_win-translation-settings.md](plan_archive_2026-03-22_win-translation-settings.md)
 - [plan_archive_2026-03-22_win-flow-data-dag-editor.md](plan_archive_2026-03-22_win-flow-data-dag-editor.md)
 - [plan_archive_2026-03-22_win-flow-list-inline-meta.md](plan_archive_2026-03-22_win-flow-list-inline-meta.md)
