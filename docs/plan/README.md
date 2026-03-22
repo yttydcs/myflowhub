@@ -54,6 +54,7 @@
 
 ## Win
 - [plan_archive_2026-03-22_win-button-pointer.md](plan_archive_2026-03-22_win-button-pointer.md)
+- [plan_archive_2026-03-22_win-flow-list-row-simplify.md](plan_archive_2026-03-22_win-flow-list-row-simplify.md)
 - [plan_archive_2026-03-22_win-card-header-simplify.md](plan_archive_2026-03-22_win-card-header-simplify.md)
 - [plan_archive_2026-03-22_win-page-hero-simplify.md](plan_archive_2026-03-22_win-page-hero-simplify.md)
 - [plan_archive_2026-03-22_win-settings-i18n.md](plan_archive_2026-03-22_win-settings-i18n.md)
