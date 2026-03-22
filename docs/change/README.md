@@ -69,6 +69,8 @@
 - [2026-02-10_hdrtcp-v2_core.md](2026-02-10_hdrtcp-v2_core.md)
 
 ## Server / SubProto
+- [2026-03-22_flow-data-dag-runtime.md](2026-03-22_flow-data-dag-runtime.md)
+- [2026-03-22_server-flow-data-dag-docs.md](2026-03-22_server-flow-data-dag-docs.md)
 - [2026-03-21_server-flow-contract-align.md](2026-03-21_server-flow-contract-align.md)
 - [2026-03-21_flow-id-guard-and-contract-align.md](2026-03-21_flow-id-guard-and-contract-align.md)
 - [2026-03-21_subproto-flow-delete.md](2026-03-21_subproto-flow-delete.md)
@@ -134,6 +136,7 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-22_win-flow-data-dag-editor.md](2026-03-22_win-flow-data-dag-editor.md)
 - [2026-03-22_win-button-pointer.md](2026-03-22_win-button-pointer.md)
 - [2026-03-22_flow-list-row-simplify.md](2026-03-22_flow-list-row-simplify.md)
 - [2026-03-22_win-card-header-simplify.md](2026-03-22_win-card-header-simplify.md)

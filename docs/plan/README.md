@@ -39,6 +39,8 @@
 - [plan_archive_2026-02-20_proto-protocol-mapgen.md](plan_archive_2026-02-20_proto-protocol-mapgen.md)
 
 ## Server / SubProto
+- [plan_archive_2026-03-22_flow-data-dag-runtime.md](plan_archive_2026-03-22_flow-data-dag-runtime.md)
+- [plan_archive_2026-03-22_server-flow-data-dag-docs.md](plan_archive_2026-03-22_server-flow-data-dag-docs.md)
 - [plan_archive_2026-03-12_transport-pipe-subproto.md](plan_archive_2026-03-12_transport-pipe-subproto.md)
 - [plan_archive_2026-03-12_transport-pipe-server.md](plan_archive_2026-03-12_transport-pipe-server.md)
 - [plan_archive_2026-03-11_subproto-resp-msgid.md](plan_archive_2026-03-11_subproto-resp-msgid.md)
@@ -53,6 +55,7 @@
 - [plan_archive_2026-02-20_server-use-subproto-remaining-modules.md](plan_archive_2026-02-20_server-use-subproto-remaining-modules.md)
 
 ## Win
+- [plan_archive_2026-03-22_win-flow-data-dag-editor.md](plan_archive_2026-03-22_win-flow-data-dag-editor.md)
 - [plan_archive_2026-03-22_win-button-pointer.md](plan_archive_2026-03-22_win-button-pointer.md)
 - [plan_archive_2026-03-22_win-flow-list-row-simplify.md](plan_archive_2026-03-22_win-flow-list-row-simplify.md)
 - [plan_archive_2026-03-22_win-card-header-simplify.md](plan_archive_2026-03-22_win-card-header-simplify.md)

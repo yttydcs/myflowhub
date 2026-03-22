@@ -10,6 +10,7 @@
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
 - `2026-03-22`：workspace 根文档与 `MyFlowHub-Server` 文档已完成 taxonomy 治理、索引重建与计划归档收敛；详见 `docs/change/2026-03-22_workspace-docs-governance.md`、`docs/change/2026-03-22_server-docs-governance.md`、`docs/plan/plan_archive_2026-03-22_workspace-docs-governance.md` 与 `docs/plan/plan_archive_2026-03-22_server-docs-governance.md`。
+- `2026-03-22`：`Flow` 数据流 DAG 跨仓 workflow 已完成，覆盖 `MyFlowHub-SubProto` 运行时结果绑定与 `compose`、`MyFlowHub-Win` 表单化 DAG 编辑器，以及 `MyFlowHub-Server` 长期 requirements/specs；详见 `docs/change/2026-03-22_flow-data-dag-runtime.md`、`docs/change/2026-03-22_win-flow-data-dag-editor.md`、`docs/change/2026-03-22_server-flow-data-dag-docs.md` 与 `docs/plan/plan_archive_2026-03-22_flow-data-dag-runtime.md`、`docs/plan/plan_archive_2026-03-22_win-flow-data-dag-editor.md`、`docs/plan/plan_archive_2026-03-22_server-flow-data-dag-docs.md`。
 - `2026-03-22`：`MyFlowHub-Win` 已完成主页面首屏头部收敛，移除顶部小标题并统一为单一大标题加一行提示语；详见 `docs/change/2026-03-22_win-page-hero-simplify.md` 与 `docs/plan/plan_archive_2026-03-22_win-page-hero-simplify.md`。
 - `2026-03-22`：`MyFlowHub-Win` 已完成页面与独立窗口卡片头收敛，引入共享 `CardHeader` 去除重复顶部小标题，仅保留主标题与原有提示语；详见 `docs/change/2026-03-22_win-card-header-simplify.md` 与 `docs/plan/plan_archive_2026-03-22_win-card-header-simplify.md`。
 - `2026-03-22`：`MyFlowHub-Win` 已统一按钮 hover 为手型并禁止按钮文字选中复制；详见 `docs/change/2026-03-22_win-button-pointer.md` 与 `docs/plan/plan_archive_2026-03-22_win-button-pointer.md`。
@@ -52,6 +53,12 @@
   - 记录协议映射速查表。
 
 ## Historical Entry Points
+- `Flow 数据流 DAG 运行时` workflow 计划归档：`docs/plan/plan_archive_2026-03-22_flow-data-dag-runtime.md`
+- `Win Flow 数据流 DAG 编辑器` workflow 计划归档：`docs/plan/plan_archive_2026-03-22_win-flow-data-dag-editor.md`
+- `Server Flow 数据流 DAG 文档` workflow 计划归档：`docs/plan/plan_archive_2026-03-22_server-flow-data-dag-docs.md`
+- `Flow 数据流 DAG 运行时` 变更归档：`docs/change/2026-03-22_flow-data-dag-runtime.md`
+- `Win Flow 数据流 DAG 编辑器` 变更归档：`docs/change/2026-03-22_win-flow-data-dag-editor.md`
+- `Server Flow 数据流 DAG 文档` 变更归档：`docs/change/2026-03-22_server-flow-data-dag-docs.md`
 - 文档总入口：`docs/README.md`
 - 根级旧版全量历史：`docs/plan/plan_archive_2026-03-21_global-plan-pre-slim.md`
 - `Flow 子协议契约补齐` 变更归档：`docs/change/2026-03-21_server-flow-contract-align.md`
