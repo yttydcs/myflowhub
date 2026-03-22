@@ -19,6 +19,7 @@
 - `2026-03-22`：`MyFlowHub-Win` 已完成 `Settings` 置底、`Other` 分组、全局语言设置与现有前端页面 i18n 基础接入；详见 `docs/change/2026-03-22_win-settings-i18n.md` 与 `docs/plan/plan_archive_2026-03-22_win-settings-i18n.md`。
 - `2026-03-22`：`MyFlowHub-Win` 已完成 TopicBus 独立窗口头部精简，并将 `Event Cache Settings` 迁移到 `Settings` 页面；详见 `docs/change/2026-03-22_topicbus-settings-pane.md` 与 `docs/plan/plan_archive_2026-03-22_win-topicbus-settings-pane.md`。
 - `2026-03-22`：`MyFlowHub-Win` 已完成 TopicBus 默认目标迁移到 `Settings`、`Overview` 单列化、`Channels` 集中订阅管理与独立窗口目标收敛；详见 `docs/change/2026-03-22_topicbus-target-settings.md` 与 `docs/plan/plan_archive_2026-03-22_win-topicbus-target-settings.md`。
+- `2026-03-22`：`MyFlowHub-Win` 已完成“变量池 / 主题总线”中文术语收敛、漏翻 key 补齐与设置页卡片独立保存；详见 `docs/change/2026-03-22_win-translation-settings.md` 与 `docs/plan/plan_archive_2026-03-22_win-translation-settings.md`。
 - `2026-03-22`：`MyFlowHub-SubProto/flow` 已修复 `set/delete` 状态一致性、远端失败显式响应和 run 保留策略；详见 `docs/change/2026-03-22_flow-state-route-retention.md`。
 - `2026-03-22`：`MyFlowHub-Win` 左侧边栏已进一步收敛，菜单按钮迁移到顶部连接状态左侧，收起态 tooltip 与滚动宽度对齐问题已补齐；详见 `docs/change/2026-03-22_win-sidebar-toggle-polish.md`。
 - `2026-03-21`：`flow` 子协议已补齐 `run/status/list/get` 契约，且 `flow_id` 已收紧为 UUID 校验；详见 `docs/change/2026-03-21_server-flow-contract-align.md` 与 `docs/change/2026-03-21_flow-id-guard-and-contract-align.md`。
@@ -109,6 +110,8 @@
 - `Win 左侧边栏二次收敛` 变更归档：`docs/change/2026-03-22_win-sidebar-toggle-polish.md`
 - `Win 设置页分组与 i18n` workflow 计划归档：`docs/plan/plan_archive_2026-03-22_win-settings-i18n.md`
 - `Win 设置页分组与 i18n` 变更归档：`docs/change/2026-03-22_win-settings-i18n.md`
+- `Win 中文术语与设置卡片独立保存` workflow 计划归档：`docs/plan/plan_archive_2026-03-22_win-translation-settings.md`
+- `Win 中文术语与设置卡片独立保存` 变更归档：`docs/change/2026-03-22_win-translation-settings.md`
 - `Win 按钮 hover 手型与禁选中文本` workflow 计划归档：`docs/plan/plan_archive_2026-03-22_win-button-pointer.md`
 - `Win 按钮 hover 手型与禁选中文本` 变更归档：`docs/change/2026-03-22_win-button-pointer.md`
 - `Win Flow 列表简化` workflow 计划归档：`docs/plan/plan_archive_2026-03-22_win-flow-list-row-simplify.md`

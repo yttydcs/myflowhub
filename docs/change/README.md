@@ -136,6 +136,7 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-22_win-translation-settings.md](2026-03-22_win-translation-settings.md)
 - [2026-03-22_win-flow-data-dag-editor.md](2026-03-22_win-flow-data-dag-editor.md)
 - [2026-03-22_flow-list-inline-meta.md](2026-03-22_flow-list-inline-meta.md)
 - [2026-03-22_win-button-pointer.md](2026-03-22_win-button-pointer.md)
