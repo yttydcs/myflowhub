@@ -56,6 +56,7 @@
 
 ## Win
 - [plan_archive_2026-03-22_win-flow-data-dag-editor.md](plan_archive_2026-03-22_win-flow-data-dag-editor.md)
+- [plan_archive_2026-03-22_win-flow-list-inline-meta.md](plan_archive_2026-03-22_win-flow-list-inline-meta.md)
 - [plan_archive_2026-03-22_win-button-pointer.md](plan_archive_2026-03-22_win-button-pointer.md)
 - [plan_archive_2026-03-22_win-flow-list-row-simplify.md](plan_archive_2026-03-22_win-flow-list-row-simplify.md)
 - [plan_archive_2026-03-22_win-card-header-simplify.md](plan_archive_2026-03-22_win-card-header-simplify.md)
