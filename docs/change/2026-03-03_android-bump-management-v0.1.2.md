@@ -11,7 +11,7 @@
   - `hubmobile/go.mod`：`github.com/yttydcs/myflowhub-subproto/management v0.1.1` → `v0.1.2`（indirect）
   - `hubmobile/go.sum`：同步更新 checksum
 - 审计与交接：
-  - 归档旧 `plan.md`：`docs/plan_archive/plan_archive_2026-03-03_android-bump-management-v0.1.2-prev.md`
+  - 归档旧 `plan.md`：`docs/plan/plan_archive_2026-03-03_android-bump-management-v0.1.2-prev.md`
   - 新增本次 workflow 计划：`plan.md`
 
 ## Plan 任务映射
@@ -48,4 +48,5 @@
   - `cd hubmobile`
   - `GOWORK=off go get github.com/yttydcs/myflowhub-subproto/management@v0.1.1`
   - `GOWORK=off go mod tidy`
+
 

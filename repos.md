@@ -1,7 +1,7 @@
 # MyFlowHub3 仓库职责与接手者指南
 
 > 本文档只保留当前有效的仓库边界、依赖规则和接手建议。  
-> 已完成 workflow 的详细里程碑、验收记录、旧路线图正文，统一看 `docs/change/README.md` 与 `docs/plan_archive/README.md`。
+> 已完成 workflow 的详细里程碑、验收记录、旧路线图正文，统一看 `docs/change/README.md` 与 `docs/plan/README.md`。
 
 ## 1. 先看哪里
 
@@ -11,10 +11,10 @@
   - `docs/` 总入口。
 - `docs/change/README.md`
   - 已完成变更的结果归档。
-- `docs/plan_archive/README.md`
+- `docs/plan/README.md`
   - 历史 workflow 的完整计划、Checklist、Review 线索。
-- `repo/MyFlowHub-Server/docs`
-  - 当前子协议规范文档所在地。
+- `repo/MyFlowHub-Server/docs/specs/README.md`
+  - 当前子协议规范文档总入口。
 
 ## 2. 这个目录是什么
 
@@ -121,4 +121,5 @@ go test ./... -count=1 -p 1
 - 不要在 `repo/` 里直接做实现改动，那里是控制面。
 - 不要在 Win 或 Android UI 里复制一套协议发送/等待语义，优先复用 SDK / Go runtime。
 - 不要让子协议 module 互相 import；共享逻辑抽 shared module。
-- 不要把历史完成项继续堆在根级 `plan.md` 或 `repos.md`；完成后进 `docs/change` / `docs/plan_archive`。
+- 不要把历史完成项继续堆在根级 `plan.md` 或 `repos.md`；完成后进 `docs/change` / `docs/plan`。
+

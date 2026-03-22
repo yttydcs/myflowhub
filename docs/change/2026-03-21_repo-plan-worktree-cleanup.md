@@ -70,7 +70,7 @@
 
 ### 潜在影响
 
-- 若有人仍依赖 `repo/*/plan.md` 直接回看历史，需要改为通过 `docs/change/README.md` 与 `docs/plan_archive/README.md` 进入。
+- 若有人仍依赖 `repo/*/plan.md` 直接回看历史，需要改为通过 `docs/change/README.md` 与 `docs/plan/README.md` 进入。
 - 这是有意调整，目的是把当前入口和历史归档明确分层。
 
 ### 回滚
@@ -78,3 +78,4 @@
 - 文档口径可通过回滚本次对根级 `plan.md` 的修改恢复；
 - 某个具体 `plan.md` / `todo.md` 若确需恢复，可从对应仓库 git 历史恢复；
 - worktree/junction 残留若误删，需要按当时 workflow 重新创建，而不是恢复旧残留目录。
+

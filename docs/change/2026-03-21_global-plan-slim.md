@@ -5,7 +5,7 @@
 根级 `plan.md` 长期同时承担“当前索引”和“历史正文”两种角色，已经不适合作为接手入口：
 
 - 已完成 workflow 的 Checklist、Review、Merge 记录持续堆积；
-- 同一类历史信息同时散落在 `plan.md`、`docs/change/`、`docs/plan_archive/`；
+- 同一类历史信息同时散落在 `plan.md`、`docs/change/`、`docs/plan/`；
 - 查找当前状态时需要先穿过大量已完成内容，维护成本高。
 
 本次整理目标是把根级 `plan.md` 收敛为简要索引，把已完成内容明确收口到 `docs/`。
@@ -14,7 +14,7 @@
 
 ### 新增
 - 新增根级旧版计划快照：
-  - `docs/plan_archive/plan_archive_2026-03-21_global-plan-pre-slim.md`
+  - `docs/plan/plan_archive_2026-03-21_global-plan-pre-slim.md`
 - 新增本归档文档：
   - `docs/change/2026-03-21_global-plan-slim.md`
 
@@ -27,19 +27,19 @@
 
 ### 删除
 - 从根级 `plan.md` 中移除大段已完成 workflow 正文。
-  - 历史内容未删除，只是迁移为 `docs/plan_archive/` 中的完整快照引用。
+  - 历史内容未删除，只是迁移为 `docs/plan/` 中的完整快照引用。
 
 ## 设计决策与权衡
 
 - 采用“完整快照归档 + 根级索引瘦身”而不是继续在原文件内折叠历史段落。
   - 优点：最小化信息丢失风险，回滚简单，接手入口更清晰。
   - 代价：根级旧版 plan 会多保留一份完整快照，但换来更稳定的审计入口。
-- 不批量重写现有 `docs/change/` / `docs/plan_archive/` 文件名或内容。
+- 不批量重写现有 `docs/change/` / `docs/plan/` 文件名或内容。
   - 优点：避免引入额外链接漂移和历史审计成本。
 
 ## 测试与验证方式 / 结果
 
-- 验证 `docs/plan_archive/plan_archive_2026-03-21_global-plan-pre-slim.md` 已存在。
+- 验证 `docs/plan/plan_archive_2026-03-21_global-plan-pre-slim.md` 已存在。
 - 验证新的根级 `plan.md` 已压缩为简要索引，不再包含大量历史 workflow 正文。
 - 结果：通过。
 
@@ -49,4 +49,5 @@
 
 ## 回滚方案
 
-- 如需回滚，直接用 `docs/plan_archive/plan_archive_2026-03-21_global-plan-pre-slim.md` 覆盖根级 `plan.md` 即可恢复压缩前状态。
+- 如需回滚，直接用 `docs/plan/plan_archive_2026-03-21_global-plan-pre-slim.md` 覆盖根级 `plan.md` 即可恢复压缩前状态。
+

@@ -29,7 +29,7 @@ SDK v1 Awaiter（`await.Client.SendAndAwait`）的匹配维度为：`MsgID + Sub
 
 ### 文档
 - `plan.md`：本 workflow 的需求/架构/计划与验收
-- `repo/MyFlowHub-SDK/docs/plan_archive/plan_archive_2026-02-17_sdk-await-onframe.md`：归档上一轮计划文档（便于审计回放）
+- `repo/MyFlowHub-SDK/docs/plan/plan_archive_2026-02-17_sdk-await-onframe.md`：归档上一轮计划文档（便于审计回放）
 
 ## plan.md 任务映射
 - AFC1 - 实现：File CTRL payload 解包 ✅
@@ -65,3 +65,4 @@ go test ./... -count=1 -p 1
 
 ### 回滚方案
 - `git revert 177164b`（撤销 File CTRL 解包逻辑 + 对应单测）
+

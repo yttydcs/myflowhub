@@ -32,7 +32,7 @@ Win 端的 Home/Auth 当前为“发送即返回”（fire-and-forget），前�
 
 ### 文档
 - `plan.md`：本 workflow 的需求/架构/计划与验收
-- `repo/MyFlowHub-Win/docs/plan_archive/plan_archive_2026-02-15_win-use-sdk-v0.md`：归档上一轮计划文档（便于审计回放）
+- `repo/MyFlowHub-Win/docs/plan/plan_archive_2026-02-15_win-use-sdk-v0.md`：归档上一轮计划文档（便于审计回放）
 
 ## plan.md 任务映射
 - WA1 - Session：切换到 SDK await.Client 并保持 session.frame 不缺失 ✅
@@ -79,3 +79,4 @@ go test ./... -count=1 -p 1
 - 回滚 Auth await：`git revert 1b61562`
 - 回滚 Session 接入 await：`git revert 5d16f4a` + `git revert 0f5c386`
 - 回滚本 workflow 文档：`git revert 290fca8`
+

@@ -8,7 +8,7 @@
   - 新增动作常量：`ActionDelete`、`ActionDeleteResp`。
   - 新增权限常量：`PermFlowDelete`。
   - 新增结构体：`DeleteReq`、`DeleteResp`。
-- 修改 `docs/protocol_map.md`：
+- 修改 `docs/specs/protocol_map.md`：
   - Flow 映射中新增 `delete/delete_resp`、`DeleteReq/DeleteResp`、`PermFlowDelete`。
 
 ## 对应 plan.md 任务映射
@@ -27,4 +27,5 @@
 
 ## 潜在影响与回滚方案
 - 潜在影响：下游若未同步新 action 常量，delete 请求不会被识别。
-- 回滚方案：回退 `protocol/flow/types.go` 与 `docs/protocol_map.md` 本次增量。 
+- 回滚方案：回退 `protocol/flow/types.go` 与 `docs/specs/protocol_map.md` 本次增量。 
+

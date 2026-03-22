@@ -7,7 +7,7 @@
 本次调整目标：
 
 - 将 `repos.md` 压缩为“当前有效边界 + 接手建议”；
-- 已完成的详细里程碑继续以 `docs/change/README.md` 与 `docs/plan_archive/README.md` 为主入口；
+- 已完成的详细里程碑继续以 `docs/change/README.md` 与 `docs/plan/README.md` 为主入口；
 - 补齐根级接手文档中遗漏的仓库职责，特别是 `MyFlowHub-Android` 与 `MyFlowHub-MetricsNode`。
 
 ## 具体变更内容
@@ -51,10 +51,11 @@
 
 ### 潜在影响
 
-- 接手者不能再从根级 `repos.md` 直接看到完整历史路线，需要通过 `docs/change/README.md` 和 `docs/plan_archive/README.md` 进入。
+- 接手者不能再从根级 `repos.md` 直接看到完整历史路线，需要通过 `docs/change/README.md` 和 `docs/plan/README.md` 进入。
 - 这是有意调整，目的是让根级文档维持短入口角色。
 
 ### 回滚
 
 - 若后续确认根级 `repos.md` 仍需恢复更长的历史正文，可基于 git 历史或本次变更前版本回滚该文件；
 - 但更推荐继续保持根级精简，仅在 `docs/` 中扩充归档。
+

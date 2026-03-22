@@ -26,7 +26,7 @@
 ## 对应 plan.md 任务映射
 - `DOC-1`：完成（`run/status/list/get` 契约已补齐）。
 - `DOC-2`：完成（正式写入契约与历史兼容边界已明确）。
-- `DOC-3`：完成（已核对 `docs/protocol_map.md`，本次无需改动）。
+- `DOC-3`：完成（已核对 `docs/specs/protocol_map.md`，本次无需改动）。
 
 ## 关键设计决策与权衡（尤其性能 / 扩展性）
 1. 文档以当前 proto/handler 的稳定行为为准，不额外发明新语义。
@@ -58,4 +58,5 @@
 - Task ID → Agent → Worktree → 文件 → 验收结果：
   - `DOC-1` → 主Agent → `D:\project\MyFlowHub3\worktrees\server-subproto-contract-spec` → `docs/6-flow.md` → 通过
   - `DOC-2` → 主Agent → `D:\project\MyFlowHub3\worktrees\server-subproto-contract-spec` → `docs/6-flow.md` → 通过
-  - `DOC-3` → 主Agent → `D:\project\MyFlowHub3\worktrees\server-subproto-contract-spec` → `docs/protocol_map.md`（核对，无变更） → 通过
+  - `DOC-3` → 主Agent → `D:\project\MyFlowHub3\worktrees\server-subproto-contract-spec` → `docs/specs/protocol_map.md`（核对，无变更） → 通过
+

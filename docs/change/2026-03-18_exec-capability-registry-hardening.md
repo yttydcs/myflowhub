@@ -42,7 +42,7 @@
 
 ## 5) 规范文档更新
 
-- 文件：`repo/MyFlowHub-Server/docs/7-exec.md`
+- 文件：`repo/MyFlowHub-Server/docs/specs/exec.md`
 - 更新点：
   - 明确 `exec.cap.sync` / `exec.cap.query` 为当前生效权限。
   - 明确上行策略为“首次全量 + 稳态增量 + 心跳续租”。
@@ -61,7 +61,7 @@
   - `repo/MyFlowHub-SubProto/exec/cap_upstream_test.go`
   - `repo/MyFlowHub-SubProto/exec/resp_ids_test.go`
 - Task E：同步规范文档
-  - `repo/MyFlowHub-Server/docs/7-exec.md`
+  - `repo/MyFlowHub-Server/docs/specs/exec.md`
 
 # 关键设计决策与权衡
 
@@ -88,3 +88,4 @@
 
 - 本轮在现有多仓主工作区直接实施并提交（未新建独占 worktree）。
 - 已通过将变更提交落在对应仓库 `main`，并将归档文档保存在全局 `docs/change/`，保证可审计与可交接。
+

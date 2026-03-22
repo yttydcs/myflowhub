@@ -20,7 +20,7 @@ Worktree：`d:\project\MyFlowHub3\worktrees\file-resp-major-okresp`
   - 补齐 Major 约定：请求（CTRL `read/write`）为 `MajorCmd`；响应（CTRL `read_resp/write_resp`）为 `MajorOKResp`；`DATA/ACK` 为 `MajorMsg`；失败响应仍使用 `MajorOKResp`（错误在 payload `code/msg`）。
 - `plan.md`
   - 本 workflow 的需求/架构/拆分计划（便于审计与接手）。
-- `repo/MyFlowHub-Server/docs/plan_archive/plan_archive_2026-02-16_exec-flow-resp-major-ok.md`
+- `repo/MyFlowHub-Server/docs/plan/plan_archive_2026-02-16_exec-flow-resp-major-ok.md`
   - 归档上一轮计划（避免覆盖历史）。
 
 ### 新增
@@ -54,3 +54,4 @@ Worktree：`d:\project\MyFlowHub3\worktrees\file-resp-major-okresp`
   - 若中间节点关闭 Core 快速转发（`routing.forward_remote=false`），响应帧将无法跨节点返回（符合该配置语义，但可能影响联调/排障）。
 - 回滚：
   - revert 本次提交即可恢复 `MajorCmd` 行为。
+
