@@ -10,6 +10,7 @@
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
 - `2026-03-22`：workspace 根文档与 `MyFlowHub-Server` 文档已完成 taxonomy 治理、索引重建与计划归档收敛；详见 `docs/change/2026-03-22_workspace-docs-governance.md`、`docs/change/2026-03-22_server-docs-governance.md`、`docs/plan/plan_archive_2026-03-22_workspace-docs-governance.md` 与 `docs/plan/plan_archive_2026-03-22_server-docs-governance.md`。
+- `2026-03-22`：`MyFlowHub-Win` 已完成主页面首屏头部收敛，移除顶部小标题并统一为单一大标题加一行提示语；详见 `docs/change/2026-03-22_win-page-hero-simplify.md` 与 `docs/plan/plan_archive_2026-03-22_win-page-hero-simplify.md`。
 - `2026-03-22`：`MyFlowHub-Win` 已完成 `Settings` 置底、`Other` 分组、全局语言设置与现有前端页面 i18n 基础接入；详见 `docs/change/2026-03-22_win-settings-i18n.md` 与 `docs/plan/plan_archive_2026-03-22_win-settings-i18n.md`。
 - `2026-03-22`：`MyFlowHub-Win` 已完成 TopicBus 独立窗口头部精简，并将 `Event Cache Settings` 迁移到 `Settings` 页面；详见 `docs/change/2026-03-22_topicbus-settings-pane.md` 与 `docs/plan/plan_archive_2026-03-22_win-topicbus-settings-pane.md`。
 - `2026-03-22`：`MyFlowHub-Win` 已完成 TopicBus 默认目标迁移到 `Settings`、`Overview` 单列化、`Channels` 集中订阅管理与独立窗口目标收敛；详见 `docs/change/2026-03-22_topicbus-target-settings.md` 与 `docs/plan/plan_archive_2026-03-22_win-topicbus-target-settings.md`。
@@ -97,6 +98,8 @@
 - `Win 左侧边栏二次收敛` 变更归档：`docs/change/2026-03-22_win-sidebar-toggle-polish.md`
 - `Win 设置页分组与 i18n` workflow 计划归档：`docs/plan/plan_archive_2026-03-22_win-settings-i18n.md`
 - `Win 设置页分组与 i18n` 变更归档：`docs/change/2026-03-22_win-settings-i18n.md`
+- `Win 页面头部简化` workflow 计划归档：`docs/plan/plan_archive_2026-03-22_win-page-hero-simplify.md`
+- `Win 页面头部简化` 变更归档：`docs/change/2026-03-22_win-page-hero-simplify.md`
 - `Win 左侧边栏收起改造` workflow 计划归档：`docs/plan/plan_archive_2026-03-21_win-sidebar-toggle.md`
 - `Win 左侧边栏收起改造` 变更归档：`docs/change/2026-03-21_win-sidebar-toggle.md`
 - `Win 设置页面` workflow 计划归档：`docs/plan/plan_archive_2026-03-21_win-settings-page.md`

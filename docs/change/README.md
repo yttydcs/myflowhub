@@ -134,6 +134,7 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-22_win-page-hero-simplify.md](2026-03-22_win-page-hero-simplify.md)
 - [2026-03-22_win-settings-i18n.md](2026-03-22_win-settings-i18n.md)
 - [2026-03-22_win-sidebar-toggle-polish.md](2026-03-22_win-sidebar-toggle-polish.md)
 - [2026-03-22_topicbus-window-layout.md](2026-03-22_topicbus-window-layout.md)
