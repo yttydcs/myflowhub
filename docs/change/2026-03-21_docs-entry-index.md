@@ -15,7 +15,7 @@
 ### 新增
 - `docs/README.md`
   - 作为 `docs/` 目录总入口；
-  - 串联 `docs/change/README.md`、`docs/plan_archive/README.md`、`docs/protocol_map.md`、根级 `plan.md`、`repos.md`、`guide.md`；
+  - 串联 `docs/change/README.md`、`docs/plan/README.md`、`docs/specs/protocol_map.md`、根级 `plan.md`、`repos.md`、`guide.md`；
   - 明确说明 `target.md` 当前缺失，仅保留历史引用语义。
 
 ### 修改
@@ -24,7 +24,7 @@
   - 将 `target.md` 改为“当前缺失、仅历史引用”；
   - 在 Historical Entry Points 中加入文档总入口。
 - `repos.md`
-  - 在工作区结构说明中加入 `docs/README.md`、`docs/plan_archive/`、`docs/protocol_map.md`；
+  - 在工作区结构说明中加入 `docs/README.md`、`docs/plan/`、`docs/specs/protocol_map.md`；
   - 将 `target.md` 改为“当前缺失、按历史上下文理解”。
 - `docs/change/README.md`
   - 将“完整执行过程”入口从目录路径改为显式索引 `../plan_archive/README.md`；
@@ -42,7 +42,7 @@
 
 - 验证 `docs/README.md` 已创建并可作为总入口阅读。
 - 验证 `plan.md` 与 `repos.md` 已显式指向新的文档入口。
-- 验证 `docs/change/README.md` 仍保持有效索引，并改为指向 `docs/plan_archive/README.md`。
+- 验证 `docs/change/README.md` 仍保持有效索引，并改为指向 `docs/plan/README.md`。
 - 结果：通过。
 
 ## 潜在影响
@@ -52,3 +52,4 @@
 ## 回滚方案
 
 - 回滚 `docs/README.md`、`plan.md`、`repos.md`、`docs/change/README.md` 的本次改动即可恢复到入口收敛前状态。
+

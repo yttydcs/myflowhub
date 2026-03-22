@@ -19,19 +19,19 @@
 - `protocol/*/types.go`
 
 ### canonical 文档（半自动）
-- `docs/protocol_map.md`
+- `docs/specs/protocol_map.md`
   - 生成器仅覆盖 `<!-- BEGIN GENERATED -->` 与 `<!-- END GENERATED -->` 中间内容；
   - 生成区块外可保留手写说明（例如 `Notes（Manual）`）。
 
 ### 强制校验范围
-- 仅在 `MyFlowHub-Proto` 仓库内强制：`go test ./...` 会校验 `docs/protocol_map.md` 是否最新。
-- meta workspace（`d:\project\MyFlowHub3`）的 `docs/protocol_map.md` 仅为同步副本，不做门禁。
+- 仅在 `MyFlowHub-Proto` 仓库内强制：`go test ./...` 会校验 `docs/specs/protocol_map.md` 是否最新。
+- meta workspace（`d:\project\MyFlowHub3`）的 `docs/specs/protocol_map.md` 仅为同步副本，不做门禁。
 
 ## 具体变更内容（新增 / 修改 / 删除）
 
 ### 新增
 - 生成器 CLI：`cmd/protocolmapgen`
-  - `-write`：写入更新 `docs/protocol_map.md`
+  - `-write`：写入更新 `docs/specs/protocol_map.md`
   - `-check`：校验文档是否最新（不写入）
   - 参数化：`-protocol-root`、`-out`
 - 生成器内部库：`internal/protocolmap`
@@ -50,13 +50,13 @@ $env:GOTMPDIR='d:\\project\\MyFlowHub3\\.tmp\\gotmp'
 New-Item -ItemType Directory -Force -Path $env:GOTMPDIR | Out-Null
 $env:GOWORK='off'
 go test ./... -count=1 -p 1
-go run ./cmd/protocolmapgen -check -out docs/protocol_map.md
+go run ./cmd/protocolmapgen -check -out docs/specs/protocol_map.md
 ```
 
 结果：通过。
 
 ## 潜在影响
-- 修改 `protocol/*/types.go` 后，若未运行生成器更新 `docs/protocol_map.md`，`go test ./...` 会失败并提示更新命令。
+- 修改 `protocol/*/types.go` 后，若未运行生成器更新 `docs/specs/protocol_map.md`，`go test ./...` 会失败并提示更新命令。
 - 生成器默认假定 `protocol/` 下的每个子目录都是一个 subproto 包且包含 `SubProto*` 常量；若未来引入非 subproto 的共享包，需要调整目录/约束或更新生成器规则。
 
 ## 回滚方案
@@ -64,8 +64,9 @@ go run ./cmd/protocolmapgen -check -out docs/protocol_map.md
 
 ## 计划任务映射
 - PMGEN0：归档旧 plan ✅
-- PMGEN1：新增 `docs/protocol_map.md`（含生成区块）✅
+- PMGEN1：新增 `docs/specs/protocol_map.md`（含生成区块）✅
 - PMGEN2~PMGEN6：解析/渲染/区块替换/CLI/强制校验 ✅
 - PMGEN7：README 记录规则 ✅
 - PMGEN8：回归验证 ✅
+
 

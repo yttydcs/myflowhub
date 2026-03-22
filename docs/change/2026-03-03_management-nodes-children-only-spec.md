@@ -13,7 +13,7 @@
 ## 具体变更内容（新增 / 修改 / 删除）
 
 ### 修改
-- `docs/protocol_map.md`
+- `docs/specs/protocol_map.md`
   - 在 `## Notes（Manual）` 增加 Management（Nodes）语义说明：
     - `list_nodes`：children-only（下游直连子节点）
     - `list_subtree`：`list_nodes` + self（不递归）
@@ -43,5 +43,6 @@ go test ./... -count=1 -p 1
 - 文档新增约束可能与旧实现不一致；需要上游实现同步调整（本次仅更新文档，不修改 wire）。
 
 ### 回滚方案
-- revert 本次文档提交（仅影响 `docs/protocol_map.md` 的 Manual Notes）。
+- revert 本次文档提交（仅影响 `docs/specs/protocol_map.md` 的 Manual Notes）。
+
 

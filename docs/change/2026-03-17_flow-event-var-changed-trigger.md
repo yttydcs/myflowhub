@@ -48,7 +48,7 @@
 ## 修改
 
 - Flow 协议文档补充三类触发器规范与匹配语义：
-  - 文件：`repo/MyFlowHub-Server/docs/6-flow.md`
+  - 文件：`repo/MyFlowHub-Server/docs/specs/flow.md`
 
 - 本地联调工作区加入 `topicbus` 子模块，保证跨模块增量测试可运行：
   - 文件：`go.work`
@@ -66,7 +66,7 @@
 - Task C：Win 编辑器触发器配置能力  
   - 对应：`repo/MyFlowHub-Win/frontend/src/stores/flow.ts`、`repo/MyFlowHub-Win/frontend/src/pages/Flow.vue`
 - Task D：文档与测试补齐  
-  - 对应：`repo/MyFlowHub-Server/docs/6-flow.md` 与新增测试文件
+  - 对应：`repo/MyFlowHub-Server/docs/specs/flow.md` 与新增测试文件
 
 # 关键设计决策与权衡
 
@@ -102,3 +102,4 @@
 # 例外说明
 
 - 本次变更在现有集成工作区内完成，未新建独占 worktree。原因：需要跨 `Proto`、`SubProto`、`Server`、`Win` 多仓同时修改并一次性联调验证。
+

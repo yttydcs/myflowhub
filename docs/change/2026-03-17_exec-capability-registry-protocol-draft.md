@@ -43,12 +43,12 @@
   - 同步动作定义与字段
   - 查询动作定义与字段
   - 与 `call` 的关系（保持兼容）
-- 文件：`repo/MyFlowHub-Server/docs/7-exec.md`
+- 文件：`repo/MyFlowHub-Server/docs/specs/exec.md`
 
 ## 协议映射文档再生成
 
 - 由于新增 `exec` action 常量，重新生成协议映射文档：
-  - `repo/MyFlowHub-Proto/docs/protocol_map.md`
+  - `repo/MyFlowHub-Proto/docs/specs/protocol_map.md`
 
 # 对应计划任务映射
 
@@ -58,9 +58,9 @@
   - `repo/MyFlowHub-SubProto/exec/types.go`
   - `repo/MyFlowHub-Server/protocol/exec/types.go`
 - Task C：更新文档草案  
-  - `repo/MyFlowHub-Server/docs/7-exec.md`
+  - `repo/MyFlowHub-Server/docs/specs/exec.md`
 - Task D：验证与收尾  
-  - `repo/MyFlowHub-Proto/docs/protocol_map.md`（生成）
+  - `repo/MyFlowHub-Proto/docs/specs/protocol_map.md`（生成）
 
 # 关键设计决策与权衡
 
@@ -74,7 +74,7 @@
 - `repo/MyFlowHub-Proto`：`go test ./...`（通过）
 - `repo/MyFlowHub-SubProto/exec`：`go test ./...`（通过）
 - `repo/MyFlowHub-Server`：`go test ./...`（通过）
-- `repo/MyFlowHub-Proto`：`go run ./cmd/protocolmapgen -write -out docs/protocol_map.md`（执行成功）
+- `repo/MyFlowHub-Proto`：`go run ./cmd/protocolmapgen -write -out docs/specs/protocol_map.md`（执行成功）
 
 # 潜在影响与回滚方案
 
@@ -84,4 +84,5 @@
 - 回滚方案：
   - 回滚本次涉及的四个文件（协议、兼容壳、文档、protocol_map）。
   - 重新运行 `go test ./...` 验证恢复。
+
 

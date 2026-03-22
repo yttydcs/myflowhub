@@ -25,7 +25,7 @@
 
 ### 修改
 - `plan.md`：本 workflow 的计划与验收记录
-- `docs/plan_archive/*`：归档上一轮 plan（审计回放用）
+- `docs/plan/*`：归档上一轮 plan（审计回放用）
 
 ### 删除
 - 无（Server 侧切换与删除 `myflowhub-server/subproto/kit` 将在后续 workflow 进行）
@@ -59,4 +59,5 @@
 
 ### 回滚方案
 - `git revert` 本次引入 `subproto/kit` 的提交即可回滚（仅新增文件，不影响现有行为）。
+
 

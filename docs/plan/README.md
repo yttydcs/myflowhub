@@ -1,0 +1,138 @@
+# docs/plan 索引
+
+`docs/plan/` 是 MyFlowHub3 的计划归档目录，用来保存历史 workflow 的完整计划正文、Checklist、约束、Review 入口，以及少量“覆盖前快照”。
+
+## 使用方式
+- 先看当前主线入口：`../../plan.md`
+- 想看某次变更做成了什么：先看 `../change/README.md`
+- 想看某次变更当时是怎么计划、怎么拆任务、有哪些边界与验收条件：从本索引进入
+
+## 分组规则
+- 按主影响面归类，不重复按跨仓关系多处列出
+- `*-prev.md` 表示某次覆盖前保留的旧计划快照，不等同于独立 workflow
+- `global-plan-pre-slim.md` 是根级 `plan.md` 压缩前的完整快照
+
+## Quick Links
+- [Snapshots / Meta](#snapshots--meta)
+- [Protocol / Core / SDK](#protocol--core--sdk)
+- [Server / SubProto](#server--subproto)
+- [Win](#win)
+- [Android](#android)
+- [MetricsNode](#metricsnode)
+
+## Snapshots / Meta
+- [plan_archive_2026-03-22_workspace-docs-governance.md](plan_archive_2026-03-22_workspace-docs-governance.md)
+- [plan_archive_2026-03-22_server-docs-governance.md](plan_archive_2026-03-22_server-docs-governance.md)
+- [plan_archive_2026-03-21_global-plan-pre-slim.md](plan_archive_2026-03-21_global-plan-pre-slim.md)
+- [plan_archive_2026-03-14_cleanup-residual-worktrees.md](plan_archive_2026-03-14_cleanup-residual-worktrees.md)
+- [plan_archive_2026-03-12_bump-core-v0.3.0-android-hubmobile-prev.md](plan_archive_2026-03-12_bump-core-v0.3.0-android-hubmobile-prev.md)
+- [plan_archive_2026-03-12_bump-core-v0.3.0-server-prev.md](plan_archive_2026-03-12_bump-core-v0.3.0-server-prev.md)
+- [plan_archive_2026-03-12_bump-core-v0.3.0-subproto-more-prev.md](plan_archive_2026-03-12_bump-core-v0.3.0-subproto-more-prev.md)
+- [plan_archive_2026-03-12_bump-core-v0.3.0-subproto-prev.md](plan_archive_2026-03-12_bump-core-v0.3.0-subproto-prev.md)
+- [plan_archive_2026-02-21_dev-run-server-win.md](plan_archive_2026-02-21_dev-run-server-win.md)
+- [plan_archive_2026-02-18_docs-consistency.md](plan_archive_2026-02-18_docs-consistency.md)
+
+## Protocol / Core / SDK
+- [plan_archive_2026-03-21_proto-exec-cap-query-baseline.md](plan_archive_2026-03-21_proto-exec-cap-query-baseline.md)
+- [plan_archive_2026-03-14_bump-core-v0.4.0-remaining.md](plan_archive_2026-03-14_bump-core-v0.4.0-remaining.md)
+- [plan_archive_2026-03-12_transport-pipe-core.md](plan_archive_2026-03-12_transport-pipe-core.md)
+- [plan_archive_2026-02-20_proto-protocol-mapgen.md](plan_archive_2026-02-20_proto-protocol-mapgen.md)
+
+## Server / SubProto
+- [plan_archive_2026-03-12_transport-pipe-subproto.md](plan_archive_2026-03-12_transport-pipe-subproto.md)
+- [plan_archive_2026-03-12_transport-pipe-server.md](plan_archive_2026-03-12_transport-pipe-server.md)
+- [plan_archive_2026-03-11_subproto-resp-msgid.md](plan_archive_2026-03-11_subproto-resp-msgid.md)
+- [plan_archive_2026-03-08_subproto-auth-route-index-heal.md](plan_archive_2026-03-08_subproto-auth-route-index-heal.md)
+- [plan_archive_2026-03-08_server-auth-route-index-heal.md](plan_archive_2026-03-08_server-auth-route-index-heal.md)
+- [plan_archive_2026-03-04_subproto-file-base-dir-exedir-root-list.md](plan_archive_2026-03-04_subproto-file-base-dir-exedir-root-list.md)
+- [plan_archive_2026-03-04_server-bump-subproto-file-v0.1.1.md](plan_archive_2026-03-04_server-bump-subproto-file-v0.1.1.md)
+- [plan_archive_2026-03-03_subproto-management-children-only.md](plan_archive_2026-03-03_subproto-management-children-only.md)
+- [plan_archive_2026-03-03_server-bump-management-v0.1.2.md](plan_archive_2026-03-03_server-bump-management-v0.1.2.md)
+- [plan_archive_2026-03-03_proto-management-children-only.md](plan_archive_2026-03-03_proto-management-children-only.md)
+- [plan_archive_2026-02-20_subproto-split-remaining-modules.md](plan_archive_2026-02-20_subproto-split-remaining-modules.md)
+- [plan_archive_2026-02-20_server-use-subproto-remaining-modules.md](plan_archive_2026-02-20_server-use-subproto-remaining-modules.md)
+
+## Win
+- [plan_archive_2026-03-22_win-settings-i18n.md](plan_archive_2026-03-22_win-settings-i18n.md)
+- [plan_archive_2026-03-22_win-sidebar-toggle-polish.md](plan_archive_2026-03-22_win-sidebar-toggle-polish.md)
+- [plan_archive_2026-03-22_win-topicbus-window-layout.md](plan_archive_2026-03-22_win-topicbus-window-layout.md)
+- [plan_archive_2026-03-22_win-topicbus-settings-pane.md](plan_archive_2026-03-22_win-topicbus-settings-pane.md)
+- [plan_archive_2026-03-22_win-showcase-header-icon-actions.md](plan_archive_2026-03-22_win-showcase-header-icon-actions.md)
+- [plan_archive_2026-03-21_win-settings-page.md](plan_archive_2026-03-21_win-settings-page.md)
+- [plan_archive_2026-03-21_win-sidebar-toggle.md](plan_archive_2026-03-21_win-sidebar-toggle.md)
+- [plan_archive_2026-03-21_win-showcase-header-align.md](plan_archive_2026-03-21_win-showcase-header-align.md)
+- [plan_archive_2026-03-21_win-topicbus-window-console.md](plan_archive_2026-03-21_win-topicbus-window-console.md)
+- [plan_archive_2026-03-21_win-showcase-window-title-trim.md](plan_archive_2026-03-21_win-showcase-window-title-trim.md)
+- [plan_archive_2026-03-21_win-editor-header-title-trim.md](plan_archive_2026-03-21_win-editor-header-title-trim.md)
+- [plan_archive_2026-03-21_win-editor-chrome-trim.md](plan_archive_2026-03-21_win-editor-chrome-trim.md)
+- [plan_archive_2026-03-21_win-frontend-build-chain.md](plan_archive_2026-03-21_win-frontend-build-chain.md)
+- [plan_archive_2026-03-21_win-proto-cap-query-baseline.md](plan_archive_2026-03-21_win-proto-cap-query-baseline.md)
+- [plan_archive_2026-03-21_win-showcase-ui-simplify.md](plan_archive_2026-03-21_win-showcase-ui-simplify.md)
+- [plan_archive_2026-03-21_win-showcase-editor-minimal.md](plan_archive_2026-03-21_win-showcase-editor-minimal.md)
+- [plan_archive_2026-03-21_win-canvas-drag-state.md](plan_archive_2026-03-21_win-canvas-drag-state.md)
+- [plan_archive_2026-03-21_win-canvas-connectors.md](plan_archive_2026-03-21_win-canvas-connectors.md)
+- [plan_archive_2026-03-21_win-showcase-center-editor.md](plan_archive_2026-03-21_win-showcase-center-editor.md)
+- [plan_archive_2026-03-21_win-flow-method-capability-query-node.md](plan_archive_2026-03-21_win-flow-method-capability-query-node.md)
+- [plan_archive_2026-03-21_win-varpool-tab-layout.md](plan_archive_2026-03-21_win-varpool-tab-layout.md)
+- [plan_archive_2026-03-21_win-flow-editor-method-selector-dialog.md](plan_archive_2026-03-21_win-flow-editor-method-selector-dialog.md)
+- [plan_archive_2026-03-21_win-flow-project-center-editor.md](plan_archive_2026-03-21_win-flow-project-center-editor.md)
+- [plan_archive_2026-03-18_win-dag-nodeid-icons.md](plan_archive_2026-03-18_win-dag-nodeid-icons.md)
+- [plan_archive_2026-03-04_win-showcase-canvas-layout.md](plan_archive_2026-03-04_win-showcase-canvas-layout.md)
+- [plan_archive_2026-03-04_win-file-console-base-dir.md](plan_archive_2026-03-04_win-file-console-base-dir.md)
+- [plan_archive_2026-03-03_win-varpool-refresh-subscribe-ui.md](plan_archive_2026-03-03_win-varpool-refresh-subscribe-ui.md)
+- [plan_archive_2026-03-03_win-varpool-dialog-subprefs.md](plan_archive_2026-03-03_win-varpool-dialog-subprefs.md)
+- [plan_archive_2026-03-03_win-showcase-panel-simplify.md](plan_archive_2026-03-03_win-showcase-panel-simplify.md)
+- [plan_archive_2026-03-03_win-showcase-layout.md](plan_archive_2026-03-03_win-showcase-layout.md)
+- [plan_archive_2026-03-03_win-showcase-kv-layout.md](plan_archive_2026-03-03_win-showcase-kv-layout.md)
+- [plan_archive_2026-03-02_win-showcase-screen.md](plan_archive_2026-03-02_win-showcase-screen.md)
+- [plan_archive_2026-03-01_win-varpool-liveupdate.md](plan_archive_2026-03-01_win-varpool-liveupdate.md)
+- [plan_archive_2026-03-01_win-release-tag-validate.md](plan_archive_2026-03-01_win-release-tag-validate.md)
+- [plan_archive_2026-02-28_win-actions-release.md](plan_archive_2026-02-28_win-actions-release.md)
+- [plan_archive_2026-02-24_win-ui-polish.md](plan_archive_2026-02-24_win-ui-polish.md)
+- [plan_archive_2026-02-24_win-self-config.md](plan_archive_2026-02-24_win-self-config.md)
+- [plan_archive_2026-02-24_win-overlay-mask.md](plan_archive_2026-02-24_win-overlay-mask.md)
+- [plan_archive_2026-02-24_win-devices-config.md](plan_archive_2026-02-24_win-devices-config.md)
+- [plan_archive_2026-02-24_devices-node-info.md](plan_archive_2026-02-24_devices-node-info.md)
+- [plan_archive_2026-02-23_win-ui-toast.md](plan_archive_2026-02-23_win-ui-toast.md)
+- [plan_archive_2026-02-22_win-localhub.md](plan_archive_2026-02-22_win-localhub.md)
+- [plan_archive_2026-02-21_win-session-devices.md](plan_archive_2026-02-21_win-session-devices.md)
+- [plan_archive_2026-02-21_win-flow-dag-editor-pr2.md](plan_archive_2026-02-21_win-flow-dag-editor-pr2.md)
+- [plan_archive_2026-02-21_win-flow-dag-editor-pr1.md](plan_archive_2026-02-21_win-flow-dag-editor-pr1.md)
+- [plan_archive_2026-02-21_win-devices-tree.md](plan_archive_2026-02-21_win-devices-tree.md)
+- [plan_archive_2026-02-21_win-devices-tree-expand.md](plan_archive_2026-02-21_win-devices-tree-expand.md)
+- [plan_archive_2026-02-19_win-services-converge.md](plan_archive_2026-02-19_win-services-converge.md)
+- [plan_archive_2026-02-18_win-mgmt-service.md](plan_archive_2026-02-18_win-mgmt-service.md)
+
+## Android
+- [plan_archive_2026-03-03_android-topicbus.md](plan_archive_2026-03-03_android-topicbus.md)
+- [plan_archive_2026-03-03_android-release-v0.1.12.md](plan_archive_2026-03-03_android-release-v0.1.12.md)
+- [plan_archive_2026-03-03_android-bump-management-v0.1.2.md](plan_archive_2026-03-03_android-bump-management-v0.1.2.md)
+- [plan_archive_2026-03-02_android-nav-icons.md](plan_archive_2026-03-02_android-nav-icons.md)
+- [plan_archive_2026-03-02_android-debug-direct-apk.md](plan_archive_2026-03-02_android-debug-direct-apk.md)
+- [plan_archive_2026-03-01_android-varstore.md](plan_archive_2026-03-01_android-varstore.md)
+- [plan_archive_2026-02-28_android-ui-devices-kv-editor.md](plan_archive_2026-02-28_android-ui-devices-kv-editor.md)
+- [plan_archive_2026-02-28_android-identity-split.md](plan_archive_2026-02-28_android-identity-split.md)
+- [plan_archive_2026-02-28_android-devices-dialog.md](plan_archive_2026-02-28_android-devices-dialog.md)
+- [plan_archive_2026-02-27_android-ui-polish-snackbar.md](plan_archive_2026-02-27_android-ui-polish-snackbar.md)
+- [plan_archive_2026-02-27_android-ui-drawer-snackbar.md](plan_archive_2026-02-27_android-ui-drawer-snackbar.md)
+- [plan_archive_2026-02-27_android-ui-chrome-scroll.md](plan_archive_2026-02-27_android-ui-chrome-scroll.md)
+- [plan_archive_2026-02-27_android-hub-ui-v1.md](plan_archive_2026-02-27_android-hub-ui-v1.md)
+- [plan_archive_2026-02-27_android-fgs-type-gomobile-reflect.md](plan_archive_2026-02-27_android-fgs-type-gomobile-reflect.md)
+- [plan_archive_2026-02-25_android-hub-m0-smoke_android.md](plan_archive_2026-02-25_android-hub-m0-smoke_android.md)
+- [plan_archive_2026-02-25_android-hub-m0_server.md](plan_archive_2026-02-25_android-hub-m0_server.md)
+- [plan_archive_2026-02-25_android-hub-m0_android.md](plan_archive_2026-02-25_android-hub-m0_android.md)
+
+## MetricsNode
+- [plan_archive_2026-03-07_metricsnode-ci-fix.md](plan_archive_2026-03-07_metricsnode-ci-fix.md)
+- [plan_archive_2026-03-05_metricsnode-connect-settings-compact.md](plan_archive_2026-03-05_metricsnode-connect-settings-compact.md)
+- [plan_archive_2026-03-03_metricsnode-ui-polish.md](plan_archive_2026-03-03_metricsnode-ui-polish.md)
+- [plan_archive_2026-03-03_metricsnode-settings-ui.md](plan_archive_2026-03-03_metricsnode-settings-ui.md)
+- [plan_archive_2026-03-03_metricsnode-ci-build.md](plan_archive_2026-03-03_metricsnode-ci-build.md)
+- [plan_archive_2026-03-02_metricsnode-win-brightness-wmi.md](plan_archive_2026-03-02_metricsnode-win-brightness-wmi.md)
+- [plan_archive_2026-03-02_metricsnode-win-brightness-wmi-set.md](plan_archive_2026-03-02_metricsnode-win-brightness-wmi-set.md)
+- [plan_archive_2026-03-02_metricsnode-brightness-deviceid.md](plan_archive_2026-03-02_metricsnode-brightness-deviceid.md)
+- [plan_archive_2026-03-02_metricsnode-brightness-control.md](plan_archive_2026-03-02_metricsnode-brightness-control.md)
+- [plan_archive_2026-03-01_metricsnode-windows-ignore-config.md](plan_archive_2026-03-01_metricsnode-windows-ignore-config.md)
+- [plan_archive_2026-03-01_metricsnode-var-control.md](plan_archive_2026-03-01_metricsnode-var-control.md)
+- [plan_archive_2026-03-01_metricsnode-deps-upgrade.md](plan_archive_2026-03-01_metricsnode-deps-upgrade.md)
+- [plan_archive_2026-02-28_metricsnode-mvp.md](plan_archive_2026-02-28_metricsnode-mvp.md)

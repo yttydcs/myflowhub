@@ -56,7 +56,7 @@ MyFlowHub-SDK（分支：`chore/docs-consistency`，commit：`f8cf23f`）：
 ## 3) 对应 plan.md 任务映射（worktrees/docs-consistency/plan.md）
 
 - DC1：文档现状审计与差异清单（已完成并写入 plan）
-- DC2：更新 MyFlowHub3 控制面文档（已完成：plan.md / repos.md / target.md / docs/protocol_map.md）
+- DC2：更新 MyFlowHub3 控制面文档（已完成：plan.md / repos.md / target.md / docs/specs/protocol_map.md）
 - DC3：更新关键仓库 README（已完成：Win/SDK 各自分支提交，待合并）
 - DC4：Code Review（已通过）
 - DC5：归档变更（本文件）
@@ -84,7 +84,7 @@ MyFlowHub-SDK（分支：`chore/docs-consistency`，commit：`f8cf23f`）：
 本 workflow 不涉及代码逻辑改动，验收以“文档一致性与关键词扫描”为主：
 - Win README：`myflowhub-win_remove-fyne` 已消失（路径已修正）
 - SDK README：不再出现 “v1 计划/已实现” 矛盾段落
-- `docs/protocol_map.md`：已明确以 `myflowhub-proto/protocol/*` 为主入口，并注明 server/protocol 为兼容壳
+- `docs/specs/protocol_map.md`：已明确以 `myflowhub-proto/protocol/*` 为主入口，并注明 server/protocol 为兼容壳
 - `plan.md`：标题与定位已与现状一致（全局计划与归档）
 
 ---
@@ -97,4 +97,5 @@ MyFlowHub-SDK（分支：`chore/docs-consistency`，commit：`f8cf23f`）：
 回滚方案：
 - MyFlowHub3 控制面文档：均为纯文档修改，可按本归档第 2 节反向编辑回退。
 - MyFlowHub-Win / MyFlowHub-SDK：如不接受 README 改动，可在各自仓库对 `chore/docs-consistency` 分支提交执行 `git revert` 或直接丢弃该分支（未合并前成本最低）。
+
 

@@ -11,7 +11,7 @@
 ## 具体变更内容
 ### 新增
 - `subproto/topicbus/*`：承载 TopicBus 子协议实现（由原目录迁移而来）
-- `repo/MyFlowHub-Server/docs/plan_archive/plan_archive_2026-02-15_varstore-subproto.md`：归档上一轮 workflow 的计划文档，确保可审计
+- `repo/MyFlowHub-Server/docs/plan/plan_archive_2026-02-15_varstore-subproto.md`：归档上一轮 workflow 的计划文档，确保可审计
 
 ### 修改
 - `modules/hub.go`：默认模块集合改用 `subproto/topicbus`
@@ -56,4 +56,5 @@
 
 ## 回滚方案
 - 直接 `git revert` 本次合并的提交即可回滚（目录迁移与引用改动均在同一变更集内）。
+
 

@@ -20,7 +20,7 @@
 - 文档
   - `docs/release.md`：Secrets 配置、keystore 生成、tag 规则与发版步骤说明
 - 计划归档
-  - `docs/plan_archive/plan_archive_2026-02-25_android-hub-m0-smoke.md`：归档历史 workflow 计划，避免与新 workflow 的 `plan.md` 混用
+  - `docs/plan/plan_archive_2026-02-25_android-hub-m0-smoke.md`：归档历史 workflow 计划，避免与新 workflow 的 `plan.md` 混用
 
 ### 修改
 
@@ -37,7 +37,7 @@
 ## plan.md 任务映射
 
 - ANDA1 - 归档旧计划（文档）
-  - `docs/plan_archive/plan_archive_2026-02-25_android-hub-m0-smoke.md`
+  - `docs/plan/plan_archive_2026-02-25_android-hub-m0-smoke.md`
   - `plan.md`
 - ANDA2 - Gradle：支持版本号注入（tag -> versionName/versionCode）
   - `app/build.gradle.kts`
@@ -94,4 +94,5 @@
 - 回滚：
   - 若需关闭自动构建/发版：删除 `.github/workflows/*.yml` 并回滚 `app/build.gradle.kts` 的签名/版本注入逻辑。
   - 若误发 Release：在 GitHub Release 页面手动删除对应 Release/tag（并重新打正确 tag）。
+
 

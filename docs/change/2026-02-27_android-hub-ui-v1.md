@@ -58,7 +58,7 @@
 
 ## 任务映射（plan.md）
 
-- ANDH1：归档旧 plan/todo（`docs/plan_archive/*`）
+- ANDH1：归档旧 plan/todo（`docs/plan/*`）
 - ANDH2：Go 身份/会话/登录（`hubmobile/keys.go`、`hubmobile/client.go`、`hubmobile/workdir.go`）
 - ANDH3：Go Devices（management）封装（`hubmobile/management.go`）
 - ANDH4：Go 日志 ring buffer（`hubmobile/logs.go`、`hubmobile/logs_test.go`）
@@ -106,4 +106,5 @@
 - 回滚：
   - revert 本分支相关提交即可回退到 M0（仅 Hub Start/Stop/Status）
   - AAR/SDK 配置均为可选：未生成 AAR 时运行会回退到 stub（仅可启动 UI，不具备协议能力）
+
 

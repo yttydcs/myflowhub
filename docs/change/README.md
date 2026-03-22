@@ -5,7 +5,8 @@
 ## 使用方式
 - 先想看当前主线：看 `../../plan.md`。
 - 想按主题找历史变更：从本索引进入。
-- 想看完整执行过程、Checklist、Review 证据：继续看 `../plan_archive/README.md`。
+- 想看完整执行过程、Checklist、Review 证据：继续看 `../plan/README.md`。
+- 想看长期技术约束与协议入口：看 `../specs/README.md`。
 
 ## 分组规则
 - 按主影响面归类，不按“是否跨仓”重复列出。
@@ -21,6 +22,8 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-03-22_workspace-docs-governance.md](2026-03-22_workspace-docs-governance.md)
+- [2026-03-22_server-docs-governance.md](2026-03-22_server-docs-governance.md)
 - [2026-03-21_codex-mcp-runtime-cleanup.md](2026-03-21_codex-mcp-runtime-cleanup.md)
 - [2026-03-21_docs-entry-index.md](2026-03-21_docs-entry-index.md)
 - [2026-03-21_global-plan-slim.md](2026-03-21_global-plan-slim.md)

@@ -39,7 +39,7 @@
 
 ## 5) 文档更新
 
-- 文件：`repo/MyFlowHub-Server/docs/6-flow.md`
+- 文件：`repo/MyFlowHub-Server/docs/specs/flow.md`
 - 更新点：
   - `event` 触发来源改为 `topicbus.publish` / `topicbus.received`
   - `set.trigger` 增加 `event_mode` 定义与默认值说明。
@@ -57,7 +57,7 @@
 - Task D：测试与文档
   - `repo/MyFlowHub-SubProto/flow/trigger_test.go`
   - `repo/MyFlowHub-SubProto/topicbus/trigger_event_test.go`
-  - `repo/MyFlowHub-Server/docs/6-flow.md`
+  - `repo/MyFlowHub-Server/docs/specs/flow.md`
 
 # 关键设计决策与权衡
 
@@ -86,3 +86,4 @@
 
 - 本轮在现有多仓主工作区直接实施并提交（未新建独占 worktree）。
 - 已通过对应仓库提交 + 全局 `docs/change/` 归档方式完成收敛，便于后续交接与追踪。
+
