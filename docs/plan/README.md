@@ -33,6 +33,7 @@
 - [plan_archive_2026-02-18_docs-consistency.md](plan_archive_2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+- [plan_archive_2026-03-22_node-display-name-followup.md](plan_archive_2026-03-22_node-display-name-followup.md)
 - [plan_archive_2026-03-22_proto-management-node-display-name.md](plan_archive_2026-03-22_proto-management-node-display-name.md)
 - [plan_archive_2026-03-21_proto-exec-cap-query-baseline.md](plan_archive_2026-03-21_proto-exec-cap-query-baseline.md)
 - [plan_archive_2026-03-14_bump-core-v0.4.0-remaining.md](plan_archive_2026-03-14_bump-core-v0.4.0-remaining.md)

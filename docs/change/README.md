@@ -41,6 +41,7 @@
 - [2026-02-18_docs-consistency.md](2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+- [2026-03-22_node-display-name-followup.md](2026-03-22_node-display-name-followup.md)
 - [2026-03-22_management-node-display-name.md](2026-03-22_management-node-display-name.md)
 - [2026-03-21_proto-exec-cap-query-baseline.md](2026-03-21_proto-exec-cap-query-baseline.md)
 - [2026-03-21_proto-flow-delete.md](2026-03-21_proto-flow-delete.md)

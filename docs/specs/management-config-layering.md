@@ -14,8 +14,17 @@
   - `nodes[]` 增加可选字段 `display_name`
 - `node_info`
   - `items["display_name"]` 表示节点显示名
+- Win `Devices` Config UI
+  - 可在现有 `Edit` 弹窗中合成 `node.display_name` 的可编辑入口
+  - 写路径仍使用标准 `config_get` / `config_set`
 - UI 回退规则
   - 当 `display_name` 为空或缺失时，消费方必须回退到 `node_id`
+- 直连子节点名称缓存
+  - `list_nodes` 的 child `display_name` 以直连连接 metadata 为准
+  - 实现应在“子节点身份建立”与“`config_set(node.display_name)` 成功返回”后尽量刷新该 metadata
+  - 若 metadata 缺失，消费方继续回退到 `node_id`，不得改为 `list_nodes` 现查每个 child 的 `node_info`
+- 本地节点一致性
+  - 本地短路的 `node_info`、Config 标题和远程 `node_info` 都应基于同一键 `node.display_name`
 
 ## Persistent Config Layering
 
