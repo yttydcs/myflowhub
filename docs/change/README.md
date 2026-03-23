@@ -140,6 +140,9 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-23_win-showcase-rich-display-widgets.md](2026-03-23_win-showcase-rich-display-widgets.md)
+- [2026-03-23_win-frontend-number-input-normalization.md](2026-03-23_win-frontend-number-input-normalization.md)
+- [2026-03-23_win-flow-varstore-owner-constant.md](2026-03-23_win-flow-varstore-owner-constant.md)
 - [2026-03-22_devices-node-display-name.md](2026-03-22_devices-node-display-name.md)
 - [2026-03-22_win-translation-settings.md](2026-03-22_win-translation-settings.md)
 - [2026-03-22_win-flow-data-dag-editor.md](2026-03-22_win-flow-data-dag-editor.md)

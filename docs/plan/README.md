@@ -59,6 +59,9 @@
 - [plan_archive_2026-02-20_server-use-subproto-remaining-modules.md](plan_archive_2026-02-20_server-use-subproto-remaining-modules.md)
 
 ## Win
+- [plan_archive_2026-03-23_win-showcase-rich-display-widgets.md](plan_archive_2026-03-23_win-showcase-rich-display-widgets.md)
+- [plan_archive_2026-03-23_win-flow-varstore-owner-constant.md](plan_archive_2026-03-23_win-flow-varstore-owner-constant.md)
+- [plan_archive_2026-03-23_win-frontend-number-input-normalization.md](plan_archive_2026-03-23_win-frontend-number-input-normalization.md)
 - [plan_archive_2026-03-22_win-management-node-display-name.md](plan_archive_2026-03-22_win-management-node-display-name.md)
 - [plan_archive_2026-03-22_win-translation-settings.md](plan_archive_2026-03-22_win-translation-settings.md)
 - [plan_archive_2026-03-22_win-flow-data-dag-editor.md](plan_archive_2026-03-22_win-flow-data-dag-editor.md)
