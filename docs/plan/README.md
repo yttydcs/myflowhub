@@ -17,10 +17,12 @@
 - [Protocol / Core / SDK](#protocol--core--sdk)
 - [Server / SubProto](#server--subproto)
 - [Win](#win)
+- [Repo / Monkey](#repo--monkey)
 - [Android](#android)
 - [MetricsNode](#metricsnode)
 
 ## Snapshots / Meta
+- [plan_archive_2026-03-24_auth-admission-downstream.md](plan_archive_2026-03-24_auth-admission-downstream.md)
 - [plan_archive_2026-03-22_workspace-docs-governance.md](plan_archive_2026-03-22_workspace-docs-governance.md)
 - [plan_archive_2026-03-22_server-docs-governance.md](plan_archive_2026-03-22_server-docs-governance.md)
 - [plan_archive_2026-03-21_global-plan-pre-slim.md](plan_archive_2026-03-21_global-plan-pre-slim.md)
@@ -41,6 +43,7 @@
 - [plan_archive_2026-02-20_proto-protocol-mapgen.md](plan_archive_2026-02-20_proto-protocol-mapgen.md)
 
 ## Server / SubProto
+- [plan_archive_2026-03-24_auth-admission-control.md](plan_archive_2026-03-24_auth-admission-control.md)
 - [plan_archive_2026-03-22_server-management-node-display-name.md](plan_archive_2026-03-22_server-management-node-display-name.md)
 - [plan_archive_2026-03-22_subproto-management-node-display-name.md](plan_archive_2026-03-22_subproto-management-node-display-name.md)
 - [plan_archive_2026-03-22_flow-data-dag-runtime.md](plan_archive_2026-03-22_flow-data-dag-runtime.md)
@@ -119,6 +122,9 @@
 - [plan_archive_2026-02-21_win-devices-tree-expand.md](plan_archive_2026-02-21_win-devices-tree-expand.md)
 - [plan_archive_2026-02-19_win-services-converge.md](plan_archive_2026-02-19_win-services-converge.md)
 - [plan_archive_2026-02-18_win-mgmt-service.md](plan_archive_2026-02-18_win-mgmt-service.md)
+
+## Repo / Monkey
+- [plan_archive_2026-03-23_monkey-bsd-reference-image-preview.md](plan_archive_2026-03-23_monkey-bsd-reference-image-preview.md)
 
 ## Android
 - [plan_archive_2026-03-03_android-topicbus.md](plan_archive_2026-03-03_android-topicbus.md)

@@ -18,10 +18,12 @@
 - [Protocol / Core / SDK](#protocol--core--sdk)
 - [Server / SubProto](#server--subproto)
 - [Win](#win)
+- [Repo / Monkey](#repo--monkey)
 - [Android](#android)
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-03-24_auth-admission-downstream-followup.md](2026-03-24_auth-admission-downstream-followup.md)
 - [2026-03-22_workspace-docs-governance.md](2026-03-22_workspace-docs-governance.md)
 - [2026-03-22_server-docs-governance.md](2026-03-22_server-docs-governance.md)
 - [2026-03-21_codex-mcp-runtime-cleanup.md](2026-03-21_codex-mcp-runtime-cleanup.md)
@@ -71,6 +73,9 @@
 - [2026-02-10_hdrtcp-v2_core.md](2026-02-10_hdrtcp-v2_core.md)
 
 ## Server / SubProto
+- [2026-03-24_auth-admission-release-chain.md](2026-03-24_auth-admission-release-chain.md)
+- [2026-03-24_auth-authority-strict-selection.md](2026-03-24_auth-authority-strict-selection.md)
+- [2026-03-23_auth-controlled-admission.md](2026-03-23_auth-controlled-admission.md)
 - [2026-03-22_hubruntime-layered-config-persistence.md](2026-03-22_hubruntime-layered-config-persistence.md)
 - [2026-03-22_management-display-name-and-persistence-hook.md](2026-03-22_management-display-name-and-persistence-hook.md)
 - [2026-03-22_flow-data-dag-runtime.md](2026-03-22_flow-data-dag-runtime.md)
@@ -218,6 +223,9 @@
 - [2026-02-21_win-devices-tree.md](2026-02-21_win-devices-tree.md)
 - [2026-02-21_win-devices-tree-expand.md](2026-02-21_win-devices-tree-expand.md)
 - [2026-02-19_win-services-converge.md](2026-02-19_win-services-converge.md)
+
+## Repo / Monkey
+- [2026-03-23_monkey-bsd-reference-image-preview.md](2026-03-23_monkey-bsd-reference-image-preview.md)
 - [2026-02-18_win-semver-deps.md](2026-02-18_win-semver-deps.md)
 - [2026-02-18_win-mgmt-service.md](2026-02-18_win-mgmt-service.md)
 - [2026-02-18_win-file-await.md](2026-02-18_win-file-await.md)

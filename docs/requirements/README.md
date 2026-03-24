@@ -14,6 +14,8 @@
 ## Current Status
 - [management-node-display-name.md](management-node-display-name.md)
   - 设备管理中的节点显示名需求、范围与验收口径。
+- [auth-controlled-admission.md](auth-controlled-admission.md)
+  - auth 普通注册审批、一次性角色 permit 与父链受控准入需求。
 
 ## Rules
 - 使用稳定文件名，不使用日期前缀。
