@@ -12,6 +12,7 @@
 - `2026-03-24`：auth 受控准入跨仓 workflow 已完成，覆盖普通注册 pending 审批、一次性角色 permit、authority fail-closed，以及 `Proto/Core/auth/Server` 的 semver 发布链收口；详见 `docs/requirements/auth-controlled-admission.md`、`docs/change/2026-03-23_auth-controlled-admission.md`、`docs/change/2026-03-24_auth-authority-strict-selection.md`、`docs/change/2026-03-24_auth-admission-release-chain.md`、`docs/plan/plan_archive_2026-03-24_auth-admission-control.md` 与 `docs/lessons/cross-repo-semver-release.md`。
 - `2026-03-24`：auth admission 下游依赖跟进已完成，`MyFlowHub-SDK` 已发布 `v0.1.11`、`MyFlowHub-Win` 已发布 `v0.0.11`，`MyFlowHub-Android/hubmobile` 已完成依赖升级并通过本地 `GOWORK=off` 验证，但因 release workflow 仍 checkout 旧 `MyFlowHub-Server` 默认分支，本轮未发 Android tag；详见 `docs/change/2026-03-24_auth-admission-downstream-followup.md`、`docs/plan/plan_archive_2026-03-24_auth-admission-downstream.md` 与 `docs/lessons/cross-repo-semver-release.md`。
 - `2026-03-23`：`repo/monkey` 已修复 BSD 定制页面 `ReferenceImageCard` 的真实图片预览入口，已有图片点击会复用历史生成缩放查看器；同时已回退此前误加到通用 uploader 的 BSD 特化预览逻辑，详见 `docs/change/2026-03-23_monkey-bsd-reference-image-preview.md` 与 `docs/plan/plan_archive_2026-03-23_monkey-bsd-reference-image-preview.md`。
+- `2026-03-24`：`MyFlowHub-Win` 已修复 `Showcase` 编辑器变量快捷选择的候选来源与输入区布局，`Variable Name` 输入框和选择按钮现已同列，快捷选择弹窗不再错误依赖 VarPool watch list，而是基于当前 screen 变量上下文与当前节点 mine 变量；详见 `docs/change/2026-03-23_win-showcase-var-picker-fix.md` 与 `docs/plan/plan_archive_2026-03-24_win-showcase-var-picker-fix.md`。
 - `2026-03-23`：`MyFlowHub-Win` 已为 `Showcase` 增加 `metric`、`badge`、`progress` 三种更丰富的展示模式，并通过共享渲染组件保持 Editor / Viewer 的简洁一致性；详见 `docs/change/2026-03-23_win-showcase-rich-display-widgets.md` 与 `docs/plan/plan_archive_2026-03-23_win-showcase-rich-display-widgets.md`。
 - `2026-03-23`：`MyFlowHub-Win` 已修复 `Flow` 编辑器 `VarStore Set` 等视觉表单数字字段的 literal 常量输入崩溃，并将前端 number 表单归一化逻辑收敛为共享 helper；详见 `docs/change/2026-03-23_win-flow-varstore-owner-constant.md`、`docs/change/2026-03-23_win-frontend-number-input-normalization.md`、`docs/plan/plan_archive_2026-03-23_win-flow-varstore-owner-constant.md` 与 `docs/plan/plan_archive_2026-03-23_win-frontend-number-input-normalization.md`。
 - `2026-03-22`：workspace 根文档与 `MyFlowHub-Server` 文档已完成 taxonomy 治理、索引重建与计划归档收敛；详见 `docs/change/2026-03-22_workspace-docs-governance.md`、`docs/change/2026-03-22_server-docs-governance.md`、`docs/plan/plan_archive_2026-03-22_workspace-docs-governance.md` 与 `docs/plan/plan_archive_2026-03-22_server-docs-governance.md`。
@@ -69,6 +70,8 @@
 ## Historical Entry Points
 - `repo/monkey BSD 定制页引用图预览修复` workflow 计划归档：`docs/plan/plan_archive_2026-03-23_monkey-bsd-reference-image-preview.md`
 - `auth 受控准入与发布链收口` workflow 计划归档：`docs/plan/plan_archive_2026-03-24_auth-admission-control.md`
+- `Win Showcase 变量快捷选择修复` workflow 计划归档：`docs/plan/plan_archive_2026-03-24_win-showcase-var-picker-fix.md`
+- `Win Showcase 变量快捷选择修复` 变更归档：`docs/change/2026-03-23_win-showcase-var-picker-fix.md`
 - `auth 受控准入` 稳定 requirement：`docs/requirements/auth-controlled-admission.md`
 - `auth 受控准入与一次性 permit` 变更归档：`docs/change/2026-03-23_auth-controlled-admission.md`
 - `auth authority 严格判定` 变更归档：`docs/change/2026-03-24_auth-authority-strict-selection.md`
