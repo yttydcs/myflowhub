@@ -145,6 +145,7 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-24_win-showcase-var-picker-watch-all.md](2026-03-24_win-showcase-var-picker-watch-all.md)
 - [2026-03-24_win-flow-editor-regression-tests.md](2026-03-24_win-flow-editor-regression-tests.md)
 - [2026-03-24_win-flow-editor-accessibility.md](2026-03-24_win-flow-editor-accessibility.md)
 - [2026-03-24_win-flow-editor-visual-form-ux.md](2026-03-24_win-flow-editor-visual-form-ux.md)
