@@ -62,6 +62,7 @@
 - [plan_archive_2026-02-20_server-use-subproto-remaining-modules.md](plan_archive_2026-02-20_server-use-subproto-remaining-modules.md)
 
 ## Win
+- [plan_archive_2026-03-24_win-flow-editor-enhancement.md](plan_archive_2026-03-24_win-flow-editor-enhancement.md)
 - [plan_archive_2026-03-24_win-showcase-var-picker-fix.md](plan_archive_2026-03-24_win-showcase-var-picker-fix.md)
 - [plan_archive_2026-03-23_win-showcase-rich-display-widgets.md](plan_archive_2026-03-23_win-showcase-rich-display-widgets.md)
 - [plan_archive_2026-03-23_win-flow-varstore-owner-constant.md](plan_archive_2026-03-23_win-flow-varstore-owner-constant.md)
