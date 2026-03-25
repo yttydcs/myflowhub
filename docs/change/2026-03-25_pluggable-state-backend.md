@@ -30,7 +30,7 @@
 
 ## Related Lessons
 
-- 无。
+- `D:\project\MyFlowHub3\docs\lessons\cross-repo-semver-release.md`
 
 ## Requirements Impact
 
@@ -151,6 +151,9 @@
   - 在 `D:\project\MyFlowHub3\worktrees\MyFlowHub-Server-refactor-pluggable-state` 临时生成 `go.work` 绑定本地 `Core/Proto` 与本次 `SubProto` worktree 后执行：
   - `go test ./... -count=1 -p 1`
   - 结果：全量通过。
+- 补充说明
+  - `MyFlowHub-Server` 的 `GOWORK=off` 仍会解析到已发布的 `myflowhub-subproto/*` 版本，而不是本轮本地合入的 API。
+  - 当前“可验证且已通过”的路径是 workspace-local 临时 `go.work` 联调；若要让单仓 `GOWORK=off` 也通过，仍需后续执行对应的 SubProto semver 发布与 Server 依赖升级。
 
 ## 潜在影响与回滚方案
 
@@ -159,6 +162,7 @@
 - `flow.backend=pg` 或 `varstore.backend=pg` 时，启动 / 首次预热依赖 PG 可达。
 - PG table 名当前只接受简单标识符，不支持 schema-qualified 名称。
 - `flow` 的 run 状态、scheduler、runtime context 以及 `varstore` 的订阅、pending、writing、逐跳缓存仍然是内存态，重启不会恢复。
+- `MyFlowHub-Server` 若脱离 workspace-local `go.work` 单独构建，仍存在 `SubProto` semver 发布链跟进问题；详见 `cross-repo-semver-release` lesson。
 
 ### 回滚
 
