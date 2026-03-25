@@ -147,6 +147,7 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-25_win-i18n-coverage.md](2026-03-25_win-i18n-coverage.md)
 - [2026-03-25_win-varstore-capability-schema.md](2026-03-25_win-varstore-capability-schema.md)
 - [2026-03-25_win-flow-varstore-visual-form-stale.md](2026-03-25_win-flow-varstore-visual-form-stale.md)
 - [2026-03-25_win-flow-capability-backend-schema-consumption.md](2026-03-25_win-flow-capability-backend-schema-consumption.md)

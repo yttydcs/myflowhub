@@ -64,6 +64,7 @@
 - [plan_archive_2026-02-20_server-use-subproto-remaining-modules.md](plan_archive_2026-02-20_server-use-subproto-remaining-modules.md)
 
 ## Win
+- [plan_archive_2026-03-25_win-i18n-coverage.md](plan_archive_2026-03-25_win-i18n-coverage.md)
 - [plan_archive_2026-03-25_win-varstore-capability-schema.md](plan_archive_2026-03-25_win-varstore-capability-schema.md)
 - [plan_archive_2026-03-25_win-flow-varstore-visual-form-stale.md](plan_archive_2026-03-25_win-flow-varstore-visual-form-stale.md)
 - [plan_archive_2026-03-25_win-flow-capability-backend-schema-consumption.md](plan_archive_2026-03-25_win-flow-capability-backend-schema-consumption.md)
