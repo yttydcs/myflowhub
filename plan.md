@@ -10,6 +10,7 @@
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
 - `2026-03-25`：`MyFlowHub-Win` 已补齐 `Flow Editor / Showcase / Permissions` 剩余高频路径 i18n 覆盖，缺失 key 扫描归零，并将多处 store 直抛错误接到本地化文案；详见 `docs/change/2026-03-25_win-i18n-coverage.md` 与 `docs/plan/plan_archive_2026-03-25_win-i18n-coverage.md`。
+- `2026-03-25`：`MyFlowHub-Win` 已新增独立 `myflowhub-mcp` headless MCP CLI，复用现有 `session/auth/management/varstore` 服务并使用独立 `mcp.*` 配置目录，同时补充 `scripts/start-myflowhub-mcp.ps1` 作为稳定启动入口；详见 `docs/change/2026-03-25_win-mcp-ai-client.md` 与 `docs/change/2026-03-25_win-mcp-start-script.md`。
 - `2026-03-25`：`MyFlowHub-SubProto` 已为 `varstore::get/set/revoke` 补齐 capability `input_schema/output_schema`，`MyFlowHub-Win` 已移除对应本地 override、改由 backend schema 驱动，并补齐旧节点选中时的 capability hydration；详见 `docs/change/2026-03-25_subproto-varstore-capability-schema.md`、`docs/change/2026-03-25_win-varstore-capability-schema.md`、`docs/plan/plan_archive_2026-03-25_subproto-varstore-capability-schema.md` 与 `docs/plan/plan_archive_2026-03-25_win-varstore-capability-schema.md`。
 - `2026-03-25`：`MyFlowHub-SubProto` 与 `MyFlowHub-Win` 已完成 Flow capability schema 接入第一轮收口，`topicbus::publish`、`file::mkdir`、`file::list`、`file::read_text` 现由后端 capability registry 提供 `input_schema`，Win ordinary mode 已补消费验证；详见 `docs/change/2026-03-25_subproto-capability-input-schema.md`、`docs/change/2026-03-25_win-flow-capability-backend-schema-consumption.md`、`docs/plan/plan_archive_2026-03-25_subproto-capability-input-schema.md` 与 `docs/plan/plan_archive_2026-03-25_win-flow-capability-backend-schema-consumption.md`。
 - `2026-03-25`：`MyFlowHub-Win` 已完成 Flow capability picker UX follow-up，修正顶部输入对齐、移除方法重新选择时的筛选自动回填，并隐藏 `missing_schema` 用户提示；详见 `docs/change/2026-03-25_win-flow-capability-picker-followup.md`。
@@ -93,6 +94,8 @@
 - `Win Flow capability backend schema consumption` 变更归档：`docs/change/2026-03-25_win-flow-capability-backend-schema-consumption.md`
 - `Win varstore capability schema` workflow 计划归档：`docs/plan/plan_archive_2026-03-25_win-varstore-capability-schema.md`
 - `Win varstore capability schema` 变更归档：`docs/change/2026-03-25_win-varstore-capability-schema.md`
+- `Win MCP AI client` 变更归档：`docs/change/2026-03-25_win-mcp-ai-client.md`
+- `Win MCP 启动脚本` 变更归档：`docs/change/2026-03-25_win-mcp-start-script.md`
 - `Win Flow capability picker follow-up` 变更归档：`docs/change/2026-03-25_win-flow-capability-picker-followup.md`
 - `Win Flow varstore visual form stale state` workflow 计划归档：`docs/plan/plan_archive_2026-03-25_win-flow-varstore-visual-form-stale.md`
 - `Win Flow varstore visual form stale state` 变更归档：`docs/change/2026-03-25_win-flow-varstore-visual-form-stale.md`
