@@ -43,6 +43,7 @@
 - [2026-02-18_docs-consistency.md](2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+- [2026-03-25_proto-flow-delete-release.md](2026-03-25_proto-flow-delete-release.md)
 - [2026-03-22_node-display-name-followup.md](2026-03-22_node-display-name-followup.md)
 - [2026-03-22_management-node-display-name.md](2026-03-22_management-node-display-name.md)
 - [2026-03-21_proto-exec-cap-query-baseline.md](2026-03-21_proto-exec-cap-query-baseline.md)
@@ -74,6 +75,8 @@
 
 ## Server / SubProto
 - [2026-03-25_defaultset-deps-release-chain.md](2026-03-25_defaultset-deps-release-chain.md)
+- [2026-03-25_server-defaultset-deps-release-chain.md](2026-03-25_server-defaultset-deps-release-chain.md)
+- [2026-03-25_subproto-defaultset-deps-release-chain.md](2026-03-25_subproto-defaultset-deps-release-chain.md)
 - [2026-03-25_pluggable-state-backend.md](2026-03-25_pluggable-state-backend.md)
 - [2026-03-25_subproto-varstore-capability-schema.md](2026-03-25_subproto-varstore-capability-schema.md)
 - [2026-03-25_subproto-capability-input-schema.md](2026-03-25_subproto-capability-input-schema.md)

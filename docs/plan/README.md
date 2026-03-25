@@ -35,6 +35,7 @@
 - [plan_archive_2026-02-18_docs-consistency.md](plan_archive_2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+- [plan_archive_2026-03-25_proto-defaultset-deps-release.md](plan_archive_2026-03-25_proto-defaultset-deps-release.md)
 - [plan_archive_2026-03-22_node-display-name-followup.md](plan_archive_2026-03-22_node-display-name-followup.md)
 - [plan_archive_2026-03-22_proto-management-node-display-name.md](plan_archive_2026-03-22_proto-management-node-display-name.md)
 - [plan_archive_2026-03-21_proto-exec-cap-query-baseline.md](plan_archive_2026-03-21_proto-exec-cap-query-baseline.md)
@@ -43,6 +44,8 @@
 - [plan_archive_2026-02-20_proto-protocol-mapgen.md](plan_archive_2026-02-20_proto-protocol-mapgen.md)
 
 ## Server / SubProto
+- [plan_archive_2026-03-25_subproto-defaultset-deps-release.md](plan_archive_2026-03-25_subproto-defaultset-deps-release.md)
+- [plan_archive_2026-03-25_server-defaultset-deps-release.md](plan_archive_2026-03-25_server-defaultset-deps-release.md)
 - [plan_archive_2026-03-25_subproto-pluggable-state-backend.md](plan_archive_2026-03-25_subproto-pluggable-state-backend.md)
 - [plan_archive_2026-03-25_server-pluggable-state-backend.md](plan_archive_2026-03-25_server-pluggable-state-backend.md)
 - [plan_archive_2026-03-25_subproto-varstore-capability-schema.md](plan_archive_2026-03-25_subproto-varstore-capability-schema.md)
