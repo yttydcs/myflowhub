@@ -152,6 +152,7 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-25_win-embed-dist-placeholder.md](2026-03-25_win-embed-dist-placeholder.md)
 - [2026-03-25_win-mcp-start-script.md](2026-03-25_win-mcp-start-script.md)
 - [2026-03-25_win-mcp-ai-client.md](2026-03-25_win-mcp-ai-client.md)
 - [2026-03-25_win-i18n-coverage.md](2026-03-25_win-i18n-coverage.md)

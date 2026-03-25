@@ -15,6 +15,9 @@
 - [cross-repo-semver-release.md](cross-repo-semver-release.md)
   - 症状：`go.work` 或本地 sibling worktree 通过，但 `GOWORK=off` / 远端 CI 仍失败，常见为 `NewHandlerWithDeps`、`SharedExecCapQueryBroker`、`ActionDelete` 等缺符号。
   - 关键词：未发布 tag、默认分支 checkout、`replace ../../...`、`go list -m`、`defaultset`、`runtimedeps`。
+- [wails-embed-dist-placeholder.md](wails-embed-dist-placeholder.md)
+  - 症状：Wails 在 `Generating bindings` 阶段报 `pattern all:frontend/dist: cannot embed directory frontend/dist: contains no embeddable files`。
+  - 关键词：`go:embed all:frontend/dist`、`go mod tidy`、`frontend/dist`、`placeholder.txt`。
 
 ## Rules
 - 使用稳定文件名，不使用日期前缀。
