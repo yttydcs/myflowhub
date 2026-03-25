@@ -9,6 +9,7 @@
 - 客户端基础能力以 `MyFlowHub-SDK` 为统一入口；`MyFlowHub-Win`、`MyFlowHub-Android`、`MyFlowHub-MetricsNode` 作为上层应用尽量复用 SDK / Core / Proto。
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
+- `2026-03-25`：`MyFlowHub-SubProto` 已为 `varstore::get/set/revoke` 补齐 capability `input_schema/output_schema`，`MyFlowHub-Win` 已移除对应本地 override、改由 backend schema 驱动，并补齐旧节点选中时的 capability hydration；详见 `docs/change/2026-03-25_subproto-varstore-capability-schema.md`、`docs/change/2026-03-25_win-varstore-capability-schema.md`、`docs/plan/plan_archive_2026-03-25_subproto-varstore-capability-schema.md` 与 `docs/plan/plan_archive_2026-03-25_win-varstore-capability-schema.md`。
 - `2026-03-25`：`MyFlowHub-SubProto` 与 `MyFlowHub-Win` 已完成 Flow capability schema 接入第一轮收口，`topicbus::publish`、`file::mkdir`、`file::list`、`file::read_text` 现由后端 capability registry 提供 `input_schema`，Win ordinary mode 已补消费验证；详见 `docs/change/2026-03-25_subproto-capability-input-schema.md`、`docs/change/2026-03-25_win-flow-capability-backend-schema-consumption.md`、`docs/plan/plan_archive_2026-03-25_subproto-capability-input-schema.md` 与 `docs/plan/plan_archive_2026-03-25_win-flow-capability-backend-schema-consumption.md`。
 - `2026-03-25`：`MyFlowHub-Win` 已完成 Flow capability picker UX follow-up，修正顶部输入对齐、移除方法重新选择时的筛选自动回填，并隐藏 `missing_schema` 用户提示；详见 `docs/change/2026-03-25_win-flow-capability-picker-followup.md`。
 - `2026-03-25`：`MyFlowHub-Win` 已修复 Flow 现有 `call` 节点切换到 `varstore::get` 后的陈旧表单字段残留，form 模式现在会按目标方法 schema 清理 `/visibility` 等旧字段并保留交集字段，ordinary mode 可恢复可用；详见 `docs/change/2026-03-25_win-flow-varstore-visual-form-stale.md` 与 `docs/plan/plan_archive_2026-03-25_win-flow-varstore-visual-form-stale.md`。
@@ -83,8 +84,12 @@
 - `Win Flow 编辑器增强` 变更归档：`docs/change/2026-03-24_win-flow-editor-bootstrap-baseline.md`、`docs/change/2026-03-24_win-flow-editor-shell-reliability.md`、`docs/change/2026-03-24_win-flow-editor-visual-form-ux.md`、`docs/change/2026-03-24_win-flow-editor-accessibility.md`、`docs/change/2026-03-24_win-flow-editor-regression-tests.md`
 - `SubProto Flow capability input schema` workflow 计划归档：`docs/plan/plan_archive_2026-03-25_subproto-capability-input-schema.md`
 - `SubProto Flow capability input schema` 变更归档：`docs/change/2026-03-25_subproto-capability-input-schema.md`
+- `SubProto varstore capability schema` workflow 计划归档：`docs/plan/plan_archive_2026-03-25_subproto-varstore-capability-schema.md`
+- `SubProto varstore capability schema` 变更归档：`docs/change/2026-03-25_subproto-varstore-capability-schema.md`
 - `Win Flow capability backend schema consumption` workflow 计划归档：`docs/plan/plan_archive_2026-03-25_win-flow-capability-backend-schema-consumption.md`
 - `Win Flow capability backend schema consumption` 变更归档：`docs/change/2026-03-25_win-flow-capability-backend-schema-consumption.md`
+- `Win varstore capability schema` workflow 计划归档：`docs/plan/plan_archive_2026-03-25_win-varstore-capability-schema.md`
+- `Win varstore capability schema` 变更归档：`docs/change/2026-03-25_win-varstore-capability-schema.md`
 - `Win Flow capability picker follow-up` 变更归档：`docs/change/2026-03-25_win-flow-capability-picker-followup.md`
 - `Win Flow varstore visual form stale state` workflow 计划归档：`docs/plan/plan_archive_2026-03-25_win-flow-varstore-visual-form-stale.md`
 - `Win Flow varstore visual form stale state` 变更归档：`docs/change/2026-03-25_win-flow-varstore-visual-form-stale.md`

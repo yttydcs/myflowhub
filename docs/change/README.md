@@ -73,6 +73,7 @@
 - [2026-02-10_hdrtcp-v2_core.md](2026-02-10_hdrtcp-v2_core.md)
 
 ## Server / SubProto
+- [2026-03-25_subproto-varstore-capability-schema.md](2026-03-25_subproto-varstore-capability-schema.md)
 - [2026-03-25_subproto-capability-input-schema.md](2026-03-25_subproto-capability-input-schema.md)
 - [2026-03-24_auth-admission-release-chain.md](2026-03-24_auth-admission-release-chain.md)
 - [2026-03-24_auth-authority-strict-selection.md](2026-03-24_auth-authority-strict-selection.md)
@@ -146,6 +147,7 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-25_win-varstore-capability-schema.md](2026-03-25_win-varstore-capability-schema.md)
 - [2026-03-25_win-flow-varstore-visual-form-stale.md](2026-03-25_win-flow-varstore-visual-form-stale.md)
 - [2026-03-25_win-flow-capability-backend-schema-consumption.md](2026-03-25_win-flow-capability-backend-schema-consumption.md)
 - [2026-03-25_win-flow-capability-picker-followup.md](2026-03-25_win-flow-capability-picker-followup.md)
