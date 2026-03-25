@@ -43,6 +43,7 @@
 - [plan_archive_2026-02-20_proto-protocol-mapgen.md](plan_archive_2026-02-20_proto-protocol-mapgen.md)
 
 ## Server / SubProto
+- [plan_archive_2026-03-25_subproto-capability-input-schema.md](plan_archive_2026-03-25_subproto-capability-input-schema.md)
 - [plan_archive_2026-03-24_auth-admission-control.md](plan_archive_2026-03-24_auth-admission-control.md)
 - [plan_archive_2026-03-22_server-management-node-display-name.md](plan_archive_2026-03-22_server-management-node-display-name.md)
 - [plan_archive_2026-03-22_subproto-management-node-display-name.md](plan_archive_2026-03-22_subproto-management-node-display-name.md)
@@ -62,6 +63,7 @@
 - [plan_archive_2026-02-20_server-use-subproto-remaining-modules.md](plan_archive_2026-02-20_server-use-subproto-remaining-modules.md)
 
 ## Win
+- [plan_archive_2026-03-25_win-flow-capability-backend-schema-consumption.md](plan_archive_2026-03-25_win-flow-capability-backend-schema-consumption.md)
 - [plan_archive_2026-03-24_win-flow-editor-enhancement.md](plan_archive_2026-03-24_win-flow-editor-enhancement.md)
 - [plan_archive_2026-03-24_win-showcase-var-picker-watch-all.md](plan_archive_2026-03-24_win-showcase-var-picker-watch-all.md)
 - [plan_archive_2026-03-24_win-showcase-var-picker-fix.md](plan_archive_2026-03-24_win-showcase-var-picker-fix.md)

@@ -9,6 +9,8 @@
 - 客户端基础能力以 `MyFlowHub-SDK` 为统一入口；`MyFlowHub-Win`、`MyFlowHub-Android`、`MyFlowHub-MetricsNode` 作为上层应用尽量复用 SDK / Core / Proto。
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
+- `2026-03-25`：`MyFlowHub-SubProto` 与 `MyFlowHub-Win` 已完成 Flow capability schema 接入第一轮收口，`topicbus::publish`、`file::mkdir`、`file::list`、`file::read_text` 现由后端 capability registry 提供 `input_schema`，Win ordinary mode 已补消费验证；详见 `docs/change/2026-03-25_subproto-capability-input-schema.md`、`docs/change/2026-03-25_win-flow-capability-backend-schema-consumption.md`、`docs/plan/plan_archive_2026-03-25_subproto-capability-input-schema.md` 与 `docs/plan/plan_archive_2026-03-25_win-flow-capability-backend-schema-consumption.md`。
+- `2026-03-25`：`MyFlowHub-Win` 已完成 Flow capability picker UX follow-up，修正顶部输入对齐、移除方法重新选择时的筛选自动回填，并隐藏 `missing_schema` 用户提示；详见 `docs/change/2026-03-25_win-flow-capability-picker-followup.md`。
 - `2026-03-24`：auth 受控准入跨仓 workflow 已完成，覆盖普通注册 pending 审批、一次性角色 permit、authority fail-closed，以及 `Proto/Core/auth/Server` 的 semver 发布链收口；详见 `docs/requirements/auth-controlled-admission.md`、`docs/change/2026-03-23_auth-controlled-admission.md`、`docs/change/2026-03-24_auth-authority-strict-selection.md`、`docs/change/2026-03-24_auth-admission-release-chain.md`、`docs/plan/plan_archive_2026-03-24_auth-admission-control.md` 与 `docs/lessons/cross-repo-semver-release.md`。
 - `2026-03-24`：auth admission 下游依赖跟进已完成，`MyFlowHub-SDK` 已发布 `v0.1.11`、`MyFlowHub-Win` 已发布 `v0.0.11`，`MyFlowHub-Android/hubmobile` 已完成依赖升级并通过本地 `GOWORK=off` 验证，但因 release workflow 仍 checkout 旧 `MyFlowHub-Server` 默认分支，本轮未发 Android tag；详见 `docs/change/2026-03-24_auth-admission-downstream-followup.md`、`docs/plan/plan_archive_2026-03-24_auth-admission-downstream.md` 与 `docs/lessons/cross-repo-semver-release.md`。
 - `2026-03-23`：`repo/monkey` 已修复 BSD 定制页面 `ReferenceImageCard` 的真实图片预览入口，已有图片点击会复用历史生成缩放查看器；同时已回退此前误加到通用 uploader 的 BSD 特化预览逻辑，详见 `docs/change/2026-03-23_monkey-bsd-reference-image-preview.md` 与 `docs/plan/plan_archive_2026-03-23_monkey-bsd-reference-image-preview.md`。
@@ -78,6 +80,11 @@
 - `Win Showcase watched 变量选择器修复` 变更归档：`docs/change/2026-03-24_win-showcase-var-picker-watch-all.md`
 - `Win Flow 编辑器增强` workflow 计划归档：`docs/plan/plan_archive_2026-03-24_win-flow-editor-enhancement.md`
 - `Win Flow 编辑器增强` 变更归档：`docs/change/2026-03-24_win-flow-editor-bootstrap-baseline.md`、`docs/change/2026-03-24_win-flow-editor-shell-reliability.md`、`docs/change/2026-03-24_win-flow-editor-visual-form-ux.md`、`docs/change/2026-03-24_win-flow-editor-accessibility.md`、`docs/change/2026-03-24_win-flow-editor-regression-tests.md`
+- `SubProto Flow capability input schema` workflow 计划归档：`docs/plan/plan_archive_2026-03-25_subproto-capability-input-schema.md`
+- `SubProto Flow capability input schema` 变更归档：`docs/change/2026-03-25_subproto-capability-input-schema.md`
+- `Win Flow capability backend schema consumption` workflow 计划归档：`docs/plan/plan_archive_2026-03-25_win-flow-capability-backend-schema-consumption.md`
+- `Win Flow capability backend schema consumption` 变更归档：`docs/change/2026-03-25_win-flow-capability-backend-schema-consumption.md`
+- `Win Flow capability picker follow-up` 变更归档：`docs/change/2026-03-25_win-flow-capability-picker-followup.md`
 - `auth 受控准入` 稳定 requirement：`docs/requirements/auth-controlled-admission.md`
 - `auth 受控准入与一次性 permit` 变更归档：`docs/change/2026-03-23_auth-controlled-admission.md`
 - `auth authority 严格判定` 变更归档：`docs/change/2026-03-24_auth-authority-strict-selection.md`
