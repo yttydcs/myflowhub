@@ -73,6 +73,7 @@
 - [2026-02-10_hdrtcp-v2_core.md](2026-02-10_hdrtcp-v2_core.md)
 
 ## Server / SubProto
+- [2026-03-25_defaultset-deps-release-chain.md](2026-03-25_defaultset-deps-release-chain.md)
 - [2026-03-25_pluggable-state-backend.md](2026-03-25_pluggable-state-backend.md)
 - [2026-03-25_subproto-varstore-capability-schema.md](2026-03-25_subproto-varstore-capability-schema.md)
 - [2026-03-25_subproto-capability-input-schema.md](2026-03-25_subproto-capability-input-schema.md)

@@ -3,6 +3,7 @@
 ## Summary
 - 跨仓 API 变更如果只在 workspace 本地 `go.work` 联调通过，仍可能在真实下游仓库的 `GOWORK=off` 模式下失败。
 - 这类问题通常不是业务逻辑 bug，而是“上游 tag 未发布”“下游 `go.mod` 未对齐”，或者“下游 CI 仍 checkout 到旧的 sibling repo 基线”的发布链问题。
+- 对 `Server/defaultset` 这类跨多个 subproto module 的装配入口，最先报出的 1 到 2 个缺符号通常只是入口症状，根因往往藏在更上游的同链路 module 或协议版本。
 
 ## Lookup Hints
 - 症状：
@@ -12,6 +13,11 @@
 - 关键词：
   - `GOWORK=off`
   - `go list -m`
+  - `undefined: filehandler.NewHandlerWithDeps`
+  - `undefined: management.NewHandlerWithDeps`
+  - `undefined: broker.SharedExecCapQueryBroker`
+  - `undefined: protocol.ActionDelete`
+  - `no required module provides package github.com/yttydcs/myflowhub-subproto/exec/runtimedeps`
   - `undefined: config.KeyParentJoinPermit`
   - `undefined: bootstrap.SelfRegisterOptions.JoinPermit`
   - `Checkout Server (for hubmobile replace)`
@@ -25,6 +31,7 @@
 ## Symptoms
 - 代码在本地多仓联调环境可编译、可测试。
 - 一旦关闭 `go.work` 或切到单仓环境，立即出现找不到新类型、常量或字段的错误。
+- 常见表现是：修完首个缺符号后，继续暴露 sibling module 的 shared package 缺失，或继续暴露更上游 `Proto` 契约缺失。
 - 或者本地 workflow worktree 测试通过，但远端 release workflow 仍因为 checkout 到旧 sibling repo 基线而产出旧行为。
 
 ## Impact
@@ -61,9 +68,23 @@
 - 对关键下游补充 `GOWORK=off` 构建和测试验证，作为 workflow 收口条件。
 - 对仍依赖 sibling repo `replace` 的应用仓，在确认 CI checkout 到正确上游基线前，不要直接发 release tag。
 
+### Defaultset release-chain example
+- 发布：
+  - `myflowhub-proto v0.1.3`
+  - `myflowhub-subproto/broker v0.1.1`
+  - `myflowhub-subproto/exec v0.1.2`
+  - `myflowhub-subproto/file v0.1.4`
+  - `myflowhub-subproto/flow v0.1.2`
+  - `myflowhub-subproto/topicbus v0.1.2`
+  - `myflowhub-subproto/varstore v0.1.4`
+  - `myflowhub-subproto/management v0.1.4`
+- 将 `MyFlowHub-Server` 对齐到上述版本，并在 `GOWORK=off` 下执行 `go build ./...` 和 `go test ./... -count=1 -p 1`。
+- 如果 first error 是 `NewHandlerWithDeps`，不要止步于 `file/management` 两个 module；继续检查 `broker`、`exec` 与 `Proto` 契约版本。
+
 ## Prevention / Guardrails
 - 只要本轮改动触达上游公共 API，结束前必须至少执行一次真实下游的 `GOWORK=off go test`。
 - 发布顺序按依赖方向执行：`Proto/Core -> SubProto module -> SDK/Server -> 应用层`。
+- 同仓 shared package 新增后，继续沿依赖方向检查所有 sibling modules 的最小版本，而不是只修首个报错 module。
 - 如果下游 CI 依赖 `replace` 到 sibling repo，必须检查该 sibling repo 的远端默认分支或 checkout ref 是否已经包含本轮代码。
 - 已 push 的 semver tag 不重写；发现问题时发更高 patch 版本。
 - 不要把 `go.work` 通过误判成“可发布”证据；它只能证明本地联调成功。
@@ -78,3 +99,4 @@
   - [2026-03-23_auth-controlled-admission.md](../change/2026-03-23_auth-controlled-admission.md)
   - [2026-03-24_auth-authority-strict-selection.md](../change/2026-03-24_auth-authority-strict-selection.md)
   - [2026-03-24_auth-admission-release-chain.md](../change/2026-03-24_auth-admission-release-chain.md)
+  - [2026-03-25_defaultset-deps-release-chain.md](../change/2026-03-25_defaultset-deps-release-chain.md)

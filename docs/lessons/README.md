@@ -13,8 +13,8 @@
 
 ## Current Status
 - [cross-repo-semver-release.md](cross-repo-semver-release.md)
-  - 症状：`go.work` 或本地 sibling worktree 通过，但 `GOWORK=off` / 远端 CI 仍失败或仍打出旧基线。
-  - 关键词：未发布 tag、默认分支 checkout、`replace ../../...`、`go list -m`。
+  - 症状：`go.work` 或本地 sibling worktree 通过，但 `GOWORK=off` / 远端 CI 仍失败，常见为 `NewHandlerWithDeps`、`SharedExecCapQueryBroker`、`ActionDelete` 等缺符号。
+  - 关键词：未发布 tag、默认分支 checkout、`replace ../../...`、`go list -m`、`defaultset`、`runtimedeps`。
 
 ## Rules
 - 使用稳定文件名，不使用日期前缀。
