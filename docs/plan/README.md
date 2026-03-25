@@ -43,6 +43,8 @@
 - [plan_archive_2026-02-20_proto-protocol-mapgen.md](plan_archive_2026-02-20_proto-protocol-mapgen.md)
 
 ## Server / SubProto
+- [plan_archive_2026-03-25_subproto-pluggable-state-backend.md](plan_archive_2026-03-25_subproto-pluggable-state-backend.md)
+- [plan_archive_2026-03-25_server-pluggable-state-backend.md](plan_archive_2026-03-25_server-pluggable-state-backend.md)
 - [plan_archive_2026-03-25_subproto-varstore-capability-schema.md](plan_archive_2026-03-25_subproto-varstore-capability-schema.md)
 - [plan_archive_2026-03-25_subproto-capability-input-schema.md](plan_archive_2026-03-25_subproto-capability-input-schema.md)
 - [plan_archive_2026-03-24_auth-admission-control.md](plan_archive_2026-03-24_auth-admission-control.md)
