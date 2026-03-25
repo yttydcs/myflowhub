@@ -146,6 +146,7 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-25_win-flow-varstore-visual-form-stale.md](2026-03-25_win-flow-varstore-visual-form-stale.md)
 - [2026-03-25_win-flow-capability-backend-schema-consumption.md](2026-03-25_win-flow-capability-backend-schema-consumption.md)
 - [2026-03-25_win-flow-capability-picker-followup.md](2026-03-25_win-flow-capability-picker-followup.md)
 - [2026-03-24_win-showcase-var-picker-watch-all.md](2026-03-24_win-showcase-var-picker-watch-all.md)
