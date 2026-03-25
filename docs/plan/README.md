@@ -44,6 +44,7 @@
 - [plan_archive_2026-02-20_proto-protocol-mapgen.md](plan_archive_2026-02-20_proto-protocol-mapgen.md)
 
 ## Server / SubProto
+- [plan_archive_2026-03-25_auth-first-register-bootstrap.md](plan_archive_2026-03-25_auth-first-register-bootstrap.md)
 - [plan_archive_2026-03-25_subproto-defaultset-deps-release.md](plan_archive_2026-03-25_subproto-defaultset-deps-release.md)
 - [plan_archive_2026-03-25_server-defaultset-deps-release.md](plan_archive_2026-03-25_server-defaultset-deps-release.md)
 - [plan_archive_2026-03-25_subproto-pluggable-state-backend.md](plan_archive_2026-03-25_subproto-pluggable-state-backend.md)
