@@ -164,6 +164,7 @@
 - [plan_archive_2026-02-25_android-hub-m0_android.md](plan_archive_2026-02-25_android-hub-m0_android.md)
 
 ## MetricsNode
+- [plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md](plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md)
 - [plan_archive_2026-03-07_metricsnode-ci-fix.md](plan_archive_2026-03-07_metricsnode-ci-fix.md)
 - [plan_archive_2026-03-05_metricsnode-connect-settings-compact.md](plan_archive_2026-03-05_metricsnode-connect-settings-compact.md)
 - [plan_archive_2026-03-03_metricsnode-ui-polish.md](plan_archive_2026-03-03_metricsnode-ui-polish.md)

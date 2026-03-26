@@ -12,6 +12,9 @@
 - 未来 workflow 的防错规则
 
 ## Current Status
+- [wails-bindings-cross-project.md](wails-bindings-cross-project.md)
+  - 症状：`npm run build` / `vue-tsc` 提示 `BootstrapGet`、`MetricsSettingsGet`、`StartReporting` 缺导出，但 `windows/app.go` 明明存在这些方法。
+  - 关键词：`AboutState`、`FlowProjectsState`、`SaveHomeState`、`App.d.ts`、`wailsjs`、cross-project bindings。
 - [cross-repo-semver-release.md](cross-repo-semver-release.md)
   - 症状：`go.work` 或本地 sibling worktree 通过，但 `GOWORK=off` / 远端 CI 仍失败，常见为 `NewHandlerWithDeps`、`SharedExecCapQueryBroker`、`ActionDelete` 等缺符号。
   - 关键词：未发布 tag、默认分支 checkout、`replace ../../...`、`go list -m`、`defaultset`、`runtimedeps`。

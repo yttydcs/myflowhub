@@ -298,6 +298,7 @@
 - [2026-02-25_android-apk-release-ci.md](2026-02-25_android-apk-release-ci.md)
 
 ## MetricsNode
+- [2026-03-26_metricsnode-wails-bindings-sync.md](2026-03-26_metricsnode-wails-bindings-sync.md)
 - [2026-03-07_metricsnode-ci-fix.md](2026-03-07_metricsnode-ci-fix.md)
 - [2026-03-04_metricsnode-connect-settings-compact.md](2026-03-04_metricsnode-connect-settings-compact.md)
 - [2026-03-03_metricsnode-ui-polish.md](2026-03-03_metricsnode-ui-polish.md)
