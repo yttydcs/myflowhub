@@ -9,6 +9,7 @@
 - 客户端基础能力以 `MyFlowHub-SDK` 为统一入口；`MyFlowHub-Win`、`MyFlowHub-Android`、`MyFlowHub-MetricsNode` 作为上层应用尽量复用 SDK / Core / Proto。
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
+- `2026-03-26`：`MyFlowHub-Win` 已将 Authority Console 从单页 `Permissions` 重构为 `Access Policy / Registration Approvals / Permit Issuance` 三个独立入口，权限编排页完成可用性重做，并补齐注册审批与 permit 签发 GUI 编排；详见 `docs/change/2026-03-26_win-authority-console-refactor.md` 与 `docs/plan/plan_archive_2026-03-26_win-authority-console-refactor.md`。
 - `2026-03-26`：auth 默认角色层级已收敛为 `superadmin / admin / node` 三层，`auth.role_perms` 现提供开箱即用默认值，`auth.bootstrap.first_register.role` 默认改为 `superadmin`，并已在 `Core / SubProto / Server` 三处对齐与补测；详见 `docs/change/2026-03-26_auth-default-role-hierarchy.md` 与 `docs/plan/plan_archive_2026-03-26_auth-default-role-hierarchy.md`。
 - `2026-03-25`：auth 冷启动审批场景已补齐“首个注册 bootstrap”受控例外，新增 `auth.bootstrap.first_register.*` 配置键，限制为 `local authority + persist enabled + 显式 device_id`，支持可选 `pubkey` 绑定与 `epoch` 一次性重开；详见 `docs/requirements/auth-controlled-admission.md`、`docs/change/2026-03-25_auth-first-register-bootstrap.md` 与 `docs/plan/plan_archive_2026-03-25_auth-first-register-bootstrap.md`。
 - `2026-03-25`：`MyFlowHub-Win` 已补齐 `Flow Editor / Showcase / Permissions` 剩余高频路径 i18n 覆盖，缺失 key 扫描归零，并将多处 store 直抛错误接到本地化文案；详见 `docs/change/2026-03-25_win-i18n-coverage.md` 与 `docs/plan/plan_archive_2026-03-25_win-i18n-coverage.md`。
@@ -52,6 +53,7 @@
 ## Active Items
 - `management-node-display-name` 已完成收敛，相关 plan/change 已迁入全局 `docs/plan/` 与 `docs/change/`。
 - `node-display-name-followup` 已完成归档：详见 `docs/change/2026-03-22_node-display-name-followup.md` 与 `docs/plan/plan_archive_2026-03-22_node-display-name-followup.md`。
+- `win-authority-console-refactor` 已完成归档：详见 `docs/change/2026-03-26_win-authority-console-refactor.md` 与 `docs/plan/plan_archive_2026-03-26_win-authority-console-refactor.md`。
 - `auth-default-role-hierarchy` 已完成归档：详见 `docs/change/2026-03-26_auth-default-role-hierarchy.md` 与 `docs/plan/plan_archive_2026-03-26_auth-default-role-hierarchy.md`。
 - `auth-first-register-bootstrap` 已完成归档：详见 `docs/change/2026-03-25_auth-first-register-bootstrap.md` 与 `docs/plan/plan_archive_2026-03-25_auth-first-register-bootstrap.md`。
 - `auth-admission-control` 已完成归档：详见 `docs/change/2026-03-23_auth-controlled-admission.md`、`docs/change/2026-03-24_auth-authority-strict-selection.md`、`docs/change/2026-03-24_auth-admission-release-chain.md` 与 `docs/plan/plan_archive_2026-03-24_auth-admission-control.md`。
@@ -84,6 +86,8 @@
 
 ## Historical Entry Points
 - `repo/monkey BSD 定制页引用图预览修复` workflow 计划归档：`docs/plan/plan_archive_2026-03-23_monkey-bsd-reference-image-preview.md`
+- `Win Authority 控制台重构` workflow 计划归档：`docs/plan/plan_archive_2026-03-26_win-authority-console-refactor.md`
+- `Win Authority 控制台重构` 变更归档：`docs/change/2026-03-26_win-authority-console-refactor.md`
 - `auth 默认角色分层` workflow 计划归档：`docs/plan/plan_archive_2026-03-26_auth-default-role-hierarchy.md`
 - `auth 默认角色分层` 变更归档：`docs/change/2026-03-26_auth-default-role-hierarchy.md`
 - `auth 首个注册 bootstrap` workflow 计划归档：`docs/plan/plan_archive_2026-03-25_auth-first-register-bootstrap.md`
