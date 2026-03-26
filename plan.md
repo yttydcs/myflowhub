@@ -9,6 +9,7 @@
 - 客户端基础能力以 `MyFlowHub-SDK` 为统一入口；`MyFlowHub-Win`、`MyFlowHub-Android`、`MyFlowHub-MetricsNode` 作为上层应用尽量复用 SDK / Core / Proto。
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
+- `2026-03-26`：auth 半中心 authority 方案已完成收口，新增 `authority_policy_sync` 协议、root runtime `effective_authority_id` 下发、多跳 assist `TargetID` 转发，以及“断链冻结新准入、仅允许本地已知身份登录”的退化语义；详见 `docs/change/2026-03-26_auth-semi-central-authority.md`、`docs/plan/plan_archive_2026-03-26_auth-semi-central-authority.md` 与 `repo/MyFlowHub-Server/docs/specs/auth.md`。
 - `2026-03-26`：`MyFlowHub-Win` 已修复 `flow.detail` bindings 编译漂移，改用 Win 本地 typed payload 承接当前缺失的 shared proto detail 类型；`GOWORK=off go test ./...` 与 `GOWORK=off wails generate module` 已恢复通过，详见 `docs/change/2026-03-26_win-flow-detail-bindings.md`、`docs/plan/plan_archive_2026-03-26_win-flow-detail-bindings.md` 与 `docs/lessons/wails-binding-proto-drift.md`。
 - `2026-03-26`：`MyFlowHub-Win` 已将 Authority Console 从单页 `Permissions` 重构为 `Access Policy / Registration Approvals / Permit Issuance` 三个独立入口，权限编排页完成可用性重做，并补齐注册审批与 permit 签发 GUI 编排；详见 `docs/change/2026-03-26_win-authority-console-refactor.md` 与 `docs/plan/plan_archive_2026-03-26_win-authority-console-refactor.md`。
 - `2026-03-26`：`MyFlowHub-MetricsNode` 已确认 Windows `TS2305` 缺导出问题的根因是本地 `wailsjs` 绑定面被其它 Wails 应用污染，而非当前 Go / Vue 契约回退；现已为 `scripts/build-windows.ps1` 增加 bindings surface 校验，并补齐恢复文档与 lesson；详见 `docs/change/2026-03-26_metricsnode-wails-bindings-sync.md`、`docs/plan/plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md` 与 `docs/lessons/wails-bindings-cross-project.md`。
@@ -58,6 +59,7 @@
 - `win-authority-console-refactor` 已完成归档：详见 `docs/change/2026-03-26_win-authority-console-refactor.md` 与 `docs/plan/plan_archive_2026-03-26_win-authority-console-refactor.md`。
 - `win-flow-detail-bindings` 已完成归档：详见 `docs/change/2026-03-26_win-flow-detail-bindings.md`、`docs/plan/plan_archive_2026-03-26_win-flow-detail-bindings.md` 与 `docs/lessons/wails-binding-proto-drift.md`。
 - `metricsnode-wails-bindings-sync` 已完成归档：详见 `docs/change/2026-03-26_metricsnode-wails-bindings-sync.md`、`docs/plan/plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md` 与 `docs/lessons/wails-bindings-cross-project.md`。
+- `auth-semi-central-authority` 已完成归档：详见 `docs/change/2026-03-26_auth-semi-central-authority.md` 与 `docs/plan/plan_archive_2026-03-26_auth-semi-central-authority.md`。
 - `auth-default-role-hierarchy` 已完成归档：详见 `docs/change/2026-03-26_auth-default-role-hierarchy.md` 与 `docs/plan/plan_archive_2026-03-26_auth-default-role-hierarchy.md`。
 - `auth-first-register-bootstrap` 已完成归档：详见 `docs/change/2026-03-25_auth-first-register-bootstrap.md` 与 `docs/plan/plan_archive_2026-03-25_auth-first-register-bootstrap.md`。
 - `auth-admission-control` 已完成归档：详见 `docs/change/2026-03-23_auth-controlled-admission.md`、`docs/change/2026-03-24_auth-authority-strict-selection.md`、`docs/change/2026-03-24_auth-admission-release-chain.md` 与 `docs/plan/plan_archive_2026-03-24_auth-admission-control.md`。
@@ -98,6 +100,8 @@
 - `MetricsNode Wails bindings 污染排查与构建护栏` workflow 计划归档：`docs/plan/plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md`
 - `MetricsNode Wails bindings 污染排查与构建护栏` 变更归档：`docs/change/2026-03-26_metricsnode-wails-bindings-sync.md`
 - `MetricsNode Wails bindings 污染排查与构建护栏` lesson：`docs/lessons/wails-bindings-cross-project.md`
+- `auth 半中心 authority` workflow 计划归档：`docs/plan/plan_archive_2026-03-26_auth-semi-central-authority.md`
+- `auth 半中心 authority` 变更归档：`docs/change/2026-03-26_auth-semi-central-authority.md`
 - `auth 默认角色分层` workflow 计划归档：`docs/plan/plan_archive_2026-03-26_auth-default-role-hierarchy.md`
 - `auth 默认角色分层` 变更归档：`docs/change/2026-03-26_auth-default-role-hierarchy.md`
 - `auth 首个注册 bootstrap` workflow 计划归档：`docs/plan/plan_archive_2026-03-25_auth-first-register-bootstrap.md`
