@@ -9,6 +9,7 @@
 - 客户端基础能力以 `MyFlowHub-SDK` 为统一入口；`MyFlowHub-Win`、`MyFlowHub-Android`、`MyFlowHub-MetricsNode` 作为上层应用尽量复用 SDK / Core / Proto。
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
+- `2026-03-26`：`MyFlowHub-Win` 已修复 `flow.detail` bindings 编译漂移，改用 Win 本地 typed payload 承接当前缺失的 shared proto detail 类型；`GOWORK=off go test ./...` 与 `GOWORK=off wails generate module` 已恢复通过，详见 `docs/change/2026-03-26_win-flow-detail-bindings.md`、`docs/plan/plan_archive_2026-03-26_win-flow-detail-bindings.md` 与 `docs/lessons/wails-binding-proto-drift.md`。
 - `2026-03-26`：`MyFlowHub-Win` 已将 Authority Console 从单页 `Permissions` 重构为 `Access Policy / Registration Approvals / Permit Issuance` 三个独立入口，权限编排页完成可用性重做，并补齐注册审批与 permit 签发 GUI 编排；详见 `docs/change/2026-03-26_win-authority-console-refactor.md` 与 `docs/plan/plan_archive_2026-03-26_win-authority-console-refactor.md`。
 - `2026-03-26`：`MyFlowHub-MetricsNode` 已确认 Windows `TS2305` 缺导出问题的根因是本地 `wailsjs` 绑定面被其它 Wails 应用污染，而非当前 Go / Vue 契约回退；现已为 `scripts/build-windows.ps1` 增加 bindings surface 校验，并补齐恢复文档与 lesson；详见 `docs/change/2026-03-26_metricsnode-wails-bindings-sync.md`、`docs/plan/plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md` 与 `docs/lessons/wails-bindings-cross-project.md`。
 - `2026-03-26`：auth 默认角色层级已收敛为 `superadmin / admin / node` 三层，`auth.role_perms` 现提供开箱即用默认值，`auth.bootstrap.first_register.role` 默认改为 `superadmin`，并已在 `Core / SubProto / Server` 三处对齐与补测；详见 `docs/change/2026-03-26_auth-default-role-hierarchy.md` 与 `docs/plan/plan_archive_2026-03-26_auth-default-role-hierarchy.md`。
@@ -55,6 +56,7 @@
 - `management-node-display-name` 已完成收敛，相关 plan/change 已迁入全局 `docs/plan/` 与 `docs/change/`。
 - `node-display-name-followup` 已完成归档：详见 `docs/change/2026-03-22_node-display-name-followup.md` 与 `docs/plan/plan_archive_2026-03-22_node-display-name-followup.md`。
 - `win-authority-console-refactor` 已完成归档：详见 `docs/change/2026-03-26_win-authority-console-refactor.md` 与 `docs/plan/plan_archive_2026-03-26_win-authority-console-refactor.md`。
+- `win-flow-detail-bindings` 已完成归档：详见 `docs/change/2026-03-26_win-flow-detail-bindings.md`、`docs/plan/plan_archive_2026-03-26_win-flow-detail-bindings.md` 与 `docs/lessons/wails-binding-proto-drift.md`。
 - `metricsnode-wails-bindings-sync` 已完成归档：详见 `docs/change/2026-03-26_metricsnode-wails-bindings-sync.md`、`docs/plan/plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md` 与 `docs/lessons/wails-bindings-cross-project.md`。
 - `auth-default-role-hierarchy` 已完成归档：详见 `docs/change/2026-03-26_auth-default-role-hierarchy.md` 与 `docs/plan/plan_archive_2026-03-26_auth-default-role-hierarchy.md`。
 - `auth-first-register-bootstrap` 已完成归档：详见 `docs/change/2026-03-25_auth-first-register-bootstrap.md` 与 `docs/plan/plan_archive_2026-03-25_auth-first-register-bootstrap.md`。
@@ -90,6 +92,9 @@
 - `repo/monkey BSD 定制页引用图预览修复` workflow 计划归档：`docs/plan/plan_archive_2026-03-23_monkey-bsd-reference-image-preview.md`
 - `Win Authority 控制台重构` workflow 计划归档：`docs/plan/plan_archive_2026-03-26_win-authority-console-refactor.md`
 - `Win Authority 控制台重构` 变更归档：`docs/change/2026-03-26_win-authority-console-refactor.md`
+- `Win Flow detail bindings 编译漂移修复` workflow 计划归档：`docs/plan/plan_archive_2026-03-26_win-flow-detail-bindings.md`
+- `Win Flow detail bindings 编译漂移修复` 变更归档：`docs/change/2026-03-26_win-flow-detail-bindings.md`
+- `Win Flow detail bindings 编译漂移修复` lesson：`docs/lessons/wails-binding-proto-drift.md`
 - `MetricsNode Wails bindings 污染排查与构建护栏` workflow 计划归档：`docs/plan/plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md`
 - `MetricsNode Wails bindings 污染排查与构建护栏` 变更归档：`docs/change/2026-03-26_metricsnode-wails-bindings-sync.md`
 - `MetricsNode Wails bindings 污染排查与构建护栏` lesson：`docs/lessons/wails-bindings-cross-project.md`

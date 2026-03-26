@@ -154,6 +154,7 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-26_win-flow-detail-bindings.md](2026-03-26_win-flow-detail-bindings.md)
 - [2026-03-26_win-authority-console-refactor.md](2026-03-26_win-authority-console-refactor.md)
 - [2026-03-25_win-embed-dist-placeholder.md](2026-03-25_win-embed-dist-placeholder.md)
 - [2026-03-25_win-mcp-start-script.md](2026-03-25_win-mcp-start-script.md)

@@ -12,6 +12,9 @@
 - 未来 workflow 的防错规则
 
 ## Current Status
+- [wails-binding-proto-drift.md](wails-binding-proto-drift.md)
+  - 症状：`wails generate module` / `go test` 报 `undefined: flow.DetailReq`、`undefined: flow.ActionDetail`
+  - 关键词：`GOWORK=off`、`myflowhub-proto`、`flow.detail`、local typed payload。
 - [wails-bindings-cross-project.md](wails-bindings-cross-project.md)
   - 症状：`npm run build` / `vue-tsc` 提示 `BootstrapGet`、`MetricsSettingsGet`、`StartReporting` 缺导出，但 `windows/app.go` 明明存在这些方法。
   - 关键词：`AboutState`、`FlowProjectsState`、`SaveHomeState`、`App.d.ts`、`wailsjs`、cross-project bindings。
