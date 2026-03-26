@@ -23,6 +23,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-03-26_auth-default-role-hierarchy.md](2026-03-26_auth-default-role-hierarchy.md)
 - [2026-03-25_auth-first-register-bootstrap.md](2026-03-25_auth-first-register-bootstrap.md)
 - [2026-03-24_auth-admission-downstream-followup.md](2026-03-24_auth-admission-downstream-followup.md)
 - [2026-03-22_workspace-docs-governance.md](2026-03-22_workspace-docs-governance.md)
