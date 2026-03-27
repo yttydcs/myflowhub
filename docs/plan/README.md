@@ -72,6 +72,7 @@
 - [plan_archive_2026-02-20_server-use-subproto-remaining-modules.md](plan_archive_2026-02-20_server-use-subproto-remaining-modules.md)
 
 ## Win
+- [plan_archive_2026-03-27_win-project-meta-uuid.md](plan_archive_2026-03-27_win-project-meta-uuid.md)
 - [plan_archive_2026-03-27_win-access-policy-role-dialog-refine.md](plan_archive_2026-03-27_win-access-policy-role-dialog-refine.md)
 - [plan_archive_2026-03-27_win-access-policy-dialog-editors.md](plan_archive_2026-03-27_win-access-policy-dialog-editors.md)
 - [plan_archive_2026-03-26_win-access-policy-tabs.md](plan_archive_2026-03-26_win-access-policy-tabs.md)

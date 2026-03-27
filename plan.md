@@ -9,6 +9,7 @@
 - 客户端基础能力以 `MyFlowHub-SDK` 为统一入口；`MyFlowHub-Win`、`MyFlowHub-Android`、`MyFlowHub-MetricsNode` 作为上层应用尽量复用 SDK / Core / Proto。
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
+- `2026-03-27`：`MyFlowHub-Win` 已将 Flow 本地项目默认 `flowId` 收敛为 UUID，并在元数据编辑、payload 回写与部署前统一执行 UUID 校验，避免 `fl_` 默认值只在远端部署时才失败；详见 `docs/change/2026-03-27_win-project-meta-uuid.md` 与 `docs/plan/plan_archive_2026-03-27_win-project-meta-uuid.md`。
 - `2026-03-27`：`MyFlowHub-Win` 已进一步收敛 `Access Policy` 的角色管理，角色列表改为更紧凑的单行摘要，角色编辑改为单列可滚动弹窗，权限新增统一通过 picker 执行 `Add / Remove`，并修复焦点外圈裁切与内置预设反馈；详见 `docs/change/2026-03-27_win-access-policy-role-dialog-refine.md` 与 `docs/plan/plan_archive_2026-03-27_win-access-policy-role-dialog-refine.md`。
 - `2026-03-27`：`MyFlowHub-Win` 已将 `Access Policy` 进一步收敛为“当前策略 / 角色管理”双 tab 下的列表摘要 + 弹窗编辑，默认准入、角色管理与节点覆盖均改为列表进入详细编辑，权限维护统一为 catalog 驱动的 `Add / Remove` 列表交互，并保留 unknown perms、角色引用校验与运行时查询能力；详见 `docs/change/2026-03-27_win-access-policy-dialog-editors.md` 与 `docs/plan/plan_archive_2026-03-27_win-access-policy-dialog-editors.md`。
 - `2026-03-26`：auth 半中心 authority 方案已完成收口，新增 `authority_policy_sync` 协议、root runtime `effective_authority_id` 下发、多跳 assist `TargetID` 转发，以及“断链冻结新准入、仅允许本地已知身份登录”的退化语义；详见 `docs/change/2026-03-26_auth-semi-central-authority.md`、`docs/plan/plan_archive_2026-03-26_auth-semi-central-authority.md` 与 `repo/MyFlowHub-Server/docs/specs/auth.md`。
@@ -62,6 +63,7 @@
 - `win-authority-console-refactor` 已完成归档：详见 `docs/change/2026-03-26_win-authority-console-refactor.md` 与 `docs/plan/plan_archive_2026-03-26_win-authority-console-refactor.md`。
 - `win-access-policy-role-dialog-refine` 已完成归档：详见 `docs/change/2026-03-27_win-access-policy-role-dialog-refine.md` 与 `docs/plan/plan_archive_2026-03-27_win-access-policy-role-dialog-refine.md`。
 - `win-access-policy-dialog-editors` 已完成归档：详见 `docs/change/2026-03-27_win-access-policy-dialog-editors.md` 与 `docs/plan/plan_archive_2026-03-27_win-access-policy-dialog-editors.md`。
+- `win-project-meta-uuid` 已完成归档：详见 `docs/change/2026-03-27_win-project-meta-uuid.md` 与 `docs/plan/plan_archive_2026-03-27_win-project-meta-uuid.md`。
 - `win-access-policy-tabs` 已完成归档：详见 `docs/change/2026-03-26_win-access-policy-tabs.md` 与 `docs/plan/plan_archive_2026-03-26_win-access-policy-tabs.md`。
 - `win-flow-detail-bindings` 已完成归档：详见 `docs/change/2026-03-26_win-flow-detail-bindings.md`、`docs/plan/plan_archive_2026-03-26_win-flow-detail-bindings.md` 与 `docs/lessons/wails-binding-proto-drift.md`。
 - `metricsnode-wails-bindings-sync` 已完成归档：详见 `docs/change/2026-03-26_metricsnode-wails-bindings-sync.md`、`docs/plan/plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md` 与 `docs/lessons/wails-bindings-cross-project.md`。
@@ -104,6 +106,8 @@
 - `Win Access Policy 角色弹窗进一步收敛` 变更归档：`docs/change/2026-03-27_win-access-policy-role-dialog-refine.md`
 - `Win Access Policy 列表化与弹窗编辑` workflow 计划归档：`docs/plan/plan_archive_2026-03-27_win-access-policy-dialog-editors.md`
 - `Win Access Policy 列表化与弹窗编辑` 变更归档：`docs/change/2026-03-27_win-access-policy-dialog-editors.md`
+- `Win Flow 项目默认 UUID 收敛` workflow 计划归档：`docs/plan/plan_archive_2026-03-27_win-project-meta-uuid.md`
+- `Win Flow 项目默认 UUID 收敛` 变更归档：`docs/change/2026-03-27_win-project-meta-uuid.md`
 - `Win Access Policy tab 化与角色管理` workflow 计划归档：`docs/plan/plan_archive_2026-03-26_win-access-policy-tabs.md`
 - `Win Access Policy tab 化与角色管理` 变更归档：`docs/change/2026-03-26_win-access-policy-tabs.md`
 - `Win Flow detail bindings 编译漂移修复` workflow 计划归档：`docs/plan/plan_archive_2026-03-26_win-flow-detail-bindings.md`
