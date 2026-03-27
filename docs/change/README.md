@@ -155,6 +155,9 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-27_win-access-policy-role-dialog-refine.md](2026-03-27_win-access-policy-role-dialog-refine.md)
+- [2026-03-27_win-access-policy-dialog-editors.md](2026-03-27_win-access-policy-dialog-editors.md)
+- [2026-03-26_win-access-policy-tabs.md](2026-03-26_win-access-policy-tabs.md)
 - [2026-03-26_win-flow-detail-bindings.md](2026-03-26_win-flow-detail-bindings.md)
 - [2026-03-26_win-authority-console-refactor.md](2026-03-26_win-authority-console-refactor.md)
 - [2026-03-25_win-embed-dist-placeholder.md](2026-03-25_win-embed-dist-placeholder.md)
