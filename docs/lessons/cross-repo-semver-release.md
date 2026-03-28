@@ -13,6 +13,9 @@
 - 关键词：
   - `GOWORK=off`
   - `go list -m`
+  - `undefined: protocol.ActionAuthorityPolicySync`
+  - `undefined: protocol.ActionListRegisterPermits`
+  - `undefined: coreconfig.DefaultAuthBootstrapFirstRegisterRole`
   - `undefined: filehandler.NewHandlerWithDeps`
   - `undefined: management.NewHandlerWithDeps`
   - `undefined: broker.SharedExecCapQueryBroker`
@@ -31,6 +34,7 @@
 ## Symptoms
 - 代码在本地多仓联调环境可编译、可测试。
 - 一旦关闭 `go.work` 或切到单仓环境，立即出现找不到新类型、常量或字段的错误。
+- 对 submodule 来说，还可能表现为：当前源码已经引用了上游新符号，但 module 自己的 `go.mod` 最低版本仍停在旧 tag。
 - 常见表现是：修完首个缺符号后，继续暴露 sibling module 的 shared package 缺失，或继续暴露更上游 `Proto` 契约缺失。
 - 或者本地 workflow worktree 测试通过，但远端 release workflow 仍因为 checkout 到旧 sibling repo 基线而产出旧行为。
 
@@ -42,11 +46,13 @@
 ## Trigger Conditions
 - 本轮改动跨越 `Proto`、`Core`、`SubProto`、`Server` 等多个仓库。
 - 下游仓库依赖了上游刚新增的 API，但上游对应 tag 还没有发布。
+- 子 module 已经引用上游新 API，但 module `go.mod` 的最低依赖版本没有同步抬高。
 - 仅使用 workspace 本地 `go.work` 做联调验证，没有补 `GOWORK=off` 检查。
 - 下游仓库通过 `replace` 依赖 sibling repo，而 CI/release workflow checkout 的是该 sibling repo 的远端默认分支或旧基线。
 
 ## Root Cause
 - `go.work` 会把本地 worktree 直接接到编译链上，掩盖远端 semver 依赖尚未发布或下游版本尚未升级的问题。
+- 对单仓多 module 结构，`go.work` 也会掩盖“module 源码实际依赖更高版本上游，但 `go.mod` 仍声明旧最低版本”的问题。
 - 同样地，`replace ../../SomeRepo` 在本地 workflow worktree 可以指向最新 sibling worktree，但远端 CI 如果只是 checkout 远端默认分支，就不会自动拿到你本地尚未公开的代码。
 - 一旦切回真实依赖解析或真实 CI checkout 模式，隐藏问题就会立刻暴露。
 
@@ -54,8 +60,9 @@
 1. 在 workflow-local `go.work` 下确认功能与测试都通过。
 2. 切换到 `GOWORK=off` 后，在真实下游复现缺符号或依赖不一致问题。
 3. 反查缺失符号对应的上游来源，确认新 API 仍只存在于本地 worktree。
-4. 若下游使用 sibling repo `replace`，继续检查 CI/release workflow 中 `actions/checkout` 拉取的是哪个 repo、哪个 ref。
-5. 先发布上游 tag，或先把 CI 依赖的 sibling repo 基线公开，再执行下游 release。
+4. 若报错发生在上游 submodule 自身，检查该 module `go.mod` 是否仍停在旧最低版本。
+5. 若下游使用 sibling repo `replace`，继续检查 CI/release workflow 中 `actions/checkout` 拉取的是哪个 repo、哪个 ref。
+6. 先发布上游 tag，或先把 CI 依赖的 sibling repo 基线公开，再执行下游 release。
 
 ## Resolution
 - 发布：
@@ -67,6 +74,20 @@
 - 将 `MyFlowHub-Server` 对齐到上述 auth admission 上游版本。
 - 对关键下游补充 `GOWORK=off` 构建和测试验证，作为 workflow 收口条件。
 - 对仍依赖 sibling repo `replace` 的应用仓，在确认 CI checkout 到正确上游基线前，不要直接发 release tag。
+
+### Auth v0.1.5 minimum-version drift example
+- 症状：
+  - `MyFlowHub-SubProto/auth` 在 workspace 联调正常，但 `GOWORK=off go test ./...` 报：
+    - `undefined: protocol.ActionAuthorityPolicySync`
+    - `undefined: protocol.ActionListRegisterPermits`
+    - `undefined: coreconfig.DefaultAuthBootstrapFirstRegisterRole`
+- 根因：
+  - `auth` 源码已经依赖 `Proto v0.1.5` 与 `Core v0.4.9` 的新符号
+  - 但 `auth/go.mod` 仍停在 `Proto v0.1.2` 与 `Core v0.4.8`
+- 修复：
+  - 先把 `auth/go.mod/go.sum` 提升到真实最低依赖版本
+  - 再发布 `auth/v0.1.5`
+  - 最后让 `MyFlowHub-Server` 升级到 `auth v0.1.5` 并执行 `GOWORK=off go test ./...`
 
 ### Defaultset release-chain example
 - 发布：
@@ -83,6 +104,7 @@
 
 ## Prevention / Guardrails
 - 只要本轮改动触达上游公共 API，结束前必须至少执行一次真实下游的 `GOWORK=off go test`。
+- 对单仓多 module，还必须检查每个目标 module 自身的 `go.mod` 最低版本是否与当前源码一致。
 - 发布顺序按依赖方向执行：`Proto/Core -> SubProto module -> SDK/Server -> 应用层`。
 - 同仓 shared package 新增后，继续沿依赖方向检查所有 sibling modules 的最小版本，而不是只修首个报错 module。
 - 如果下游 CI 依赖 `replace` 到 sibling repo，必须检查该 sibling repo 的远端默认分支或 checkout ref 是否已经包含本轮代码。

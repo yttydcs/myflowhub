@@ -80,6 +80,7 @@
 - [2026-02-10_hdrtcp-v2_core.md](2026-02-10_hdrtcp-v2_core.md)
 
 ## Server / SubProto
+- [2026-03-28_auth-v0.1.5-release-chain.md](2026-03-28_auth-v0.1.5-release-chain.md)
 - [2026-03-25_defaultset-deps-release-chain.md](2026-03-25_defaultset-deps-release-chain.md)
 - [2026-03-25_server-defaultset-deps-release-chain.md](2026-03-25_server-defaultset-deps-release-chain.md)
 - [2026-03-25_subproto-defaultset-deps-release-chain.md](2026-03-25_subproto-defaultset-deps-release-chain.md)
