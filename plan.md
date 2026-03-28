@@ -9,6 +9,7 @@
 - 客户端基础能力以 `MyFlowHub-SDK` 为统一入口；`MyFlowHub-Win`、`MyFlowHub-Android`、`MyFlowHub-MetricsNode` 作为上层应用尽量复用 SDK / Core / Proto。
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
+- `2026-03-28`：auth permit 活动列表跨仓 workflow 已完成，`MyFlowHub-Proto / Server / SubProto / Win` 已对齐 `list_register_permits` 契约，Win `Permit Issuance` 页面已收敛为真实活动 permit 列表，并完成根级归档、主线合并和 workflow cleanup；详见 `docs/change/2026-03-28_auth-permit-list.md` 与 `docs/plan/plan_archive_2026-03-28_auth-permit-list.md`。
 - `2026-03-27`：`MyFlowHub-Win` 已将 Flow 本地项目默认 `flowId` 收敛为 UUID，并在元数据编辑、payload 回写与部署前统一执行 UUID 校验，避免 `fl_` 默认值只在远端部署时才失败；详见 `docs/change/2026-03-27_win-project-meta-uuid.md` 与 `docs/plan/plan_archive_2026-03-27_win-project-meta-uuid.md`。
 - `2026-03-27`：`MyFlowHub-Win` 已进一步收敛 `Access Policy` 的角色管理，角色列表改为更紧凑的单行摘要，角色编辑改为单列可滚动弹窗，权限新增统一通过 picker 执行 `Add / Remove`，并修复焦点外圈裁切与内置预设反馈；详见 `docs/change/2026-03-27_win-access-policy-role-dialog-refine.md` 与 `docs/plan/plan_archive_2026-03-27_win-access-policy-role-dialog-refine.md`。
 - `2026-03-27`：`MyFlowHub-Win` 已将 `Access Policy` 进一步收敛为“当前策略 / 角色管理”双 tab 下的列表摘要 + 弹窗编辑，默认准入、角色管理与节点覆盖均改为列表进入详细编辑，权限维护统一为 catalog 驱动的 `Add / Remove` 列表交互，并保留 unknown perms、角色引用校验与运行时查询能力；详见 `docs/change/2026-03-27_win-access-policy-dialog-editors.md` 与 `docs/plan/plan_archive_2026-03-27_win-access-policy-dialog-editors.md`。
@@ -58,6 +59,7 @@
 - `2026-03-21`：`MyFlowHub-Win` 已新增独立 `Settings` 页面，覆盖默认地址、默认设备 ID、自动连接、自动登录、界面偏好与 About 信息展示；详见 `docs/change/2026-03-21_win-settings-page.md`。
 
 ## Active Items
+- `auth-permit-list` 已完成归档：详见 `docs/change/2026-03-28_auth-permit-list.md` 与 `docs/plan/plan_archive_2026-03-28_auth-permit-list.md`。
 - `management-node-display-name` 已完成收敛，相关 plan/change 已迁入全局 `docs/plan/` 与 `docs/change/`。
 - `node-display-name-followup` 已完成归档：详见 `docs/change/2026-03-22_node-display-name-followup.md` 与 `docs/plan/plan_archive_2026-03-22_node-display-name-followup.md`。
 - `win-authority-console-refactor` 已完成归档：详见 `docs/change/2026-03-26_win-authority-console-refactor.md` 与 `docs/plan/plan_archive_2026-03-26_win-authority-console-refactor.md`。
@@ -99,6 +101,8 @@
   - 记录协议映射速查表。
 
 ## Historical Entry Points
+- `auth 活动 permit 列表` workflow 计划归档：`docs/plan/plan_archive_2026-03-28_auth-permit-list.md`
+- `auth 活动 permit 列表` 变更归档：`docs/change/2026-03-28_auth-permit-list.md`
 - `repo/monkey BSD 定制页引用图预览修复` workflow 计划归档：`docs/plan/plan_archive_2026-03-23_monkey-bsd-reference-image-preview.md`
 - `Win Authority 控制台重构` workflow 计划归档：`docs/plan/plan_archive_2026-03-26_win-authority-console-refactor.md`
 - `Win Authority 控制台重构` 变更归档：`docs/change/2026-03-26_win-authority-console-refactor.md`

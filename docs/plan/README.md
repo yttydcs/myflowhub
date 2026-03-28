@@ -44,6 +44,7 @@
 - [plan_archive_2026-02-20_proto-protocol-mapgen.md](plan_archive_2026-02-20_proto-protocol-mapgen.md)
 
 ## Server / SubProto
+- [plan_archive_2026-03-28_auth-permit-list.md](plan_archive_2026-03-28_auth-permit-list.md)
 - [plan_archive_2026-03-26_auth-semi-central-authority.md](plan_archive_2026-03-26_auth-semi-central-authority.md)
 - [plan_archive_2026-03-26_auth-default-role-hierarchy.md](plan_archive_2026-03-26_auth-default-role-hierarchy.md)
 - [plan_archive_2026-03-25_auth-first-register-bootstrap.md](plan_archive_2026-03-25_auth-first-register-bootstrap.md)
