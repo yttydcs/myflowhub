@@ -23,6 +23,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-03-28_sdk-v0.1.13-downstream-sync.md](2026-03-28_sdk-v0.1.13-downstream-sync.md)
 - [2026-03-28_cross-repo-dependency-sync.md](2026-03-28_cross-repo-dependency-sync.md)
 - [2026-03-28_auth-permit-list.md](2026-03-28_auth-permit-list.md)
 - [2026-03-26_auth-semi-central-authority.md](2026-03-26_auth-semi-central-authority.md)
