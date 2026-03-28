@@ -9,6 +9,7 @@
 - 客户端基础能力以 `MyFlowHub-SDK` 为统一入口；`MyFlowHub-Win`、`MyFlowHub-Android`、`MyFlowHub-MetricsNode` 作为上层应用尽量复用 SDK / Core / Proto。
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
+- `2026-03-29`：workspace 根 `scripts/run-dev.ps1` 已将 Win 默认启动路径收敛为 `GOWORK=off`，修复根 `go.work` 污染 `wails generate module` 导致的 `myflowhub-proto ... replaced but not required`；如需保留旧 workspace 行为，可显式传 `-WinUseWorkspace`；详见 `docs/change/2026-03-29_root-run-dev-wails-gowork.md`、`docs/plan/plan_archive_2026-03-29_root-run-dev-wails-gowork.md` 与 `docs/lessons/wails-binding-proto-drift.md`。
 - `2026-03-29`：`MyFlowHub-SubProto/auth` 已发布 `auth/v0.1.5`，补齐 remote authority admin 相关真实最低依赖版本；`MyFlowHub-Server` 已升级到 `auth v0.1.5` 并通过 `GOWORK=off` 全量验证，本地主线合并与 worktree cleanup 已完成；详见 `docs/change/2026-03-28_auth-v0.1.5-release-chain.md` 与 `docs/plan/plan_archive_2026-03-29_auth-v0.1.5-release-chain.md`。
 - `2026-03-28`：auth permit 活动列表跨仓 workflow 已完成，`MyFlowHub-Proto / Server / SubProto / Win` 已对齐 `list_register_permits` 契约，Win `Permit Issuance` 页面已收敛为真实活动 permit 列表，并完成根级归档、主线合并和 workflow cleanup；详见 `docs/change/2026-03-28_auth-permit-list.md` 与 `docs/plan/plan_archive_2026-03-28_auth-permit-list.md`。
 - `2026-03-28`：`MyFlowHub-Win` 已修复 `Permit Issuance` 页的 permit list 响应判定缺口，将列表加载失败改为页面内错误提示，并把 `Refresh / New Permit` 收敛到“活动许可”卡片右上角，移除 `共 X 条 / 实时` 标签；详见 `docs/change/2026-03-28_win-permit-load-feedback.md` 与 `docs/plan/plan_archive_2026-03-28_win-permit-load-feedback.md`。
