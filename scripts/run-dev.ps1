@@ -27,6 +27,10 @@
 .EXAMPLE
   # 指定 Win / MetricsNode 的 DevServer 起始端口（端口被占用时会自动递增避让）
   .\scripts\run-dev.ps1 -WinDevServerPortStart 34115 -MetricsDevServerPortStart 34116 -DevServerPortSearchMax 50
+
+.EXAMPLE
+  # 如需让 Win 保留根 go.work 的 workspace 模式，可显式 opt-out
+  .\scripts\run-dev.ps1 -WinUseWorkspace
 #>
 
 [CmdletBinding()]
@@ -51,6 +55,9 @@ param(
 
   [Parameter()]
   [switch]$GoWorkOff,
+
+  [Parameter()]
+  [switch]$WinUseWorkspace,
 
   [Parameter()]
   [string]$GoTmpDir = "",
@@ -256,12 +263,20 @@ if ($WaitServer -and ($startWin -or $startMetricsNode)) {
 
 if ($startWin) {
   $winEnv = @("`$host.UI.RawUI.WindowTitle = 'MyFlowHub-Win wails dev'")
+  $winGoWorkLabel = "workspace"
+  if ($GoWorkOff) {
+    $winGoWorkLabel = "off（全局 -GoWorkOff）"
+  } elseif (-not $WinUseWorkspace) {
+    $winEnv += "`$env:GOWORK = 'off'"
+    $winGoWorkLabel = "off（Win 默认）"
+  }
   $winDevServer = "$devServerHost`:$winDevServerPort"
   if ($winDevServerPort -ne $WinDevServerPortStart) {
     Write-Host "Win DevServer 端口已避让：$WinDevServerPortStart -> $winDevServerPort（$winDevServer）" -ForegroundColor Yellow
   } else {
     Write-Host "Win DevServer：$winDevServer" -ForegroundColor DarkGray
   }
+  Write-Host "Win GOWORK：$winGoWorkLabel" -ForegroundColor DarkGray
   $winCmd = (@($commonEnv + $winEnv) -join "; ") + "; wails dev -devserver '$winDevServer'"
   Start-Process -FilePath $shellExe -WorkingDirectory $winDir -ArgumentList @("-NoExit", "-Command", $winCmd) | Out-Null
   Write-Host "已启动 Win：wails dev" -ForegroundColor Green

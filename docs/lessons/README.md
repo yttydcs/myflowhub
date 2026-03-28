@@ -16,8 +16,8 @@
   - 症状：`auth list_register_permits: request timed out`，且当前会话节点不是 authority 节点。
   - 关键词：`requires authority-local session`、`authorityId != sourceId`、`Permit Issuance`。
 - [wails-binding-proto-drift.md](wails-binding-proto-drift.md)
-  - 症状：`wails generate module` / `go test` 报 `undefined: flow.DetailReq`、`undefined: flow.ActionDetail`
-  - 关键词：`GOWORK=off`、`myflowhub-proto`、`flow.detail`、local typed payload。
+  - 症状：`wails generate module` / `go test` 报 `undefined: flow.DetailReq`、`undefined: flow.ActionDetail`，或 `module ... myflowhub-proto ... replaced but not required`
+  - 关键词：`GOWORK=off`、`myflowhub-proto`、`flow.detail`、`local typed payload`、`protocol/stream`。
 - [wails-bindings-cross-project.md](wails-bindings-cross-project.md)
   - 症状：`npm run build` / `vue-tsc` 提示 `BootstrapGet`、`MetricsSettingsGet`、`StartReporting` 缺导出，但 `windows/app.go` 明明存在这些方法。
   - 关键词：`AboutState`、`FlowProjectsState`、`SaveHomeState`、`App.d.ts`、`wailsjs`、cross-project bindings。
