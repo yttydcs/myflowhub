@@ -12,6 +12,9 @@
 - 未来 workflow 的防错规则
 
 ## Current Status
+- [authority-local-admin-actions.md](authority-local-admin-actions.md)
+  - 症状：`auth list_register_permits: request timed out`，且当前会话节点不是 authority 节点。
+  - 关键词：`requires authority-local session`、`authorityId != sourceId`、`Permit Issuance`。
 - [wails-binding-proto-drift.md](wails-binding-proto-drift.md)
   - 症状：`wails generate module` / `go test` 报 `undefined: flow.DetailReq`、`undefined: flow.ActionDetail`
   - 关键词：`GOWORK=off`、`myflowhub-proto`、`flow.detail`、local typed payload。

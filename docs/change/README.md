@@ -156,6 +156,7 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-03-28_win-permit-remote-authority-guard.md](2026-03-28_win-permit-remote-authority-guard.md)
 - [2026-03-28_win-permit-load-feedback.md](2026-03-28_win-permit-load-feedback.md)
 - [2026-03-27_win-project-meta-uuid.md](2026-03-27_win-project-meta-uuid.md)
 - [2026-03-27_win-access-policy-role-dialog-refine.md](2026-03-27_win-access-policy-role-dialog-refine.md)
