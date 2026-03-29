@@ -11,12 +11,17 @@
   说明：
   - 本脚本放在 workspace 根目录（d:\project\MyFlowHub3\scripts\），不进入任何 repo 的 git。
   - Server 参数优先通过环境变量注入（与 cmd/hub_server/main.go 的 defaultOptions 对齐）。
+  - 默认会优先选择支持 `stream` 的 Server 项目目录；若主线 Server 尚未合入 `stream`，会自动尝试已知 worktree 候选。
 
 .EXAMPLE
   .\scripts\run-dev.ps1
 
 .EXAMPLE
   .\scripts\run-dev.ps1 -ServerAddr ':9001' -ServerNodeId 2 -WaitServer
+
+.EXAMPLE
+  # 显式指定要启动的 Server 项目目录（可用绝对路径，或相对 workspace root 的路径）
+  .\scripts\run-dev.ps1 -ServerProjectDir 'worktrees\server-stream-subproto-design'
 
 .EXAMPLE
   .\scripts\run-dev.ps1 -SkipWin
@@ -43,6 +48,9 @@ param(
 
   [Parameter()]
   [string]$ParentAddr = "",
+
+  [Parameter()]
+  [string]$ServerProjectDir = "",
 
   [Parameter()]
   [int]$WinDevServerPortStart = 34115,
@@ -88,13 +96,143 @@ function Assert-Command([string]$Name) {
 }
 
 function Resolve-WorkspaceRoot() {
-  $root = Resolve-Path (Join-Path $PSScriptRoot "..")
-  return $root.Path
+  $candidate = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+  $current = $candidate
+
+  while ($true) {
+    $hasServerRepo = Test-Path -LiteralPath (Join-Path $current "repo\\MyFlowHub-Server")
+    $hasWinRepo = Test-Path -LiteralPath (Join-Path $current "repo\\MyFlowHub-Win")
+    if ($hasServerRepo -and $hasWinRepo) {
+      return $current
+    }
+
+    $parentInfo = [System.IO.Directory]::GetParent($current)
+    if ($null -eq $parentInfo) {
+      break
+    }
+    $parent = $parentInfo.FullName
+    if ($parent -eq $current) {
+      break
+    }
+    $current = $parent
+  }
+
+  return $candidate
 }
 
 function Ensure-Dir([string]$Path) {
   if (-not (Test-Path -LiteralPath $Path)) {
     New-Item -ItemType Directory -Force -Path $Path | Out-Null
+  }
+}
+
+function Resolve-WorkspacePath([string]$Root, [string]$Path) {
+  $candidate = ([string]$Path).Trim()
+  if ($candidate -eq "") {
+    throw "路径不能为空。"
+  }
+
+  if (-not [System.IO.Path]::IsPathRooted($candidate)) {
+    $candidate = Join-Path $Root $candidate
+  }
+
+  if (-not (Test-Path -LiteralPath $candidate)) {
+    throw "目录不存在：$candidate"
+  }
+
+  return (Resolve-Path -LiteralPath $candidate).Path
+}
+
+function Assert-ServerProjectLayout([string]$Dir) {
+  $goModPath = Join-Path $Dir "go.mod"
+  $hubCmdPath = Join-Path $Dir "cmd\\hub_server"
+  if (-not (Test-Path -LiteralPath $goModPath)) {
+    throw "Server 项目目录缺少 go.mod：$Dir"
+  }
+  if (-not (Test-Path -LiteralPath $hubCmdPath)) {
+    throw "Server 项目目录缺少 cmd\\hub_server：$Dir"
+  }
+}
+
+function Test-ServerSupportsStream([string]$Dir) {
+  $hubPath = Join-Path $Dir "modules\\defaultset\\hub.go"
+  $goModPath = Join-Path $Dir "go.mod"
+  $streamProtoPath = Join-Path $Dir "protocol\\stream\\types.go"
+
+  if (-not (Test-Path -LiteralPath $hubPath)) {
+    return $false
+  }
+
+  $hasHandlerHook = Select-String -Path $hubPath -Pattern "newStreamHandler" -Quiet
+  if (-not $hasHandlerHook) {
+    return $false
+  }
+
+  if (Test-Path -LiteralPath $streamProtoPath) {
+    return $true
+  }
+
+  if ((Test-Path -LiteralPath $goModPath) -and (Select-String -Path $goModPath -Pattern "github\\.com/yttydcs/myflowhub-subproto/stream" -Quiet)) {
+    return $true
+  }
+
+  return $false
+}
+
+function Resolve-ServerProjectSelection([string]$Root, [string]$RequestedDir) {
+  $mainServerDir = Resolve-WorkspacePath -Root $Root -Path "repo\\MyFlowHub-Server"
+
+  if ($RequestedDir.Trim() -ne "") {
+    $requestedPath = Resolve-WorkspacePath -Root $Root -Path $RequestedDir
+    Assert-ServerProjectLayout -Dir $requestedPath
+    return [pscustomobject]@{
+      Path            = $requestedPath
+      Source          = "显式参数 -ServerProjectDir"
+      SupportsStream  = (Test-ServerSupportsStream -Dir $requestedPath)
+      IsMainRepo      = ($requestedPath -eq $mainServerDir)
+    }
+  }
+
+  Assert-ServerProjectLayout -Dir $mainServerDir
+  $mainSupportsStream = Test-ServerSupportsStream -Dir $mainServerDir
+  if ($mainSupportsStream) {
+    return [pscustomobject]@{
+      Path            = $mainServerDir
+      Source          = "主线 repo/MyFlowHub-Server"
+      SupportsStream  = $true
+      IsMainRepo      = $true
+    }
+  }
+
+  $candidateRelPaths = @(
+    "worktrees\\server-stream-subproto-design"
+  )
+  foreach ($candidateRelPath in $candidateRelPaths) {
+    $candidatePath = Join-Path $Root $candidateRelPath
+    if (-not (Test-Path -LiteralPath $candidatePath)) {
+      continue
+    }
+    $resolvedCandidatePath = (Resolve-Path -LiteralPath $candidatePath).Path
+    try {
+      Assert-ServerProjectLayout -Dir $resolvedCandidatePath
+    } catch {
+      continue
+    }
+    if (Test-ServerSupportsStream -Dir $resolvedCandidatePath) {
+      return [pscustomobject]@{
+        Path            = $resolvedCandidatePath
+        Source          = "自动切换到 stream worktree 候选"
+        SupportsStream  = $true
+        IsMainRepo      = $false
+      }
+    }
+  }
+
+  return [pscustomobject]@{
+    Path            = $mainServerDir
+    Source          = "主线 repo/MyFlowHub-Server（未检测到支持 stream 的候选）"
+    SupportsStream  = $false
+    IsMainRepo      = $true
   }
 }
 
@@ -178,7 +316,7 @@ function Find-NextAvailableTcpPort([int]$StartPort, [int]$MaxTry, [int[]]$Exclud
 }
 
 $root = Resolve-WorkspaceRoot
-$serverDir = Join-Path $root "repo\\MyFlowHub-Server"
+$serverRepoDir = Join-Path $root "repo\\MyFlowHub-Server"
 $winDir = Join-Path $root "repo\\MyFlowHub-Win"
 $metricsNodeDir = Join-Path $root "repo\\MyFlowHub-MetricsNode\\windows"
 
@@ -186,9 +324,15 @@ $startServer = -not $SkipServer
 $startWin = -not $SkipWin
 $startMetricsNode = -not $SkipMetricsNode
 
-if ($startServer -and -not (Test-Path -LiteralPath $serverDir)) { throw "目录不存在：$serverDir" }
 if ($startWin -and -not (Test-Path -LiteralPath $winDir)) { throw "目录不存在：$winDir" }
 if ($startMetricsNode -and -not (Test-Path -LiteralPath $metricsNodeDir)) { throw "目录不存在：$metricsNodeDir" }
+
+$serverSelection = $null
+$serverDir = $serverRepoDir
+if ($startServer) {
+  $serverSelection = Resolve-ServerProjectSelection -Root $root -RequestedDir $ServerProjectDir
+  $serverDir = $serverSelection.Path
+}
 
 $needGo = $startServer -or $startWin -or $startMetricsNode
 $needWails = $startWin -or $startMetricsNode
@@ -244,6 +388,22 @@ if ($startServer) {
   )
   if ($ParentAddr.Trim() -ne "") {
     $serverEnv += "`$env:HUB_PARENT_ADDR = '$ParentAddr'"
+  }
+
+  $serverGoWorkLabel = "workspace"
+  if ($GoWorkOff) {
+    $serverGoWorkLabel = "off（全局 -GoWorkOff）"
+  } elseif (-not $serverSelection.IsMainRepo) {
+    $serverEnv += "`$env:GOWORK = 'off'"
+    $serverGoWorkLabel = "off（Server worktree 默认）"
+  }
+
+  Write-Host "Server 项目：$serverDir" -ForegroundColor DarkGray
+  Write-Host "Server 来源：$($serverSelection.Source)" -ForegroundColor DarkGray
+  Write-Host "Server stream 支持：$(if ($serverSelection.SupportsStream) { 'yes' } else { 'no' })" -ForegroundColor DarkGray
+  Write-Host "Server GOWORK：$serverGoWorkLabel" -ForegroundColor DarkGray
+  if (-not $serverSelection.SupportsStream) {
+    Write-Warning "当前 Server 项目不包含 stream handler。Win Stream 页的 list_sources / list_consumers / announce 仍会超时。"
   }
 
   $serverCmd = (@($commonEnv + $serverEnv) -join "; ") + "; go run ./cmd/hub_server"
@@ -302,4 +462,5 @@ Write-Host "2) MetricsNode：Connect 到同一 Hub；首次点 Register 或已�
 Write-Host "3) Win → VarPool：订阅 MetricsNode 的变量（owner=MetricsNode node_id）：sys_battery_percent / sys_volume_percent / sys_volume_muted，期望自动更新"
 Write-Host "4) Win：Presets → Node Echo → Send，期望提示成功，Logs 无明显错误"
 Write-Host ""
+Write-Host "排查提示：看启动摘要里的 Server 项目 / stream 支持 / Server GOWORK，确认本次是否真的吃到 stream 更新。" -ForegroundColor DarkGray
 Write-Host "提示：如端口被占用，可用 -ServerAddr ':9001' 改端口。" -ForegroundColor DarkGray

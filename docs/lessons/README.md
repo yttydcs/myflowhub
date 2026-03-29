@@ -12,6 +12,9 @@
 - 未来 workflow 的防错规则
 
 ## Current Status
+- [run-dev-stream-server-selection.md](run-dev-stream-server-selection.md)
+  - 症状：`Stream` 页面新增 source / consumer 仍报 `stream announce: request timed out`，或 `list_sources/list_consumers` 对 `target=1` 全部超时。
+  - 关键词：`run-dev.ps1`、`server-stream-subproto-design`、`newStreamHandler`、`GOWORK=off`、`go.work`。
 - [authority-local-admin-actions.md](authority-local-admin-actions.md)
   - 症状：remote authority 下审批 / permit 管理仍 timeout、仍提示 `requires authority-local session`，或 authority 拒绝 routed source。
   - 关键词：`authorityId != sourceId`、`routed source`、`requires authority-local session`、`list_register_permits`。

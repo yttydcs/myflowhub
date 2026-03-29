@@ -23,6 +23,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-03-29_root-run-dev-stream-server.md](2026-03-29_root-run-dev-stream-server.md)
 - [2026-03-29_root-run-dev-wails-gowork.md](2026-03-29_root-run-dev-wails-gowork.md)
 - [2026-03-28_sdk-v0.1.13-downstream-sync.md](2026-03-28_sdk-v0.1.13-downstream-sync.md)
 - [2026-03-28_cross-repo-dependency-sync.md](2026-03-28_cross-repo-dependency-sync.md)
