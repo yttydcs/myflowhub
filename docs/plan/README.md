@@ -75,6 +75,7 @@
 - [plan_archive_2026-02-20_server-use-subproto-remaining-modules.md](plan_archive_2026-02-20_server-use-subproto-remaining-modules.md)
 
 ## Win
+- [plan_archive_2026-03-29_win-stream-page-i18n.md](plan_archive_2026-03-29_win-stream-page-i18n.md)
 - [plan_archive_2026-03-28_win-permit-remote-authority-guard.md](plan_archive_2026-03-28_win-permit-remote-authority-guard.md)
 - [plan_archive_2026-03-28_win-permit-load-feedback.md](plan_archive_2026-03-28_win-permit-load-feedback.md)
 - [plan_archive_2026-03-27_win-project-meta-uuid.md](plan_archive_2026-03-27_win-project-meta-uuid.md)
