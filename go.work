@@ -10,6 +10,7 @@ use (
 	./repo/MyFlowHub-SubProto/broker
 	./repo/MyFlowHub-SubProto/exec
 	./repo/MyFlowHub-SubProto/flow
+	./repo/MyFlowHub-SubProto/stream
 	./repo/MyFlowHub-SubProto/topicbus
 	./repo/MyFlowHub-SubProto/varstore
 	./repo/MyFlowHub-Win
