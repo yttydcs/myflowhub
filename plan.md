@@ -10,6 +10,7 @@
 - `repo/` 是控制面与集成面；`worktrees/` 是实现面；`docs/` 负责全局归档与接手材料。
 - 根级 `plan.md` 不再承载已完成 workflow 的详细正文，避免历史内容反复堆积。
 - `2026-03-29`：workspace 根 `scripts/run-dev.ps1` 已将 Win 默认启动路径收敛为 `GOWORK=off`，修复根 `go.work` 污染 `wails generate module` 导致的 `myflowhub-proto ... replaced but not required`；如需保留旧 workspace 行为，可显式传 `-WinUseWorkspace`；详见 `docs/change/2026-03-29_root-run-dev-wails-gowork.md`、`docs/plan/plan_archive_2026-03-29_root-run-dev-wails-gowork.md` 与 `docs/lessons/wails-binding-proto-drift.md`。
+- `2026-03-29`：workspace 根 `scripts/run-dev.ps1` 已补齐 `stream` Server 自动选择与 Server 专属 `GOWORK=off` 防护；当主线 `repo/MyFlowHub-Server` 尚未合入 `stream` 时，会自动切到 `worktrees/server-stream-subproto-design`，并在显式切回不支持 `stream` 的路径时直接提示 `Stream` 页将继续 timeout；详见 `docs/change/2026-03-29_root-run-dev-stream-server.md`、`docs/plan/plan_archive_2026-03-29_root-run-dev-stream-server.md` 与 `docs/lessons/run-dev-stream-server-selection.md`。
 - `2026-03-29`：`MyFlowHub-Win` 已将 `Stream` 页面重构为摘要 + 紧凑目录 + 右侧 action/runtime/viewer，并把 source / consumer 新增收敛到弹窗，同时补齐 `Stream` 页面、导航与路由的中文词条；主线合并与 worktree cleanup 已完成，详见 `docs/change/2026-03-29_win-stream-page-i18n.md`、`docs/plan/plan_archive_2026-03-29_win-stream-page-i18n.md` 与 `docs/lessons/frontend-worktree-wailsjs-missing.md`。
 - `2026-03-29`：`MyFlowHub-SubProto/auth` 已发布 `auth/v0.1.5`，补齐 remote authority admin 相关真实最低依赖版本；`MyFlowHub-Server` 已升级到 `auth v0.1.5` 并通过 `GOWORK=off` 全量验证，本地主线合并与 worktree cleanup 已完成；详见 `docs/change/2026-03-28_auth-v0.1.5-release-chain.md` 与 `docs/plan/plan_archive_2026-03-29_auth-v0.1.5-release-chain.md`。
 - `2026-03-28`：auth permit 活动列表跨仓 workflow 已完成，`MyFlowHub-Proto / Server / SubProto / Win` 已对齐 `list_register_permits` 契约，Win `Permit Issuance` 页面已收敛为真实活动 permit 列表，并完成根级归档、主线合并和 workflow cleanup；详见 `docs/change/2026-03-28_auth-permit-list.md` 与 `docs/plan/plan_archive_2026-03-28_auth-permit-list.md`。
@@ -108,6 +109,9 @@
   - 记录协议映射速查表。
 
 ## Historical Entry Points
+- `根 run-dev stream Server 启动路径修复` workflow 计划归档：`docs/plan/plan_archive_2026-03-29_root-run-dev-stream-server.md`
+- `根 run-dev stream Server 启动路径修复` 变更归档：`docs/change/2026-03-29_root-run-dev-stream-server.md`
+- `run-dev stream Server 选择` lesson：`docs/lessons/run-dev-stream-server-selection.md`
 - `Auth v0.1.5 发布链收口` workflow 计划归档：`docs/plan/plan_archive_2026-03-29_auth-v0.1.5-release-chain.md`
 - `Auth v0.1.5 发布链收口` 变更归档：`docs/change/2026-03-28_auth-v0.1.5-release-chain.md`
 - `auth 活动 permit 列表` workflow 计划归档：`docs/plan/plan_archive_2026-03-28_auth-permit-list.md`
