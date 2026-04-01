@@ -51,6 +51,7 @@
 - [2026-02-18_docs-consistency.md](2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+- [2026-04-02_proto-flow-detail.md](2026-04-02_proto-flow-detail.md)
 - [2026-03-25_proto-flow-delete-release.md](2026-03-25_proto-flow-delete-release.md)
 - [2026-03-22_node-display-name-followup.md](2026-03-22_node-display-name-followup.md)
 - [2026-03-22_management-node-display-name.md](2026-03-22_management-node-display-name.md)
@@ -82,6 +83,8 @@
 - [2026-02-10_hdrtcp-v2_core.md](2026-02-10_hdrtcp-v2_core.md)
 
 ## Server / SubProto
+- [2026-04-02_flow-local-vars-detail-mainline.md](2026-04-02_flow-local-vars-detail-mainline.md)
+- [2026-04-02_server-flow-local-vars-docs.md](2026-04-02_server-flow-local-vars-docs.md)
 - [2026-03-28_auth-v0.1.5-release-chain.md](2026-03-28_auth-v0.1.5-release-chain.md)
 - [2026-03-25_defaultset-deps-release-chain.md](2026-03-25_defaultset-deps-release-chain.md)
 - [2026-03-25_server-defaultset-deps-release-chain.md](2026-03-25_server-defaultset-deps-release-chain.md)

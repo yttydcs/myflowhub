@@ -37,6 +37,7 @@
 - [plan_archive_2026-02-18_docs-consistency.md](plan_archive_2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+- [plan_archive_2026-04-02_proto-flow-detail.md](plan_archive_2026-04-02_proto-flow-detail.md)
 - [plan_archive_2026-03-25_proto-defaultset-deps-release.md](plan_archive_2026-03-25_proto-defaultset-deps-release.md)
 - [plan_archive_2026-03-22_node-display-name-followup.md](plan_archive_2026-03-22_node-display-name-followup.md)
 - [plan_archive_2026-03-22_proto-management-node-display-name.md](plan_archive_2026-03-22_proto-management-node-display-name.md)
@@ -46,6 +47,8 @@
 - [plan_archive_2026-02-20_proto-protocol-mapgen.md](plan_archive_2026-02-20_proto-protocol-mapgen.md)
 
 ## Server / SubProto
+- [plan_archive_2026-04-02_flow-local-vars-detail-mainline.md](plan_archive_2026-04-02_flow-local-vars-detail-mainline.md)
+- [plan_archive_2026-04-02_server-flow-local-vars-docs.md](plan_archive_2026-04-02_server-flow-local-vars-docs.md)
 - [plan_archive_2026-03-29_auth-v0.1.5-release-chain.md](plan_archive_2026-03-29_auth-v0.1.5-release-chain.md)
 - [plan_archive_2026-03-28_auth-permit-list.md](plan_archive_2026-03-28_auth-permit-list.md)
 - [plan_archive_2026-03-26_auth-semi-central-authority.md](plan_archive_2026-03-26_auth-semi-central-authority.md)
