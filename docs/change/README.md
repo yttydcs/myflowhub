@@ -83,6 +83,7 @@
 - [2026-02-10_hdrtcp-v2_core.md](2026-02-10_hdrtcp-v2_core.md)
 
 ## Server / SubProto
+- [2026-04-02_flow-delete-permission-baseline.md](2026-04-02_flow-delete-permission-baseline.md)
 - [2026-04-02_flow-local-vars-detail-mainline.md](2026-04-02_flow-local-vars-detail-mainline.md)
 - [2026-04-02_server-flow-local-vars-docs.md](2026-04-02_server-flow-local-vars-docs.md)
 - [2026-03-28_auth-v0.1.5-release-chain.md](2026-03-28_auth-v0.1.5-release-chain.md)

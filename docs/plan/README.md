@@ -47,6 +47,7 @@
 - [plan_archive_2026-02-20_proto-protocol-mapgen.md](plan_archive_2026-02-20_proto-protocol-mapgen.md)
 
 ## Server / SubProto
+- [plan_archive_2026-04-02_flow-delete-permission-baseline.md](plan_archive_2026-04-02_flow-delete-permission-baseline.md)
 - [plan_archive_2026-04-02_flow-local-vars-detail-mainline.md](plan_archive_2026-04-02_flow-local-vars-detail-mainline.md)
 - [plan_archive_2026-04-02_server-flow-local-vars-docs.md](plan_archive_2026-04-02_server-flow-local-vars-docs.md)
 - [plan_archive_2026-03-29_auth-v0.1.5-release-chain.md](plan_archive_2026-03-29_auth-v0.1.5-release-chain.md)
