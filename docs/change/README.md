@@ -83,6 +83,8 @@
 - [2026-02-10_hdrtcp-v2_core.md](2026-02-10_hdrtcp-v2_core.md)
 
 ## Server / SubProto
+- [2026-04-04_core-bootstrap-dialer-release-align.md](2026-04-04_core-bootstrap-dialer-release-align.md)
+- [2026-04-04_flow-release-chain-align.md](2026-04-04_flow-release-chain-align.md)
 - [2026-04-02_flow-delete-permission-baseline.md](2026-04-02_flow-delete-permission-baseline.md)
 - [2026-04-02_flow-local-vars-detail-mainline.md](2026-04-02_flow-local-vars-detail-mainline.md)
 - [2026-04-02_server-flow-local-vars-docs.md](2026-04-02_server-flow-local-vars-docs.md)

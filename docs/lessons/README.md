@@ -28,8 +28,8 @@
   - 症状：新 worktree 的 `npm test` / `npm run build` 报 `Failed to resolve import "../../wailsjs/runtime/runtime"`。
   - 关键词：`frontend/wailsjs`、`runtime/runtime`、`vite:import-analysis`、`EventsOn`。
 - [cross-repo-semver-release.md](cross-repo-semver-release.md)
-  - 症状：`go.work` 或本地 sibling worktree 通过，但 `GOWORK=off` / 远端 CI 仍失败，常见为 `NewHandlerWithDeps`、`SharedExecCapQueryBroker`、`ActionDelete` 等缺符号。
-  - 关键词：未发布 tag、默认分支 checkout、`replace ../../...`、`go list -m`、`defaultset`、`runtimedeps`。
+  - 症状：`go.work` 或本地 sibling worktree 通过，但 `GOWORK=off` / 远端 CI 仍失败；或未公开 tag 重指向后继续命中旧 module cache / `go.sum`，表现为 `unknown revision`、`checksum mismatch`、旧默认值未刷新。
+  - 关键词：未发布 tag、默认分支 checkout、`replace ../../...`、`go list -m`、`GOPROXY=direct`、`checksum mismatch`、`bootstrap.SelfRegisterOptions.Dial`、`DefaultAuthRolePerms`、`defaultset`、`runtimedeps`。
 - [wails-embed-dist-placeholder.md](wails-embed-dist-placeholder.md)
   - 症状：Wails 在 `Generating bindings` 阶段报 `pattern all:frontend/dist: cannot embed directory frontend/dist: contains no embeddable files`。
   - 关键词：`go:embed all:frontend/dist`、`go mod tidy`、`frontend/dist`、`placeholder.txt`。
