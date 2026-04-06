@@ -1,0 +1,82 @@
+[
+  {
+    "key": "fig2-1",
+    "title": "图2-1 个人物联网典型应用场景与树形组网示意图",
+    "instanceId": "38c58cf4-6259-435f-bcdf-00ec5d55f76a",
+    "status": "COMPLETED",
+    "url": "https://minio-infmonkeys.d.run/monkeys/uploads/1775399597734-ha5fqk.png",
+    "file": "D:\\project\\MyFlowHub3\\论文\\images\\fig2-1.png"
+  },
+  {
+    "key": "fig2-2",
+    "title": "图2-2 系统总体分层架构图",
+    "instanceId": "3b10a21a-8f1f-4206-bea6-815b454fc84d",
+    "status": "COMPLETED",
+    "url": "https://minio-infmonkeys.d.run/monkeys/uploads/1775399652707-komw9.png",
+    "file": "D:\\project\\MyFlowHub3\\论文\\images\\fig2-2.png"
+  },
+  {
+    "key": "fig3-1",
+    "title": "图3-1 Node 抽象与树形拓扑模型图",
+    "instanceId": "f6a27697-8339-4ec0-a667-d762ddb79f21",
+    "status": "COMPLETED",
+    "url": "https://minio-infmonkeys.d.run/monkeys/uploads/1775399757184-uifcrr.png",
+    "file": "D:\\project\\MyFlowHub3\\论文\\images\\fig3-1.png"
+  },
+  {
+    "key": "fig3-2",
+    "title": "图3-2 消息接收与发送处理链路图",
+    "instanceId": "447eef30-2281-43dc-bc10-45a51354bf7e",
+    "status": "COMPLETED",
+    "url": "https://minio-infmonkeys.d.run/monkeys/uploads/1775399804051-nffbmn.png",
+    "file": "D:\\project\\MyFlowHub3\\论文\\images\\fig3-2.png"
+  },
+  {
+    "key": "fig3-3",
+    "title": "图3-3 树形路由与逐级转发示意图",
+    "instanceId": "3dd59c99-775a-468d-b04d-aca479d4dd9b",
+    "status": "COMPLETED",
+    "url": "https://minio-infmonkeys.d.run/monkeys/uploads/1775399857907-c6vn6j.png",
+    "file": "D:\\project\\MyFlowHub3\\论文\\images\\fig3-3.png"
+  },
+  {
+    "key": "fig4-1",
+    "title": "图4-1 Auth 注册、审批与登录流程图",
+    "instanceId": "acd9448b-8f82-4de9-acde-7cf13ac25946",
+    "status": "COMPLETED",
+    "url": "https://minio-infmonkeys.d.run/monkeys/uploads/1775399908462-50v7h.png",
+    "file": "D:\\project\\MyFlowHub3\\论文\\images\\fig4-1.png"
+  },
+  {
+    "key": "fig4-2",
+    "title": "图4-2 树形自治下的权限判定关系图",
+    "instanceId": "cf9d5953-b9e9-48db-9a23-fa970c866395",
+    "status": "COMPLETED",
+    "url": "https://minio-infmonkeys.d.run/monkeys/uploads/1775399954212-je6v4s.png",
+    "file": "D:\\project\\MyFlowHub3\\论文\\images\\fig4-2.png"
+  },
+  {
+    "key": "fig5-1",
+    "title": "图5-1 子协议映射总览图",
+    "instanceId": "608197f8-5bc2-4cce-b71f-f84c40bc0599",
+    "status": "COMPLETED",
+    "url": "https://minio-infmonkeys.d.run/monkeys/uploads/1775400005945-ibmvw.png",
+    "file": "D:\\project\\MyFlowHub3\\论文\\images\\fig5-1.png"
+  },
+  {
+    "key": "fig6-1",
+    "title": "图6-1 工程仓库依赖与实现边界图",
+    "instanceId": "b75ea9d1-ef91-4646-9c41-04187a9b8af9",
+    "status": "COMPLETED",
+    "url": "https://minio-infmonkeys.d.run/monkeys/uploads/1775400062033-ickzog.png",
+    "file": "D:\\project\\MyFlowHub3\\论文\\images\\fig6-1.png"
+  },
+  {
+    "key": "fig6-2",
+    "title": "图6-2 Local Hub 部署形态与典型演示链路图",
+    "instanceId": "5acd3311-e22c-4cf8-b930-6defce8800f3",
+    "status": "COMPLETED",
+    "url": "https://minio-infmonkeys.d.run/monkeys/uploads/1775400112853-9xbf98.png",
+    "file": "D:\\project\\MyFlowHub3\\论文\\images\\fig6-2.png"
+  }
+]
