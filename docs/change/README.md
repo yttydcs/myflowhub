@@ -23,6 +23,9 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-08-24_remaining-worktree-integration-cleanup.md](2026-08-24_remaining-worktree-integration-cleanup.md)
+- [2026-04-14_embedded-esp32s3-demo-flows.md](2026-04-14_embedded-esp32s3-demo-flows.md)
+- [2026-04-12_cross-repo-release-chain-publish.md](2026-04-12_cross-repo-release-chain-publish.md)
 - [2026-03-29_root-run-dev-stream-server.md](2026-03-29_root-run-dev-stream-server.md)
 - [2026-03-29_root-run-dev-wails-gowork.md](2026-03-29_root-run-dev-wails-gowork.md)
 - [2026-03-28_sdk-v0.1.13-downstream-sync.md](2026-03-28_sdk-v0.1.13-downstream-sync.md)
