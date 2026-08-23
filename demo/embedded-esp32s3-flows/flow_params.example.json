@@ -1,0 +1,46 @@
+{
+  "executor_node": 1,
+  "visibility": "public",
+  "roles": {
+    "button_board": "board1",
+    "sensor_board": "board1",
+    "reset_board": "board1",
+    "scene_board": "board2"
+  },
+  "temperature_alarm": {
+    "threshold_c": 30,
+    "max_c": 60
+  },
+  "board1": {
+    "label": "expansion-board",
+    "profile": "expansion",
+    "node_id": 4,
+    "button12_var": "button_gpio12_pressed",
+    "button13_var": "button_gpio13_pressed",
+    "dht11_temperature_var": "dht11_gpio8_temperature_c",
+    "led_on_var": "led_on",
+    "led_red_var": "led_red",
+    "led_green_var": "led_green",
+    "led_blue_var": "led_blue",
+    "led_brightness_var": "led_brightness",
+    "relay_gpio4_var": "relay_gpio4_on",
+    "relay_gpio5_var": "relay_gpio5_on",
+    "relay_gpio6_var": "relay_gpio6_on",
+    "buzzer_var": "buzzer_gpio7_on"
+  },
+  "board2": {
+    "label": "core-board",
+    "profile": "core",
+    "node_id": 5,
+    "led_on_var": "led_on",
+    "led_red_var": "led_red",
+    "led_green_var": "led_green",
+    "led_blue_var": "led_blue",
+    "led_brightness_var": "led_brightness"
+  },
+  "flow_ids": {
+    "button_scene": "1e7d8e10-5c04-4f15-9ca0-1328f6e71a01",
+    "temperature_alarm": "1e7d8e10-5c04-4f15-9ca0-1328f6e71a02",
+    "reset_scene": "1e7d8e10-5c04-4f15-9ca0-1328f6e71a03"
+  }
+}

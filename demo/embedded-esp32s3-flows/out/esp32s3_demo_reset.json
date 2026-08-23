@@ -1,0 +1,446 @@
+{
+  "flow_id": "1e7d8e10-5c04-4f15-9ca0-1328f6e71a03",
+  "name": "ESP32 Demo Reset",
+  "max_active_runs": 1,
+  "trigger": {
+    "dedup_window_ms": 300,
+    "type": "var_changed",
+    "var_name": "button_gpio13_pressed",
+    "var_owner": 4
+  },
+  "graph": {
+    "nodes": [
+      {
+        "id": "read_reset_button",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::get",
+          "args_template": {
+            "name": "button_gpio13_pressed",
+            "owner": 4
+          },
+          "_ui": {
+            "x": 40,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "route_reset",
+        "kind": "branch",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 0,
+        "spec": {
+          "cases": [
+            {
+              "name": "reset",
+              "match": {
+                "source": {
+                  "kind": "node_result",
+                  "node_id": "read_reset_button",
+                  "path": "/value"
+                },
+                "op": "eq",
+                "value": "true"
+              }
+            },
+            {
+              "name": "ignore",
+              "match": {
+                "source": {
+                  "kind": "node_result",
+                  "node_id": "read_reset_button",
+                  "path": "/value"
+                },
+                "op": "exists"
+              }
+            }
+          ],
+          "default_case": "ignore",
+          "_ui": {
+            "x": 300,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_expansion_relay4",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "bool",
+            "owner": 4,
+            "name": "relay_gpio4_on",
+            "value": "false",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 560,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_expansion_relay5",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "bool",
+            "owner": 4,
+            "name": "relay_gpio5_on",
+            "value": "false",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 780,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_expansion_relay6",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "bool",
+            "owner": 4,
+            "name": "relay_gpio6_on",
+            "value": "false",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 1000,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_expansion_buzzer",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "bool",
+            "owner": 4,
+            "name": "buzzer_gpio7_on",
+            "value": "false",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 1220,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_expansion_led_on",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "bool",
+            "owner": 4,
+            "name": "led_on",
+            "value": "true",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 1440,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_expansion_led_red",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "u8",
+            "owner": 4,
+            "name": "led_red",
+            "value": "0",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 1660,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_expansion_led_green",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "u8",
+            "owner": 4,
+            "name": "led_green",
+            "value": "0",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 1880,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_expansion_led_blue",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "u8",
+            "owner": 4,
+            "name": "led_blue",
+            "value": "48",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 2100,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_expansion_led_brightness",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "u8",
+            "owner": 4,
+            "name": "led_brightness",
+            "value": "18",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 2320,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_core_led_on",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "bool",
+            "owner": 5,
+            "name": "led_on",
+            "value": "true",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 2540,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_core_led_red",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "u8",
+            "owner": 5,
+            "name": "led_red",
+            "value": "0",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 2760,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_core_led_green",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "u8",
+            "owner": 5,
+            "name": "led_green",
+            "value": "0",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 2980,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_core_led_blue",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "u8",
+            "owner": 5,
+            "name": "led_blue",
+            "value": "48",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 3200,
+            "y": 0
+          }
+        }
+      },
+      {
+        "id": "reset_core_led_brightness",
+        "kind": "call",
+        "allow_fail": false,
+        "retry": 0,
+        "retry_backoff_ms": 0,
+        "timeout_ms": 5000,
+        "spec": {
+          "method": "varstore::set",
+          "args_template": {
+            "type": "u8",
+            "owner": 5,
+            "name": "led_brightness",
+            "value": "18",
+            "visibility": "public"
+          },
+          "_ui": {
+            "x": 3420,
+            "y": 0
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "read_reset_button",
+        "to": "route_reset"
+      },
+      {
+        "from": "route_reset",
+        "to": "reset_expansion_relay4",
+        "case": "reset"
+      },
+      {
+        "from": "reset_expansion_relay4",
+        "to": "reset_expansion_relay5"
+      },
+      {
+        "from": "reset_expansion_relay5",
+        "to": "reset_expansion_relay6"
+      },
+      {
+        "from": "reset_expansion_relay6",
+        "to": "reset_expansion_buzzer"
+      },
+      {
+        "from": "reset_expansion_buzzer",
+        "to": "reset_expansion_led_on"
+      },
+      {
+        "from": "reset_expansion_led_on",
+        "to": "reset_expansion_led_red"
+      },
+      {
+        "from": "reset_expansion_led_red",
+        "to": "reset_expansion_led_green"
+      },
+      {
+        "from": "reset_expansion_led_green",
+        "to": "reset_expansion_led_blue"
+      },
+      {
+        "from": "reset_expansion_led_blue",
+        "to": "reset_expansion_led_brightness"
+      },
+      {
+        "from": "reset_expansion_led_brightness",
+        "to": "reset_core_led_on"
+      },
+      {
+        "from": "reset_core_led_on",
+        "to": "reset_core_led_red"
+      },
+      {
+        "from": "reset_core_led_red",
+        "to": "reset_core_led_green"
+      },
+      {
+        "from": "reset_core_led_green",
+        "to": "reset_core_led_blue"
+      },
+      {
+        "from": "reset_core_led_blue",
+        "to": "reset_core_led_brightness"
+      }
+    ]
+  }
+}
+
