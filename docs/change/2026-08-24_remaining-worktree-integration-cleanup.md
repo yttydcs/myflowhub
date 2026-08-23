@@ -108,6 +108,15 @@
 - Win：主分支执行 `go test -mod=readonly ./... -count=1` 全量通过。
 - 所有目标提交均执行 `git diff --check`，未发现空白错误。
 
+## 收口结果
+
+- Control `master` 已包含 Demo 提交 `d839aee`、跨仓发布链记录和本归档；共享 `docs/change/README.md` 的其他既有修改仍保留为未提交状态。
+- Android `main` 已快进到 `93d2032`，EmbeddedSDK `main` 已快进到 `343d5b6`，Win `main` 已快进到 `606b747`；三个产品主工作区均干净。
+- 6/6 个目标 worktree 已通过各自 owning repo 的 `git worktree remove --force` 移除。
+- 6/6 个关联本地分支已删除：5 个使用 `git branch -d`，仅已完成发布记录救援的 `chore/release-chain-20260412-control` 使用受控 `-D`。
+- 11 个 MyFlowHub 仓库的已注册 secondary worktree 数为 `0`，本地分支总数为 `34`，所有 `git worktree prune --dry-run --verbose` 均无待处理项。
+- `worktrees` 下仍有 `30` 个未注册实体目录；它们不属于本轮批准范围，保持不动。
+
 ## 潜在影响
 
 - 6 个 worktree 中未被纳入最小提交的过期计划、待办和生成物会随强制移除而消失。
