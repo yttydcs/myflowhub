@@ -23,6 +23,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-08-27_canonical-monorepo-unified-node-runtime.md](2026-08-27_canonical-monorepo-unified-node-runtime.md)
 - [2026-08-24_remaining-worktree-integration-cleanup.md](2026-08-24_remaining-worktree-integration-cleanup.md)
 - [2026-04-14_embedded-esp32s3-demo-flows.md](2026-04-14_embedded-esp32s3-demo-flows.md)
 - [2026-04-12_cross-repo-release-chain-publish.md](2026-04-12_cross-repo-release-chain-publish.md)

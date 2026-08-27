@@ -12,6 +12,9 @@
 - 未来 workflow 的防错规则
 
 ## Current Status
+- [session-replacement-generation-cleanup.md](session-replacement-generation-cleanup.md)
+  - 症状：同父重连出现 `join topology epoch mismatch`、旧会话关闭后新树边消失、旧链路订阅残留，或 Node 关闭时 `panic: send on closed channel`。
+  - 关键词：`TopologyEpoch`、`DetachParentEpoch`、`WithdrawChildEpoch`、`CleanupLink`、`WaitGroup.Add`、generation-scoped cleanup。
 - [run-dev-stream-server-selection.md](run-dev-stream-server-selection.md)
   - 症状：`Stream` 页面新增 source / consumer 仍报 `stream announce: request timed out`，或 `list_sources/list_consumers` 对 `target=1` 全部超时。
   - 关键词：`run-dev.ps1`、`server-stream-subproto-design`、`newStreamHandler`、`GOWORK=off`、`go.work`。

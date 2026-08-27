@@ -1,0 +1,25 @@
+# Subscription vNext
+
+Subscription is a first-class runtime relation over a Variable or Stream. Each relation records its ID, subscriber, resource, link binding, lease deadline, authorization deadline, topology epoch, policy generation, next hop, and bounded queue size.
+
+## Variable delivery
+
+Registration and snapshot capture are atomic at the resource boundary. The dispatcher always queues the snapshot before changes. If a consumer is slow, unsent Variable changes coalesce to the newest revision; the initial snapshot is never replaced.
+
+## Stream delivery
+
+Stream events retain sequence order while capacity is available. A source sequence jump produces a gap before the later event. Once pending capacity is exhausted, later events are summarized into an explicit gap range. The dispatcher sends the gap before accepting later events again. Silent loss is forbidden.
+
+## Lifecycle
+
+- lease and authorization deadlines must both cover the requested lifetime;
+- unsubscribe closes the local relation and removes its interest;
+- link cleanup removes all link-bound relations;
+- lease expiry emits an observable expiry event and then closes delivery;
+- manager shutdown cancels blocked dispatchers without leaking goroutines.
+
+Intermediate interest aggregation suppresses duplicate upstream ownership work, but every subscriber's identity, link, authorization deadline, policy generation, and topology epoch remain distinct. Aggregation never grants one subscriber another subscriber's authority.
+
+## Related Changes
+
+- [Canonical Monorepo 与统一节点运行时第一阶段](../change/2026-08-27_canonical-monorepo-unified-node-runtime.md)
