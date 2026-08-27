@@ -1,42 +1,25 @@
-# Authority Local Admin Actions
+# Authority Administration Must Follow The Node Tree
 
 ## Summary
-- 当前 auth backend 的审批与 permit 管理动作并不是完整的通用 remote authority 管理链路。
-- 在 `sourceId != authorityId` 的场景下，Win 侧如果仍把这些动作当成普通远程请求发送，常见结果就是页面等待到 `request timed out`。
 
-## Symptoms
-- `Permit Issuance` 页打开后显示：
-  - `加载准入许可失败。`
-  - `auth list_register_permits: request timed out`
-- 当前会话节点不是 authority 节点
-- 页面看起来像“普通加载失败”，但同一 authority 本机上又能正常工作
+vNext 中父子链路同时是路由边和 authority 边。管理操作可以跨多跳路由，但授权主体必须由 `Principal` 保留，最终由目标节点按当前树关系、policy generation 和 topology epoch 校验；不能把“请求来自父链路”简化成“任意中继拥有管理员权限”。
 
-## Trigger Conditions
-- `sourceId != authorityId`
-- 当前 backend 版本仍要求审批 / permit 管理从 authority 节点本机发起
-- Win 页面对这个限制没有显式 guard，还继续自动加载或触发 permit 管理动作
+## Failure Pattern
 
-## Quick Checks
-1. 对比当前 session `nodeId` 和解析出的 `authorityId`。
-2. 查看 [auth.md](../../repo/MyFlowHub-Server/docs/specs/auth.md)：
-   - 若仍写着审批 / permit 管理建议从 authority 节点操作，这不是单纯前端渲染问题。
-3. 查看 Win permit 页是否已经进入 authority-local 受限态：
-   - 关键字：`data-permit-remote-authority`
-   - 关键字：`requires authority-local session`
+- UI 或 CLI 把超时当成权限拒绝，没有展示结构化错误；
+- 中继把自己的节点身份写进转发请求，导致权限被意外提升或拒绝；
+- 节点 reparent 后继续接受旧 policy generation 或旧 topology epoch 的管理请求；
+- 离线引导和在线管理共用旁路接口，形成第二套权限真相。
 
-## Resolution
-- 若只是收敛当前 UX：
-  - 在 Win orchestration 层对 permit / admin 动作做 authority-local 快速失败
-  - 页面进入显式限制提示，停止继续等待 timeout
-- 若目标是支持真实 remote authority 管理：
-  - 需要另起跨仓 workflow
-  - 明确 `MyFlowHub-Win`、`MyFlowHub-SubProto`、`MyFlowHub-Server` 的 remote authority 管理链路，而不是只改页面
+## Guardrails
 
-## Prevention
-- 当 backend 仍有 authority-local 前提时，前端不得把 timeout 当成常规失败 UX。
-- authority 管理页面在 `authorityId != sourceId` 时，应优先显示能力边界提示。
-- 这种限制一旦确认，应同步写入 requirements/specs，而不是只留在 change log。
+- admission permit 与初始 policy 可由本机离线 CLI 引导；进入在线状态后统一通过 `system/*` Command 管理。
+- 转发必须保留原始 `Principal`、deadline、message/correlation ID 和拓扑代次。
+- 权限拒绝、过期、拓扑失效必须返回可观察错误，不能退化为等待超时。
+- reparent、revoke 或 policy generation 更新必须使旧授权和相关订阅失效。
 
 ## Related Docs
-- [2026-03-28_win-permit-remote-authority-guard.md](../change/2026-03-28_win-permit-remote-authority-guard.md)
-- [auth.md](../../repo/MyFlowHub-Server/docs/specs/auth.md)
+
+- [node-tree-link-resource-architecture.md](../specs/node-tree-link-resource-architecture.md)
+- [operational-lifecycle.md](../specs/operational-lifecycle.md)
+- [hub.md](../features/hub.md)

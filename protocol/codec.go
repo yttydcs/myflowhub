@@ -8,7 +8,7 @@ import (
 	"math"
 )
 
-const fixedHeaderSize = 88
+const fixedHeaderSize = 96
 
 var frameMagic = [4]byte{'M', 'F', 'H', '3'}
 
@@ -43,12 +43,13 @@ func (c Codec) Encode(writer io.Writer, envelope Envelope) error {
 	binary.BigEndian.PutUint16(header[10:12], uint16(len(envelope.Resource.Name)))
 	binary.BigEndian.PutUint32(header[12:16], uint32(len(envelope.Payload)))
 	binary.BigEndian.PutUint64(header[16:24], uint64(envelope.Source))
-	binary.BigEndian.PutUint64(header[24:32], uint64(envelope.Target))
-	binary.BigEndian.PutUint64(header[32:40], envelope.TopologyEpoch)
-	binary.BigEndian.PutUint64(header[40:48], uint64(envelope.DeadlineUnixMS))
-	copy(header[48:64], envelope.MessageID[:])
-	copy(header[64:80], envelope.CorrelationID[:])
-	binary.BigEndian.PutUint64(header[80:88], uint64(envelope.Resource.Owner))
+	binary.BigEndian.PutUint64(header[24:32], uint64(envelope.Principal))
+	binary.BigEndian.PutUint64(header[32:40], uint64(envelope.Target))
+	binary.BigEndian.PutUint64(header[40:48], envelope.TopologyEpoch)
+	binary.BigEndian.PutUint64(header[48:56], uint64(envelope.DeadlineUnixMS))
+	copy(header[56:72], envelope.MessageID[:])
+	copy(header[72:88], envelope.CorrelationID[:])
+	binary.BigEndian.PutUint64(header[88:96], uint64(envelope.Resource.Owner))
 	for _, part := range [][]byte{header, []byte(envelope.ContentType), []byte(envelope.Schema), []byte(envelope.Resource.Name), envelope.Payload} {
 		if err := writeAll(writer, part); err != nil {
 			return fmt.Errorf("encode frame: %w", err)
@@ -94,15 +95,16 @@ func (c Codec) Decode(reader io.Reader) (Envelope, error) {
 		Phase:          Phase(header[6]),
 		Operation:      Operation(header[7]),
 		Source:         NodeID(binary.BigEndian.Uint64(header[16:24])),
-		Target:         NodeID(binary.BigEndian.Uint64(header[24:32])),
-		TopologyEpoch:  binary.BigEndian.Uint64(header[32:40]),
-		DeadlineUnixMS: int64(binary.BigEndian.Uint64(header[40:48])),
+		Principal:      NodeID(binary.BigEndian.Uint64(header[24:32])),
+		Target:         NodeID(binary.BigEndian.Uint64(header[32:40])),
+		TopologyEpoch:  binary.BigEndian.Uint64(header[40:48]),
+		DeadlineUnixMS: int64(binary.BigEndian.Uint64(header[48:56])),
 		Resource: ResourceID{
-			Owner: NodeID(binary.BigEndian.Uint64(header[80:88])),
+			Owner: NodeID(binary.BigEndian.Uint64(header[88:96])),
 		},
 	}
-	copy(envelope.MessageID[:], header[48:64])
-	copy(envelope.CorrelationID[:], header[64:80])
+	copy(envelope.MessageID[:], header[56:72])
+	copy(envelope.CorrelationID[:], header[72:88])
 	envelope.ContentType = string(take(contentLen))
 	envelope.Schema = string(take(schemaLen))
 	envelope.Resource.Name = string(take(nameLen))

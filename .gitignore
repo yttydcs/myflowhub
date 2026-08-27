@@ -36,6 +36,13 @@ coverage*.out
 /dist/
 /build/
 /out/
+**/build/
+**/.gradle/
+**/node_modules/
+**/local.properties
+**/__pycache__/
+managed_components/
+dependencies.lock
 
 # Android build outputs (workspace-level)
 *.apk

@@ -3,6 +3,7 @@ package tree
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/yttydcs/myflowhub/protocol"
@@ -44,6 +45,7 @@ type State struct {
 	parent   *Edge
 	children map[protocol.NodeID]Edge
 	routes   map[protocol.NodeID]protocol.NodeID
+	parents  map[protocol.NodeID]protocol.NodeID
 	epoch    uint64
 }
 
@@ -55,6 +57,7 @@ func New(local protocol.NodeID) (*State, error) {
 		local:    local,
 		children: make(map[protocol.NodeID]Edge),
 		routes:   make(map[protocol.NodeID]protocol.NodeID),
+		parents:  make(map[protocol.NodeID]protocol.NodeID),
 	}, nil
 }
 
@@ -191,6 +194,7 @@ func (s *State) AttachChild(child protocol.NodeID, epoch uint64) error {
 	}
 	s.children[child] = Edge{Node: child, Epoch: epoch}
 	s.routes[child] = child
+	s.parents[child] = s.local
 	return nil
 }
 
@@ -202,7 +206,14 @@ func (s *State) ChildEpoch(child protocol.NodeID) (uint64, bool) {
 }
 
 func (s *State) Announce(via, descendant protocol.NodeID, edgeEpoch uint64) error {
+	return s.AnnounceWithParent(via, descendant, via, edgeEpoch)
+}
+
+func (s *State) AnnounceWithParent(via, descendant, parent protocol.NodeID, edgeEpoch uint64) error {
 	if err := descendant.Validate(); err != nil {
+		return err
+	}
+	if err := parent.Validate(); err != nil {
 		return err
 	}
 	s.mu.Lock()
@@ -217,6 +228,9 @@ func (s *State) Announce(via, descendant protocol.NodeID, edgeEpoch uint64) erro
 	if descendant == s.local || (s.parent != nil && descendant == s.parent.Node) {
 		return ErrCycle
 	}
+	if parent == descendant || (parent != via && s.routes[parent] != via) {
+		return fmt.Errorf("%w: announced parent %d is not in child %d subtree", ErrForgedSource, parent, via)
+	}
 	if child, direct := s.children[descendant]; direct && child.Node != via {
 		return ErrRouteConflict
 	}
@@ -224,6 +238,7 @@ func (s *State) Announce(via, descendant protocol.NodeID, edgeEpoch uint64) erro
 		return fmt.Errorf("%w: %d already routes via %d", ErrRouteConflict, descendant, current)
 	}
 	s.routes[descendant] = via
+	s.parents[descendant] = parent
 	return nil
 }
 
@@ -248,11 +263,13 @@ func (s *State) withdrawChildLocked(child protocol.NodeID) []protocol.NodeID {
 		return nil
 	}
 	delete(s.children, child)
+	delete(s.parents, child)
 	removed := make([]protocol.NodeID, 0)
 	for target, via := range s.routes {
 		if via == child {
 			removed = append(removed, target)
 			delete(s.routes, target)
+			delete(s.parents, target)
 		}
 	}
 	return removed
@@ -275,6 +292,7 @@ func (s *State) WithdrawRoute(via, descendant protocol.NodeID, edgeEpoch uint64)
 		return ErrNotReachable
 	}
 	delete(s.routes, descendant)
+	delete(s.parents, descendant)
 	return nil
 }
 
@@ -330,4 +348,56 @@ func (s *State) Descendants() map[protocol.NodeID]protocol.NodeID {
 		result[target] = via
 	}
 	return result
+}
+
+type Relation struct {
+	Node   protocol.NodeID
+	Parent protocol.NodeID
+}
+
+func (s *State) Relations() []Relation {
+	s.mu.RLock()
+	relations := make([]Relation, 0, len(s.parents))
+	parents := make(map[protocol.NodeID]protocol.NodeID, len(s.parents))
+	for node, parent := range s.parents {
+		relations = append(relations, Relation{Node: node, Parent: parent})
+		parents[node] = parent
+	}
+	local := s.local
+	s.mu.RUnlock()
+	depth := func(node protocol.NodeID) int {
+		value := 0
+		seen := make(map[protocol.NodeID]struct{})
+		for node != local {
+			if _, exists := seen[node]; exists {
+				return int(^uint(0) >> 1)
+			}
+			seen[node] = struct{}{}
+			parent := parents[node]
+			if parent == 0 {
+				return int(^uint(0) >> 1)
+			}
+			node = parent
+			value++
+		}
+		return value
+	}
+	sort.Slice(relations, func(i, j int) bool {
+		left, right := depth(relations[i].Node), depth(relations[j].Node)
+		if left != right {
+			return left < right
+		}
+		return relations[i].Node < relations[j].Node
+	})
+	return relations
+}
+
+func (s *State) ParentOf(node protocol.NodeID) (protocol.NodeID, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if node == s.local && s.parent != nil {
+		return s.parent.Node, true
+	}
+	parent, ok := s.parents[node]
+	return parent, ok
 }

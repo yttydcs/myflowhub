@@ -119,6 +119,24 @@ func (t *InterestTable) CleanupExpired(now time.Time) []Interest {
 	return removed
 }
 
+func (t *InterestTable) CleanupPolicyGeneration(generation uint64) []Interest {
+	t.mu.RLock()
+	ids := make([]protocol.MessageID, 0)
+	for id, interest := range t.byID {
+		if interest.PolicyGeneration != generation {
+			ids = append(ids, id)
+		}
+	}
+	t.mu.RUnlock()
+	removed := make([]Interest, 0, len(ids))
+	for _, id := range ids {
+		if interest, ok, _ := t.Remove(id); ok {
+			removed = append(removed, interest)
+		}
+	}
+	return removed
+}
+
 func (t *InterestTable) Interests(resource protocol.ResourceID) []Interest {
 	t.mu.RLock()
 	defer t.mu.RUnlock()

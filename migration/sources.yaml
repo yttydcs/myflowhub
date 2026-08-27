@@ -1,38 +1,45 @@
 schema_version: 1
 captured_at: 2026-08-27
 policy:
-  source_repositories: read-only
+  source_repositories: retired-and-removed
+  retired_at: 2026-08-27
+  local_checkout_retained: false
   import_git_history: false
   import_nested_modules: false
   import_build_artifacts: false
   canonical_module: github.com/yttydcs/myflowhub
 sources:
   - repository: MyFlowHub-Android
+    remote: https://github.com/yttydcs/myflowhub-android.git
     branch: main
     commit: 93d2032530c97246cfcb5fc996a29c0f357b9ca9
     target: apps/android
-    status: deferred
+    status: retired-after-migration
   - repository: MyFlowHub-ClipboardNode
+    remote: https://github.com/yttydcs/myflowhub-clipboardnode.git
     branch: master
     commit: eec7d8acbacbecf4976e79ac4bb0e3a4b3957aca
     target: apps/nodes/clipboard
-    status: deferred
+    status: retired-after-migration
   - repository: MyFlowHub-Core
+    remote: https://github.com/yttydcs/myflowhub-core.git
     branch: master
     commit: 82061f18e9d27e00b1ba4ac369ebecf3fb9afc22
     target: runtime/link, runtime/tree, transport
-    status: reference-only
+    status: retired-after-replacement
   - repository: MyFlowHub-EmbeddedSDK
+    remote: https://github.com/yttydcs/MyFlowHub-EmbeddedSDK.git
     branch: main
     commit: 343d5b6eef9aeb78eb55b6662c0d4d5cf1b42c73
     target: embedded
-    status: deferred
+    status: retired-after-migration
   - repository: MyFlowHub-MetricsNode
+    remote: https://github.com/yttydcs/myflowhub-metricsnode.git
     branch: main
     commit: c5e2f217afc8063d3e2bb1c6b21fb8fc878925c0
     target: apps/nodes/metrics
-    status: deferred
-    preserve_uncommitted:
+    status: retired-after-migration
+    discarded_generated_after_hash_audit:
       - windows/frontend/wailsjs/go/main/App.d.ts
       - windows/frontend/wailsjs/go/main/App.js
       - windows/frontend/wailsjs/go/models.ts
@@ -50,30 +57,35 @@ sources:
       - windows/frontend/wailsjs/go/topicbus/
       - windows/frontend/wailsjs/go/varpool/
   - repository: MyFlowHub-Proto
+    remote: https://github.com/yttydcs/myflowhub-proto.git
     branch: main
     commit: 93ee3c823df43f6895c0a6862723e7f06d5defd7
     target: protocol
-    status: reference-only
+    status: retired-after-replacement
   - repository: MyFlowHub-SDK
+    remote: https://github.com/yttydcs/myflowhub-sdk.git
     branch: main
     commit: 7c5b4f68aa5b2f612e22b0c6c0602ab39316b3ca
     target: sdk/go
-    status: reference-only
+    status: retired-after-replacement
   - repository: MyFlowHub-Server
+    remote: https://github.com/yttydcs/myflowhub-server.git
     branch: main
     commit: 576a5af270337f15002d3acdd3e2978aab9f7047
     target: host/hub, runtime/auth, runtime/node
-    status: reference-only
+    status: retired-after-replacement
   - repository: MyFlowHub-SubProto
+    remote: https://github.com/yttydcs/myflowhub-subproto.git
     branch: main
     commit: 6c3b7aa0641254600ef53d57cbe642212b8dec03
     target: runtime/resource, runtime/subscription, runtime/command
-    status: behavior-reference-only
+    status: retired-after-replacement
   - repository: MyFlowHub-Win
+    remote: https://github.com/yttydcs/myflowhub-win.git
     branch: main
     commit: 606b747e8ecdeed368cf518f3629ac0b75c8ff60
     target: apps/desktop
-    status: deferred
+    status: retired-after-migration
 exclusions:
   - '**/.git/**'
   - '**/go.mod'

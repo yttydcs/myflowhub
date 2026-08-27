@@ -15,6 +15,7 @@ func validEnvelope() Envelope {
 		Operation:      OperationCommandCall,
 		MessageID:      MustMessageID(),
 		Source:         10,
+		Principal:      11,
 		Target:         20,
 		Resource:       ResourceID{Owner: 20, Name: "system/restart"},
 		TopologyEpoch:  7,

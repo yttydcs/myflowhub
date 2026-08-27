@@ -62,6 +62,15 @@ func TestInboundAuthorityValidation(t *testing.T) {
 	if err := ValidateInboundChild(state, 3, 7, fromChild); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("expected forbidden control, got %v", err)
 	}
+	fromChild.Phase = protocol.PhaseRequest
+	fromChild.Principal = 1
+	if err := ValidateInboundChild(state, 3, 7, fromChild); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("child forged a delegated principal: %v", err)
+	}
+	unadjudicatedParent := protocol.Envelope{Phase: protocol.PhaseRequest, Source: 1, Principal: 4, Resource: resource}
+	if err := ValidateInboundParent(state, 1, unadjudicatedParent); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("unadjudicated parent delegated a principal: %v", err)
+	}
 }
 
 func TestStaticPolicyDefaultsToDeny(t *testing.T) {

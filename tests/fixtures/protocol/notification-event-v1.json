@@ -1,0 +1,1 @@
+{"version":1,"event_id":"00112233445566778899aabbccddeeff","channel":"system","source_node_id":"2","created_at_unix_ms":1000,"content_type":"text/plain","body":"aGVsbG8=","attributes":{"severity":"info"}}

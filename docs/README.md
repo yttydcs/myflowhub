@@ -10,6 +10,7 @@
 - 再按文档类别进入：
   - [intake/README.md](intake/README.md)
   - [requirements/README.md](requirements/README.md)
+  - [features/README.md](features/README.md)
   - [specs/README.md](specs/README.md)
   - [decisions/README.md](decisions/README.md)
   - [plan/README.md](plan/README.md)
@@ -21,6 +22,8 @@
   - 原始请求证据与来源上下文
 - [requirements/README.md](requirements/README.md)
   - 长期需求、范围与验收口径
+- [features/README.md](features/README.md)
+  - 第一方产品与复合能力的稳定 dossier
 - [specs/README.md](specs/README.md)
   - 技术约束、协议映射、跨仓稳定入口
 - [decisions/README.md](decisions/README.md)
@@ -36,9 +39,10 @@
 - 想看当前主线与整体状态：
   - [../plan.md](../plan.md)
   - [../repos.md](../repos.md)
-- 想查跨仓协议映射速查表：
+- 想查 vNext 协议与资源映射速查表：
   - [specs/protocol_map.md](specs/protocol_map.md)
-- 想追溯旧仓来源与目标目录：
+- 想追溯已退役旧仓的来源、提交与迁移结果：
+  - [../migration/README.md](../migration/README.md)
   - [../migration/sources.yaml](../migration/sources.yaml)
 - 想看某次 workflow 的计划与执行证据：
   - [plan/README.md](plan/README.md)

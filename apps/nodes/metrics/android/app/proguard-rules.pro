@@ -1,0 +1,2 @@
+-keep class metricsmobile.** { *; }
+-keep class go.** { *; }

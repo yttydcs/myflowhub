@@ -80,6 +80,9 @@ MyFlowHub/
 
 ### sdk
 
+- `sdk/go` 和普通 binding 是客户端层，不依赖 `host/`。
+- 唯一例外是 `sdk/bindings/android/host.go`：Android 产品在同一 gomobile artifact 中暴露可选 in-process Hub，因此该文件是平台组合根，只允许导入 `host/hub`。architecture test 固定这一精确 file/import pair，例外不得扩散。
+
 - 依赖 protocol 和面向客户端的公共契约。
 - 不依赖 host 或应用实现。
 - 第一方应用不得复制发送、等待、超时、重连或订阅生命周期逻辑。

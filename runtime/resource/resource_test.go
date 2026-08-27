@@ -2,6 +2,7 @@ package resource
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
@@ -31,6 +32,42 @@ func TestRegistryLifecycleAndOwnerBoundary(t *testing.T) {
 	}
 	if err := registry.Remove(variable.Descriptor().ID); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRegistryPublishesSortedVersionedCatalog(t *testing.T) {
+	registry, err := NewRegistry(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	initial := registry.Catalog().Snapshot()
+	stream, _ := NewStream(Descriptor{ID: protocol.ResourceID{Owner: 1, Name: "z/events"}, Kind: KindStream, MaxValueBytes: 32})
+	variable, _ := NewVariable(Descriptor{ID: protocol.ResourceID{Owner: 1, Name: "a/status"}, Kind: KindVariable, MaxValueBytes: 32}, []byte("ok"))
+	if err := registry.Register(stream); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Register(variable); err != nil {
+		t.Fatal(err)
+	}
+	current := registry.Catalog().Snapshot()
+	if current.Revision != initial.Revision+2 {
+		t.Fatalf("catalog variable revision did not follow registrations: %d -> %d", initial.Revision, current.Revision)
+	}
+	var catalog protocol.ResourceCatalogV1
+	if err := json.Unmarshal(current.Value, &catalog); err != nil {
+		t.Fatal(err)
+	}
+	if err := catalog.Validate(); err != nil {
+		t.Fatalf("invalid catalog: %v", err)
+	}
+	want := []string{"a/status", protocol.BuiltinResourceCatalog, "z/events"}
+	for index, name := range want {
+		if catalog.Resources[index].Name != name {
+			t.Fatalf("catalog is not sorted: %#v", catalog.Resources)
+		}
+	}
+	if err := registry.Remove(protocol.ResourceID{Owner: 1, Name: protocol.BuiltinResourceCatalog}); !errors.Is(err, ErrReservedResource) {
+		t.Fatalf("built-in catalog was removable: %v", err)
 	}
 }
 

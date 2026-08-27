@@ -16,6 +16,7 @@ Stream events retain sequence order while capacity is available. A source sequen
 - unsubscribe closes the local relation and removes its interest;
 - link cleanup removes all link-bound relations;
 - lease expiry emits an observable expiry event and then closes delivery;
+- the authority that promotes a cross-subtree request retains a bounded, payload-free forwarding record; a policy-generation change sends an observable expiry to the subscriber and a parent-control unsubscribe to the resource owner;
 - manager shutdown cancels blocked dispatchers without leaking goroutines.
 
 Intermediate interest aggregation suppresses duplicate upstream ownership work, but every subscriber's identity, link, authorization deadline, policy generation, and topology epoch remain distinct. Aggregation never grants one subscriber another subscriber's authority.

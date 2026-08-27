@@ -45,4 +45,4 @@
 
 ## Notes
 
-- 本需求是跨仓稳定需求，影响 `MyFlowHub-Proto`、`MyFlowHub-SubProto`、`MyFlowHub-Server` 与 `MyFlowHub-Win`。
+- vNext 通过 `system/config` Variable、`system/config/update` Command 和 `system/topology` 实现本需求；旧 `list_nodes`、`node_info` 与 `config_set` 名称只保留原始验收语境。

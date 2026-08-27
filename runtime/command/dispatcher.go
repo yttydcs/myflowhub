@@ -18,6 +18,17 @@ var (
 	ErrUnauthorizedOrigin = errors.New("command authorization origin is invalid")
 )
 
+type retryableError struct{ error }
+
+func (retryableError) Retryable() bool { return true }
+
+func Retryable(err error) error {
+	if err == nil {
+		return nil
+	}
+	return retryableError{error: err}
+}
+
 type Origin uint8
 
 const (
@@ -33,6 +44,26 @@ type Call struct {
 	Deadline  time.Time
 	Origin    Origin
 }
+
+type Delegation struct {
+	subject protocol.NodeID
+	valid   bool
+}
+
+type callContextKey struct{}
+
+func DelegationFromContext(ctx context.Context) (Delegation, bool) {
+	if ctx == nil {
+		return Delegation{}, false
+	}
+	call, ok := ctx.Value(callContextKey{}).(Call)
+	if !ok || call.Source == 0 {
+		return Delegation{}, false
+	}
+	return Delegation{subject: call.Source, valid: true}, true
+}
+
+func (d Delegation) Subject() (protocol.NodeID, bool) { return d.subject, d.valid }
 
 type Result struct {
 	Output  []byte
@@ -194,9 +225,13 @@ func (d *Dispatcher) execute(ctx context.Context, call Call) (result Result) {
 		failure := protocol.ErrorPayload{Code: protocol.CodeConflict, Message: "target resource is not a command"}
 		return Result{Failure: &failure}
 	}
-	output, err := command.Invoke(ctx, call.Input)
+	output, err := command.Invoke(context.WithValue(ctx, callContextKey{}, call), call.Input)
 	if err != nil {
 		failure := protocol.ErrorPayload{Code: protocol.CodeInternal, Message: err.Error()}
+		var temporary interface{ Retryable() bool }
+		if errors.As(err, &temporary) && temporary.Retryable() {
+			failure.Retryable = true
+		}
 		if errors.Is(err, context.DeadlineExceeded) {
 			failure.Code = protocol.CodeTimeout
 		}

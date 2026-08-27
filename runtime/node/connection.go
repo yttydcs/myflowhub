@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,7 +38,12 @@ func (n *Node) ConnectParent(ctx context.Context, driver link.Driver, endpoint l
 			_ = session.Close()
 		}
 	}()
-	claim, err := auth.NewJoinClaim(n.identity, n.tree.NextEpoch())
+	var claim auth.JoinClaim
+	if n.config.JoinPermit == nil {
+		claim, err = auth.NewJoinClaim(n.identity, n.tree.NextEpoch())
+	} else {
+		claim, err = auth.NewJoinClaimWithPermit(n.identity, n.tree.NextEpoch(), *n.config.JoinPermit)
+	}
 	if err != nil {
 		return err
 	}
@@ -103,8 +109,8 @@ func (n *Node) ConnectParent(ctx context.Context, driver link.Driver, endpoint l
 	if err := n.registerSession(current); err != nil {
 		return err
 	}
-	for descendant := range n.tree.Descendants() {
-		n.announceUp(descendant)
+	for _, relation := range n.tree.Relations() {
+		n.announceUp(relation.Node, relation.Parent)
 	}
 	success = true
 	return nil
@@ -145,7 +151,18 @@ func (n *Node) acceptChild(pipe link.Pipe) error {
 		return errors.New("join claim node does not match envelope source")
 	}
 	if err := n.trust.VerifyJoin(claim); err != nil {
-		return fmt.Errorf("verify child join: %w", err)
+		if !errors.Is(err, auth.ErrUntrustedIdentity) || n.admission == nil || claim.Permit == nil {
+			return fmt.Errorf("verify child join: %w", err)
+		}
+		if err := auth.VerifyJoinClaim(claim); err != nil {
+			return fmt.Errorf("verify untrusted child claim: %w", err)
+		}
+		if err := n.admission.Consume(claim.NodeID, ed25519.PublicKey(claim.PublicKey), *claim.Permit); err != nil {
+			return fmt.Errorf("admit child: %w", err)
+		}
+		if err := n.trust.Add(claim.NodeID, ed25519.PublicKey(claim.PublicKey)); err != nil {
+			return fmt.Errorf("persist admitted child trust: %w", err)
+		}
 	}
 	reattached := false
 	if err := n.tree.AttachChild(claim.NodeID, claim.TopologyEpoch); err != nil {
@@ -196,7 +213,7 @@ func (n *Node) acceptChild(pipe link.Pipe) error {
 	if err := n.registerSession(current); err != nil {
 		return err
 	}
-	n.announceUp(claim.NodeID)
+	n.announceUp(claim.NodeID, n.ID())
 	attached = false
 	success = true
 	return nil
@@ -225,6 +242,9 @@ func (n *Node) registerSession(current *peerSession) error {
 	n.sessions[current.peer] = current
 	n.wg.Add(1)
 	n.mu.Unlock()
+	if current.role == link.RoleParent {
+		n.signalParentChange()
+	}
 	if topologyChanged {
 		n.failPending(errors.New("topology changed during reparent"))
 	}
@@ -271,6 +291,7 @@ func (n *Node) runSession(current *peerSession) {
 	} else {
 		n.tree.DetachParentEpoch(current.peer, current.epoch)
 		n.failPending(errors.New("parent link disconnected"))
+		n.signalParentChange()
 	}
 }
 

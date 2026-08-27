@@ -1,0 +1,444 @@
+{
+  "schema_version": 1,
+  "dispositions": [
+    "migrate",
+    "replace",
+    "drop"
+  ],
+  "states": [
+    "pending",
+    "implemented",
+    "verified"
+  ],
+  "capabilities": [
+    {
+      "id": "core.identity",
+      "source": "MyFlowHub-Core,MyFlowHub-Server",
+      "target": "runtime/auth",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "durable vNext identity and admission"
+    },
+    {
+      "id": "core.parent-authority",
+      "source": "MyFlowHub-Core,MyFlowHub-Server",
+      "target": "runtime/tree,runtime/auth",
+      "disposition": "migrate",
+      "state": "verified",
+      "reason": "direct parent retains authority"
+    },
+    {
+      "id": "core.forwarding",
+      "source": "MyFlowHub-Core,MyFlowHub-SubProto",
+      "target": "runtime/tree,runtime/node",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "authoritative tree routing"
+    },
+    {
+      "id": "core.broker",
+      "source": "MyFlowHub-SubProto",
+      "target": "runtime/subscription",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "distributed interest"
+    },
+    {
+      "id": "transport.tcp",
+      "source": "MyFlowHub-Core",
+      "target": "transport/tcp",
+      "disposition": "migrate",
+      "state": "verified",
+      "reason": "baseline link driver"
+    },
+    {
+      "id": "transport.quic",
+      "source": "MyFlowHub-Core",
+      "target": "transport/quic",
+      "disposition": "migrate",
+      "state": "verified",
+      "reason": "existing secure transport"
+    },
+    {
+      "id": "transport.rfcomm",
+      "source": "MyFlowHub-Core,MyFlowHub-Android",
+      "target": "transport/rfcomm",
+      "disposition": "migrate",
+      "state": "verified",
+      "reason": "existing Bluetooth transport"
+    },
+    {
+      "id": "protocol.varstore",
+      "source": "MyFlowHub-SubProto",
+      "target": "runtime/resource.Variable",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "Variable is the first-class state primitive"
+    },
+    {
+      "id": "protocol.stream",
+      "source": "MyFlowHub-SubProto",
+      "target": "runtime/resource.Stream",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "Stream is the first-class event primitive"
+    },
+    {
+      "id": "protocol.exec",
+      "source": "MyFlowHub-SubProto",
+      "target": "runtime/resource.Command",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "Command is the bounded imperative primitive"
+    },
+    {
+      "id": "feature.management",
+      "source": "MyFlowHub-SubProto,MyFlowHub-Server",
+      "target": "feature/management",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "built-in Variables and Commands"
+    },
+    {
+      "id": "feature.topicbus",
+      "source": "MyFlowHub-SubProto",
+      "target": "feature/notification",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "notification Stream plus publish Command"
+    },
+    {
+      "id": "feature.file",
+      "source": "MyFlowHub-SubProto",
+      "target": "feature/file",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "bounded transfer Commands and progress Stream"
+    },
+    {
+      "id": "feature.flow",
+      "source": "MyFlowHub-SubProto",
+      "target": "feature/flow",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "definition/status Variables, lifecycle Commands, run Stream"
+    },
+    {
+      "id": "feature.generic-action-dispatcher",
+      "source": "MyFlowHub-SubProto",
+      "target": "none",
+      "disposition": "drop",
+      "state": "verified",
+      "reason": "unbounded generic dispatch conflicts with typed Commands"
+    },
+    {
+      "id": "sdk.session",
+      "source": "MyFlowHub-SDK",
+      "target": "sdk/go",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "wire phases remain private"
+    },
+    {
+      "id": "hub.runtime",
+      "source": "MyFlowHub-Server",
+      "target": "host/hub",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "durable stores and multiple listeners"
+    },
+    {
+      "id": "hub.defaultset",
+      "source": "MyFlowHub-Server",
+      "target": "host/hub,feature",
+      "disposition": "drop",
+      "state": "verified",
+      "reason": "no global module bundle; explicit composition"
+    },
+    {
+      "id": "metrics.collectors",
+      "source": "MyFlowHub-MetricsNode",
+      "target": "apps/nodes/metrics",
+      "disposition": "migrate",
+      "state": "verified",
+      "reason": "product capability"
+    },
+    {
+      "id": "metrics.actuators",
+      "source": "MyFlowHub-MetricsNode",
+      "target": "apps/nodes/metrics",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "Variable state plus Command mutation"
+    },
+    {
+      "id": "metrics.wails-ui",
+      "source": "MyFlowHub-MetricsNode",
+      "target": "apps/nodes/metrics/windows",
+      "disposition": "migrate",
+      "state": "verified",
+      "reason": "product shell"
+    },
+    {
+      "id": "metrics.android-binding",
+      "source": "MyFlowHub-MetricsNode",
+      "target": "apps/nodes/metrics/android",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "canonical binding source"
+    },
+    {
+      "id": "clipboard.sync",
+      "source": "MyFlowHub-ClipboardNode",
+      "target": "apps/nodes/clipboard",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "Stream and Commands with loop suppression"
+    },
+    {
+      "id": "clipboard.history",
+      "source": "MyFlowHub-ClipboardNode",
+      "target": "apps/nodes/clipboard",
+      "disposition": "migrate",
+      "state": "verified",
+      "reason": "bounded local product history"
+    },
+    {
+      "id": "clipboard.flutter-shell",
+      "source": "MyFlowHub-ClipboardNode",
+      "target": "apps/nodes/clipboard/app",
+      "disposition": "migrate",
+      "state": "verified",
+      "reason": "cross-platform product shell"
+    },
+    {
+      "id": "clipboard.legacy-topic-routing",
+      "source": "MyFlowHub-ClipboardNode",
+      "target": "apps/nodes/clipboard",
+      "disposition": "drop",
+      "state": "verified",
+      "reason": "resource identity replaces topic routing"
+    },
+    {
+      "id": "desktop.admin",
+      "source": "MyFlowHub-Win",
+      "target": "apps/desktop",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "canonical SDK and management resources"
+    },
+    {
+      "id": "desktop.resource-browser",
+      "source": "MyFlowHub-Win",
+      "target": "apps/desktop",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "catalog and subscription driven"
+    },
+    {
+      "id": "desktop.file-flow",
+      "source": "MyFlowHub-Win",
+      "target": "apps/desktop",
+      "disposition": "migrate",
+      "state": "verified",
+      "reason": "retain product workflows on vNext APIs"
+    },
+    {
+      "id": "desktop.mcp",
+      "source": "MyFlowHub-Win",
+      "target": "apps/desktop/mcp",
+      "disposition": "migrate",
+      "state": "verified",
+      "reason": "retain local automation surface"
+    },
+    {
+      "id": "android.hub-ui",
+      "source": "MyFlowHub-Android",
+      "target": "apps/android",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "canonical Hub and bindings"
+    },
+    {
+      "id": "android.resource-ui",
+      "source": "MyFlowHub-Android",
+      "target": "apps/android",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "catalog/subscription/Command"
+    },
+    {
+      "id": "embedded.c",
+      "source": "MyFlowHub-EmbeddedSDK",
+      "target": "embedded/c",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "bounded vNext profile"
+    },
+    {
+      "id": "embedded.micropython",
+      "source": "MyFlowHub-EmbeddedSDK",
+      "target": "embedded/micropython",
+      "disposition": "replace",
+      "state": "verified",
+      "reason": "bounded vNext profile"
+    },
+    {
+      "id": "embedded.esp32",
+      "source": "MyFlowHub-EmbeddedSDK",
+      "target": "embedded/esp32",
+      "disposition": "migrate",
+      "state": "implemented",
+      "reason": "existing device product target"
+    },
+    {
+      "id": "legacy.subproto-api",
+      "source": "MyFlowHub-SubProto",
+      "target": "none",
+      "disposition": "drop",
+      "state": "verified",
+      "reason": "clean break; no external users"
+    },
+    {
+      "id": "legacy.wire-compatibility",
+      "source": "MyFlowHub-Proto",
+      "target": "none",
+      "disposition": "drop",
+      "state": "verified",
+      "reason": "compatibility bridge explicitly rejected"
+    },
+    {
+      "id": "legacy.esp32-flow-demo",
+      "source": "workspace legacy demo",
+      "target": "none",
+      "disposition": "drop",
+      "state": "verified",
+      "reason": "old VarStore and Flow payload demo is incompatible with vNext resources"
+    }
+  ],
+  "build_entries": [
+    {
+      "id": "hub.go",
+      "source": "MyFlowHub-Server",
+      "target": "cmd/mfh-hub",
+      "disposition": "replace",
+      "state": "verified"
+    },
+    {
+      "id": "desktop.wails",
+      "source": "MyFlowHub-Win",
+      "target": "apps/desktop",
+      "disposition": "migrate",
+      "state": "verified"
+    },
+    {
+      "id": "desktop.frontend",
+      "source": "MyFlowHub-Win",
+      "target": "apps/desktop/frontend",
+      "disposition": "migrate",
+      "state": "verified"
+    },
+    {
+      "id": "android.gradle",
+      "source": "MyFlowHub-Android",
+      "target": "apps/android",
+      "disposition": "migrate",
+      "state": "verified"
+    },
+    {
+      "id": "android.gomobile",
+      "source": "MyFlowHub-Android",
+      "target": "sdk/bindings/android",
+      "disposition": "replace",
+      "state": "verified"
+    },
+    {
+      "id": "metrics.go",
+      "source": "MyFlowHub-MetricsNode",
+      "target": "cmd/mfh-metrics",
+      "disposition": "replace",
+      "state": "verified"
+    },
+    {
+      "id": "metrics.wails",
+      "source": "MyFlowHub-MetricsNode",
+      "target": "apps/nodes/metrics/windows",
+      "disposition": "migrate",
+      "state": "verified"
+    },
+    {
+      "id": "metrics.android",
+      "source": "MyFlowHub-MetricsNode",
+      "target": "apps/nodes/metrics/android",
+      "disposition": "replace",
+      "state": "verified"
+    },
+    {
+      "id": "clipboard.go",
+      "source": "MyFlowHub-ClipboardNode",
+      "target": "cmd/mfh-clipboard",
+      "disposition": "replace",
+      "state": "verified"
+    },
+    {
+      "id": "clipboard.flutter",
+      "source": "MyFlowHub-ClipboardNode",
+      "target": "apps/nodes/clipboard/app",
+      "disposition": "migrate",
+      "state": "verified"
+    },
+    {
+      "id": "clipboard.mobile",
+      "source": "MyFlowHub-ClipboardNode",
+      "target": "sdk/bindings/clipboard",
+      "disposition": "replace",
+      "state": "verified"
+    },
+    {
+      "id": "embedded.c.cmake",
+      "source": "MyFlowHub-EmbeddedSDK",
+      "target": "embedded/c",
+      "disposition": "replace",
+      "state": "verified"
+    },
+    {
+      "id": "embedded.micropython.test",
+      "source": "MyFlowHub-EmbeddedSDK",
+      "target": "embedded/micropython",
+      "disposition": "replace",
+      "state": "verified"
+    },
+    {
+      "id": "embedded.esp-idf",
+      "source": "MyFlowHub-EmbeddedSDK",
+      "target": "embedded/esp32",
+      "disposition": "migrate",
+      "state": "implemented",
+      "reason": "ESP-IDF v6 source complete; build/board unavailable on execution host"
+    },
+    {
+      "id": "legacy.go-work",
+      "source": "workspace",
+      "target": "none",
+      "disposition": "drop",
+      "state": "verified",
+      "reason": "one canonical Go module"
+    },
+    {
+      "id": "legacy.multi-module-release",
+      "source": "all legacy repositories",
+      "target": "none",
+      "disposition": "drop",
+      "state": "verified",
+      "reason": "one canonical release graph"
+    },
+    {
+      "id": "legacy.android-release-secrets",
+      "source": "workspace legacy release helper",
+      "target": "none",
+      "disposition": "drop",
+      "state": "verified",
+      "reason": "release signing and publishing are outside the current canonical CI contract"
+    }
+  ]
+}

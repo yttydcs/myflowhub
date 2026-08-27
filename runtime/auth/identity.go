@@ -45,21 +45,33 @@ func (i Identity) Validate() error {
 }
 
 type JoinClaim struct {
-	NodeID        protocol.NodeID `json:"node_id"`
-	PublicKey     []byte          `json:"public_key"`
-	Nonce         [32]byte        `json:"nonce"`
-	TopologyEpoch uint64          `json:"topology_epoch"`
-	Signature     []byte          `json:"signature"`
+	NodeID        protocol.NodeID                `json:"node_id"`
+	PublicKey     []byte                         `json:"public_key"`
+	Nonce         [32]byte                       `json:"nonce"`
+	TopologyEpoch uint64                         `json:"topology_epoch"`
+	Permit        *protocol.ProvisioningPermitV1 `json:"permit,omitempty"`
+	Signature     []byte                         `json:"signature"`
 }
 
 func NewJoinClaim(identity Identity, topologyEpoch uint64) (JoinClaim, error) {
+	return newJoinClaim(identity, topologyEpoch, nil)
+}
+
+func NewJoinClaimWithPermit(identity Identity, topologyEpoch uint64, permit protocol.ProvisioningPermitV1) (JoinClaim, error) {
+	if err := permit.Validate(); err != nil {
+		return JoinClaim{}, fmt.Errorf("join permit: %w", err)
+	}
+	return newJoinClaim(identity, topologyEpoch, &permit)
+}
+
+func newJoinClaim(identity Identity, topologyEpoch uint64, permit *protocol.ProvisioningPermitV1) (JoinClaim, error) {
 	if err := identity.Validate(); err != nil {
 		return JoinClaim{}, err
 	}
 	if topologyEpoch == 0 {
 		return JoinClaim{}, errors.New("join claim requires a topology epoch")
 	}
-	claim := JoinClaim{NodeID: identity.NodeID, PublicKey: append([]byte(nil), identity.PublicKey...), TopologyEpoch: topologyEpoch}
+	claim := JoinClaim{NodeID: identity.NodeID, PublicKey: append([]byte(nil), identity.PublicKey...), TopologyEpoch: topologyEpoch, Permit: permit}
 	if _, err := rand.Read(claim.Nonce[:]); err != nil {
 		return JoinClaim{}, fmt.Errorf("generate join nonce: %w", err)
 	}
@@ -68,12 +80,14 @@ func NewJoinClaim(identity Identity, topologyEpoch uint64) (JoinClaim, error) {
 }
 
 type TrustStore struct {
-	mu   sync.RWMutex
-	keys map[protocol.NodeID]ed25519.PublicKey
+	mu         sync.RWMutex
+	keys       map[protocol.NodeID]ed25519.PublicKey
+	generation uint64
+	persist    func(trustState) error
 }
 
 func NewTrustStore() *TrustStore {
-	return &TrustStore{keys: make(map[protocol.NodeID]ed25519.PublicKey)}
+	return &TrustStore{keys: make(map[protocol.NodeID]ed25519.PublicKey), generation: 1}
 }
 
 func (s *TrustStore) Add(nodeID protocol.NodeID, publicKey ed25519.PublicKey) error {
@@ -85,10 +99,25 @@ func (s *TrustStore) Add(nodeID protocol.NodeID, publicKey ed25519.PublicKey) er
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if current, exists := s.keys[nodeID]; exists && !bytes.Equal(current, publicKey) {
-		return fmt.Errorf("identity %d already has a different key", nodeID)
+	if current, exists := s.keys[nodeID]; exists {
+		if !bytes.Equal(current, publicKey) {
+			return fmt.Errorf("identity %d already has a different key", nodeID)
+		}
+		return nil
 	}
-	s.keys[nodeID] = append(ed25519.PublicKey(nil), publicKey...)
+	keys := cloneKeys(s.keys)
+	keys[nodeID] = append(ed25519.PublicKey(nil), publicKey...)
+	if s.generation == ^uint64(0) {
+		return errors.New("trust generation exhausted")
+	}
+	next := trustState{Version: stateVersion, Generation: s.generation + 1, Records: recordsFromKeys(keys)}
+	if s.persist != nil {
+		if err := s.persist(next); err != nil {
+			return fmt.Errorf("persist trusted identity: %w", err)
+		}
+	}
+	s.keys = keys
+	s.generation = next.Generation
 	return nil
 }
 
@@ -104,7 +133,14 @@ func (s *TrustStore) VerifyJoin(claim JoinClaim) error {
 	if !ok || !bytes.Equal(key, claim.PublicKey) {
 		return ErrUntrustedIdentity
 	}
-	if claim.TopologyEpoch == 0 || len(claim.Signature) != ed25519.SignatureSize || !ed25519.Verify(key, joinMessage(claim.NodeID, claim.Nonce, claim.TopologyEpoch), claim.Signature) {
+	return VerifyJoinClaim(claim)
+}
+
+func VerifyJoinClaim(claim JoinClaim) error {
+	if err := claim.NodeID.Validate(); err != nil {
+		return err
+	}
+	if len(claim.PublicKey) != ed25519.PublicKeySize || claim.TopologyEpoch == 0 || len(claim.Signature) != ed25519.SignatureSize || !ed25519.Verify(ed25519.PublicKey(claim.PublicKey), joinMessage(claim.NodeID, claim.Nonce, claim.TopologyEpoch), claim.Signature) {
 		return errors.New("invalid join signature")
 	}
 	return nil

@@ -90,8 +90,9 @@ Variable 订阅默认可包含初始快照及后续变化；Stream 订阅默认�
 1. 订阅者创建包含目标资源和订阅参数的请求阶段消息。
 2. 若目标资源位于订阅者直接可控的下游，可按父控子规则向下处理；否则请求沿父链上送。
 3. LCA 或可裁决节点完成权限检查，并将已授权订阅作为控制阶段消息向资源 owner 下发。
-4. 沿途节点可以维护按资源与下一跳聚合的兴趣状态，但聚合不得改变原始订阅者的授权范围和租约。
-5. 资源事件按照建立的订阅状态投递；中间节点负责路由、聚合、背压和清理，不重新定义资源权限。
+4. 裁决节点必须保留有界且不含 payload 的转发订阅记录；策略世代变化时，它同时向订阅者发送显式过期结果、向资源 owner 下发父控取消，从而保证跨子树订阅也受树上 authority 强制撤权。
+5. 沿途节点可以维护按资源与下一跳聚合的兴趣状态，但聚合不得改变原始订阅者的授权范围和租约。
+6. 资源事件按照建立的订阅状态投递；中间节点负责路由、聚合、背压和清理，不重新定义资源权限。
 
 ### Invoking a Command
 
@@ -195,13 +196,13 @@ Transport Connected
 - 当前不支持同一 authority 域内多个同时有效的父节点。
 - 当前不建立独立资源树或独立权限树。
 - 当前不要求所有单向、广播或无认证设备成为 Node。
-- 本规范不决定新 wire envelope、资源 schema、订阅 QoS 等级或旧 SubProto 的迁移时间表。
+- 本规范不重复定义 wire envelope、资源 schema 或订阅 QoS；这些由对应 vNext spec 独立维护。
 
 ## Compatibility and Documentation Preservation
 
-- 原有 Server 权限规范继续作为树形自治语义依据；本规范不删除其历史内容。
+- 原有 Server 权限规范只作为树形自治语义的历史来源；当前真相由本规范与 `runtime/auth` 测试共同维护。
 - 历史 plan/change 用于说明演进和已验证实现，不再单独承担当前架构真相。
-- 后续如果新实现取代现有 `IPipe/IConnection` 或 SubProto，必须更新本规范、相关 ADR 和 supersession 链，而不是删除旧文档以掩盖架构演进。
+- 后续如果新实现取代当前 `link.Pipe`、节点树或三资源模型，必须更新本规范、相关 ADR 和 supersession 链，而不是只改实现。
 - 任何改变“唯一父节点、父控子、资源归属节点、传输不泄漏到业务层”四项约束的工作，都必须先新增取代本决策的 ADR。
 
 ## Related Requirements
@@ -220,7 +221,7 @@ Transport Connected
 - [Resource Model vNext](resource-model-vnext.md)
 - [Subscription vNext](subscription-vnext.md)
 - [Command vNext](command-vnext.md)
-- 旧 Server 权限/路由规范及 EmbeddedSDK C/MicroPython Transport Contract 按精确 commit 保留，来源见 [迁移清单](../../migration/sources.yaml)。
+- 旧 Server 权限/路由规范及 EmbeddedSDK contract 的来源提交保存在 [迁移清单](../../migration/sources.yaml)；仍有效的约束已提炼进当前 specs 与 lessons。
 
 ## Related Changes
 
@@ -228,4 +229,4 @@ Transport Connected
 - [Core Pipe 抽象与多承载基础](../change/2026-03-12_transport-pipe-core.md)
 - [Bluetooth RFCOMM Transport](../change/2026-03-12_bluetooth-rfcomm-transport.md)
 - [Link Router Kernel 重构](../change/2026-03-13_link-router-kernel-major-refactor.md)
-- 旧 Core QUIC Transport 实现按精确 commit 保留，来源见 [迁移清单](../../migration/sources.yaml)。
+- 旧 Core QUIC Transport 的来源提交保存在 [迁移清单](../../migration/sources.yaml)，当前实现与验证见 `transport/quic` 和 build matrix。

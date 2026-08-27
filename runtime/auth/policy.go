@@ -20,13 +20,20 @@ const (
 )
 
 type Request struct {
-	Subject  protocol.NodeID
-	Action   Action
-	Resource protocol.ResourceID
+	Subject  protocol.NodeID     `json:"subject"`
+	Action   Action              `json:"action"`
+	Resource protocol.ResourceID `json:"resource"`
 }
 
 type Policy interface {
 	Authorize(context.Context, Request) error
+}
+
+func PolicyGeneration(policy Policy) uint64 {
+	if generated, ok := policy.(interface{ Generation() uint64 }); ok {
+		return generated.Generation()
+	}
+	return 1
 }
 
 type AllowAll struct{}
@@ -80,7 +87,7 @@ func AuthorizeRequest(ctx context.Context, policy Policy, envelope protocol.Enve
 	if err != nil {
 		return err
 	}
-	return policy.Authorize(ctx, Request{Subject: envelope.Source, Action: action, Resource: envelope.Resource})
+	return policy.Authorize(ctx, Request{Subject: envelope.Subject(), Action: action, Resource: envelope.Resource})
 }
 
 func PromoteControl(envelope protocol.Envelope, childEpoch uint64) (protocol.Envelope, error) {
@@ -102,6 +109,9 @@ func ValidateInboundChild(state *tree.State, child protocol.NodeID, childEpoch u
 	if envelope.Phase == protocol.PhaseControl {
 		return fmt.Errorf("%w: child cannot originate control", ErrForbidden)
 	}
+	if envelope.Principal != 0 {
+		return fmt.Errorf("%w: child cannot originate a delegated principal", ErrForbidden)
+	}
 	return state.ValidateSource(child, envelope.Source, childEpoch)
 }
 
@@ -111,6 +121,9 @@ func ValidateInboundParent(state *tree.State, parent protocol.NodeID, envelope p
 	}
 	if envelope.Phase == protocol.PhaseControl {
 		return state.ValidateParentControl(parent, envelope.TopologyEpoch)
+	}
+	if envelope.Principal != 0 {
+		return fmt.Errorf("%w: unadjudicated parent request cannot delegate a principal", ErrForbidden)
 	}
 	if envelope.Phase == protocol.PhaseRequest && envelope.Source != parent {
 		return fmt.Errorf("%w: unadjudicated parent request cannot represent another subject", ErrForbidden)

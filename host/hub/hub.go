@@ -3,44 +3,242 @@ package hub
 import (
 	"context"
 	"errors"
+	"fmt"
+	"path/filepath"
+	"sync"
+	"time"
 
+	filefeature "github.com/yttydcs/myflowhub/feature/file"
+	flowfeature "github.com/yttydcs/myflowhub/feature/flow"
+	"github.com/yttydcs/myflowhub/feature/management"
+	"github.com/yttydcs/myflowhub/feature/notification"
+	hostconfig "github.com/yttydcs/myflowhub/host/config"
+	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/link"
 	"github.com/yttydcs/myflowhub/runtime/node"
 )
 
-type Config struct {
-	Node     node.Config
+type ListenerConfig struct {
 	Driver   link.Driver
 	Endpoint link.Endpoint
 }
 
+type Config struct {
+	Node      node.Config
+	Driver    link.Driver
+	Endpoint  link.Endpoint
+	Listeners []ListenerConfig
+}
+
+type PersistentConfig struct {
+	StateDirectory  string
+	NodeID          protocol.NodeID
+	Node            node.Config
+	Listeners       []ListenerConfig
+	RefreshInterval time.Duration
+	FileRoot        string
+	File            filefeature.Config
+	Flow            flowfeature.Config
+}
+
 type Hub struct {
-	Node     *node.Node
-	Endpoint link.Endpoint
+	Node         *node.Node
+	Endpoint     link.Endpoint
+	Endpoints    []link.Endpoint
+	Runtime      *hostconfig.Runtime
+	Management   *management.Controller
+	Notification *notification.Controller
+	File         *filefeature.Controller
+	Flow         *flowfeature.Controller
+
+	cancel    context.CancelFunc
+	wg        sync.WaitGroup
+	closeOnce sync.Once
 }
 
 func Start(ctx context.Context, config Config) (*Hub, error) {
 	if ctx == nil {
 		return nil, errors.New("hub context is required")
 	}
-	if err := link.ValidateDriver(config.Driver); err != nil {
+	listeners, err := listenerConfigs(config)
+	if err != nil {
 		return nil, err
 	}
 	runtime, err := node.New(ctx, config.Node)
 	if err != nil {
 		return nil, err
 	}
-	endpoint, err := runtime.Listen(config.Driver, config.Endpoint)
+	result, err := listen(runtime, listeners)
 	if err != nil {
 		_ = runtime.Close()
 		return nil, err
 	}
-	return &Hub{Node: runtime, Endpoint: endpoint}, nil
+	return &Hub{Node: runtime, Endpoint: result[0], Endpoints: result}, nil
+}
+
+func StartPersistent(ctx context.Context, config PersistentConfig) (*Hub, error) {
+	if ctx == nil {
+		return nil, errors.New("hub context is required")
+	}
+	if config.StateDirectory == "" {
+		return nil, errors.New("hub state directory is required")
+	}
+	if err := config.NodeID.Validate(); err != nil {
+		return nil, err
+	}
+	if len(config.Listeners) == 0 {
+		return nil, errors.New("persistent hub requires at least one listener")
+	}
+	for index, listener := range config.Listeners {
+		if err := validateListener(listener); err != nil {
+			return nil, fmt.Errorf("listener %d: %w", index, err)
+		}
+	}
+	state, err := hostconfig.Open(config.StateDirectory, config.NodeID)
+	if err != nil {
+		return nil, err
+	}
+	audit := management.NewAuditLog(nil, 256)
+	nodeConfig := config.Node
+	nodeConfig.Identity = state.Identity
+	nodeConfig.Trust = state.Trust
+	nodeConfig.Admission = state.Admission
+	nodeConfig.Policy = management.AuditPolicy(state.Policy, audit)
+	runtime, err := node.New(ctx, nodeConfig)
+	if err != nil {
+		return nil, err
+	}
+	controller, err := management.Register(management.Config{
+		Node: runtime, Admission: state.Admission, Trust: state.Trust, Policy: state.Policy,
+		Settings: state.Settings, RevokeNode: state.RevokeNode, Audit: audit,
+	})
+	if err != nil {
+		_ = runtime.Close()
+		return nil, err
+	}
+	notificationController, err := notification.Register(notification.Config{Node: runtime})
+	if err != nil {
+		_ = runtime.Close()
+		return nil, err
+	}
+	fileConfig := config.File
+	fileConfig.Node = runtime
+	if fileConfig.Root == "" {
+		fileConfig.Root = config.FileRoot
+	}
+	if fileConfig.Root == "" {
+		fileConfig.Root = filepath.Join(config.StateDirectory, "files")
+	}
+	fileController, err := filefeature.Register(fileConfig)
+	if err != nil {
+		_ = runtime.Close()
+		return nil, err
+	}
+	flowConfig := config.Flow
+	flowConfig.Node = runtime
+	flowConfig.Store = state.Store
+	flowController, err := flowfeature.Register(flowConfig)
+	if err != nil {
+		_ = fileController.Close()
+		_ = runtime.Close()
+		return nil, err
+	}
+	endpoints, err := listen(runtime, config.Listeners)
+	if err != nil {
+		_ = flowController.Close()
+		_ = fileController.Close()
+		_ = runtime.Close()
+		return nil, err
+	}
+	refreshInterval := config.RefreshInterval
+	if refreshInterval <= 0 {
+		refreshInterval = time.Second
+	}
+	if refreshInterval < 10*time.Millisecond {
+		_ = flowController.Close()
+		_ = fileController.Close()
+		_ = runtime.Close()
+		return nil, errors.New("hub management refresh interval must be at least 10ms")
+	}
+	refreshCtx, cancel := context.WithCancel(ctx)
+	hub := &Hub{
+		Node: runtime, Endpoint: endpoints[0], Endpoints: endpoints, Runtime: state, Management: controller,
+		Notification: notificationController, File: fileController, Flow: flowController, cancel: cancel,
+	}
+	hub.wg.Add(1)
+	go func() {
+		defer hub.wg.Done()
+		ticker := time.NewTicker(refreshInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				_ = controller.Refresh()
+			case <-refreshCtx.Done():
+				return
+			case <-runtime.Done():
+				return
+			}
+		}
+	}()
+	return hub, nil
 }
 
 func (h *Hub) Close() error {
 	if h == nil || h.Node == nil {
 		return nil
 	}
-	return h.Node.Close()
+	var closeErr error
+	h.closeOnce.Do(func() {
+		if h.cancel != nil {
+			h.cancel()
+		}
+		h.wg.Wait()
+		if h.Flow != nil {
+			if err := h.Flow.Close(); err != nil {
+				closeErr = err
+			}
+		}
+		if h.File != nil {
+			if err := h.File.Close(); err != nil && closeErr == nil {
+				closeErr = err
+			}
+		}
+		if err := h.Node.Close(); err != nil && closeErr == nil {
+			closeErr = err
+		}
+	})
+	return closeErr
+}
+
+func listenerConfigs(config Config) ([]ListenerConfig, error) {
+	listeners := append([]ListenerConfig(nil), config.Listeners...)
+	if len(listeners) == 0 {
+		listeners = []ListenerConfig{{Driver: config.Driver, Endpoint: config.Endpoint}}
+	}
+	for index, listener := range listeners {
+		if err := validateListener(listener); err != nil {
+			return nil, fmt.Errorf("listener %d: %w", index, err)
+		}
+	}
+	return listeners, nil
+}
+
+func validateListener(listener ListenerConfig) error {
+	if err := link.ValidateDriver(listener.Driver); err != nil {
+		return err
+	}
+	return listener.Endpoint.Validate()
+}
+
+func listen(runtime *node.Node, listeners []ListenerConfig) ([]link.Endpoint, error) {
+	endpoints := make([]link.Endpoint, 0, len(listeners))
+	for index, listener := range listeners {
+		endpoint, err := runtime.Listen(listener.Driver, listener.Endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("start listener %d: %w", index, err)
+		}
+		endpoints = append(endpoints, endpoint)
+	}
+	return endpoints, nil
 }

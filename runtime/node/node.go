@@ -20,6 +20,8 @@ type Config struct {
 	Identity      auth.Identity
 	Trust         *auth.TrustStore
 	Policy        auth.Policy
+	Admission     *auth.Admission
+	JoinPermit    *protocol.ProvisioningPermitV1
 	Session       link.SessionConfig
 	Subscriptions subscription.Config
 	Commands      command.Config
@@ -44,21 +46,31 @@ type Node struct {
 	identity      auth.Identity
 	trust         *auth.TrustStore
 	policy        auth.Policy
+	admission     *auth.Admission
 	tree          *tree.State
 	registry      *resource.Registry
 	subscriptions *subscription.Manager
 	commands      *command.Dispatcher
 
-	mu        sync.RWMutex
-	sessions  map[protocol.NodeID]*peerSession
-	listeners []link.Listener
-	pending   map[protocol.MessageID]*pendingEntry
-	closed    bool
+	mu                     sync.RWMutex
+	sessions               map[protocol.NodeID]*peerSession
+	listeners              []link.Listener
+	pending                map[protocol.MessageID]*pendingEntry
+	forwardedSubscriptions map[protocol.MessageID]forwardedSubscription
+	closed                 bool
+	parentGeneration       uint64
+	parentChanged          chan struct{}
 
-	handshakes  chan struct{}
-	diagnostics chan error
-	wg          sync.WaitGroup
-	closeOnce   sync.Once
+	handshakes        chan struct{}
+	diagnostics       chan error
+	wg                sync.WaitGroup
+	closeOnce         sync.Once
+	policyWatchCancel func()
+}
+
+type OperationalStats struct {
+	ActiveLinks         int
+	ActiveSubscriptions int
 }
 
 func New(parent context.Context, config Config) (*Node, error) {
@@ -111,10 +123,26 @@ func New(parent context.Context, config Config) (*Node, error) {
 	}
 	config.Session.LocalNode = config.Identity.NodeID
 	value := &Node{
-		ctx: ctx, cancel: cancel, config: config, identity: config.Identity, trust: config.Trust, policy: config.Policy,
+		ctx: ctx, cancel: cancel, config: config, identity: config.Identity, trust: config.Trust, policy: config.Policy, admission: config.Admission,
 		tree: state, registry: registry, subscriptions: manager, commands: dispatcher,
 		sessions: make(map[protocol.NodeID]*peerSession), pending: make(map[protocol.MessageID]*pendingEntry),
-		handshakes: make(chan struct{}, config.MaxHandshakes), diagnostics: make(chan error, 64),
+		forwardedSubscriptions: make(map[protocol.MessageID]forwardedSubscription),
+		handshakes:             make(chan struct{}, config.MaxHandshakes), diagnostics: make(chan error, 64),
+		parentChanged: make(chan struct{}),
+	}
+	if generated, ok := config.Policy.(interface {
+		WatchGeneration(func(uint64)) (uint64, func(), error)
+	}); ok {
+		_, stop, err := generated.WatchGeneration(func(generation uint64) {
+			manager.CleanupPolicyGeneration(generation)
+			value.expireForwardedSubscriptions(generation)
+		})
+		if err != nil {
+			_ = manager.Close()
+			cancel()
+			return nil, fmt.Errorf("watch policy generation: %w", err)
+		}
+		value.policyWatchCancel = stop
 	}
 	return value, nil
 }
@@ -124,6 +152,27 @@ func (n *Node) Registry() *resource.Registry { return n.registry }
 func (n *Node) Tree() *tree.State            { return n.tree }
 func (n *Node) Errors() <-chan error         { return n.diagnostics }
 func (n *Node) Done() <-chan struct{}        { return n.ctx.Done() }
+
+func (n *Node) Stats() OperationalStats {
+	n.mu.RLock()
+	links := len(n.sessions)
+	forwarded := len(n.forwardedSubscriptions)
+	n.mu.RUnlock()
+	return OperationalStats{ActiveLinks: links, ActiveSubscriptions: n.subscriptions.Count() + forwarded}
+}
+
+func (n *Node) DisconnectPeer(peer protocol.NodeID) error {
+	if err := peer.Validate(); err != nil {
+		return err
+	}
+	n.mu.RLock()
+	current := n.sessions[peer]
+	n.mu.RUnlock()
+	if current == nil {
+		return nil
+	}
+	return current.session.Close()
+}
 
 func (n *Node) emit(err error) {
 	if err == nil {
@@ -214,8 +263,12 @@ func (n *Node) Close() error {
 			pending = append(pending, current)
 		}
 		n.pending = make(map[protocol.MessageID]*pendingEntry)
+		n.forwardedSubscriptions = make(map[protocol.MessageID]forwardedSubscription)
 		n.mu.Unlock()
 		n.cancel()
+		if n.policyWatchCancel != nil {
+			n.policyWatchCancel()
+		}
 		for _, listener := range listeners {
 			_ = listener.Close()
 		}

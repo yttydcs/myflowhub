@@ -1,0 +1,1 @@
+{"version":1,"permit_id":"00112233445566778899aabbccddeeff","parent_node_id":"1","child_node_id":"2","child_public_key":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","role":"device","issued_at_unix_ms":1000,"expires_at_unix_ms":2000,"max_uses":1,"signature":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}

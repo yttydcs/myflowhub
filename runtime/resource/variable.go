@@ -21,6 +21,7 @@ type Variable struct {
 }
 
 func NewVariable(descriptor Descriptor, initial []byte) (*Variable, error) {
+	descriptor = normalizeDescriptor(descriptor)
 	if descriptor.Kind != KindVariable {
 		return nil, errors.New("variable descriptor must use variable kind")
 	}

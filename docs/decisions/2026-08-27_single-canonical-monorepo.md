@@ -55,7 +55,7 @@ Accepted
 
 - 初次迁移范围大，必须使用独立工作区并保护当前根仓和 MetricsNode 的未提交改动。
 - 新仓若缺少清晰依赖规则，可能从“过度拆分”滑向“无边界大包”；因此必须保留 package 级依赖约束。
-- 旧仓归档、远端只读设置和发布切换属于后续显式操作，不能在讨论阶段直接执行。
+- 旧仓本地副本在 canonical 切换和来源审计完成后，于 2026-08-27 由显式用户授权移除；远端与提交信息保存在 `migration/`。
 
 ## Confidence
 
@@ -63,8 +63,8 @@ High。项目没有外部兼容负担，且当前核心模型仍在快速演进�
 
 ## Supersedes / Superseded By
 
-- 取代 [repos.md](../../repos.md) 中“Proto/Core/SDK/SubProto/Server 作为长期独立仓库边界”的未来方向；在迁移完成前，`repos.md` 仍描述当前实际工作区，不应提前改写为已完成状态。
-- 不删除既有仓库职责和发布历史；它们在切换前仍是旧系统的有效事实。
+- 已取代 [repos.md](../../repos.md) 中“Proto/Core/SDK/SubProto/Server 作为长期独立仓库边界”的方向；`repos.md` 现在描述 canonical 单仓实际状态。
+- 既有仓库职责和发布历史通过 `migration/source-audit.json`、历史 change/plan 与远端 commit 保留，不再依赖本地旧仓副本。
 
 ## Related Features
 

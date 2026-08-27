@@ -11,7 +11,8 @@ import (
 )
 
 type routePayload struct {
-	Node protocol.NodeID `json:"node"`
+	Node   protocol.NodeID `json:"node"`
+	Parent protocol.NodeID `json:"parent"`
 }
 
 type subscribePayload struct {

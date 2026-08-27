@@ -20,6 +20,7 @@ type Stream struct {
 }
 
 func NewStream(descriptor Descriptor) (*Stream, error) {
+	descriptor = normalizeDescriptor(descriptor)
 	if descriptor.Kind != KindStream {
 		return nil, errors.New("stream descriptor must use stream kind")
 	}

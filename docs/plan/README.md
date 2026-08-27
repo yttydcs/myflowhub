@@ -22,6 +22,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Snapshots / Meta
+- [plan_archive_2026-08-27_vnext-full-migration.md](plan_archive_2026-08-27_vnext-full-migration.md)
 - [plan_archive_2026-08-27_canonical-monorepo-unified-node-runtime.md](plan_archive_2026-08-27_canonical-monorepo-unified-node-runtime.md)
 - [plan_archive_2026-03-29_root-run-dev-stream-server.md](plan_archive_2026-03-29_root-run-dev-stream-server.md)
 - [plan_archive_2026-03-29_root-run-dev-wails-gowork.md](plan_archive_2026-03-29_root-run-dev-wails-gowork.md)

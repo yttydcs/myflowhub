@@ -15,6 +15,8 @@ var (
 	ErrNotFound           = errors.New("resource not found")
 	ErrRevisionRegression = errors.New("resource revision or sequence regression")
 	ErrValueTooLarge      = errors.New("resource value exceeds configured limit")
+	ErrResourceLimit      = errors.New("resource registry limit reached")
+	ErrReservedResource   = errors.New("built-in resource cannot be replaced or removed")
 )
 
 type Kind uint8
@@ -64,16 +66,31 @@ type Resource interface {
 }
 
 type Registry struct {
-	mu        sync.RWMutex
-	owner     protocol.NodeID
-	resources map[string]Resource
+	mu              sync.RWMutex
+	catalogUpdateMu sync.Mutex
+	owner           protocol.NodeID
+	resources       map[string]Resource
+	catalog         *Variable
+	catalogRevision uint64
 }
 
 func NewRegistry(owner protocol.NodeID) (*Registry, error) {
 	if err := owner.Validate(); err != nil {
 		return nil, err
 	}
-	return &Registry{owner: owner, resources: make(map[string]Resource)}, nil
+	descriptor := normalizeDescriptor(Descriptor{
+		ID: protocol.ResourceID{Owner: owner, Name: protocol.BuiltinResourceCatalog}, Kind: KindVariable,
+		ContentType: "application/json", Schema: protocol.SchemaResourceCatalogV1, Permission: "resource.catalog.read", MaxValueBytes: protocol.DefaultMaxPayload,
+	})
+	payload, err := protocol.EncodeJSONPayload(&protocol.ResourceCatalogV1{Version: 1, Revision: 1, Resources: []protocol.ResourceDescriptorV1{catalogDescriptor(descriptor)}}, protocol.DefaultMaxPayload)
+	if err != nil {
+		return nil, fmt.Errorf("create resource catalog: %w", err)
+	}
+	catalog, err := NewVariable(descriptor, payload)
+	if err != nil {
+		return nil, fmt.Errorf("create resource catalog: %w", err)
+	}
+	return &Registry{owner: owner, resources: map[string]Resource{protocol.BuiltinResourceCatalog: catalog}, catalog: catalog, catalogRevision: 1}, nil
 }
 
 func (r *Registry) Register(value Resource) error {
@@ -81,18 +98,42 @@ func (r *Registry) Register(value Resource) error {
 		return errors.New("register resource: value is required")
 	}
 	descriptor := value.Descriptor()
+	descriptor = normalizeDescriptor(descriptor)
 	if err := descriptor.Validate(); err != nil {
 		return fmt.Errorf("register resource: %w", err)
 	}
 	if descriptor.ID.Owner != r.owner {
 		return fmt.Errorf("register resource: owner %d does not match local node %d", descriptor.ID.Owner, r.owner)
 	}
+	if descriptor.ID.Name == protocol.BuiltinResourceCatalog {
+		return fmt.Errorf("%w: %s", ErrReservedResource, descriptor.ID.Name)
+	}
+	r.catalogUpdateMu.Lock()
+	defer r.catalogUpdateMu.Unlock()
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	if _, exists := r.resources[descriptor.ID.Name]; exists {
+		r.mu.Unlock()
 		return fmt.Errorf("%w: %s", ErrDuplicate, descriptor.ID.Name)
 	}
+	if len(r.resources) >= protocol.MaxItems {
+		r.mu.Unlock()
+		return ErrResourceLimit
+	}
 	r.resources[descriptor.ID.Name] = value
+	payload, revision, err := r.buildCatalogLocked()
+	if err != nil {
+		delete(r.resources, descriptor.ID.Name)
+		r.mu.Unlock()
+		return fmt.Errorf("register resource catalog update: %w", err)
+	}
+	r.mu.Unlock()
+	if _, err := r.catalog.Set(payload); err != nil {
+		r.mu.Lock()
+		delete(r.resources, descriptor.ID.Name)
+		r.mu.Unlock()
+		return fmt.Errorf("register resource catalog publish: %w", err)
+	}
+	r.catalogRevision = revision
 	return nil
 }
 
@@ -110,12 +151,32 @@ func (r *Registry) Remove(id protocol.ResourceID) error {
 	if id.Owner != r.owner {
 		return ErrNotFound
 	}
+	if id.Name == protocol.BuiltinResourceCatalog {
+		return fmt.Errorf("%w: %s", ErrReservedResource, id.Name)
+	}
+	r.catalogUpdateMu.Lock()
+	defer r.catalogUpdateMu.Unlock()
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	if _, exists := r.resources[id.Name]; !exists {
+		r.mu.Unlock()
 		return ErrNotFound
 	}
+	removed := r.resources[id.Name]
 	delete(r.resources, id.Name)
+	payload, revision, err := r.buildCatalogLocked()
+	if err != nil {
+		r.resources[id.Name] = removed
+		r.mu.Unlock()
+		return fmt.Errorf("remove resource catalog update: %w", err)
+	}
+	r.mu.Unlock()
+	if _, err := r.catalog.Set(payload); err != nil {
+		r.mu.Lock()
+		r.resources[id.Name] = removed
+		r.mu.Unlock()
+		return fmt.Errorf("remove resource catalog publish: %w", err)
+	}
+	r.catalogRevision = revision
 	return nil
 }
 
@@ -130,6 +191,53 @@ func (r *Registry) List() []Descriptor {
 	return descriptors
 }
 
+func (r *Registry) Catalog() *Variable { return r.catalog }
+
+func (r *Registry) buildCatalogLocked() ([]byte, uint64, error) {
+	if r.catalogRevision == ^uint64(0) {
+		return nil, 0, errors.New("resource catalog revision exhausted")
+	}
+	descriptors := make([]protocol.ResourceDescriptorV1, 0, len(r.resources))
+	for _, value := range r.resources {
+		descriptors = append(descriptors, catalogDescriptor(normalizeDescriptor(value.Descriptor())))
+	}
+	sort.Slice(descriptors, func(i, j int) bool { return descriptors[i].Name < descriptors[j].Name })
+	revision := r.catalogRevision + 1
+	payload, err := protocol.EncodeJSONPayload(&protocol.ResourceCatalogV1{Version: 1, Revision: revision, Resources: descriptors}, protocol.DefaultMaxPayload)
+	return payload, revision, err
+}
+
+func normalizeDescriptor(descriptor Descriptor) Descriptor {
+	if descriptor.ContentType == "" {
+		descriptor.ContentType = "application/octet-stream"
+	}
+	if descriptor.Schema == "" {
+		descriptor.Schema = "mfh.raw.v1"
+	}
+	if descriptor.Permission == "" {
+		if descriptor.Kind == KindCommand {
+			descriptor.Permission = "resource.invoke"
+		} else {
+			descriptor.Permission = "resource.subscribe"
+		}
+	}
+	return descriptor
+}
+
+func catalogDescriptor(descriptor Descriptor) protocol.ResourceDescriptorV1 {
+	kind := protocol.ResourceKindVariable
+	switch descriptor.Kind {
+	case KindStream:
+		kind = protocol.ResourceKindStream
+	case KindCommand:
+		kind = protocol.ResourceKindCommand
+	}
+	return protocol.ResourceDescriptorV1{
+		Name: descriptor.ID.Name, Kind: kind, ContentType: descriptor.ContentType, Schema: descriptor.Schema,
+		Permission: descriptor.Permission, MaxValueBytes: descriptor.MaxValueBytes,
+	}
+}
+
 type CommandHandler func(context.Context, []byte) ([]byte, error)
 
 type Command struct {
@@ -138,6 +246,7 @@ type Command struct {
 }
 
 func NewCommand(descriptor Descriptor, handler CommandHandler) (*Command, error) {
+	descriptor = normalizeDescriptor(descriptor)
 	if descriptor.Kind != KindCommand {
 		return nil, errors.New("command descriptor must use command kind")
 	}

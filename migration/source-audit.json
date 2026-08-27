@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-08-27T00:00:00+08:00",
+  "repositories": [
+    {"name":"MyFlowHub-Android","commit":"93d2032530c97246cfcb5fc996a29c0f357b9ca9","tree":"8b71a30b64645d3c70b8443b119253a2051aefec","file_count":139,"dirty":[]},
+    {"name":"MyFlowHub-ClipboardNode","commit":"eec7d8acbacbecf4976e79ac4bb0e3a4b3957aca","tree":"3659687e64b73c605cc709cf03cba6ab14f68fd4","file_count":226,"dirty":[]},
+    {"name":"MyFlowHub-Core","commit":"82061f18e9d27e00b1ba4ac369ebecf3fb9afc22","tree":"46b20450fa34a4f082a140e8c199d50c5952dbca","file_count":94,"dirty":[]},
+    {"name":"MyFlowHub-EmbeddedSDK","commit":"343d5b6eef9aeb78eb55b6662c0d4d5cf1b42c73","tree":"cc37d4449e51d5aaadab905943fa0b1772c8010e","file_count":230,"dirty":[]},
+    {
+      "name":"MyFlowHub-MetricsNode",
+      "commit":"c5e2f217afc8063d3e2bb1c6b21fb8fc878925c0",
+      "tree":"9a85d21686bb0ef7cc0c17e049dc2bfddd4f527e",
+      "file_count":139,
+      "dirty":[
+        {"status":"M","path":"windows/frontend/wailsjs/go/main/App.d.ts","sha256":"88bf61fc528b60eea712ca836052f19a9e97e1e9a3d776966ea802f8b5d7538c"},
+        {"status":"M","path":"windows/frontend/wailsjs/go/main/App.js","sha256":"31546e0b1c482bca2df4b6dbb09a2e86f35a0362d8a5c82981136f566e2866e0"},
+        {"status":"M","path":"windows/frontend/wailsjs/go/models.ts","sha256":"75b5528e6efd7d6a38dcb1d5562704a2eaa08f4457173d3cc2a7c4635ba9bc63"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/auth/AuthService.d.ts","sha256":"3d30667f97fb048b11bd56be8f5e4fca7b14b192bf0aafe58678c62e1b86cf69"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/auth/AuthService.js","sha256":"921acd121eeb26c3e4949bdd70fd34bcbb525972005358ca3ba17e8c97b39c4f"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/debug/DebugService.d.ts","sha256":"b01b947bbe29ec8c197a3b70d6f898f787ea6c0de901fc23a2d9ed182a5fe567"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/debug/DebugService.js","sha256":"b8109caf32027e7c6d1b78591cda87f3a6776810142b5db266ea8dd88bd33da7"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/file/FileService.d.ts","sha256":"9964e29a6bd5c1359703afc3436d614d322426573f7aefd9a96dd8b9d768d603"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/file/FileService.js","sha256":"c81b5f3fd15f01183bec5dd6f9338207e683fa02e66c4becdad6c897e669ba57"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/flow/FlowService.d.ts","sha256":"43cbf8088471a0665a3d057356ac729375504c965cd00c2181439843e5459bba"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/flow/FlowService.js","sha256":"5148a0b4d4115dbffcdedee09ebbfdcd44d75eed6d19cc58a98fb1036947fff7"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/localhub/LocalHubService.d.ts","sha256":"8430eba95b3b12945d6bdc11b61635776111930141d9b6c2bbb69d8f74c090e7"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/localhub/LocalHubService.js","sha256":"6e488c47ea56b05dcc5057f569a6191e9ac5171c04c379ccda942ef5f8d42d1c"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/logs/LogService.d.ts","sha256":"55cdbafd15537dc04b1644e1a456b0405341344bce7eed2a8f5cf4a6e2f57bee"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/logs/LogService.js","sha256":"31963335e6e564d705043e147dc1ecf1e4a9ff4e24004515b429fd526406af44"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/management/ManagementService.d.ts","sha256":"124fd99dd449b7194f36147ba778cf7bcebb552576cfc63da78d770753bbe7da"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/management/ManagementService.js","sha256":"43df8913f57f5bd07dee24b1304ecdbad2981f943395930383ede41e2c82e092"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/permission/PermissionService.d.ts","sha256":"103d948fe194a628aa8288ea9b10f70a7702ad44cc23c3bd200447ba80d8b511"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/permission/PermissionService.js","sha256":"d010cd69b51f61ad7170cd5a1dbcacf0ce620ebff56c1e286861fe7c4c366aa4"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/presets/PresetService.d.ts","sha256":"f0680e60cdba3eed830e7c8d92ac404fdabef0ca906539641688d6ffce292900"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/presets/PresetService.js","sha256":"fc56c253219e9bcb1d5790db857c7568e015034ba222f6372120c5b6e8b7c5bb"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/session/SessionService.d.ts","sha256":"3f5b2b6882ecdabd2f7067de39dd7e7c84a8c682446fa738852f0d4f5120271a"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/session/SessionService.js","sha256":"1a644115ee7276d987db0bb5dd2dfe9e3f7919bd93bac3278d6020999b93457f"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/stream/StreamService.d.ts","sha256":"a139a9d224018591e3e7897590aad8b5f8344c063b92dbcf21bc6507a36c57ec"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/stream/StreamService.js","sha256":"dd92b62fe193e01047ec01c83ae158d2b6c6c6ea20ce2e97f9c802ddf4e2102b"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/topicbus/TopicBusService.d.ts","sha256":"77b1f50501eaf0e555009ee070231cd45125865f189bfe4e8da8ed7c96e11794"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/topicbus/TopicBusService.js","sha256":"04b4cae29ab647f7432a9d7e200cc19551cb7dd35ba600d77d28922fec76e726"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/varpool/VarPoolService.d.ts","sha256":"0fe48f16ecead403aa13ce553cf83d9435ebc08ce08d161f764b44da674df52b"},
+        {"status":"??","path":"windows/frontend/wailsjs/go/varpool/VarPoolService.js","sha256":"9a163610185d8c0779b56d8d2b854c59639060dfe1979be952c13a12ada02fc2"}
+      ]
+    },
+    {"name":"MyFlowHub-Proto","commit":"93ee3c823df43f6895c0a6862723e7f06d5defd7","tree":"c124eee459e17d001b1840519d3f8c5f4a20f56c","file_count":52,"dirty":[]},
+    {"name":"MyFlowHub-SDK","commit":"7c5b4f68aa5b2f612e22b0c6c0602ab39316b3ca","tree":"34af3f99858d4fb3d3ad23980b244f39692c7a5f","file_count":44,"dirty":[]},
+    {"name":"MyFlowHub-Server","commit":"576a5af270337f15002d3acdd3e2978aab9f7047","tree":"49d986fa85520d30f22660fa393d35b81a5b46ef","file_count":192,"dirty":[]},
+    {"name":"MyFlowHub-SubProto","commit":"6c3b7aa0641254600ef53d57cbe642212b8dec03","tree":"32674a74316ed741c98e1afc76839a49d2e23dcb","file_count":207,"dirty":[]},
+    {"name":"MyFlowHub-Win","commit":"606b747e8ecdeed368cf518f3629ac0b75c8ff60","tree":"331bcfe15efc584b5643a84166784b1a56420d0e","file_count":459,"dirty":[]}
+  ]
+}

@@ -1,243 +1,44 @@
-# Protocol Mapping（Client <-> Server）
+# vNext Protocol And Resource Mapping
 
-> 本文档为“半自动文档”：
-> - single source-of-truth：`protocol/*/types.go`
-> - **不要手工修改** `<!-- BEGIN GENERATED -->` 与 `<!-- END GENERATED -->` 中间的内容
-> - canonical 生成入口位于 `repo/MyFlowHub-Proto/docs/specs/protocol_map.md`
-> - 本工作区保留同步副本：`docs/specs/protocol_map.md`
+本文是 vNext 协议与资源模型的人工速查入口。协议真相位于 `protocol/`，跨语言公开面由 `sdk/bindings/generated/contracts.json` 生成并接受架构测试校验；本文不再同步任何旧 SubProto、VarStore 或 TopicBus 动作表。
 
-<!-- BEGIN GENERATED -->
-## SubProto Overview
+## Envelope Operations
 
-| SubProto | Name | Package |
-|---:|---|---|
-| 1 | Management | `protocol/management` |
-| 2 | Auth | `protocol/auth` |
-| 3 | VarStore | `protocol/varstore` |
-| 4 | TopicBus | `protocol/topicbus` |
-| 5 | File | `protocol/file` |
-| 6 | Flow | `protocol/flow` |
-| 7 | Exec | `protocol/exec` |
+| 语义 | Operation | Phase | 资源要求 |
+|---|---|---|---|
+| 建立父子关系 | `Join` / `JoinAck` | request / response | 无 |
+| 发布或撤销子树路由 | `RouteAnnounce` / `RouteWithdraw` | event | 无 |
+| 建立或取消订阅 | `Subscribe` / `Unsubscribe` / `SubscribeAck` | request/control/response | Variable 或 Stream |
+| Variable 初值与变更 | `VariableSnapshot` / `VariableUpdate` | response / event | Variable |
+| Stream 数据与缺口 | `StreamEvent` / `StreamGap` | event | Stream |
+| 调用 Command | `CommandCall` / `CommandResult` | request/control/response | Command |
+| 显式错误 | `Error` | response | 无 |
+| 链路保活 | `Heartbeat` | event | 无 |
 
-## Management (SubProto=1)
+`Source` 表示当前发送节点，`Principal` 在转发时保留原始行为主体，`Target` 表示资源所有者；权限判断使用 `Envelope.Subject()`，不能把中继节点误当成授权主体。路由、订阅和指令的详细时序分别见 [wire-protocol-vnext.md](wire-protocol-vnext.md)、[subscription-vnext.md](subscription-vnext.md) 与 [command-vnext.md](command-vnext.md)。
 
-**Actions**
-- `ActionConfigGet = "config_get"`
-- `ActionConfigGetResp = "config_get_resp"`
-- `ActionConfigList = "config_list"`
-- `ActionConfigListResp = "config_list_resp"`
-- `ActionConfigSet = "config_set"`
-- `ActionConfigSetResp = "config_set_resp"`
-- `ActionListNodes = "list_nodes"`
-- `ActionListNodesResp = "list_nodes_resp"`
-- `ActionListSubtree = "list_subtree"`
-- `ActionListSubtreeResp = "list_subtree_resp"`
-- `ActionNodeEcho = "node_echo"`
-- `ActionNodeEchoResp = "node_echo_resp"`
-- `ActionNodeInfo = "node_info"`
-- `ActionNodeInfoResp = "node_info_resp"`
+## Resource Mapping
 
-**Payload types**
-- `ConfigGetReq`
-- `ConfigListReq`
-- `ConfigListResp`
-- `ConfigResp`
-- `ConfigSetReq`
-- `ListNodesReq`
-- `ListNodesResp`
-- `ListSubtreeReq`
-- `ListSubtreeResp`
-- `Message`
-- `NodeEchoReq`
-- `NodeEchoResp`
-- `NodeInfo`
-- `NodeInfoReq`
-- `NodeInfoResp`
+只有三种资源：
 
-## Auth (SubProto=2)
+- Variable：订阅后先得到 snapshot，再按 revision 接收 update；
+- Stream：订阅后按 sequence 接收 event，丢失或背压必须以 gap 显式可见；
+- Command：有界请求/响应，用于无法自然表达为状态或事件的操作。
 
-**Actions**
-- `ActionAssistLogin = "assist_login"`
-- `ActionAssistLoginResp = "assist_login_resp"`
-- `ActionAssistOffline = "assist_offline"`
-- `ActionAssistQueryCred = "assist_query_credential"`
-- `ActionAssistQueryCredResp = "assist_query_credential_resp"`
-- `ActionAssistRegister = "assist_register"`
-- `ActionAssistRegisterResp = "assist_register_resp"`
-- `ActionGetPerms = "get_perms"`
-- `ActionGetPermsResp = "get_perms_resp"`
-- `ActionListRoles = "list_roles"`
-- `ActionListRolesResp = "list_roles_resp"`
-- `ActionLogin = "login"`
-- `ActionLoginResp = "login_resp"`
-- `ActionOffline = "offline"`
-- `ActionPermsInvalidate = "perms_invalidate"`
-- `ActionPermsSnapshot = "perms_snapshot"`
-- `ActionRegister = "register"`
-- `ActionRegisterResp = "register_resp"`
-- `ActionRevoke = "revoke"`
-- `ActionRevokeResp = "revoke_resp"`
-- `ActionUpLogin = "up_login"`
-- `ActionUpLoginResp = "up_login_resp"`
+内置资源族如下；具体 payload schema 由 `protocol/schema_*.go` 定义，完整机器可读清单见 `sdk/bindings/generated/contracts.json`。
 
-**Payload types**
-- `InvalidateData`
-- `ListRolesReq`
-- `LoginData`
-- `Message`
-- `OfflineData`
-- `PermsQueryData`
-- `QueryCredData`
-- `RegisterData`
-- `RespData`
-- `RevokeData`
-- `RolePermEntry`
-- `UpLoginData`
+| 资源族 | Variable | Stream | Command |
+|---|---|---|---|
+| system | `system/catalog`、`system/config`、`system/health`、`system/topology` | `system/audit` | admission、config update、node revoke、policy grant/revoke |
+| notifications | — | `notifications/events` | `notifications/publish` |
+| file | `file/transfers` | `file/progress` | offer、chunk、complete、cancel |
+| flow | `flow/definitions`、`flow/runs` | `flow/events` | create、update、run、cancel、archive |
 
-## VarStore (SubProto=3)
+第一方产品资源继续遵守同一三资源模型，详见 [resource-model-vnext.md](resource-model-vnext.md) 和 [../features/README.md](../features/README.md)，不得新增旁路协议或第二套 dispatcher。
 
-**Actions**
-- `ActionAssistGet = "assist_get"`
-- `ActionAssistGetResp = "assist_get_resp"`
-- `ActionAssistList = "assist_list"`
-- `ActionAssistListResp = "assist_list_resp"`
-- `ActionAssistRevoke = "assist_revoke"`
-- `ActionAssistRevokeResp = "assist_revoke_resp"`
-- `ActionAssistSet = "assist_set"`
-- `ActionAssistSetResp = "assist_set_resp"`
-- `ActionAssistSubscribe = "assist_subscribe"`
-- `ActionAssistSubscribeResp = "assist_subscribe_resp"`
-- `ActionAssistUnsubscribe = "assist_unsubscribe"`
-- `ActionGet = "get"`
-- `ActionGetResp = "get_resp"`
-- `ActionList = "list"`
-- `ActionListResp = "list_resp"`
-- `ActionNotifyRevoke = "notify_revoke"`
-- `ActionNotifySet = "notify_set"`
-- `ActionRevoke = "revoke"`
-- `ActionRevokeResp = "revoke_resp"`
-- `ActionSet = "set"`
-- `ActionSetResp = "set_resp"`
-- `ActionSubscribe = "subscribe"`
-- `ActionSubscribeResp = "subscribe_resp"`
-- `ActionUnsubscribe = "unsubscribe"`
-- `ActionUpRevoke = "up_revoke"`
-- `ActionUpSet = "up_set"`
-- `ActionVarChanged = "var_changed"`
-- `ActionVarDeleted = "var_deleted"`
+## Maintenance
 
-**Payload types**
-- `GetReq`
-- `ListReq`
-- `Message`
-- `SetReq`
-- `SubscribeReq`
-- `VarResp`
-
-**Other constants**
-- `VisibilityPrivate = "private"`
-- `VisibilityPublic = "public"`
-
-## TopicBus (SubProto=4)
-
-**Actions**
-- `ActionListSubs = "list_subs"`
-- `ActionListSubsResp = "list_subs_resp"`
-- `ActionPublish = "publish"`
-- `ActionSubscribe = "subscribe"`
-- `ActionSubscribeBatch = "subscribe_batch"`
-- `ActionSubscribeBatchResp = "subscribe_batch_resp"`
-- `ActionSubscribeResp = "subscribe_resp"`
-- `ActionUnsubscribe = "unsubscribe"`
-- `ActionUnsubscribeBatch = "unsubscribe_batch"`
-- `ActionUnsubscribeBatchResp = "unsubscribe_batch_resp"`
-- `ActionUnsubscribeResp = "unsubscribe_resp"`
-
-**Payload types**
-- `ListResp`
-- `Message`
-- `PublishReq`
-- `Resp`
-- `SubscribeBatchReq`
-- `SubscribeReq`
-
-## File (SubProto=5)
-
-**Actions**
-- `ActionRead = "read"`
-- `ActionReadResp = "read_resp"`
-- `ActionWrite = "write"`
-- `ActionWriteResp = "write_resp"`
-
-**Payload types**
-- `Message`
-- `ReadReq`
-- `ReadResp`
-- `WriteReq`
-- `WriteResp`
-
-**Other constants**
-- `KindAck = 0x03`
-- `KindCtrl = 0x01`
-- `KindData = 0x02`
-- `OpList = "list"`
-- `OpOffer = "offer"`
-- `OpPull = "pull"`
-- `OpReadText = "read_text"`
-
-## Flow (SubProto=6)
-
-**Actions**
-- `ActionGet = "get"`
-- `ActionGetResp = "get_resp"`
-- `ActionList = "list"`
-- `ActionListResp = "list_resp"`
-- `ActionRun = "run"`
-- `ActionRunResp = "run_resp"`
-- `ActionSet = "set"`
-- `ActionSetResp = "set_resp"`
-- `ActionStatus = "status"`
-- `ActionStatusResp = "status_resp"`
-
-**Payload types**
-- `Edge`
-- `FlowSummary`
-- `GetReq`
-- `GetResp`
-- `Graph`
-- `ListReq`
-- `ListResp`
-- `Message`
-- `Node`
-- `NodeStatus`
-- `RunReq`
-- `RunResp`
-- `SetReq`
-- `SetResp`
-- `StatusReq`
-- `StatusResp`
-- `Trigger`
-
-**Other constants**
-- `PermFlowSet = "flow.set"`
-
-## Exec (SubProto=7)
-
-**Actions**
-- `ActionCall = "call"`
-- `ActionCallResp = "call_resp"`
-
-**Payload types**
-- `CallReq`
-- `CallResp`
-- `Message`
-
-**Other constants**
-- `PermExecCall = "exec.call"`
-
-<!-- END GENERATED -->
-
-## Notes（Manual）
-- Auth：login/register 使用签名（ES256）+ nonce + timestamp（具体语义以实现侧为准；此处仅做提示）。
-
-
+1. 先修改 `protocol/` 中的版本化类型与 schema。
+2. 运行 `./scripts/mfh.ps1 -Action generate -Target generated` 刷新公开 contract。
+3. 更新受影响的 spec/feature dossier，而不是从旧仓库复制协议文档。
+4. 运行架构、协议和绑定一致性测试；生成文件漂移必须显式失败。

@@ -23,10 +23,10 @@ func (n *Node) handleInbound(inbound *peerSession, envelope protocol.Envelope) e
 		if err := decodeJSON(envelope.Payload, &payload); err != nil {
 			return err
 		}
-		if err := n.tree.Announce(inbound.peer, payload.Node, inbound.epoch); err != nil {
+		if err := n.tree.AnnounceWithParent(inbound.peer, payload.Node, payload.Parent, inbound.epoch); err != nil {
 			return err
 		}
-		n.announceUp(payload.Node)
+		n.announceUp(payload.Node, payload.Parent)
 		return nil
 	case protocol.OperationRouteWithdraw:
 		if inbound.role != link.RoleChild || envelope.Target != n.ID() {
@@ -50,10 +50,17 @@ func (n *Node) routeEnvelope(ctx context.Context, envelope protocol.Envelope, in
 	if envelope.Target == n.ID() {
 		return n.handleLocal(envelope, inbound)
 	}
+	if envelope.Phase == protocol.PhaseResponse && envelope.Operation == protocol.OperationError {
+		n.untrackForwardedSubscription(envelope.CorrelationID, envelope.Target, envelope.Source)
+	}
 	route, err := n.tree.RouteTo(envelope.Target)
 	if err != nil {
 		if envelope.Phase == protocol.PhaseRequest {
-			_ = n.sendError(envelope, protocol.CodeNotFound, err.Error())
+			code := protocol.CodeNotFound
+			if errors.Is(err, tree.ErrNotReachable) || errors.Is(err, tree.ErrStaleEpoch) {
+				code = protocol.CodeStaleEpoch
+			}
+			_ = n.sendError(envelope, code, err.Error())
 		}
 		return err
 	}
@@ -63,17 +70,31 @@ func (n *Node) routeEnvelope(ctx context.Context, envelope protocol.Envelope, in
 	if inbound != nil && route.NextHop == inbound.peer {
 		return errors.New("routing loop detected")
 	}
+	trackedSubscribe := false
+	untrackAfterSend := false
 	if route.Kind == tree.DirectionDown {
 		switch envelope.Phase {
 		case protocol.PhaseRequest:
-			if envelope.Source != n.ID() {
+			if envelope.Subject() != n.ID() {
 				if err := auth.AuthorizeRequest(ctx, n.policy, envelope); err != nil {
 					_ = n.sendError(envelope, protocol.CodeForbidden, err.Error())
 					return err
 				}
+				if envelope.Operation == protocol.OperationSubscribe {
+					if err := n.trackForwardedSubscription(envelope, auth.PolicyGeneration(n.policy)); err != nil {
+						_ = n.sendError(envelope, protocol.CodeOverflow, err.Error())
+						return err
+					}
+					trackedSubscribe = true
+				} else if envelope.Operation == protocol.OperationUnsubscribe {
+					untrackAfterSend = true
+				}
 			}
 			envelope, err = auth.PromoteControl(envelope, route.Epoch)
 			if err != nil {
+				if trackedSubscribe {
+					n.untrackForwardedSubscription(envelope.MessageID, envelope.Source, envelope.Target)
+				}
 				return err
 			}
 		case protocol.PhaseControl:
@@ -91,23 +112,30 @@ func (n *Node) routeEnvelope(ctx context.Context, envelope protocol.Envelope, in
 	if next == nil || next.session.State() != link.StateActive {
 		return fmt.Errorf("next hop %d has no active session", route.NextHop)
 	}
-	return next.session.Send(ctx, envelope)
+	err = next.session.Send(ctx, envelope)
+	if err != nil && trackedSubscribe {
+		n.untrackForwardedSubscription(envelope.MessageID, envelope.Source, envelope.Target)
+	}
+	if err == nil && untrackAfterSend {
+		n.untrackForwardedSubscription(envelope.CorrelationID, envelope.Source, envelope.Target)
+	}
+	return err
 }
 
-func (n *Node) announceUp(descendant protocol.NodeID) {
-	n.sendRouteEvent(protocol.OperationRouteAnnounce, descendant)
+func (n *Node) announceUp(descendant, parent protocol.NodeID) {
+	n.sendRouteEvent(protocol.OperationRouteAnnounce, descendant, parent)
 }
 
 func (n *Node) withdrawUp(descendant protocol.NodeID) {
-	n.sendRouteEvent(protocol.OperationRouteWithdraw, descendant)
+	n.sendRouteEvent(protocol.OperationRouteWithdraw, descendant, 0)
 }
 
-func (n *Node) sendRouteEvent(operation protocol.Operation, descendant protocol.NodeID) {
+func (n *Node) sendRouteEvent(operation protocol.Operation, descendant, relationParent protocol.NodeID) {
 	parent, ok := n.tree.Parent()
 	if !ok {
 		return
 	}
-	payload, err := encodeJSON(routePayload{Node: descendant})
+	payload, err := encodeJSON(routePayload{Node: descendant, Parent: relationParent})
 	if err != nil {
 		n.emit(err)
 		return
@@ -135,7 +163,11 @@ func (n *Node) sendRouteEvent(operation protocol.Operation, descendant protocol.
 }
 
 func (n *Node) sendError(request protocol.Envelope, code protocol.ErrorCode, message string) error {
-	payload, err := protocol.EncodeErrorPayload(protocol.ErrorPayload{Code: code, Message: message})
+	return n.sendFailure(request, protocol.ErrorPayload{Code: code, Message: message})
+}
+
+func (n *Node) sendFailure(request protocol.Envelope, failure protocol.ErrorPayload) error {
+	payload, err := protocol.EncodeErrorPayload(failure)
 	if err != nil {
 		return err
 	}

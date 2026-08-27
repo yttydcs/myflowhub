@@ -73,4 +73,4 @@
 
 ## Notes
 
-- 本需求是跨仓稳定需求，预计影响 `MyFlowHub-Proto`、`MyFlowHub-SubProto`、`MyFlowHub-Core` 与 `MyFlowHub-Server`。
+- 该需求源自旧多仓时期；vNext 的 canonical 落点是 `runtime/auth`、`feature/management`、`host/hub` 与 `system/admission/*` / `system/policy/*` 资源。旧 action 名只用于追溯原始需求，不是新增实现依据。

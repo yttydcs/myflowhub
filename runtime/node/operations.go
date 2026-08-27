@@ -35,7 +35,7 @@ func (n *Node) handleLocal(envelope protocol.Envelope, inbound *peerSession) err
 }
 
 func (n *Node) authorizeLocal(envelope protocol.Envelope) error {
-	if envelope.Phase == protocol.PhaseControl || envelope.Source == n.ID() {
+	if envelope.Phase == protocol.PhaseControl || envelope.Subject() == n.ID() {
 		return nil
 	}
 	return auth.AuthorizeRequest(n.ctx, n.policy, envelope)
@@ -68,7 +68,7 @@ func (n *Node) handleSubscribe(envelope protocol.Envelope, inbound *peerSession)
 	current, err := n.subscriptions.Subscribe(subscription.Request{
 		ID: envelope.MessageID, Subscriber: envelope.Source, Resource: envelope.Resource,
 		LinkID: linkID, NextHop: nextHop, Lease: lease,
-		TopologyEpoch: topologyEpoch, PolicyGeneration: 1, Queue: payload.Queue,
+		TopologyEpoch: topologyEpoch, PolicyGeneration: auth.PolicyGeneration(n.policy), Queue: payload.Queue,
 	})
 	if err != nil {
 		code := protocol.CodeConflict
@@ -174,15 +174,15 @@ func (n *Node) handleCommand(envelope protocol.Envelope) error {
 		return err
 	}
 	origin := command.OriginAdjudicated
-	if envelope.Phase == protocol.PhaseControl || envelope.Source == n.ID() {
+	if envelope.Phase == protocol.PhaseControl || envelope.Subject() == n.ID() {
 		origin = command.OriginParentControl
 	}
 	result, invokeErr := n.commands.Invoke(n.ctx, command.Call{
-		MessageID: envelope.MessageID, Source: envelope.Source, Resource: envelope.Resource,
+		MessageID: envelope.MessageID, Source: envelope.Subject(), Resource: envelope.Resource,
 		Input: envelope.Payload, Deadline: deadline, Origin: origin,
 	})
 	if result.Failure != nil {
-		_ = n.sendError(envelope, result.Failure.Code, result.Failure.Message)
+		_ = n.sendFailure(envelope, *result.Failure)
 		return invokeErr
 	}
 	response, err := n.newEnvelope(protocol.PhaseResponse, protocol.OperationCommandResult, envelope.Source, envelope.Resource, envelope.MessageID, 0, envelope.ContentType, envelope.Schema, result.Output)

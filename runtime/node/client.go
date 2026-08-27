@@ -8,10 +8,24 @@ import (
 	"time"
 
 	"github.com/yttydcs/myflowhub/protocol"
+	"github.com/yttydcs/myflowhub/runtime/command"
 	"github.com/yttydcs/myflowhub/runtime/subscription"
+	"github.com/yttydcs/myflowhub/runtime/tree"
 )
 
 func (n *Node) Subscribe(ctx context.Context, resource protocol.ResourceID, lease time.Duration, queue int) (*RemoteSubscription, error) {
+	return n.subscribe(ctx, 0, resource, lease, queue)
+}
+
+func (n *Node) SubscribeDelegated(ctx context.Context, delegation command.Delegation, resource protocol.ResourceID, lease time.Duration, queue int) (*RemoteSubscription, error) {
+	principal, err := n.delegatedPrincipal(delegation)
+	if err != nil {
+		return nil, err
+	}
+	return n.subscribe(ctx, principal, resource, lease, queue)
+}
+
+func (n *Node) subscribe(ctx context.Context, principal protocol.NodeID, resource protocol.ResourceID, lease time.Duration, queue int) (*RemoteSubscription, error) {
 	if ctx == nil {
 		return nil, errors.New("subscribe context is required")
 	}
@@ -39,7 +53,7 @@ func (n *Node) Subscribe(ctx context.Context, resource protocol.ResourceID, leas
 	}
 	request := protocol.Envelope{
 		Version: protocol.CurrentVersion, Phase: protocol.PhaseRequest, Operation: protocol.OperationSubscribe,
-		MessageID: id, Source: n.ID(), Target: resource.Owner, Resource: resource, DeadlineUnixMS: time.Now().Add(lease).UnixMilli(),
+		MessageID: id, Source: n.ID(), Principal: principal, Target: resource.Owner, Resource: resource, DeadlineUnixMS: time.Now().Add(lease).UnixMilli(),
 		ContentType: "application/json", Schema: "subscribe.v1", Payload: payload,
 	}
 	var first protocol.Envelope
@@ -151,6 +165,18 @@ func (n *Node) sendUnsubscribe(subscriptionID protocol.MessageID, resource proto
 }
 
 func (n *Node) Invoke(ctx context.Context, resource protocol.ResourceID, input []byte) ([]byte, error) {
+	return n.invoke(ctx, 0, resource, input)
+}
+
+func (n *Node) InvokeDelegated(ctx context.Context, delegation command.Delegation, resource protocol.ResourceID, input []byte) ([]byte, error) {
+	principal, err := n.delegatedPrincipal(delegation)
+	if err != nil {
+		return nil, err
+	}
+	return n.invoke(ctx, principal, resource, input)
+}
+
+func (n *Node) invoke(ctx context.Context, principal protocol.NodeID, resource protocol.ResourceID, input []byte) ([]byte, error) {
 	if ctx == nil {
 		return nil, errors.New("invoke context is required")
 	}
@@ -172,7 +198,7 @@ func (n *Node) Invoke(ctx context.Context, resource protocol.ResourceID, input [
 	defer n.unregisterPending(id, nil)
 	request := protocol.Envelope{
 		Version: protocol.CurrentVersion, Phase: protocol.PhaseRequest, Operation: protocol.OperationCommandCall,
-		MessageID: id, Source: n.ID(), Target: resource.Owner, Resource: resource, DeadlineUnixMS: deadline.UnixMilli(),
+		MessageID: id, Source: n.ID(), Principal: principal, Target: resource.Owner, Resource: resource, DeadlineUnixMS: deadline.UnixMilli(),
 		ContentType: "application/octet-stream", Schema: "command.raw.v1", Payload: append([]byte(nil), input...),
 	}
 	if sendErr := n.routeEnvelope(ctx, request, nil); sendErr != nil {
@@ -188,6 +214,24 @@ func (n *Node) Invoke(ctx context.Context, resource protocol.ResourceID, input [
 		return nil, err
 	}
 	return commandResponse(response)
+}
+
+func (n *Node) delegatedPrincipal(delegation command.Delegation) (protocol.NodeID, error) {
+	subject, ok := delegation.Subject()
+	if !ok {
+		return 0, errors.New("delegated operation requires an authenticated command context")
+	}
+	if _, hasParent := n.tree.Parent(); hasParent {
+		return 0, errors.New("only an authority root can originate delegated operations")
+	}
+	if subject == n.ID() {
+		return 0, nil
+	}
+	route, err := n.tree.RouteTo(subject)
+	if err != nil || route.Kind != tree.DirectionDown {
+		return 0, errors.New("delegated principal is not in the authority root subtree")
+	}
+	return subject, nil
 }
 
 func commandResponse(response protocol.Envelope) ([]byte, error) {

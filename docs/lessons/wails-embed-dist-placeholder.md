@@ -1,7 +1,7 @@
 # Wails Embed Dist Placeholder
 
 ## Summary
-- `MyFlowHub-Win` 的 `frontend/dist` 既是前端构建输出目录，也是 Go 侧 `go:embed` 的编译前置条件。
+- Wails 应用的 `frontend/dist` 既是前端构建输出目录，也是 Go 侧 `go:embed` 的编译前置条件。
 - 只要 `main.go` 仍使用 `//go:embed all:frontend/dist`，就不能让 `frontend/dist` 在未构建前端时变成真正的空目录。
 
 ## Symptoms

@@ -271,6 +271,19 @@ func (m *Manager) CleanupLink(linkID string) int {
 	return len(interests)
 }
 
+func (m *Manager) CleanupPolicyGeneration(generation uint64) int {
+	interests := m.interest.CleanupPolicyGeneration(generation)
+	for _, interest := range interests {
+		m.mu.Lock()
+		current := m.entries[interest.ID]
+		m.mu.Unlock()
+		if current != nil {
+			current.delivery.expire("policy_generation_changed")
+		}
+	}
+	return len(interests)
+}
+
 func (m *Manager) Interests(resourceID protocol.ResourceID) []Interest {
 	return m.interest.Interests(resourceID)
 }

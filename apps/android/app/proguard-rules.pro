@@ -1,0 +1,2 @@
+-keep class com.myflowhub.mobile.** { *; }
+-keep class go.** { *; }

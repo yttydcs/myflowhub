@@ -4,4 +4,5 @@
 
 ## Current Records
 
+- [vNext 全量迁移与最终切换](2026-08-27_vnext-full-migration.md)
 - [节点树、订阅与指令重构诉求](2026-08-27_node-tree-subscription-command-redesign.md)

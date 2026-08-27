@@ -127,3 +127,32 @@ func TestCycleAndRouteConflict(t *testing.T) {
 		t.Fatalf("expected conflict, got %v", err)
 	}
 }
+
+func TestRelationsPreserveImmediateParentsAndRejectForgedParent(t *testing.T) {
+	state, _ := New(1)
+	if err := state.AttachChild(2, 7); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.AnnounceWithParent(2, 3, 2, 7); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.AnnounceWithParent(2, 4, 3, 7); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.AnnounceWithParent(2, 5, 99, 7); !errors.Is(err, ErrForgedSource) {
+		t.Fatalf("expected forged parent rejection, got %v", err)
+	}
+	want := []Relation{{Node: 2, Parent: 1}, {Node: 3, Parent: 2}, {Node: 4, Parent: 3}}
+	got := state.Relations()
+	if len(got) != len(want) {
+		t.Fatalf("unexpected relations: %#v", got)
+	}
+	for index := range want {
+		if got[index] != want[index] {
+			t.Fatalf("relation %d: want %#v, got %#v", index, want[index], got[index])
+		}
+	}
+	if parent, ok := state.ParentOf(4); !ok || parent != 3 {
+		t.Fatalf("unexpected parent for node 4: %d, %v", parent, ok)
+	}
+}

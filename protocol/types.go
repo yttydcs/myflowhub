@@ -131,6 +131,7 @@ type Envelope struct {
 	MessageID      MessageID
 	CorrelationID  MessageID
 	Source         NodeID
+	Principal      NodeID
 	Target         NodeID
 	Resource       ResourceID
 	TopologyEpoch  uint64
@@ -155,6 +156,11 @@ func (e Envelope) Validate(maxPayload int) error {
 	}
 	if err := e.Source.Validate(); err != nil {
 		return fmt.Errorf("source: %w", err)
+	}
+	if e.Principal != 0 {
+		if err := e.Principal.Validate(); err != nil {
+			return fmt.Errorf("principal: %w", err)
+		}
 	}
 	if err := e.Target.Validate(); err != nil {
 		return fmt.Errorf("target: %w", err)
@@ -182,6 +188,13 @@ func (e Envelope) Validate(maxPayload int) error {
 		return fmt.Errorf("%w: got %d, max %d", ErrPayloadTooLarge, len(e.Payload), maxPayload)
 	}
 	return nil
+}
+
+func (e Envelope) Subject() NodeID {
+	if e.Principal != 0 {
+		return e.Principal
+	}
+	return e.Source
 }
 
 func phaseAllows(phase Phase, op Operation) bool {

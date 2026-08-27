@@ -98,7 +98,13 @@ MyFlowHub 当前通过多个 Git 仓库、多个 Go module 和多个 SubProto �
 
 ## Related Features
 
-- 暂无独立 feature 文档。
+- [Hub](../features/hub.md)
+- [Desktop](../features/desktop.md)
+- [Android](../features/android.md)
+- [MetricsNode](../features/metrics-node.md)
+- [ClipboardNode](../features/clipboard-node.md)
+- [File transfer](../features/file-transfer.md)
+- [Flow](../features/flow.md)
 
 ## Related Specs
 
@@ -108,6 +114,11 @@ MyFlowHub 当前通过多个 Git 仓库、多个 Go module 和多个 SubProto �
 - [Resource Model vNext](../specs/resource-model-vnext.md)
 - [Subscription vNext](../specs/subscription-vnext.md)
 - [Command vNext](../specs/command-vnext.md)
+- [Operational lifecycle](../specs/operational-lifecycle.md)
+- [Resource catalog](../specs/resource-catalog.md)
+- [Notification vNext](../specs/notification-vnext.md)
+- [File transfer vNext](../specs/file-transfer-vnext.md)
+- [Flow vNext](../specs/flow-vnext.md)
 
 ## Related Decisions
 

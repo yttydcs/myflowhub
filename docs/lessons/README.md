@@ -1,42 +1,31 @@
 # Lessons
 
-存放 MyFlowHub3 meta workspace 可复用的复盘、陷阱与防错经验。
+存放 MyFlowHub3 可复用的调试路径、根因和防错规则。单次 workflow 结果放在 `change/`；这里仅保留跨实现、跨产品或可能再次发生的长期经验。
 
-## How To Use
-- 只有当某个问题具备复用价值，才在这里新增叶子文档。
-- 单次 workflow 结果优先放在 `change/`，不要把 `lessons/` 当作变更日志。
+## Runtime And Architecture
 
-## What Belongs Here
-- 重复出现的问题模式
-- 调试路径与根因总结
-- 未来 workflow 的防错规则
+- [authority-routing-and-subscription-state.md](authority-routing-and-subscription-state.md)：desired/attached 状态、relay 字段、pending 返程和 generation 边界。
+- [authority-local-admin-actions.md](authority-local-admin-actions.md)：管理操作如何沿节点树路由并保留原始授权主体。
+- [session-replacement-generation-cleanup.md](session-replacement-generation-cleanup.md)：同父重连、epoch 与 generation-scoped cleanup。
+- [observable-side-effects-and-generated-contracts.md](observable-side-effects-and-generated-contracts.md)：替代 mutation 路径的订阅副作用与单一 contract 真相。
 
-## Current Status
-- [session-replacement-generation-cleanup.md](session-replacement-generation-cleanup.md)
-  - 症状：同父重连出现 `join topology epoch mismatch`、旧会话关闭后新树边消失、旧链路订阅残留，或 Node 关闭时 `panic: send on closed channel`。
-  - 关键词：`TopologyEpoch`、`DetachParentEpoch`、`WithdrawChildEpoch`、`CleanupLink`、`WaitGroup.Add`、generation-scoped cleanup。
-- [run-dev-stream-server-selection.md](run-dev-stream-server-selection.md)
-  - 症状：`Stream` 页面新增 source / consumer 仍报 `stream announce: request timed out`，或 `list_sources/list_consumers` 对 `target=1` 全部超时。
-  - 关键词：`run-dev.ps1`、`server-stream-subproto-design`、`newStreamHandler`、`GOWORK=off`、`go.work`。
-- [authority-local-admin-actions.md](authority-local-admin-actions.md)
-  - 症状：remote authority 下审批 / permit 管理仍 timeout、仍提示 `requires authority-local session`，或 authority 拒绝 routed source。
-  - 关键词：`authorityId != sourceId`、`routed source`、`requires authority-local session`、`list_register_permits`。
-- [wails-binding-proto-drift.md](wails-binding-proto-drift.md)
-  - 症状：`wails generate module` / `go test` 报 `undefined: flow.DetailReq`、`undefined: flow.ActionDetail`，或 `module ... myflowhub-proto ... replaced but not required`
-  - 关键词：`GOWORK=off`、`myflowhub-proto`、`flow.detail`、`local typed payload`、`protocol/stream`。
-- [wails-bindings-cross-project.md](wails-bindings-cross-project.md)
-  - 症状：`npm run build` / `vue-tsc` 提示 `BootstrapGet`、`MetricsSettingsGet`、`StartReporting` 缺导出，但 `windows/app.go` 明明存在这些方法。
-  - 关键词：`AboutState`、`FlowProjectsState`、`SaveHomeState`、`App.d.ts`、`wailsjs`、cross-project bindings。
-- [frontend-worktree-wailsjs-missing.md](frontend-worktree-wailsjs-missing.md)
-  - 症状：新 worktree 的 `npm test` / `npm run build` 报 `Failed to resolve import "../../wailsjs/runtime/runtime"`。
-  - 关键词：`frontend/wailsjs`、`runtime/runtime`、`vite:import-analysis`、`EventsOn`。
-- [cross-repo-semver-release.md](cross-repo-semver-release.md)
-  - 症状：`go.work` 或本地 sibling worktree 通过，但 `GOWORK=off` / 远端 CI 仍失败；或未公开 tag 重指向后继续命中旧 module cache / `go.sum`，表现为 `unknown revision`、`checksum mismatch`、旧默认值未刷新。
-  - 关键词：未发布 tag、默认分支 checkout、`replace ../../...`、`go list -m`、`GOPROXY=direct`、`checksum mismatch`、`bootstrap.SelfRegisterOptions.Dial`、`DefaultAuthRolePerms`、`defaultset`、`runtimedeps`。
-- [wails-embed-dist-placeholder.md](wails-embed-dist-placeholder.md)
-  - 症状：Wails 在 `Generating bindings` 阶段报 `pattern all:frontend/dist: cannot embed directory frontend/dist: contains no embeddable files`。
-  - 关键词：`go:embed all:frontend/dist`、`go mod tidy`、`frontend/dist`、`placeholder.txt`。
+## Platform And Toolchain
+
+- [android-runtime-and-mobile-bindings.md](android-runtime-and-mobile-bindings.md)：sticky restart、live session、FGS/RFCOMM、URI staging 与真实 AAR 证明。
+- [embedded-toolchain-and-board-preflight.md](embedded-toolchain-and-board-preflight.md)：ESP-IDF/MicroPython 工具链、真板、网络和打包预检。
+- [frontend-and-powershell-preflight.md](frontend-and-powershell-preflight.md)：npm、Vitest、Wails、PowerShell 自动变量与编码陷阱。
+- [frontend-worktree-wailsjs-missing.md](frontend-worktree-wailsjs-missing.md)：新 worktree 生成 canonical Wails bindings。
+- [wails-binding-proto-drift.md](wails-binding-proto-drift.md)：schema、facade、TypeScript 与机器 contract 一致性。
+- [wails-bindings-cross-project.md](wails-bindings-cross-project.md)：多个第一方前端 facade 的生成输入与导出面错配。
+- [wails-embed-dist-placeholder.md](wails-embed-dist-placeholder.md)：`go:embed` 与空前端产物目录。
+
+## Retired Multi-Repository Failure Modes
+
+- [cross-repo-semver-release.md](cross-repo-semver-release.md)：为何旧内部 tag 链已被单仓原子版本取代。
+- [run-dev-stream-server-selection.md](run-dev-stream-server-selection.md)：为何启动脚本只能选择 canonical Hub，不能回退到旧 Server/worktree。
 
 ## Rules
+
 - 使用稳定文件名，不使用日期前缀。
-- 每条 lesson 应回链到对应的 `change` 或 `spec`。
+- 每条 lesson 回链到当前 spec/feature；历史 change 只能作为证据，不能成为当前技术真相。
+- 旧仓文档中的有效经验应在这里综合提炼，不整目录复制，也不保留已废弃 API 表。

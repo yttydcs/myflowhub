@@ -1,60 +1,20 @@
-# Wails Bindings Cross-Project Drift
+# Wails Bindings Across Product Facades
 
 ## Summary
-- MetricsNode Windows may fail frontend type-checking when `windows/frontend/wailsjs/**` is replaced or polluted by bindings from another Wails app.
 
-## Lookup Hints
-- Symptoms:
-  - `TS2305` missing export `BootstrapGet`
-  - `TS2305` missing export `MetricsSettingsGet`
-  - `TS2305` missing export `StartReporting`
-- Keywords:
-  - `AboutState`
-  - `FlowProjectsState`
-  - `SaveHomeState`
-  - `App.d.ts`
-  - `wailsjs`
-- Quick checks:
-  - open `windows/frontend/wailsjs/go/main/App.d.ts`
-  - confirm it exports `BootstrapGet`, `Status`, `MetricsSettingsGet`
-  - if it exposes `AboutState` or `FlowProjectsState`, rerun `scripts/build-windows.ps1`
+canonical monorepo 中 Desktop、Metrics 等第一方产品仍有不同 Wails facade。生成文件若来自另一个产品，TypeScript 会报告 Go 中明明存在的方法缺失；这是生成输入错配，不是前端业务回归。
 
-## Symptoms
-- `npm run build` fails inside `windows/frontend`.
-- The missing exports are methods that definitely exist in `windows/app.go`.
-- `App.d.ts` lists a different app surface than the one consumed by `windows/frontend/src/App.vue`.
+## Checks
 
-## Impact
-- Frontend build and Wails packaging are blocked.
-- The failure looks like a Vue/TypeScript regression even though the real issue is generated artifacts drift.
+1. 确认当前 app、Go facade 和 frontend 属于同一产品目录。
+2. 删除/重建该产品的生成输出时只使用 canonical 生成入口，不从其他 app 复制。
+3. 对照 TypeScript 导出、绑定的 Go methods 和 `sdk/bindings/generated/contracts.json`。
+4. 在干净 worktree 重新生成，再运行类型检查、单测和 production build。
 
-## Trigger Conditions
-- A working copy contains stale `wailsjs` files from another Wails application.
-- Someone debugs the frontend directly against `wailsjs` output without first validating the generated bindings.
-- The recovery flow skips the repo-local clean-and-generate script.
-
-## Root Cause
-- `windows/frontend/wailsjs/**` is generated output, but local drift can still overwrite it with a foreign binding surface.
-- When `App.d.ts` no longer reflects the MetricsNode Go `App`, `vue-tsc` fails on imports that are actually valid for this repo.
-
-## Investigation Trail
-- Compare `windows/frontend/src/App.vue` imports with `windows/frontend/wailsjs/go/main/App.d.ts`.
-- Compare both with the bound methods in `windows/app.go` and `windows/main.go`.
-- Validate the same repo from a clean worktree.
-- Run `scripts/build-windows.ps1` to clean bindings, regenerate with Wails, and rebuild.
-
-## Resolution
-- Use a clean worktree as the execution environment.
-- Run `powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1`.
-- Confirm the regenerated `App.d.ts` contains MetricsNode exports such as `BootstrapGet`, `Status`, and `MetricsSettingsGet`.
-- Keep the frontend code unchanged unless the clean worktree proves the backend binding contract actually changed.
-
-## Prevention / Guardrails
-- Prefer `scripts/build-windows.ps1` over ad hoc generation commands when validating the Windows build.
-- Fail fast if `App.d.ts` shows foreign exports such as `AboutState`, `FlowProjectsState`, or `SaveHomeState`.
-- Treat `TS2305` on known Go exports as a binding-surface check first, not a UI rewrite trigger.
-- Keep binding validation in the dedicated worktree; do not silently overwrite dirty control-plane generated files mid-investigation.
+生成流程必须对 foreign exports、缺失必需方法和生成后 diff 显式失败。不要为了让 TypeScript 通过而修改正确的 UI 调用去适配错误 binding。
 
 ## Related Docs
-- [../change/2026-03-26_metricsnode-wails-bindings-sync.md](../change/2026-03-26_metricsnode-wails-bindings-sync.md)
-- [../change/2026-03-03_metricsnode-settings-ui.md](../change/2026-03-03_metricsnode-settings-ui.md)
+
+- [build-and-ci.md](../specs/build-and-ci.md)
+- [wails-binding-proto-drift.md](wails-binding-proto-drift.md)
+- [metrics-node.md](../features/metrics-node.md)
