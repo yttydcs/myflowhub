@@ -4,7 +4,7 @@
 
 ## How To Use
 - 先看根级 [../README.md](../README.md)。
-- 需要 vNext 协议映射或稳定技术入口时，从这里进入。
+- 需要跨仓协议映射或稳定技术入口时，从这里进入。
 
 ## What Belongs Here
 - workspace 级技术约束
@@ -31,18 +31,19 @@
 - [wire-protocol-vnext.md](wire-protocol-vnext.md)
   - vNext 固定帧、路由 phase、operation、错误码与尺寸上限
 - [node-tree-link-resource-architecture.md](node-tree-link-resource-architecture.md)
-  - 统一权威节点树、资源归属、订阅/指令和可插拔链路的长期约束
+  - 统一权威节点树、资源归属、订阅/指令以及可插拔 Transport/LinkSession 的长期架构约束
 - [repository-and-module-boundaries.md](repository-and-module-boundaries.md)
-  - canonical monorepo 布局、依赖方向、兼容边界与迁移规则
+  - 单一 canonical monorepo 的目标布局、Go module 策略、依赖方向、兼容边界和旧仓历史保留规则
 - [build-and-ci.md](build-and-ci.md)
   - 根级构建、生成、产物清单、工具链与无路径遗漏 CI 门禁
+- [../../migration/sources.yaml](../../migration/sources.yaml)
+  - 旧 Server、Core、SubProto 等规范和实现的精确来源基线
 - [protocol_map.md](protocol_map.md)
   - vNext envelope operation、三资源模型和内置资源族速查
 - [management-config-layering.md](management-config-layering.md)
   - `system/config`、显示名、revision、持久化与在线配置边界
-- [../../migration/sources.yaml](../../migration/sources.yaml)
-  - 已退役旧 Server、Core、SubProto 等仓库的精确来源基线
 
 ## Rules
 - 使用稳定文件名，不使用日期前缀。
 - 变更技术真相时，先更新 spec，再更新 `plan/change`。
+- `protocol_map.md` 以当前 monorepo 的 `protocol/` schema 与生成门禁为准；旧 Proto 仓库仅是迁移来源，不再是 canonical truth。

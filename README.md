@@ -4,6 +4,8 @@ MyFlowHub is being rebuilt around one authoritative node tree. An authenticated 
 
 This repository is the canonical monorepo. It intentionally does not preserve the former internal Go module paths, SubProto dispatcher API, or wire format.
 
+The checkout is kept below the workspace's `repo/MyFlowHub` directory. Additional Git worktrees belong in the workspace-level sibling `worktrees/` directory, never inside this checkout.
+
 ## Core layout
 
 - `protocol/`: versioned transport-neutral envelope and codec

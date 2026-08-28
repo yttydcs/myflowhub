@@ -1,6 +1,18 @@
 # MyFlowHub canonical 仓库边界
 
-本目录是一套产品、一个 Git 仓库和一个 Go module：`github.com/yttydcs/myflowhub`。协议、运行时、Transport、宿主、SDK 与第一方应用在同一版本中演进和验证，不再通过多个内部仓库、`go.work` 或 sibling `replace` 拼装。
+`repo/MyFlowHub` 是一套产品、一个 Git 仓库和一个 Go module：`github.com/yttydcs/myflowhub`。协议、运行时、Transport、宿主、SDK 与第一方应用在同一版本中演进和验证，不再通过多个内部仓库、`go.work` 或 sibling `replace` 拼装。
+
+## 工作区布局
+
+```text
+workspace/
+├── repo/
+│   └── MyFlowHub/      canonical Git checkout
+├── worktrees/          sibling Git worktrees
+└── local assets        本机 SDK、附件等非仓库资料
+```
+
+仓库内不得创建第二个 checkout、嵌套 `.git` 或 `worktrees/`。本机工具链和未纳入版本控制的资料留在工作区根，不进入 canonical checkout。
 
 ## 接手入口
 
@@ -43,7 +55,7 @@ cmd · apps · embedded
 
 ## 旧仓库状态
 
-`D:\project\MyFlowHub3\repo\MyFlowHub-*` 已于 2026-08-27 在完成实现迁移和文档提炼后移除。精确远端、commit/tree、文件数量、未提交生成物 hash 与 disposition 保存在 `migration/`；旧仓不再是构建输入、运行时 fallback、发布单元或开发启动目标。追溯时应按审计记录临时 checkout 对应提交，不得恢复旧 module path、SubProto API、wire bridge 或多模块 release。
+旧的 `repo/MyFlowHub-*` 多仓 checkout 已于 2026-08-27 在完成实现迁移和文档提炼后移除。当前唯一主 checkout 是 `repo/MyFlowHub`。精确远端、commit/tree、文件数量、未提交生成物 hash 与 disposition 保存在 `migration/`；旧仓不再是构建输入、运行时 fallback、发布单元或开发启动目标。追溯时应按审计记录在 sibling `worktrees/` 或临时目录检出对应提交，不得恢复旧 module path、SubProto API、wire bridge 或多模块 release。
 
 ## 常用命令
 

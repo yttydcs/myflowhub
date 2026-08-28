@@ -34,9 +34,11 @@ coverage*.out
 # Common build/output folders (workspace-level)
 /bin/
 /dist/
-/build/
+/build/*
 /out/
 **/build/
+!/build/
+!/build/toolchain.json
 **/.gradle/
 **/node_modules/
 **/local.properties

@@ -135,7 +135,8 @@ func pipePair() (*inMemoryPipe, *inMemoryPipe) {
 type blockingPipe struct {
 	writeStarted chan struct{}
 	closed       chan struct{}
-	once         sync.Once
+	writeOnce    sync.Once
+	closeOnce    sync.Once
 }
 
 func newBlockingPipe() *blockingPipe {
@@ -148,16 +149,12 @@ func (p *blockingPipe) Read([]byte) (int, error) {
 }
 
 func (p *blockingPipe) Write(data []byte) (int, error) {
-	p.once.Do(func() { close(p.writeStarted) })
+	p.writeOnce.Do(func() { close(p.writeStarted) })
 	<-p.closed
 	return 0, io.ErrClosedPipe
 }
 
 func (p *blockingPipe) Close() error {
-	select {
-	case <-p.closed:
-	default:
-		close(p.closed)
-	}
+	p.closeOnce.Do(func() { close(p.closed) })
 	return nil
 }

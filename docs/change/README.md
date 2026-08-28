@@ -12,6 +12,7 @@
 - 按主影响面归类，不按“是否跨仓”重复列出。
 - 文件名是稳定检索键；少数旧文档标题不统一时，以文件名为准。
 - 新增归档文档后，应同步补充本索引。
+- `Protocol / Core / SDK`、`Server / SubProto`、`Win` 等标题是退役多仓时期的历史检索标签，不代表当前仓库边界。
 
 ## Quick Links
 - [Docs / Workspace](#docs--workspace)
@@ -20,16 +21,28 @@
 - [Win](#win)
 - [Repo / Monkey](#repo--monkey)
 - [Android](#android)
+- [ClipboardNode](#clipboardnode)
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
 - [2026-08-28_wails-dev-concurrency-and-refactor-closeout.md](2026-08-28_wails-dev-concurrency-and-refactor-closeout.md)
+- [2026-08-28_canonical-checkout-relocation.md](2026-08-28_canonical-checkout-relocation.md)
+- [2026-08-27_workspace-directory-docs-governance.md](2026-08-27_workspace-directory-docs-governance.md)
 - [2026-08-27_vnext-full-migration.md](2026-08-27_vnext-full-migration.md)
 - [2026-08-27_legacy-repository-retirement.md](2026-08-27_legacy-repository-retirement.md)
 - [2026-08-27_canonical-monorepo-unified-node-runtime.md](2026-08-27_canonical-monorepo-unified-node-runtime.md)
 - [2026-08-24_remaining-worktree-integration-cleanup.md](2026-08-24_remaining-worktree-integration-cleanup.md)
+- [2026-08-23_worktree-branch-balanced-cleanup.md](2026-08-23_worktree-branch-balanced-cleanup.md)
 - [2026-04-14_embedded-esp32s3-demo-flows.md](2026-04-14_embedded-esp32s3-demo-flows.md)
+- [2026-04-14_thesis-function-comments-cn.md](2026-04-14_thesis-function-comments-cn.md)
+- [2026-04-13_thesis-code-comments-cn.md](2026-04-13_thesis-code-comments-cn.md)
+- [2026-04-13_thesis-code-comments.md](2026-04-13_thesis-code-comments.md)
 - [2026-04-12_cross-repo-release-chain-publish.md](2026-04-12_cross-repo-release-chain-publish.md)
+- [2026-04-05_graph-contract-release-chain-publish.md](2026-04-05_graph-contract-release-chain-publish.md)
+- [2026-04-05_run-control-closure.md](2026-04-05_run-control-closure.md)
+- [2026-04-04_flow-completeness-review.md](2026-04-04_flow-completeness-review.md)
+- [2026-04-04_flow-completeness-repair.md](2026-04-04_flow-completeness-repair.md)
+- [2026-04-02_flow-protocol-map-and-index-sync.md](2026-04-02_flow-protocol-map-and-index-sync.md)
 - [2026-03-29_root-run-dev-stream-server.md](2026-03-29_root-run-dev-stream-server.md)
 - [2026-03-29_root-run-dev-wails-gowork.md](2026-03-29_root-run-dev-wails-gowork.md)
 - [2026-03-28_sdk-v0.1.13-downstream-sync.md](2026-03-28_sdk-v0.1.13-downstream-sync.md)
@@ -58,6 +71,9 @@
 - [2026-02-18_docs-consistency.md](2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+- [2026-04-05_embedded-sdk-c-ws2812.md](2026-04-05_embedded-sdk-c-ws2812.md)
+- [2026-04-02_core-flow-permission-defaults.md](2026-04-02_core-flow-permission-defaults.md)
+- [2026-04-02_embedded-auth-persistence-profile.md](2026-04-02_embedded-auth-persistence-profile.md)
 - [2026-04-02_proto-flow-detail.md](2026-04-02_proto-flow-detail.md)
 - [2026-03-25_proto-flow-delete-release.md](2026-03-25_proto-flow-delete-release.md)
 - [2026-03-22_node-display-name-followup.md](2026-03-22_node-display-name-followup.md)
@@ -90,8 +106,36 @@
 - [2026-02-10_hdrtcp-v2_core.md](2026-02-10_hdrtcp-v2_core.md)
 
 ## Server / SubProto
+- [2026-04-15_subproto-management-branch-closeout.md](2026-04-15_subproto-management-branch-closeout.md)
 - [2026-04-04_core-bootstrap-dialer-release-align.md](2026-04-04_core-bootstrap-dialer-release-align.md)
 - [2026-04-04_flow-release-chain-align.md](2026-04-04_flow-release-chain-align.md)
+- [2026-04-03_flow-transform-node-runtime.md](2026-04-03_flow-transform-node-runtime.md)
+- [2026-04-03_server-flow-transform-node-contract.md](2026-04-03_server-flow-transform-node-contract.md)
+- [2026-04-03_flow-orchestrators-runtime.md](2026-04-03_flow-orchestrators-runtime.md)
+- [2026-04-03_server-flow-orchestrators-contract.md](2026-04-03_server-flow-orchestrators-contract.md)
+- [2026-04-03_proto-flow-orchestrators.md](2026-04-03_proto-flow-orchestrators.md)
+- [2026-04-02_flow-run-archive-runtime.md](2026-04-02_flow-run-archive-runtime.md)
+- [2026-04-02_flow-run-archive-backend-runtime.md](2026-04-02_flow-run-archive-backend-runtime.md)
+- [2026-04-02_flow-trigger-dedup-runtime.md](2026-04-02_flow-trigger-dedup-runtime.md)
+- [2026-04-02_flow-active-run-limit-runtime.md](2026-04-02_flow-active-run-limit-runtime.md)
+- [2026-04-02_flow-retry-backoff-runtime.md](2026-04-02_flow-retry-backoff-runtime.md)
+- [2026-04-02_flow-permission-refinement-runtime.md](2026-04-02_flow-permission-refinement-runtime.md)
+- [2026-04-02_flow-list-runs-runtime.md](2026-04-02_flow-list-runs-runtime.md)
+- [2026-04-02_flow-cancel-run-runtime.md](2026-04-02_flow-cancel-run-runtime.md)
+- [2026-04-02_server-flow-run-archive-contract.md](2026-04-02_server-flow-run-archive-contract.md)
+- [2026-04-02_server-flow-run-archive-backend-contract.md](2026-04-02_server-flow-run-archive-backend-contract.md)
+- [2026-04-02_server-flow-trigger-dedup-contract.md](2026-04-02_server-flow-trigger-dedup-contract.md)
+- [2026-04-02_server-flow-active-run-limit-contract.md](2026-04-02_server-flow-active-run-limit-contract.md)
+- [2026-04-02_server-flow-retry-backoff-contract.md](2026-04-02_server-flow-retry-backoff-contract.md)
+- [2026-04-02_server-flow-permission-refinement.md](2026-04-02_server-flow-permission-refinement.md)
+- [2026-04-02_server-flow-list-runs-contract.md](2026-04-02_server-flow-list-runs-contract.md)
+- [2026-04-02_server-flow-cancel-run-contract.md](2026-04-02_server-flow-cancel-run-contract.md)
+- [2026-04-02_proto-flow-trigger-dedup-window.md](2026-04-02_proto-flow-trigger-dedup-window.md)
+- [2026-04-02_proto-flow-active-run-limit.md](2026-04-02_proto-flow-active-run-limit.md)
+- [2026-04-02_proto-flow-retry-backoff.md](2026-04-02_proto-flow-retry-backoff.md)
+- [2026-04-02_proto-flow-permission-refinement.md](2026-04-02_proto-flow-permission-refinement.md)
+- [2026-04-02_proto-flow-list-runs.md](2026-04-02_proto-flow-list-runs.md)
+- [2026-04-02_proto-flow-cancel-run.md](2026-04-02_proto-flow-cancel-run.md)
 - [2026-04-02_flow-delete-permission-baseline.md](2026-04-02_flow-delete-permission-baseline.md)
 - [2026-04-02_flow-local-vars-detail-mainline.md](2026-04-02_flow-local-vars-detail-mainline.md)
 - [2026-04-02_server-flow-local-vars-docs.md](2026-04-02_server-flow-local-vars-docs.md)
@@ -109,6 +153,7 @@
 - [2026-03-22_management-display-name-and-persistence-hook.md](2026-03-22_management-display-name-and-persistence-hook.md)
 - [2026-03-22_flow-data-dag-runtime.md](2026-03-22_flow-data-dag-runtime.md)
 - [2026-03-22_server-flow-data-dag-docs.md](2026-03-22_server-flow-data-dag-docs.md)
+- [2026-03-22_flow-state-route-retention.md](2026-03-22_flow-state-route-retention.md)
 - [2026-03-21_server-flow-contract-align.md](2026-03-21_server-flow-contract-align.md)
 - [2026-03-21_flow-id-guard-and-contract-align.md](2026-03-21_flow-id-guard-and-contract-align.md)
 - [2026-03-21_subproto-flow-delete.md](2026-03-21_subproto-flow-delete.md)
@@ -174,6 +219,11 @@
 - [2026-02-09_public-protocol.md](2026-02-09_public-protocol.md)
 
 ## Win
+- [2026-05-28_win-mcp-ensure-running.md](2026-05-28_win-mcp-ensure-running.md)
+- [2026-05-28_win-mcp-shared-http-server.md](2026-05-28_win-mcp-shared-http-server.md)
+- [2026-04-09_win-stream-control-target-picker.md](2026-04-09_win-stream-control-target-picker.md)
+- [2026-04-09_win-showcase-line-chart.md](2026-04-09_win-showcase-line-chart.md)
+- [2026-04-04_win-frontend-empty-node-modules-guard.md](2026-04-04_win-frontend-empty-node-modules-guard.md)
 - [2026-03-29_win-stream-page-i18n.md](2026-03-29_win-stream-page-i18n.md)
 - [2026-03-28_win-permit-remote-authority-guard.md](2026-03-28_win-permit-remote-authority-guard.md)
 - [2026-03-28_win-permit-load-feedback.md](2026-03-28_win-permit-load-feedback.md)
@@ -211,6 +261,9 @@
 - [2026-03-22_win-page-hero-simplify.md](2026-03-22_win-page-hero-simplify.md)
 - [2026-03-22_win-settings-i18n.md](2026-03-22_win-settings-i18n.md)
 - [2026-03-22_win-sidebar-toggle-polish.md](2026-03-22_win-sidebar-toggle-polish.md)
+- [2026-03-22_topicbus-target-settings.md](2026-03-22_topicbus-target-settings.md)
+- [2026-03-22_topicbus-window-sidebar-scroll.md](2026-03-22_topicbus-window-sidebar-scroll.md)
+- [2026-03-22_topicbus-window-actions-height.md](2026-03-22_topicbus-window-actions-height.md)
 - [2026-03-22_topicbus-window-layout.md](2026-03-22_topicbus-window-layout.md)
 - [2026-03-22_topicbus-settings-pane.md](2026-03-22_topicbus-settings-pane.md)
 - [2026-03-22_showcase-header-icon-actions.md](2026-03-22_showcase-header-icon-actions.md)
@@ -325,7 +378,14 @@
 - [2026-02-25_android-hub-m0-smoke.md](2026-02-25_android-hub-m0-smoke.md)
 - [2026-02-25_android-apk-release-ci.md](2026-02-25_android-apk-release-ci.md)
 
+## ClipboardNode
+- [2026-06-02_tag-release-ci.md](2026-06-02_tag-release-ci.md)
+- [2026-05-31_clipboard-ui-endpoint-background-auth.md](2026-05-31_clipboard-ui-endpoint-background-auth.md)
+- [2026-05-31_clipboard-cross-platform-app-shell.md](2026-05-31_clipboard-cross-platform-app-shell.md)
+- [2026-05-31_clipboard-node-mvp.md](2026-05-31_clipboard-node-mvp.md)
+
 ## MetricsNode
+- [2026-05-26_lightweight-notify-node.md](2026-05-26_lightweight-notify-node.md)
 - [2026-03-26_metricsnode-wails-bindings-sync.md](2026-03-26_metricsnode-wails-bindings-sync.md)
 - [2026-03-07_metricsnode-ci-fix.md](2026-03-07_metricsnode-ci-fix.md)
 - [2026-03-04_metricsnode-connect-settings-compact.md](2026-03-04_metricsnode-connect-settings-compact.md)

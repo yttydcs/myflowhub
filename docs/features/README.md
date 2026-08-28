@@ -1,23 +1,32 @@
 # Features
 
-这里记录第一方产品和复合能力的稳定 dossier。每份文档描述用户可观察行为、权限、非目标和验收，不承担实现计划或历史变更日志职责。
+存放 MyFlowHub3 当前面向用户的完整功能行为，是 UI、工作流、权限和状态的长期事实入口。
+
+## How To Use
+- 想了解某项功能现在如何端到端工作时从这里进入。
+- API、协议和架构约束继续查看 `specs/`，不要在 feature 文档中重复维护。
+
+## What Belongs Here
+- 入口、布局、导航和页面状态
+- 权限、校验、CRUD 与异常流程
+- 跨仓职责和可验收场景
 
 ## Products
 
-- [Hub](hub.md)
-- [Desktop](desktop.md)
-- [Android](android.md)
-- [MetricsNode](metrics-node.md)
-- [ClipboardNode](clipboard-node.md)
-- [Embedded leaf SDK](embedded.md)
+- [Hub](hub.md)：权威根节点、准入、树管理和系统资源。
+- [Desktop](desktop.md)：桌面宿主、MCP 和本地管理入口。
+- [Android](android.md)：Android 节点、前台服务和 RFCOMM 接入。
+- [MetricsNode](metrics-node.md)：指标变量、通知与平台控制。
+- [ClipboardNode](clipboard-node.md)：跨平台剪贴板同步与历史。
+- [Embedded leaf SDK](embedded.md)：C、ESP32 和 MicroPython 叶子节点能力。
 
-## Composed capabilities
+## Composed Capabilities
 
-- [File transfer](file-transfer.md)
-- [Flow](flow.md)
+- [File transfer](file-transfer.md)：基于资源与指令的文件传输。
+- [Flow](flow.md)：流程定义、运行、状态和取消。
 
 ## Rules
-
-- 产品只通过 Node、Resource、Subscription、Command 和已定义 feature API 使用运行时。
-- 历史仓库及 change 文档只作为来源证据；本目录才是迁移后的产品真相。
-- 新增 dossier 时必须在本索引登记，并给出权限、非目标、失败语义与验收标准。
+- 使用不带日期的稳定文件名。
+- 一个用户功能只保留一份完整当前事实，并链接参与仓库。
+- 新增叶子文档后同步更新本索引；技术契约只链接到 `specs/`。
+- 历史旧仓和 `change/` 只作为来源证据，本目录描述迁移后的当前行为。

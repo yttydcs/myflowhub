@@ -4,7 +4,7 @@
 
 - 状态：Accepted architecture baseline。
 - 对应决策：[使用单一 Canonical Monorepo](../decisions/2026-08-27_single-canonical-monorepo.md)。
-- 本文定义目标源码布局与依赖约束，不表示仓库迁移已经完成。
+- vNext 迁移已经完成；本文定义当前源码布局、checkout 位置与依赖约束。
 
 ## Scope
 
@@ -15,6 +15,21 @@
 - 运行时、传输、应用和 SDK 的依赖方向；
 - 旧仓迁移与历史文档保留原则；
 - 构建和发布单元与源码仓的关系。
+
+## Workspace Checkout Layout
+
+```text
+workspace/
+├── repo/
+│   └── MyFlowHub/      canonical Git checkout 与根 go.mod
+├── worktrees/          所有附加 Git worktree
+└── local assets        本机 SDK、附件等非版本化资料
+```
+
+- `repo/MyFlowHub` 是唯一主 checkout；`docs/`、`migration/`、源码、测试和 Git 元数据必须随它一起移动。
+- `worktrees/` 是 `repo/` 的 sibling，不得在主 checkout 内创建 worktree 或嵌套仓库。
+- 工作区根不是 Go module，也不提供 `go.work`；构建与测试从 checkout 根执行。
+- 脚本必须从自身位置解析仓库根，不依赖 checkout 的绝对磁盘路径。
 
 ## Target Source Layout
 
@@ -176,3 +191,4 @@ MyFlowHub/
 ## Related Changes
 
 - [Canonical Monorepo 与统一节点运行时第一阶段](../change/2026-08-27_canonical-monorepo-unified-node-runtime.md)
+- [Canonical checkout 迁入 repo/MyFlowHub](../change/2026-08-28_canonical-checkout-relocation.md)

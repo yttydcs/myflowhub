@@ -11,6 +11,7 @@
 - 按主影响面归类，不重复按跨仓关系多处列出
 - `*-prev.md` 表示某次覆盖前保留的旧计划快照，不等同于独立 workflow
 - `global-plan-pre-slim.md` 是根级 `plan.md` 压缩前的完整快照
+- `Protocol / Core / SDK`、`Server / SubProto`、`Win` 等标题是退役多仓时期的历史检索标签，不代表当前仓库边界
 
 ## Quick Links
 - [Snapshots / Meta](#snapshots--meta)
@@ -19,17 +20,26 @@
 - [Win](#win)
 - [Repo / Monkey](#repo--monkey)
 - [Android](#android)
+- [ClipboardNode](#clipboardnode)
 - [MetricsNode](#metricsnode)
 
 ## Snapshots / Meta
 - [plan_archive_2026-08-28_clipboard-body-history.md](plan_archive_2026-08-28_clipboard-body-history.md)
 - [plan_archive_2026-08-27_vnext-full-migration.md](plan_archive_2026-08-27_vnext-full-migration.md)
 - [plan_archive_2026-08-27_canonical-monorepo-unified-node-runtime.md](plan_archive_2026-08-27_canonical-monorepo-unified-node-runtime.md)
+- [plan_archive_2026-08-23_worktree-branch-balanced-cleanup.md](plan_archive_2026-08-23_worktree-branch-balanced-cleanup.md)
+- [plan_archive_2026-04-14_thesis-function-comments-cn.md](plan_archive_2026-04-14_thesis-function-comments-cn.md)
+- [plan_archive_2026-04-13_thesis-code-comments-cn.md](plan_archive_2026-04-13_thesis-code-comments-cn.md)
+- [plan_archive_2026-04-13_thesis-code-comments.md](plan_archive_2026-04-13_thesis-code-comments.md)
+- [plan_archive_2026-04-05_graph-contract-release-chain-publish.md](plan_archive_2026-04-05_graph-contract-release-chain-publish.md)
+- [plan_archive_2026-04-05_run-control-closure.md](plan_archive_2026-04-05_run-control-closure.md)
+- [plan_archive_2026-04-04_flow-completeness-review.md](plan_archive_2026-04-04_flow-completeness-review.md)
 - [plan_archive_2026-03-29_root-run-dev-stream-server.md](plan_archive_2026-03-29_root-run-dev-stream-server.md)
 - [plan_archive_2026-03-29_root-run-dev-wails-gowork.md](plan_archive_2026-03-29_root-run-dev-wails-gowork.md)
 - [plan_archive_2026-03-24_auth-admission-downstream.md](plan_archive_2026-03-24_auth-admission-downstream.md)
 - [plan_archive_2026-03-22_workspace-docs-governance.md](plan_archive_2026-03-22_workspace-docs-governance.md)
 - [plan_archive_2026-03-22_server-docs-governance.md](plan_archive_2026-03-22_server-docs-governance.md)
+- [plan_archive_2026-03-21_codex-mcp-runtime-cleanup.md](plan_archive_2026-03-21_codex-mcp-runtime-cleanup.md)
 - [plan_archive_2026-03-21_global-plan-pre-slim.md](plan_archive_2026-03-21_global-plan-pre-slim.md)
 - [plan_archive_2026-03-14_cleanup-residual-worktrees.md](plan_archive_2026-03-14_cleanup-residual-worktrees.md)
 - [plan_archive_2026-03-12_bump-core-v0.3.0-android-hubmobile-prev.md](plan_archive_2026-03-12_bump-core-v0.3.0-android-hubmobile-prev.md)
@@ -40,6 +50,8 @@
 - [plan_archive_2026-02-18_docs-consistency.md](plan_archive_2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+- [plan_archive_2026-04-05_embedded-sdk-c-ws2812.md](plan_archive_2026-04-05_embedded-sdk-c-ws2812.md)
+- [plan_archive_2026-04-02_embedded-auth-persistence-profile.md](plan_archive_2026-04-02_embedded-auth-persistence-profile.md)
 - [plan_archive_2026-04-02_proto-flow-detail.md](plan_archive_2026-04-02_proto-flow-detail.md)
 - [plan_archive_2026-03-25_proto-defaultset-deps-release.md](plan_archive_2026-03-25_proto-defaultset-deps-release.md)
 - [plan_archive_2026-03-22_node-display-name-followup.md](plan_archive_2026-03-22_node-display-name-followup.md)
@@ -50,6 +62,11 @@
 - [plan_archive_2026-02-20_proto-protocol-mapgen.md](plan_archive_2026-02-20_proto-protocol-mapgen.md)
 
 ## Server / SubProto
+- [plan_archive_2026-04-15_subproto-management-branch-closeout.md](plan_archive_2026-04-15_subproto-management-branch-closeout.md)
+- [plan_archive_2026-04-03_flow-transform-node.md](plan_archive_2026-04-03_flow-transform-node.md)
+- [plan_archive_2026-04-03_flow-orchestrators.md](plan_archive_2026-04-03_flow-orchestrators.md)
+- [plan_archive_2026-04-02_flow-run-control-phase1.md](plan_archive_2026-04-02_flow-run-control-phase1.md)
+- [plan_archive_2026-04-02_flow-run-archive-backend.md](plan_archive_2026-04-02_flow-run-archive-backend.md)
 - [plan_archive_2026-04-02_flow-delete-permission-baseline.md](plan_archive_2026-04-02_flow-delete-permission-baseline.md)
 - [plan_archive_2026-04-02_flow-local-vars-detail-mainline.md](plan_archive_2026-04-02_flow-local-vars-detail-mainline.md)
 - [plan_archive_2026-04-02_server-flow-local-vars-docs.md](plan_archive_2026-04-02_server-flow-local-vars-docs.md)
@@ -83,6 +100,11 @@
 - [plan_archive_2026-02-20_server-use-subproto-remaining-modules.md](plan_archive_2026-02-20_server-use-subproto-remaining-modules.md)
 
 ## Win
+- [plan_archive_2026-05-28_win-mcp-ensure-running.md](plan_archive_2026-05-28_win-mcp-ensure-running.md)
+- [plan_archive_2026-05-28_win-mcp-shared-http-server.md](plan_archive_2026-05-28_win-mcp-shared-http-server.md)
+- [plan_archive_2026-04-09_win-stream-control-target-picker.md](plan_archive_2026-04-09_win-stream-control-target-picker.md)
+- [plan_archive_2026-04-09_win-showcase-line-chart.md](plan_archive_2026-04-09_win-showcase-line-chart.md)
+- [plan_archive_2026-04-04_win-frontend-empty-node-modules-guard.md](plan_archive_2026-04-04_win-frontend-empty-node-modules-guard.md)
 - [plan_archive_2026-03-29_win-stream-page-i18n.md](plan_archive_2026-03-29_win-stream-page-i18n.md)
 - [plan_archive_2026-03-28_win-permit-remote-authority-guard.md](plan_archive_2026-03-28_win-permit-remote-authority-guard.md)
 - [plan_archive_2026-03-28_win-permit-load-feedback.md](plan_archive_2026-03-28_win-permit-load-feedback.md)
@@ -113,6 +135,9 @@
 - [plan_archive_2026-03-22_win-page-hero-simplify.md](plan_archive_2026-03-22_win-page-hero-simplify.md)
 - [plan_archive_2026-03-22_win-settings-i18n.md](plan_archive_2026-03-22_win-settings-i18n.md)
 - [plan_archive_2026-03-22_win-sidebar-toggle-polish.md](plan_archive_2026-03-22_win-sidebar-toggle-polish.md)
+- [plan_archive_2026-03-22_win-topicbus-target-settings.md](plan_archive_2026-03-22_win-topicbus-target-settings.md)
+- [plan_archive_2026-03-22_win-topicbus-window-sidebar-scroll.md](plan_archive_2026-03-22_win-topicbus-window-sidebar-scroll.md)
+- [plan_archive_2026-03-22_win-topicbus-window-actions-height.md](plan_archive_2026-03-22_win-topicbus-window-actions-height.md)
 - [plan_archive_2026-03-22_win-topicbus-window-layout.md](plan_archive_2026-03-22_win-topicbus-window-layout.md)
 - [plan_archive_2026-03-22_win-topicbus-settings-pane.md](plan_archive_2026-03-22_win-topicbus-settings-pane.md)
 - [plan_archive_2026-03-22_win-showcase-header-icon-actions.md](plan_archive_2026-03-22_win-showcase-header-icon-actions.md)
@@ -183,7 +208,12 @@
 - [plan_archive_2026-02-25_android-hub-m0_server.md](plan_archive_2026-02-25_android-hub-m0_server.md)
 - [plan_archive_2026-02-25_android-hub-m0_android.md](plan_archive_2026-02-25_android-hub-m0_android.md)
 
+## ClipboardNode
+- [plan_archive_2026-06-02_tag-release-ci.md](plan_archive_2026-06-02_tag-release-ci.md)
+- [plan_archive_2026-05-31_clipboard-node.md](plan_archive_2026-05-31_clipboard-node.md)
+
 ## MetricsNode
+- [plan_archive_2026-05-26_lightweight-notify-node.md](plan_archive_2026-05-26_lightweight-notify-node.md)
 - [plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md](plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md)
 - [plan_archive_2026-03-07_metricsnode-ci-fix.md](plan_archive_2026-03-07_metricsnode-ci-fix.md)
 - [plan_archive_2026-03-05_metricsnode-connect-settings-compact.md](plan_archive_2026-03-05_metricsnode-connect-settings-compact.md)

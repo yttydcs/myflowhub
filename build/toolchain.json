@@ -1,0 +1,10 @@
+{
+  "go": "1.24.x",
+  "node": "22.x",
+  "java": "17",
+  "android_compile_sdk": 34,
+  "android_min_sdk": 26,
+  "wails": "v2.11.0",
+  "flutter": "3.47.1",
+  "esp_idf": "v6.0.2"
+}

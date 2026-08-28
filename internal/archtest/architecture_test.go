@@ -37,6 +37,9 @@ func TestRepositoryHasOneModuleAndNoNestedGit(t *testing.T) {
 			return err
 		}
 		if entry.Name() == ".git" && entry.IsDir() {
+			if rel == ".git" {
+				return filepath.SkipDir
+			}
 			t.Errorf("nested Git repository is forbidden: %s", rel)
 			return filepath.SkipDir
 		}

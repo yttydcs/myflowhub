@@ -1,50 +1,31 @@
-# Todo - MyFlowHub vNext 全量迁移与最终切换
+# Todo - 重构可复现性与文档治理收口
 
 ## Context
 
-- Branch: `master`（已整合 `refactor/vnext-full-migration`）
-- Checkout: `D:/project/MyFlowHub3/repo/MyFlowHub`
-- Base: `master@87cd7b6`
-- Detailed Plan: [plan.md](plan.md)
-- Stage: `4.0 archive and local closeout complete`
-- Implementation authorized: yes — explicit `$m-execute`
+- Branch: `refactor/reproducible-closeout`
+- Base: `master@078f4b75ee8316b0baaed67c4be4d6f7fbf301d9`
+- Worktree: `D:/project/MyFlowHub3/worktrees/reproducible-closeout`
+- Detailed plan: [plan.md](plan.md)
+- Stage: `3.2 implementation complete; enter 3.3`
+- Authorization: 用户明确要求完整跑完 workflow；仅授权 RC01-RC04 和默认本地 archive/merge/cleanup。
 
-## Approved Execution Scope
+## Will Execute
 
-- [x] FM00 — Freeze sources and build migration inventory
-- [x] FM01 — Establish stable product and migration contracts
-- [x] FM02 — Extend protocol schemas and built-in resource catalog
-- [x] FM03 — Durable identity, admission, trust and policy
-- [x] FM04 — Connection supervision, reconnect and subscription recovery
-- [x] FM05 — Migrate QUIC and RFCOMM drivers
-- [x] FM06 — Build production Hub and management resources
-- [x] FM07 — Replace remaining SubProto features
-- [x] FM08 — Complete Go SDK and platform binding contracts
-- [x] FM09 — Migrate MetricsNode entire product source
-- [x] FM10 — Migrate ClipboardNode entire product source
-- [x] FM11 — Migrate Desktop application
-- [x] FM12 — Migrate Android application
-- [x] FM13 — Migrate Embedded C, MicroPython and ESP32
-- [x] FM14 — Unify builds, generation, packaging and CI definitions
-- [x] FM15 — Run cross-product security, integration and performance gates
-- [x] FM16 — Eliminate legacy dependencies and switch local canonical entry
+- [x] RC01 — 冻结并审计选入/排除来源
+- [x] RC02 — 修复 canonical HEAD 构建与测试可复现性
+- [x] RC03 — 导入并治理旧仓提取文档和 checkout 路由
+- [ ] RC04 — 运行当前 worktree 与全新 checkout 完整本地门禁
 
 ## Will Not Execute Now
 
-- [ ] DX01 — New serial/USB/WebSocket transports; new feature, no migration source or product requirement
-- [ ] DX02 — Legacy compatibility bridge; explicitly rejected
-- [ ] DX03 — Remote push/release/sign/publish/remote archive; separately authorized external state
-- [ ] DX04b — Delete/move main checkout dirt; not authorized and unrelated user changes must remain
-- [ ] DX05 — Certify unavailable signed platforms/hardware; requires external hosts/devices/credentials
-
-## Separately Authorized Closeout
-
-- [x] DX04a — Remove the 10 local legacy `repo/MyFlowHub-*` checkouts after documentation extraction; recovery metadata retained in `migration/`
+- [ ] NX01 — 论文、附件和无关主 checkout dirt
+- [ ] NX02 — 新 serial/USB/WebSocket Transport
+- [ ] NX03 — legacy compatibility bridge
+- [ ] NX04 — push/release/sign/publish/remote archive
+- [ ] NX05 — 外部硬件、签名平台和商店认证
 
 ## Gate
 
 - Blocked: no
-- FM00–FM16 execution complete; every completed gate remains buildable
-- Current gate: closed — canonical checkout is already on `master`; no workflow worktree or feature branch remains
+- Enter execution
 - Do not dispatch implementation sub-agents
-- `$m-archive` authorized the local workflow-owned closeout. Push, publish, remote archive and unrelated main-dirt deletion remain separately authorized actions.
