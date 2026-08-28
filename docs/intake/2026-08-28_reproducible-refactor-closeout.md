@@ -76,4 +76,5 @@
 
 ## Related Changes
 
+- [重构可复现性与文档治理收口](../change/2026-08-28_reproducible-refactor-closeout.md)
 - [Wails 开发启动并发修复与重构收口](../change/2026-08-28_wails-dev-concurrency-and-refactor-closeout.md)

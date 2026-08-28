@@ -25,6 +25,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-08-28_reproducible-refactor-closeout.md](2026-08-28_reproducible-refactor-closeout.md)
 - [2026-08-28_wails-dev-concurrency-and-refactor-closeout.md](2026-08-28_wails-dev-concurrency-and-refactor-closeout.md)
 - [2026-08-28_canonical-checkout-relocation.md](2026-08-28_canonical-checkout-relocation.md)
 - [2026-08-27_workspace-directory-docs-governance.md](2026-08-27_workspace-directory-docs-governance.md)

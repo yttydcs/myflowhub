@@ -20,6 +20,7 @@
 
 ## Platform And Toolchain
 
+- [windows-clean-checkout-eol-and-generated-drift.md](windows-clean-checkout-eol-and-generated-drift.md)：Windows `core.autocrlf`、gofmt 全仓误报、Wails/Vite byte drift、Gradle short TEMP 与 JDK 选择。
 - [android-runtime-and-mobile-bindings.md](android-runtime-and-mobile-bindings.md)：sticky restart、live session、FGS/RFCOMM、URI staging 与真实 AAR 证明。
 - [embedded-toolchain-and-board-preflight.md](embedded-toolchain-and-board-preflight.md)：ESP-IDF/MicroPython 工具链、真板、网络和打包预检。
 - [embedded-esp32s3-ws2812-board-smoke.md](embedded-esp32s3-ws2812-board-smoke.md)：串口、固件、Wi-Fi、WS2812 与真板 smoke。

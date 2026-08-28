@@ -24,6 +24,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Snapshots / Meta
+- [plan_archive_2026-08-28_reproducible-refactor-closeout.md](plan_archive_2026-08-28_reproducible-refactor-closeout.md)
 - [plan_archive_2026-08-28_clipboard-body-history.md](plan_archive_2026-08-28_clipboard-body-history.md)
 - [plan_archive_2026-08-27_vnext-full-migration.md](plan_archive_2026-08-27_vnext-full-migration.md)
 - [plan_archive_2026-08-27_canonical-monorepo-unified-node-runtime.md](plan_archive_2026-08-27_canonical-monorepo-unified-node-runtime.md)
