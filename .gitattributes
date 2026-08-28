@@ -1,1 +1,2 @@
+*.go text eol=lf
 sdk/bindings/generated/contracts.json text eol=lf

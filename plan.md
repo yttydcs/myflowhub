@@ -9,7 +9,7 @@
 - Docs Root: `D:/project/MyFlowHub3/repo/MyFlowHub/docs`（与 canonical repo 同库，本地无 remote）
 - Code Repos: 仅 `D:/project/MyFlowHub3/repo/MyFlowHub`
 - Active Worktree: `D:/project/MyFlowHub3/worktrees/reproducible-closeout`
-- Current Stage: `3.2 implementation complete; RC04 enters 3.3`
+- Current Stage: `3.2 EOL repair complete; RC04 reruns in 3.3`
 - Approval: 用户于 2026-08-28 明确要求自行设置 Goal 并把整个重构流程跑完；该授权适用于下列 `Will Execute` Task IDs，不包含计划外、远端或破坏性动作。
 
 ## Stage Records
@@ -82,6 +82,7 @@
 
 - `build/toolchain.json` 必须成为已跟踪构建输入，且 `.gitignore` 只放行该文件。
 - `sdk/bindings/generated/contracts.json` 必须固定 LF，避免 Windows/CI 字节级漂移。
+- 所有 `*.go` 源文件必须固定 LF，使 Windows `core.autocrlf=true` checkout 仍能通过 canonical `gofmt -l` 门禁。
 - repository boundary test 必须忽略当前 checkout 自身 `.git`，仍拒绝嵌套 `.git`。
 - blocking pipe 测试夹具的 write/close 幂等必须使用独立同步状态。
 - Desktop package fingerprint 必须与 `package.json` 当前内容一致。
@@ -164,7 +165,7 @@
 #### Extensibility Design Points
 
 - `.gitignore` 精确放行单个 canonical toolchain manifest，未来新增构建输入必须显式评审。
-- `.gitattributes` 只约束字节级生成契约，避免全仓 EOL 改写。
+- `.gitattributes` 约束 Go 源和字节级生成契约为 LF；其他文件不做全仓 EOL 改写。
 - docs taxonomy 和分类索引继续支持新的产品/历史而不恢复多仓 source-of-truth。
 
 ## Stage 3.1 - Planning
@@ -224,8 +225,8 @@
 - Goal: 把已验证但未提交的必要构建输入和测试修正变成可复现 HEAD。
 - Files / Modules: `.gitignore`, `.gitattributes`, `build/toolchain.json`, `apps/desktop/frontend/package.json.md5`, `sdk/bindings/generated/contracts.json`, `internal/archtest/architecture_test.go`, `runtime/link/session_test.go`
 - Write Set: 上述精确文件。
-- Acceptance: toolchain manifest 被跟踪；generated contract 固定 LF；MD5 匹配；root `.git` 不误报且 nested git 仍拒绝；并发 close 测试确定。
-- Test Points: focused Go tests、MD5 校验、`git ls-files --eol`、generate freshness、`git diff --check`。
+- Acceptance: toolchain manifest 被跟踪；Go 源和 generated contract 固定 LF；MD5 匹配；root `.git` 不误报且 nested git 仍拒绝；并发 close 测试确定。
+- Test Points: focused Go tests、MD5 校验、`git ls-files --eol`、`gofmt -l`、generate freshness、`scripts/mfh.ps1 -Action check -Target core`、`git diff --check`。
 - Rollback: 回退 RC02 commit；不影响生产 runtime API。
 
 #### RC03 - Govern And Import Refactor Documentation
@@ -265,5 +266,5 @@
 ### Gate
 
 - Blocked: no
-- RC01-RC03 implemented and lightweight checks passed；RC04 enters `$m-test`。
+- RC04 first clean clone exposed Go checkout EOL drift；RC02 is reopened for `.gitattributes` repair, then RC04 reruns。
 - Do not dispatch implementation sub-agents。
