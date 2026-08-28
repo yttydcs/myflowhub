@@ -8,9 +8,9 @@ import (
 	"math"
 )
 
-const fixedHeaderSize = 96
+const fixedHeaderSize = 98
 
-var frameMagic = [4]byte{'M', 'F', 'H', '3'}
+var frameMagic = [4]byte{'M', 'F', 'H', '4'}
 
 type Codec struct {
 	MaxPayload int
@@ -40,17 +40,18 @@ func (c Codec) Encode(writer io.Writer, envelope Envelope) error {
 	header[7] = byte(envelope.Operation)
 	header[8] = byte(len(envelope.ContentType))
 	header[9] = byte(len(envelope.Schema))
-	binary.BigEndian.PutUint16(header[10:12], uint16(len(envelope.Resource.Name)))
-	binary.BigEndian.PutUint32(header[12:16], uint32(len(envelope.Payload)))
-	binary.BigEndian.PutUint64(header[16:24], uint64(envelope.Source))
-	binary.BigEndian.PutUint64(header[24:32], uint64(envelope.Principal))
-	binary.BigEndian.PutUint64(header[32:40], uint64(envelope.Target))
-	binary.BigEndian.PutUint64(header[40:48], envelope.TopologyEpoch)
-	binary.BigEndian.PutUint64(header[48:56], uint64(envelope.DeadlineUnixMS))
-	copy(header[56:72], envelope.MessageID[:])
-	copy(header[72:88], envelope.CorrelationID[:])
-	binary.BigEndian.PutUint64(header[88:96], uint64(envelope.Resource.Owner))
-	for _, part := range [][]byte{header, []byte(envelope.ContentType), []byte(envelope.Schema), []byte(envelope.Resource.Name), envelope.Payload} {
+	binary.BigEndian.PutUint16(header[10:12], uint16(len(envelope.Capability)))
+	binary.BigEndian.PutUint16(header[12:14], uint16(len(envelope.Resource.Name)))
+	binary.BigEndian.PutUint32(header[14:18], uint32(len(envelope.Payload)))
+	binary.BigEndian.PutUint64(header[18:26], uint64(envelope.Source))
+	binary.BigEndian.PutUint64(header[26:34], uint64(envelope.Principal))
+	binary.BigEndian.PutUint64(header[34:42], uint64(envelope.Target))
+	binary.BigEndian.PutUint64(header[42:50], envelope.TopologyEpoch)
+	binary.BigEndian.PutUint64(header[50:58], uint64(envelope.DeadlineUnixMS))
+	copy(header[58:74], envelope.MessageID[:])
+	copy(header[74:90], envelope.CorrelationID[:])
+	binary.BigEndian.PutUint64(header[90:98], uint64(envelope.Resource.Owner))
+	for _, part := range [][]byte{header, []byte(envelope.ContentType), []byte(envelope.Schema), []byte(envelope.Capability), []byte(envelope.Resource.Name), envelope.Payload} {
 		if err := writeAll(writer, part); err != nil {
 			return fmt.Errorf("encode frame: %w", err)
 		}
@@ -71,16 +72,17 @@ func (c Codec) Decode(reader io.Reader) (Envelope, error) {
 	}
 	contentLen := int(header[8])
 	schemaLen := int(header[9])
-	nameLen := int(binary.BigEndian.Uint16(header[10:12]))
-	payloadLength := binary.BigEndian.Uint32(header[12:16])
-	if contentLen > MaxContentTypeBytes || schemaLen > MaxSchemaBytes || nameLen > MaxResourceNameBytes {
+	capabilityLen := int(binary.BigEndian.Uint16(header[10:12]))
+	nameLen := int(binary.BigEndian.Uint16(header[12:14]))
+	payloadLength := binary.BigEndian.Uint32(header[14:18])
+	if contentLen > MaxContentTypeBytes || schemaLen > MaxSchemaBytes || capabilityLen > MaxCapabilityBytes || nameLen > MaxResourceNameBytes {
 		return Envelope{}, errors.New("decode frame: metadata exceeds protocol limit")
 	}
 	if uint64(payloadLength) > uint64(c.payloadLimit()) {
 		return Envelope{}, fmt.Errorf("decode frame: %w: got %d, max %d", ErrPayloadTooLarge, payloadLength, c.payloadLimit())
 	}
 	payloadLen := int(payloadLength)
-	metadataAndPayload := make([]byte, contentLen+schemaLen+nameLen+payloadLen)
+	metadataAndPayload := make([]byte, contentLen+schemaLen+capabilityLen+nameLen+payloadLen)
 	if _, err := io.ReadFull(reader, metadataAndPayload); err != nil {
 		return Envelope{}, fmt.Errorf("decode frame body: %w", err)
 	}
@@ -94,19 +96,20 @@ func (c Codec) Decode(reader io.Reader) (Envelope, error) {
 		Version:        binary.BigEndian.Uint16(header[4:6]),
 		Phase:          Phase(header[6]),
 		Operation:      Operation(header[7]),
-		Source:         NodeID(binary.BigEndian.Uint64(header[16:24])),
-		Principal:      NodeID(binary.BigEndian.Uint64(header[24:32])),
-		Target:         NodeID(binary.BigEndian.Uint64(header[32:40])),
-		TopologyEpoch:  binary.BigEndian.Uint64(header[40:48]),
-		DeadlineUnixMS: int64(binary.BigEndian.Uint64(header[48:56])),
+		Source:         NodeID(binary.BigEndian.Uint64(header[18:26])),
+		Principal:      NodeID(binary.BigEndian.Uint64(header[26:34])),
+		Target:         NodeID(binary.BigEndian.Uint64(header[34:42])),
+		TopologyEpoch:  binary.BigEndian.Uint64(header[42:50]),
+		DeadlineUnixMS: int64(binary.BigEndian.Uint64(header[50:58])),
 		Resource: ResourceID{
-			Owner: NodeID(binary.BigEndian.Uint64(header[88:96])),
+			Owner: NodeID(binary.BigEndian.Uint64(header[90:98])),
 		},
 	}
-	copy(envelope.MessageID[:], header[56:72])
-	copy(envelope.CorrelationID[:], header[72:88])
+	copy(envelope.MessageID[:], header[58:74])
+	copy(envelope.CorrelationID[:], header[74:90])
 	envelope.ContentType = string(take(contentLen))
 	envelope.Schema = string(take(schemaLen))
+	envelope.Capability = CapabilityID(take(capabilityLen))
 	envelope.Resource.Name = string(take(nameLen))
 	envelope.Payload = append([]byte(nil), take(payloadLen)...)
 	if err := envelope.Validate(c.payloadLimit()); err != nil {

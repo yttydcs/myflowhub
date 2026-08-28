@@ -9,6 +9,7 @@ type ErrorCode string
 
 const (
 	CodeMalformed       ErrorCode = "malformed"
+	CodeUnsupported     ErrorCode = "unsupported"
 	CodeUnauthenticated ErrorCode = "unauthenticated"
 	CodeForbidden       ErrorCode = "forbidden"
 	CodeNotFound        ErrorCode = "not_found"
@@ -17,6 +18,9 @@ const (
 	CodeExpired         ErrorCode = "expired"
 	CodeOverflow        ErrorCode = "overflow"
 	CodeTimeout         ErrorCode = "timeout"
+	CodeGone            ErrorCode = "gone"
+	CodeGap             ErrorCode = "gap"
+	CodeRateLimited     ErrorCode = "rate_limited"
 	CodeInternal        ErrorCode = "internal"
 )
 

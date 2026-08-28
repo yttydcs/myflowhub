@@ -1,5 +1,8 @@
 # Resource catalog
 
+> Superseded: `mfh.catalog.v1` 与 fixed-kind descriptor 已由
+> [Resource Platform v2](resource-platform-v2.md) 的 `mfh.catalog.v2` 取代。本文仅保留迁移前参考。
+
 ## Built-in resource
 
 每个 Node 必须注册 `system/catalog` Variable。它是本节点资源 descriptor 的版本化快照，不是独立 discovery 协议。catalog 本身也出现在快照中，但更新 catalog 值不得递归改变 descriptor 集。

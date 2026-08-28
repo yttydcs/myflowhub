@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	CurrentVersion       uint16 = 1
+	CurrentVersion       uint16 = 2
 	DefaultMaxPayload           = 1 << 20
 	MaxResourceNameBytes        = 255
+	MaxCapabilityBytes          = 128
 	MaxContentTypeBytes         = 127
 	MaxSchemaBytes              = 255
 )
@@ -50,12 +51,25 @@ func MustMessageID() MessageID {
 	return id
 }
 
+func ParseMessageID(value string) (MessageID, error) {
+	decoded, err := hex.DecodeString(value)
+	if err != nil || len(decoded) != len(MessageID{}) || value != strings.ToLower(value) {
+		return MessageID{}, errors.New("message ID must be 16 lowercase hexadecimal bytes")
+	}
+	var id MessageID
+	copy(id[:], decoded)
+	if id.IsZero() {
+		return MessageID{}, errors.New("message ID must be non-zero")
+	}
+	return id, nil
+}
+
 func (id MessageID) IsZero() bool   { return id == MessageID{} }
 func (id MessageID) String() string { return hex.EncodeToString(id[:]) }
 
 type ResourceID struct {
-	Owner NodeID
-	Name  string
+	Owner NodeID `json:"owner"`
+	Name  string `json:"name"`
 }
 
 func (id ResourceID) Validate() error {
@@ -104,12 +118,14 @@ const (
 	OperationSubscribe
 	OperationUnsubscribe
 	OperationSubscribeAck
-	OperationVariableSnapshot
-	OperationVariableUpdate
-	OperationStreamEvent
-	OperationStreamGap
-	OperationCommandCall
-	OperationCommandResult
+	OperationResourceEvent
+	OperationResourceGap
+	OperationOperate
+	OperationOperateResult
+	OperationSessionOpen
+	OperationSessionOpenResult
+	OperationSessionData
+	OperationSessionClose
 	OperationError
 	OperationHeartbeat
 )
@@ -117,11 +133,17 @@ const (
 func (op Operation) Valid() bool { return op >= OperationJoin && op <= OperationHeartbeat }
 
 func (op Operation) RequiresResource() bool {
-	return op >= OperationSubscribe && op <= OperationCommandResult
+	return op >= OperationSubscribe && op <= OperationSessionClose
 }
 
 func (op Operation) RequiresCorrelation() bool {
-	return op == OperationJoinAck || op == OperationSubscribeAck || op == OperationVariableSnapshot || op == OperationCommandResult || op == OperationError
+	switch op {
+	case OperationJoinAck, OperationSubscribeAck, OperationResourceEvent, OperationResourceGap,
+		OperationOperateResult, OperationSessionOpenResult, OperationSessionData, OperationSessionClose, OperationError:
+		return true
+	default:
+		return false
+	}
 }
 
 type Envelope struct {
@@ -138,6 +160,7 @@ type Envelope struct {
 	DeadlineUnixMS int64
 	ContentType    string
 	Schema         string
+	Capability     CapabilityID
 	Payload        []byte
 }
 
@@ -178,8 +201,15 @@ func (e Envelope) Validate(maxPayload int) error {
 	if e.DeadlineUnixMS < 0 {
 		return fmt.Errorf("%w: deadline cannot be negative", ErrInvalidEnvelope)
 	}
-	if len(e.ContentType) > MaxContentTypeBytes || len(e.Schema) > MaxSchemaBytes {
-		return fmt.Errorf("%w: content type or schema metadata is too long", ErrInvalidEnvelope)
+	if len(e.ContentType) > MaxContentTypeBytes || len(e.Schema) > MaxSchemaBytes || len(e.Capability) > MaxCapabilityBytes {
+		return fmt.Errorf("%w: content type, schema, or capability metadata is too long", ErrInvalidEnvelope)
+	}
+	if e.Operation.RequiresResource() {
+		if err := e.Capability.Validate(); err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidEnvelope, err)
+		}
+	} else if e.Capability != "" {
+		return fmt.Errorf("%w: operation %d must not carry a capability", ErrInvalidEnvelope, e.Operation)
 	}
 	if maxPayload <= 0 {
 		maxPayload = DefaultMaxPayload
@@ -201,11 +231,15 @@ func phaseAllows(phase Phase, op Operation) bool {
 	switch op {
 	case OperationJoin:
 		return phase == PhaseRequest
-	case OperationJoinAck, OperationSubscribeAck, OperationVariableSnapshot, OperationCommandResult, OperationError:
+	case OperationJoinAck, OperationSubscribeAck, OperationOperateResult, OperationSessionOpenResult, OperationError:
 		return phase == PhaseResponse
-	case OperationRouteAnnounce, OperationRouteWithdraw, OperationVariableUpdate, OperationStreamEvent, OperationStreamGap, OperationHeartbeat:
+	case OperationRouteAnnounce, OperationRouteWithdraw, OperationResourceGap, OperationHeartbeat:
 		return phase == PhaseEvent
-	case OperationSubscribe, OperationUnsubscribe, OperationCommandCall:
+	case OperationResourceEvent:
+		return phase == PhaseResponse || phase == PhaseEvent
+	case OperationSessionData, OperationSessionClose:
+		return phase == PhaseRequest || phase == PhaseControl || phase == PhaseResponse
+	case OperationSubscribe, OperationUnsubscribe, OperationOperate, OperationSessionOpen:
 		return phase == PhaseRequest || phase == PhaseControl
 	default:
 		return false

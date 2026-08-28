@@ -134,40 +134,40 @@ func (c *Controller) buildResources() ([]resource.Resource, error) {
 	if err != nil {
 		return nil, err
 	}
-	auditFeed, err := resource.NewStream(resource.Descriptor{ID: protocol.ResourceID{Owner: owner, Name: protocol.BuiltinManagementAudit}, Kind: resource.KindStream, ContentType: contentTypeJSON, Schema: protocol.SchemaManagementAuditV1, Permission: "management.audit.read", MaxValueBytes: protocol.DefaultMaxPayload})
+	auditFeed, err := resource.NewStream(resource.StreamDescriptor(protocol.ResourceID{Owner: owner, Name: protocol.BuiltinManagementAudit}, contentTypeJSON, protocol.SchemaManagementAuditV1, "management.audit.read", protocol.DefaultMaxPayload))
 	if err != nil {
 		return nil, err
 	}
 	c.topology, c.health, c.config, c.auditFeed = topology, health, configVariable, auditFeed
-	issue, err := c.command(protocol.BuiltinManagementIssuePermit, protocol.SchemaManagementIssuePermitV1, "management.admission.issue", c.issuePermit)
+	issue, err := c.command(protocol.BuiltinManagementIssuePermit, protocol.SchemaManagementIssuePermitV1, protocol.SchemaProvisioningPermitV1, "management.admission.issue", c.issuePermit)
 	if err != nil {
 		return nil, err
 	}
-	revokePermit, err := c.command(protocol.BuiltinManagementRevokePermit, protocol.SchemaManagementRevokePermitV1, "management.admission.revoke", c.revokePermit)
+	revokePermit, err := c.command(protocol.BuiltinManagementRevokePermit, protocol.SchemaManagementRevokePermitV1, protocol.SchemaManagementResultV1, "management.admission.revoke", c.revokePermit)
 	if err != nil {
 		return nil, err
 	}
-	revokeNode, err := c.command(protocol.BuiltinManagementRevokeNode, protocol.SchemaManagementRevokeV1, "management.node.revoke", c.revokeNode)
+	revokeNode, err := c.command(protocol.BuiltinManagementRevokeNode, protocol.SchemaManagementRevokeV1, protocol.SchemaManagementResultV1, "management.node.revoke", c.revokeNode)
 	if err != nil {
 		return nil, err
 	}
-	updateConfig, err := c.command(protocol.BuiltinManagementConfigUpdate, protocol.SchemaManagementConfigUpdateV1, "management.config.write", c.updateConfig)
+	updateConfig, err := c.command(protocol.BuiltinManagementConfigUpdate, protocol.SchemaManagementConfigUpdateV1, protocol.SchemaManagementConfigV1, "management.config.write", c.updateConfig)
 	if err != nil {
 		return nil, err
 	}
-	grantPolicy, err := c.command(protocol.BuiltinManagementPolicyGrant, protocol.SchemaManagementPolicyRuleV1, "management.policy.write", c.grantPolicy)
+	grantPolicy, err := c.command(protocol.BuiltinManagementPolicyGrant, protocol.SchemaManagementPolicyRuleV1, protocol.SchemaManagementResultV1, "management.policy.write", c.grantPolicy)
 	if err != nil {
 		return nil, err
 	}
-	revokePolicy, err := c.command(protocol.BuiltinManagementPolicyRevoke, protocol.SchemaManagementPolicyRuleV1, "management.policy.write", c.revokePolicy)
+	revokePolicy, err := c.command(protocol.BuiltinManagementPolicyRevoke, protocol.SchemaManagementPolicyRuleV1, protocol.SchemaManagementResultV1, "management.policy.write", c.revokePolicy)
 	if err != nil {
 		return nil, err
 	}
 	return []resource.Resource{topology, health, configVariable, auditFeed, issue, revokePermit, revokeNode, updateConfig, grantPolicy, revokePolicy}, nil
 }
 
-func (c *Controller) command(name, schema, permission string, handler resource.CommandHandler) (*resource.Command, error) {
-	return resource.NewCommand(resource.Descriptor{ID: protocol.ResourceID{Owner: c.node.ID(), Name: name}, Kind: resource.KindCommand, ContentType: contentTypeJSON, Schema: schema, Permission: permission, MaxValueBytes: protocol.DefaultMaxPayload}, handler)
+func (c *Controller) command(name, inputSchema, outputSchema, permission string, handler resource.CommandHandler) (*resource.Command, error) {
+	return resource.NewCommand(resource.CommandDescriptorSchemas(protocol.ResourceID{Owner: c.node.ID(), Name: name}, contentTypeJSON, inputSchema, outputSchema, permission, protocol.DefaultMaxPayload), handler)
 }
 
 func (c *Controller) issuePermit(_ context.Context, input []byte) ([]byte, error) {
@@ -321,7 +321,7 @@ func newJSONVariable(owner protocol.NodeID, name, schema, permission string, ini
 	if err != nil {
 		return nil, err
 	}
-	return resource.NewVariable(resource.Descriptor{ID: protocol.ResourceID{Owner: owner, Name: name}, Kind: resource.KindVariable, ContentType: contentTypeJSON, Schema: schema, Permission: permission, MaxValueBytes: protocol.DefaultMaxPayload}, payload)
+	return resource.NewVariable(resource.VariableDescriptor(protocol.ResourceID{Owner: owner, Name: name}, contentTypeJSON, schema, permission, protocol.DefaultMaxPayload), payload)
 }
 
 func setIfChanged(variable *resource.Variable, payload []byte) error {

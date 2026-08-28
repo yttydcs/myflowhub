@@ -31,7 +31,7 @@ func TestPolicyGenerationChangeExpiresExistingSubscription(t *testing.T) {
 	}
 	parent, _ := New(ctx, Config{Identity: parentIdentity, Trust: trust, Policy: policy, Subscriptions: subscription.Config{MinLease: time.Millisecond, MaxLease: time.Minute}})
 	defer parent.Close()
-	variable, _ := resource.NewVariable(resource.Descriptor{ID: resourceID, Kind: resource.KindVariable, MaxValueBytes: 64}, []byte("ready"))
+	variable, _ := resource.NewVariable(resource.VariableDescriptor(resourceID, "application/octet-stream", "test.raw.v1", "test.read", 64), []byte("ready"))
 	_ = parent.Registry().Register(variable)
 	child, _ := New(ctx, Config{Identity: childIdentity, Trust: trust, Policy: auth.AllowAll{}, Subscriptions: subscription.Config{MinLease: time.Millisecond, MaxLease: time.Minute}})
 	defer child.Close()
@@ -46,7 +46,7 @@ func TestPolicyGenerationChangeExpiresExistingSubscription(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer remote.Cancel()
-	if event := receiveRemote(t, remote); event.Kind != subscription.EventVariableSnapshot {
+	if event := receiveRemote(t, remote); event.Kind != subscription.EventSnapshot {
 		t.Fatalf("unexpected first event: %+v", event)
 	}
 	if err := policy.Revoke(request); err != nil {

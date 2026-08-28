@@ -9,17 +9,16 @@ import (
 	"github.com/yttydcs/myflowhub/runtime/resource"
 )
 
-func newManager(t *testing.T, kind resource.Kind, lease time.Duration) (*Manager, resource.Resource, protocol.ResourceID) {
+func newManager(t *testing.T, typeID protocol.ResourceTypeID, lease time.Duration) (*Manager, resource.Resource, protocol.ResourceID) {
 	t.Helper()
 	id := protocol.ResourceID{Owner: 1, Name: "test"}
-	descriptor := resource.Descriptor{ID: id, Kind: kind, MaxValueBytes: 64}
 	registry, _ := resource.NewRegistry(1)
 	var value resource.Resource
-	switch kind {
-	case resource.KindVariable:
-		value, _ = resource.NewVariable(descriptor, []byte("initial"))
-	case resource.KindStream:
-		value, _ = resource.NewStream(descriptor)
+	switch typeID {
+	case protocol.ResourceTypeVariable:
+		value, _ = resource.NewVariable(resource.VariableDescriptor(id, "application/octet-stream", "test.raw.v1", "test.read", 64), []byte("initial"))
+	case protocol.ResourceTypeStream:
+		value, _ = resource.NewStream(resource.StreamDescriptor(id, "application/octet-stream", "test.raw.v1", "test.read", 64))
 	}
 	if err := registry.Register(value); err != nil {
 		t.Fatal(err)
@@ -33,7 +32,7 @@ func newManager(t *testing.T, kind resource.Kind, lease time.Duration) (*Manager
 }
 
 func request(resourceID protocol.ResourceID, lease time.Duration, queue int) Request {
-	return Request{Subscriber: 2, Resource: resourceID, LinkID: "child-2", Lease: lease, Queue: queue, TopologyEpoch: 1, PolicyGeneration: 1}
+	return Request{Subscriber: 2, Resource: resourceID, Capability: protocol.CapabilitySubscribe, LinkID: "child-2", Lease: lease, Queue: queue, TopologyEpoch: 1, PolicyGeneration: 1}
 }
 
 func receive(t *testing.T, events <-chan Event) Event {
@@ -51,7 +50,7 @@ func receive(t *testing.T, events <-chan Event) Event {
 }
 
 func TestVariableSnapshotBeforeCoalescedChange(t *testing.T) {
-	manager, value, id := newManager(t, resource.KindVariable, time.Second)
+	manager, value, id := newManager(t, protocol.ResourceTypeVariable, time.Second)
 	subscription, err := manager.Subscribe(request(id, time.Second, 1))
 	if err != nil {
 		t.Fatal(err)
@@ -63,17 +62,17 @@ func TestVariableSnapshotBeforeCoalescedChange(t *testing.T) {
 		}
 	}
 	snapshot := receive(t, subscription.Events)
-	if snapshot.Kind != EventVariableSnapshot || string(snapshot.Value) != "initial" {
+	if snapshot.Kind != EventSnapshot || string(snapshot.Value) != "initial" {
 		t.Fatalf("unexpected snapshot: %#v", snapshot)
 	}
 	update := receive(t, subscription.Events)
-	if update.Kind != EventVariableUpdate || string(update.Value) != "three" || update.Revision != 4 {
+	if update.Kind != EventData || string(update.Value) != "three" || update.Revision != 4 {
 		t.Fatalf("unexpected coalesced update: %#v", update)
 	}
 }
 
 func TestSlowStreamEmitsGap(t *testing.T) {
-	manager, value, id := newManager(t, resource.KindStream, time.Second)
+	manager, value, id := newManager(t, protocol.ResourceTypeStream, time.Second)
 	subscription, err := manager.Subscribe(request(id, time.Second, 1))
 	if err != nil {
 		t.Fatal(err)
@@ -89,7 +88,7 @@ func TestSlowStreamEmitsGap(t *testing.T) {
 	for !foundGap {
 		select {
 		case event := <-subscription.Events:
-			if event.Kind == EventStreamGap {
+			if event.Kind == EventGap {
 				foundGap = true
 				if event.GapFrom == 0 || event.GapTo < event.GapFrom {
 					t.Fatalf("invalid gap: %#v", event)
@@ -102,7 +101,7 @@ func TestSlowStreamEmitsGap(t *testing.T) {
 }
 
 func TestLeaseExpiryAndLinkCleanup(t *testing.T) {
-	manager, _, id := newManager(t, resource.KindVariable, 20*time.Millisecond)
+	manager, _, id := newManager(t, protocol.ResourceTypeVariable, 20*time.Millisecond)
 	subscription, err := manager.Subscribe(request(id, 20*time.Millisecond, 2))
 	if err != nil {
 		t.Fatal(err)
@@ -142,8 +141,8 @@ func TestInterestAggregationKeepsIndependentBoundaries(t *testing.T) {
 	table, _ := NewInterestTable(4)
 	resourceID := protocol.ResourceID{Owner: 1, Name: "state"}
 	now := time.Now()
-	one := Interest{ID: protocol.MustMessageID(), Subscriber: 2, Resource: resourceID, LinkID: "a", LeaseUntil: now.Add(time.Minute), AuthorizedUntil: now.Add(time.Minute), TopologyEpoch: 1}
-	two := Interest{ID: protocol.MustMessageID(), Subscriber: 3, Resource: resourceID, LinkID: "b", LeaseUntil: now.Add(2 * time.Minute), AuthorizedUntil: now.Add(2 * time.Minute), TopologyEpoch: 2}
+	one := Interest{ID: protocol.MustMessageID(), Subscriber: 2, Resource: resourceID, Capability: protocol.CapabilitySubscribe, LinkID: "a", LeaseUntil: now.Add(time.Minute), AuthorizedUntil: now.Add(time.Minute), TopologyEpoch: 1}
+	two := Interest{ID: protocol.MustMessageID(), Subscriber: 3, Resource: resourceID, Capability: protocol.CapabilitySubscribe, LinkID: "b", LeaseUntil: now.Add(2 * time.Minute), AuthorizedUntil: now.Add(2 * time.Minute), TopologyEpoch: 2}
 	if first, err := table.Add(one); err != nil || !first {
 		t.Fatalf("first interest: %v %v", first, err)
 	}
@@ -157,7 +156,7 @@ func TestInterestAggregationKeepsIndependentBoundaries(t *testing.T) {
 }
 
 func TestMultipleSubscribersReceiveIndependentUpdates(t *testing.T) {
-	manager, value, id := newManager(t, resource.KindVariable, time.Second)
+	manager, value, id := newManager(t, protocol.ResourceTypeVariable, time.Second)
 	one, err := manager.Subscribe(request(id, time.Second, 2))
 	if err != nil {
 		t.Fatal(err)

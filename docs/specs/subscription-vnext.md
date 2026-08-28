@@ -1,5 +1,8 @@
 # Subscription vNext
 
+> Partially superseded: Variable/Stream 的历史 delivery 语义仍是迁移基线；通用 observable、
+> Topic 和 descriptor-driven authorization 以 [Resource Platform v2](resource-platform-v2.md) 为准。
+
 Subscription is a first-class runtime relation over a Variable or Stream. Each relation records its ID, subscriber, resource, link binding, lease deadline, authorization deadline, topology epoch, policy generation, next hop, and bounded queue size.
 
 ## Variable delivery

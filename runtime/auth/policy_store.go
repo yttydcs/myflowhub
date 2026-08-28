@@ -40,7 +40,8 @@ func LoadPolicyState(store *keystore.Store) (*PolicyState, error) {
 	}
 	result := &PolicyState{generation: state.Generation, grants: make(map[Request]struct{}), watchers: make(map[uint64]func(uint64))}
 	for _, grant := range state.Grants {
-		if err := validateRequest(grant); err != nil {
+		grant, err = normalizeRequest(grant)
+		if err != nil {
 			return nil, fmt.Errorf("load policy state: %w", err)
 		}
 		if _, exists := result.grants[grant]; exists {
@@ -58,7 +59,8 @@ func LoadPolicyState(store *keystore.Store) (*PolicyState, error) {
 }
 
 func (p *PolicyState) Authorize(_ context.Context, request Request) error {
-	if err := validateRequest(request); err != nil {
+	request, err := normalizeRequest(request)
+	if err != nil {
 		return fmt.Errorf("%w: %v", ErrForbidden, err)
 	}
 	p.mu.RLock()
@@ -97,7 +99,8 @@ func (p *PolicyState) WatchGeneration(observer func(uint64)) (uint64, func(), er
 }
 
 func (p *PolicyState) Grant(request Request) error {
-	if err := validateRequest(request); err != nil {
+	request, err := normalizeRequest(request)
+	if err != nil {
 		return err
 	}
 	p.mu.Lock()
@@ -111,7 +114,8 @@ func (p *PolicyState) Grant(request Request) error {
 }
 
 func (p *PolicyState) Revoke(request Request) error {
-	if err := validateRequest(request); err != nil {
+	request, err := normalizeRequest(request)
+	if err != nil {
 		return err
 	}
 	p.mu.Lock()
@@ -165,13 +169,8 @@ func (p *PolicyState) snapshotLocked() policyState {
 }
 
 func validateRequest(request Request) error {
-	if err := request.Subject.Validate(); err != nil {
-		return err
-	}
-	if request.Action != ActionSubscribe && request.Action != ActionInvoke {
-		return errors.New("policy action is invalid")
-	}
-	return request.Resource.Validate()
+	_, err := normalizeRequest(request)
+	return err
 }
 
 func cloneGrants(source map[Request]struct{}) map[Request]struct{} {

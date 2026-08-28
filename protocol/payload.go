@@ -14,6 +14,7 @@ import (
 
 const (
 	SchemaVersionV1        = 1
+	SchemaVersionV2        = 2
 	MaxIdentifierBytes     = 128
 	MaxLabelBytes          = 255
 	MaxPathBytes           = 1024

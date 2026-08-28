@@ -29,7 +29,7 @@ func TestDurableVariableSubscriptionRecoversAfterParentRestart(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		variable, _ := resource.NewVariable(resource.Descriptor{ID: resourceID, Kind: resource.KindVariable, MaxValueBytes: 64}, []byte(value))
+		variable, _ := resource.NewVariable(resource.VariableDescriptor(resourceID, "application/octet-stream", "test.raw.v1", "test.read", 64), []byte(value))
 		if err := parent.Registry().Register(variable); err != nil {
 			t.Fatal(err)
 		}
@@ -58,7 +58,7 @@ func TestDurableVariableSubscriptionRecoversAfterParentRestart(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("durable subscription did not become ready")
 	}
-	if event := receiveDurable(t, durable); event.Kind != EventVariableSnapshot || string(event.Value) != "one" {
+	if event := receiveDurable(t, durable); event.Kind != EventSnapshot || string(event.Value) != "one" {
 		t.Fatalf("unexpected first snapshot: %+v", event)
 	}
 	if err := parent.Close(); err != nil {
@@ -66,7 +66,7 @@ func TestDurableVariableSubscriptionRecoversAfterParentRestart(t *testing.T) {
 	}
 	parent = startParent("two")
 	defer parent.Close()
-	if event := receiveDurable(t, durable); event.Kind != EventVariableSnapshot || string(event.Value) != "two" {
+	if event := receiveDurable(t, durable); event.Kind != EventSnapshot || string(event.Value) != "two" {
 		t.Fatalf("unexpected recovered snapshot: %+v", event)
 	}
 }

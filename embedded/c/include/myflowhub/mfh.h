@@ -9,8 +9,8 @@
 extern "C" {
 #endif
 
-#define MFH_VERSION 1u
-#define MFH_HEADER_SIZE 96u
+#define MFH_VERSION 2u
+#define MFH_HEADER_SIZE 98u
 #define MFH_MESSAGE_ID_SIZE 16u
 #define MFH_PUBLIC_KEY_SIZE 32u
 #define MFH_PRIVATE_KEY_SIZE 64u
@@ -19,10 +19,11 @@ extern "C" {
 #define MFH_MAX_RESOURCE_NAME 255u
 #define MFH_MAX_CONTENT_TYPE 127u
 #define MFH_MAX_SCHEMA 255u
+#define MFH_MAX_CAPABILITY 128u
 #ifndef MFH_MAX_PAYLOAD
 #define MFH_MAX_PAYLOAD 8192u
 #endif
-#define MFH_MAX_FRAME (MFH_HEADER_SIZE + MFH_MAX_CONTENT_TYPE + MFH_MAX_SCHEMA + MFH_MAX_RESOURCE_NAME + MFH_MAX_PAYLOAD)
+#define MFH_MAX_FRAME (MFH_HEADER_SIZE + MFH_MAX_CONTENT_TYPE + MFH_MAX_SCHEMA + MFH_MAX_CAPABILITY + MFH_MAX_RESOURCE_NAME + MFH_MAX_PAYLOAD)
 
 typedef enum {
     MFH_OK = 0,
@@ -56,14 +57,16 @@ typedef enum {
     MFH_OP_SUBSCRIBE = 5,
     MFH_OP_UNSUBSCRIBE = 6,
     MFH_OP_SUBSCRIBE_ACK = 7,
-    MFH_OP_VARIABLE_SNAPSHOT = 8,
-    MFH_OP_VARIABLE_UPDATE = 9,
-    MFH_OP_STREAM_EVENT = 10,
-    MFH_OP_STREAM_GAP = 11,
-    MFH_OP_COMMAND_CALL = 12,
-    MFH_OP_COMMAND_RESULT = 13,
-    MFH_OP_ERROR = 14,
-    MFH_OP_HEARTBEAT = 15
+    MFH_OP_RESOURCE_EVENT = 8,
+    MFH_OP_RESOURCE_GAP = 9,
+    MFH_OP_OPERATE = 10,
+    MFH_OP_OPERATE_RESULT = 11,
+    MFH_OP_SESSION_OPEN = 12,
+    MFH_OP_SESSION_OPEN_RESULT = 13,
+    MFH_OP_SESSION_DATA = 14,
+    MFH_OP_SESSION_CLOSE = 15,
+    MFH_OP_ERROR = 16,
+    MFH_OP_HEARTBEAT = 17
 } mfh_operation_t;
 
 typedef struct {
@@ -85,6 +88,7 @@ typedef struct {
     int64_t deadline_unix_ms;
     mfh_slice_t content_type;
     mfh_slice_t schema;
+    mfh_slice_t capability;
     mfh_slice_t resource_name;
     mfh_slice_t payload;
 } mfh_envelope_t;
@@ -131,9 +135,9 @@ int mfh_client_init(mfh_client_t *client, const mfh_identity_t *identity, uint64
                     void *crypto_context, mfh_random_fn random_fn, mfh_sign_fn sign_fn, mfh_verify_ack_fn verify_ack_fn);
 int mfh_client_build_join(mfh_client_t *client, const char *permit_json, uint8_t *payload, size_t capacity, size_t *written);
 int mfh_client_join(mfh_client_t *client, const char *permit_json, uint8_t *frame_buffer, size_t frame_capacity);
-int mfh_client_subscribe(mfh_client_t *client, uint64_t owner, const char *name, int64_t lease_ms, int queue, uint8_t message_id[MFH_MESSAGE_ID_SIZE], uint8_t *frame_buffer, size_t frame_capacity);
-int mfh_client_unsubscribe(mfh_client_t *client, uint64_t owner, const char *name, const uint8_t subscription_id[MFH_MESSAGE_ID_SIZE], uint8_t *frame_buffer, size_t frame_capacity);
-int mfh_client_invoke(mfh_client_t *client, uint64_t owner, const char *name, const char *schema, const uint8_t *json, size_t json_len, int64_t deadline_unix_ms, uint8_t message_id[MFH_MESSAGE_ID_SIZE], uint8_t *frame_buffer, size_t frame_capacity);
+int mfh_client_subscribe(mfh_client_t *client, uint64_t owner, const char *name, const char *capability, int64_t lease_ms, int queue, uint8_t message_id[MFH_MESSAGE_ID_SIZE], uint8_t *frame_buffer, size_t frame_capacity);
+int mfh_client_unsubscribe(mfh_client_t *client, uint64_t owner, const char *name, const char *capability, const uint8_t subscription_id[MFH_MESSAGE_ID_SIZE], uint8_t *frame_buffer, size_t frame_capacity);
+int mfh_client_operate(mfh_client_t *client, uint64_t owner, const char *name, const char *capability, const char *schema, const uint8_t *json, size_t json_len, int64_t deadline_unix_ms, uint8_t message_id[MFH_MESSAGE_ID_SIZE], uint8_t *frame_buffer, size_t frame_capacity);
 int mfh_client_receive(mfh_client_t *client, mfh_envelope_t *envelope, uint8_t *frame_buffer, size_t frame_capacity);
 
 #ifdef __cplusplus

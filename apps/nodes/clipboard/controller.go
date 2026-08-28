@@ -345,10 +345,10 @@ func (c *Controller) Close() error {
 func (c *Controller) registerResources() error {
 	owner := c.node.ID()
 	var err error
-	c.events, err = resource.NewStream(resource.Descriptor{
-		ID: protocol.ResourceID{Owner: owner, Name: ResourceEvents}, Kind: resource.KindStream,
-		ContentType: "application/json", Schema: SchemaTextEventV1, Permission: "clipboard.events.read", MaxValueBytes: protocol.DefaultMaxPayload,
-	})
+	c.events, err = resource.NewStream(resource.StreamDescriptor(
+		protocol.ResourceID{Owner: owner, Name: ResourceEvents}, "application/json", SchemaTextEventV1,
+		"clipboard.events.read", protocol.DefaultMaxPayload,
+	))
 	if err != nil {
 		return err
 	}
@@ -359,10 +359,10 @@ func (c *Controller) registerResources() error {
 	if err != nil {
 		return err
 	}
-	c.statusVariable, err = resource.NewVariable(resource.Descriptor{
-		ID: protocol.ResourceID{Owner: owner, Name: ResourceStatus}, Kind: resource.KindVariable,
-		ContentType: "application/json", Schema: SchemaStatusV1, Permission: "clipboard.status.read", MaxValueBytes: protocol.DefaultMaxPayload,
-	}, statusPayload)
+	c.statusVariable, err = resource.NewVariable(resource.VariableDescriptor(
+		protocol.ResourceID{Owner: owner, Name: ResourceStatus}, "application/json", SchemaStatusV1,
+		"clipboard.status.read", protocol.DefaultMaxPayload,
+	), statusPayload)
 	if err != nil {
 		return err
 	}
@@ -373,10 +373,10 @@ func (c *Controller) registerResources() error {
 	if err != nil {
 		return err
 	}
-	c.configVariable, err = resource.NewVariable(resource.Descriptor{
-		ID: protocol.ResourceID{Owner: owner, Name: ResourceConfig}, Kind: resource.KindVariable,
-		ContentType: "application/json", Schema: SchemaConfigV1, Permission: "clipboard.config.read", MaxValueBytes: protocol.DefaultMaxPayload,
-	}, configPayload)
+	c.configVariable, err = resource.NewVariable(resource.VariableDescriptor(
+		protocol.ResourceID{Owner: owner, Name: ResourceConfig}, "application/json", SchemaConfigV1,
+		"clipboard.config.read", protocol.DefaultMaxPayload,
+	), configPayload)
 	if err != nil {
 		return err
 	}
@@ -384,21 +384,20 @@ func (c *Controller) registerResources() error {
 		return err
 	}
 	commands := []struct {
-		name       string
-		schema     string
-		permission string
-		handler    resource.CommandHandler
+		name, inputSchema, outputSchema string
+		permission                      string
+		handler                         resource.CommandHandler
 	}{
-		{ResourceConfigUpdate, SchemaConfigUpdateV1, "clipboard.config.write", c.updateConfig},
-		{CommandSend, SchemaSendV1, "clipboard.send", c.sendCommand},
-		{CommandApply, SchemaApplyV1, "clipboard.apply", c.applyCommand},
-		{CommandHistoryClear, SchemaClearV1, "clipboard.history.clear", c.clearCommand},
+		{ResourceConfigUpdate, SchemaConfigUpdateV1, SchemaConfigV1, "clipboard.config.write", c.updateConfig},
+		{CommandSend, SchemaSendV1, SchemaDecisionV1, "clipboard.send", c.sendCommand},
+		{CommandApply, SchemaApplyV1, SchemaDecisionV1, "clipboard.apply", c.applyCommand},
+		{CommandHistoryClear, SchemaClearV1, SchemaClearResultV1, "clipboard.history.clear", c.clearCommand},
 	}
 	for _, definition := range commands {
-		command, err := resource.NewCommand(resource.Descriptor{
-			ID: protocol.ResourceID{Owner: owner, Name: definition.name}, Kind: resource.KindCommand,
-			ContentType: "application/json", Schema: definition.schema, Permission: definition.permission, MaxValueBytes: protocol.DefaultMaxPayload,
-		}, definition.handler)
+		command, err := resource.NewCommand(resource.CommandDescriptorSchemas(
+			protocol.ResourceID{Owner: owner, Name: definition.name}, "application/json", definition.inputSchema, definition.outputSchema,
+			definition.permission, protocol.DefaultMaxPayload,
+		), definition.handler)
 		if err != nil {
 			return err
 		}

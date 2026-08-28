@@ -7,7 +7,7 @@ import (
 	"github.com/yttydcs/myflowhub/protocol"
 )
 
-const APIVersion = "mfh.bindings.v1"
+const APIVersion = "mfh.bindings.v2"
 
 type Manifest struct {
 	Version        int        `json:"version"`
@@ -18,28 +18,34 @@ type Manifest struct {
 }
 
 type Resource struct {
-	Name           string `json:"name"`
-	Kind           string `json:"kind"`
-	SnapshotSchema string `json:"snapshot_schema,omitempty"`
-	EventSchema    string `json:"event_schema,omitempty"`
-	RequestSchema  string `json:"request_schema,omitempty"`
-	ResponseSchema string `json:"response_schema,omitempty"`
+	Name         string       `json:"name"`
+	Type         string       `json:"type"`
+	Capabilities []Capability `json:"capabilities"`
+}
+
+type Capability struct {
+	Name         string `json:"name"`
+	InputSchema  string `json:"input_schema,omitempty"`
+	OutputSchema string `json:"output_schema,omitempty"`
+	EventSchema  string `json:"event_schema,omitempty"`
 }
 
 func Canonical() (Manifest, error) {
 	manifest := Manifest{
-		Version: 1,
+		Version: 2,
 		API:     APIVersion,
 		Methods: []string{
-			"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "SnapshotJSON",
-			"StartTCP", "StatusJSON", "Subscribe", "TrustParent", "WaitConnected",
+			"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "OperateJSON",
+			"SnapshotJSON", "StartRFCOMM", "StartTCP", "StatusJSON", "Subscribe", "SubscribeCapability",
+			"TrustParent", "UploadFile", "WaitConnected",
 		},
 		DesktopMethods: []string{
-			"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "Open", "PollSubscription",
-			"SnapshotJSON", "StartTCP", "StatusJSON", "Subscribe", "TrustParent", "WaitConnected",
+			"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "Open", "OperateJSON",
+			"PollSubscription", "SnapshotJSON", "StartTCP", "StatusJSON", "Subscribe", "SubscribeCapability",
+			"TrustParent", "UploadFile", "WaitConnected",
 		},
 		Resources: []Resource{
-			variable(protocol.BuiltinResourceCatalog, protocol.SchemaResourceCatalogV1),
+			variable(protocol.BuiltinResourceCatalog, protocol.SchemaResourceCatalogV2),
 			variable(protocol.BuiltinManagementTopology, protocol.SchemaManagementTopologyV1),
 			variable(protocol.BuiltinManagementHealth, protocol.SchemaManagementHealthV1),
 			variable(protocol.BuiltinManagementConfig, protocol.SchemaManagementConfigV1),
@@ -54,10 +60,7 @@ func Canonical() (Manifest, error) {
 			command(protocol.BuiltinNotificationPublish, protocol.SchemaNotificationPublishV1, protocol.SchemaNotificationEventV1),
 			variable(protocol.BuiltinFileTransfers, protocol.SchemaFileTransfersV1),
 			stream(protocol.BuiltinFileProgress, protocol.SchemaFileProgressV1),
-			command(protocol.BuiltinFileOffer, protocol.SchemaFileOfferV1, protocol.SchemaFileProgressV1),
-			command(protocol.BuiltinFileChunk, protocol.SchemaFileChunkV1, protocol.SchemaFileProgressV1),
-			command(protocol.BuiltinFileComplete, protocol.SchemaFileCompleteV1, protocol.SchemaFileProgressV1),
-			command(protocol.BuiltinFileCancel, protocol.SchemaFileCancelV1, protocol.SchemaFileProgressV1),
+			session(protocol.BuiltinFileUpload, protocol.SchemaFileOfferV1, protocol.SchemaFileProgressV1),
 			variable(protocol.BuiltinFlowDefinitions, protocol.SchemaFlowDefinitionsV1),
 			variable(protocol.BuiltinFlowRuns, protocol.SchemaFlowRunsV1),
 			stream(protocol.BuiltinFlowEvents, protocol.SchemaFlowEventV1),
@@ -71,11 +74,13 @@ func Canonical() (Manifest, error) {
 	sort.Strings(manifest.Methods)
 	sort.Strings(manifest.DesktopMethods)
 	sort.Slice(manifest.Resources, func(i, j int) bool { return manifest.Resources[i].Name < manifest.Resources[j].Name })
-	for index, resource := range manifest.Resources {
-		if resource.Name == "" || resource.Kind == "" {
-			return Manifest{}, errors.New("binding contract contains an empty resource")
+	for index := range manifest.Resources {
+		current := &manifest.Resources[index]
+		sort.Slice(current.Capabilities, func(i, j int) bool { return current.Capabilities[i].Name < current.Capabilities[j].Name })
+		if current.Name == "" || current.Type == "" || len(current.Capabilities) == 0 {
+			return Manifest{}, errors.New("binding contract contains an incomplete resource descriptor")
 		}
-		if index > 0 && manifest.Resources[index-1].Name == resource.Name {
+		if index > 0 && manifest.Resources[index-1].Name == current.Name {
 			return Manifest{}, errors.New("binding contract contains a duplicate resource")
 		}
 	}
@@ -83,13 +88,24 @@ func Canonical() (Manifest, error) {
 }
 
 func variable(name, schema string) Resource {
-	return Resource{Name: name, Kind: "variable", SnapshotSchema: schema}
+	return Resource{Name: name, Type: string(protocol.ResourceTypeVariable), Capabilities: []Capability{
+		{Name: string(protocol.CapabilityRead), OutputSchema: schema},
+		{Name: string(protocol.CapabilitySubscribe), EventSchema: schema},
+	}}
 }
 
 func stream(name, schema string) Resource {
-	return Resource{Name: name, Kind: "stream", EventSchema: schema}
+	return Resource{Name: name, Type: string(protocol.ResourceTypeStream), Capabilities: []Capability{{Name: string(protocol.CapabilitySubscribe), EventSchema: schema}}}
 }
 
 func command(name, request, response string) Resource {
-	return Resource{Name: name, Kind: "command", RequestSchema: request, ResponseSchema: response}
+	return Resource{Name: name, Type: string(protocol.ResourceTypeCommand), Capabilities: []Capability{{
+		Name: string(protocol.CapabilityInvoke), InputSchema: request, OutputSchema: response,
+	}}}
+}
+
+func session(name, request, response string) Resource {
+	return Resource{Name: name, Type: string(protocol.ResourceTypeFile), Capabilities: []Capability{{
+		Name: string(protocol.CapabilityOpen), InputSchema: request, OutputSchema: response,
+	}}}
 }

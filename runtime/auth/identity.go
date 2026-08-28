@@ -147,11 +147,11 @@ func VerifyJoinClaim(claim JoinClaim) error {
 }
 
 func joinMessage(nodeID protocol.NodeID, nonce [32]byte, topologyEpoch uint64) []byte {
-	message := make([]byte, len("MFH3-JOIN")+8+len(nonce)+8)
-	copy(message, "MFH3-JOIN")
-	binary.BigEndian.PutUint64(message[len("MFH3-JOIN"):], uint64(nodeID))
-	copy(message[len("MFH3-JOIN")+8:], nonce[:])
-	binary.BigEndian.PutUint64(message[len("MFH3-JOIN")+8+len(nonce):], topologyEpoch)
+	message := make([]byte, len("MFH4-JOIN")+8+len(nonce)+8)
+	copy(message, "MFH4-JOIN")
+	binary.BigEndian.PutUint64(message[len("MFH4-JOIN"):], uint64(nodeID))
+	copy(message[len("MFH4-JOIN")+8:], nonce[:])
+	binary.BigEndian.PutUint64(message[len("MFH4-JOIN")+8+len(nonce):], topologyEpoch)
 	return message
 }
 
@@ -193,8 +193,8 @@ func (s *TrustStore) VerifyJoinAck(ack JoinAck, expectedParent, expectedChild pr
 }
 
 func ackMessage(ack JoinAck) []byte {
-	message := make([]byte, len("MFH3-ACK")+8+8+32+8)
-	offset := copy(message, "MFH3-ACK")
+	message := make([]byte, len("MFH4-ACK")+8+8+32+8)
+	offset := copy(message, "MFH4-ACK")
 	binary.BigEndian.PutUint64(message[offset:offset+8], uint64(ack.NodeID))
 	offset += 8
 	binary.BigEndian.PutUint64(message[offset:offset+8], uint64(ack.ChildID))

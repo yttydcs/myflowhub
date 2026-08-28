@@ -65,6 +65,7 @@ type Controller struct {
 	revision      uint64
 	summaries     *resource.Variable
 	progress      *resource.Stream
+	upload        *uploadResource
 }
 
 func Register(config Config) (*Controller, error) {
@@ -117,31 +118,19 @@ func Register(config Config) (*Controller, error) {
 		transfers: make(map[string]*transfer), revision: 1,
 	}
 	initial, _ := protocol.EncodeJSONPayload(&protocol.FileTransfersV1{Version: 1, Revision: 1, Transfers: []protocol.FileTransferSummaryV1{}}, protocol.DefaultMaxPayload)
-	value.summaries, err = resource.NewVariable(resource.Descriptor{ID: protocol.ResourceID{Owner: config.Node.ID(), Name: protocol.BuiltinFileTransfers}, Kind: resource.KindVariable, ContentType: "application/json", Schema: protocol.SchemaFileTransfersV1, Permission: "file.read", MaxValueBytes: protocol.DefaultMaxPayload}, initial)
+	value.summaries, err = resource.NewVariable(resource.VariableDescriptor(protocol.ResourceID{Owner: config.Node.ID(), Name: protocol.BuiltinFileTransfers}, "application/json", protocol.SchemaFileTransfersV1, "file.read", protocol.DefaultMaxPayload), initial)
 	if err != nil {
 		return nil, err
 	}
-	value.progress, err = resource.NewStream(resource.Descriptor{ID: protocol.ResourceID{Owner: config.Node.ID(), Name: protocol.BuiltinFileProgress}, Kind: resource.KindStream, ContentType: "application/json", Schema: protocol.SchemaFileProgressV1, Permission: "file.read", MaxValueBytes: protocol.DefaultMaxPayload})
+	value.progress, err = resource.NewStream(resource.StreamDescriptor(protocol.ResourceID{Owner: config.Node.ID(), Name: protocol.BuiltinFileProgress}, "application/json", protocol.SchemaFileProgressV1, "file.read", protocol.DefaultMaxPayload))
 	if err != nil {
 		return nil, err
 	}
-	commands := []struct {
-		name, schema, permission string
-		handler                  resource.CommandHandler
-	}{
-		{protocol.BuiltinFileOffer, protocol.SchemaFileOfferV1, "file.write", value.offer},
-		{protocol.BuiltinFileChunk, protocol.SchemaFileChunkV1, "file.write", value.chunk},
-		{protocol.BuiltinFileComplete, protocol.SchemaFileCompleteV1, "file.write", value.complete},
-		{protocol.BuiltinFileCancel, protocol.SchemaFileCancelV1, "file.write", value.cancel},
+	value.upload, err = newUploadResource(value)
+	if err != nil {
+		return nil, err
 	}
-	resources := []resource.Resource{value.summaries, value.progress}
-	for _, definition := range commands {
-		current, err := resource.NewCommand(resource.Descriptor{ID: protocol.ResourceID{Owner: config.Node.ID(), Name: definition.name}, Kind: resource.KindCommand, ContentType: "application/json", Schema: definition.schema, Permission: definition.permission, MaxValueBytes: protocol.DefaultMaxPayload}, definition.handler)
-		if err != nil {
-			return nil, err
-		}
-		resources = append(resources, current)
-	}
+	resources := []resource.Resource{value.summaries, value.progress, value.upload}
 	registered := make([]protocol.ResourceID, 0, len(resources))
 	for _, current := range resources {
 		if err := config.Node.Registry().Register(current); err != nil {
@@ -217,6 +206,13 @@ func (c *Controller) offer(ctx context.Context, input []byte) ([]byte, error) {
 	if err := protocol.DecodeJSONPayload(input, protocol.DefaultMaxPayload, &request); err != nil {
 		return nil, err
 	}
+	return c.offerFor(owner, request)
+}
+
+func (c *Controller) offerFor(owner protocol.NodeID, request protocol.FileOfferV1) ([]byte, error) {
+	if err := request.Validate(); err != nil {
+		return nil, err
+	}
 	now := c.now().UTC()
 	if request.Size > c.maxFileBytes || request.ExpiresAtUnixMS <= now.UnixMilli() || request.ExpiresAtUnixMS > now.Add(c.maxLifetime).UnixMilli() {
 		return nil, errors.New("file offer exceeds size or lifetime limits")
@@ -265,6 +261,13 @@ func (c *Controller) chunk(ctx context.Context, input []byte) ([]byte, error) {
 	if err := protocol.DecodeJSONPayload(input, protocol.DefaultMaxPayload, &request); err != nil {
 		return nil, err
 	}
+	return c.chunkFor(owner, request)
+}
+
+func (c *Controller) chunkFor(owner protocol.NodeID, request protocol.FileChunkV1) ([]byte, error) {
+	if err := request.Validate(); err != nil {
+		return nil, err
+	}
 	digest := sha256.Sum256(request.Data)
 	if hex.EncodeToString(digest[:]) != request.SHA256 {
 		return nil, errors.New("file chunk checksum mismatch")
@@ -311,6 +314,13 @@ func (c *Controller) complete(ctx context.Context, input []byte) ([]byte, error)
 	}
 	var request protocol.FileCompleteV1
 	if err := protocol.DecodeJSONPayload(input, protocol.DefaultMaxPayload, &request); err != nil {
+		return nil, err
+	}
+	return c.completeFor(owner, request)
+}
+
+func (c *Controller) completeFor(owner protocol.NodeID, request protocol.FileCompleteV1) ([]byte, error) {
+	if err := request.Validate(); err != nil {
 		return nil, err
 	}
 	c.mu.Lock()
@@ -374,6 +384,13 @@ func (c *Controller) cancel(ctx context.Context, input []byte) ([]byte, error) {
 	if err := protocol.DecodeJSONPayload(input, protocol.DefaultMaxPayload, &request); err != nil {
 		return nil, err
 	}
+	return c.cancelFor(owner, request)
+}
+
+func (c *Controller) cancelFor(owner protocol.NodeID, request protocol.FileCancelV1) ([]byte, error) {
+	if err := request.Validate(); err != nil {
+		return nil, err
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	current := c.transfers[request.TransferID]
@@ -398,6 +415,19 @@ func (c *Controller) cancel(ctx context.Context, input []byte) ([]byte, error) {
 		return nil, err
 	}
 	return c.progressPayloadLocked(current)
+}
+
+func (c *Controller) abortFor(owner protocol.NodeID, transferID string, reason error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	current := c.transfers[transferID]
+	if current == nil || current.owner != owner || (current.state != "offered" && current.state != "receiving") {
+		return
+	}
+	if reason == nil {
+		reason = errors.New("upload session aborted")
+	}
+	c.failLocked(current, reason)
 }
 
 func (c *Controller) activeOwnedLocked(id string, owner protocol.NodeID) (*transfer, error) {

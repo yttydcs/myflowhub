@@ -3,9 +3,30 @@ package bindings
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
+	"github.com/yttydcs/myflowhub/protocol"
 	sdk "github.com/yttydcs/myflowhub/sdk/go"
 )
+
+type bindingCatalog struct {
+	Version   int                         `json:"version"`
+	Revision  uint64                      `json:"revision"`
+	Resources []bindingResourceDescriptor `json:"resources"`
+}
+
+type bindingResourceDescriptor struct {
+	ID struct {
+		OwnerNodeID string `json:"owner_node_id"`
+		Name        string `json:"name"`
+	} `json:"id"`
+	Type         protocol.ResourceTypeID           `json:"type"`
+	TypeVersion  uint32                            `json:"type_version"`
+	Capabilities []protocol.CapabilityDescriptorV2 `json:"capabilities"`
+	Schemas      []protocol.SchemaDescriptorV2     `json:"schemas,omitempty"`
+	Limits       protocol.ResourceLimitsV2         `json:"limits"`
+	Presentation protocol.PresentationHintV2       `json:"presentation,omitempty"`
+}
 
 type bindingConnection struct {
 	State          string `json:"state"`
@@ -19,15 +40,19 @@ type bindingConnection struct {
 }
 
 type bindingEvent struct {
-	Kind         string `json:"kind"`
-	OwnerNodeID  string `json:"owner_node_id"`
-	ResourceName string `json:"resource_name"`
-	Revision     uint64 `json:"revision,omitempty"`
-	Sequence     uint64 `json:"sequence,omitempty"`
-	GapFrom      uint64 `json:"gap_from,omitempty"`
-	GapTo        uint64 `json:"gap_to,omitempty"`
-	Value        []byte `json:"value,omitempty"`
-	Reason       string `json:"reason,omitempty"`
+	Kind              string `json:"kind"`
+	OwnerNodeID       string `json:"owner_node_id"`
+	ResourceName      string `json:"resource_name"`
+	Capability        string `json:"capability"`
+	Schema            string `json:"schema,omitempty"`
+	Revision          uint64 `json:"revision,omitempty"`
+	Sequence          uint64 `json:"sequence,omitempty"`
+	PublisherNodeID   string `json:"publisher_node_id,omitempty"`
+	PublisherSequence uint64 `json:"publisher_sequence,omitempty"`
+	GapFrom           uint64 `json:"gap_from,omitempty"`
+	GapTo             uint64 `json:"gap_to,omitempty"`
+	Value             []byte `json:"value,omitempty"`
+	Reason            string `json:"reason,omitempty"`
 }
 
 type bindingError struct {
@@ -50,6 +75,21 @@ func connectionJSON(value sdk.ConnectionSnapshot) bindingConnection {
 		State: string(value.State), ParentNodeID: parent, Endpoint: value.Endpoint, Attempt: value.Attempt,
 		LinkGeneration: value.LinkGeneration, LastError: value.LastError, NextRetryUnix: nextRetry, Generation: value.Generation,
 	}
+}
+
+func catalogJSON(value protocol.ResourceCatalogV2) bindingCatalog {
+	result := bindingCatalog{Version: value.Version, Revision: value.Revision, Resources: make([]bindingResourceDescriptor, len(value.Resources))}
+	for index, descriptor := range value.Resources {
+		converted := bindingResourceDescriptor{
+			Type: descriptor.Type, TypeVersion: descriptor.TypeVersion,
+			Capabilities: append([]protocol.CapabilityDescriptorV2(nil), descriptor.Capabilities...),
+			Schemas: append([]protocol.SchemaDescriptorV2(nil), descriptor.Schemas...), Limits: descriptor.Limits, Presentation: descriptor.Presentation,
+		}
+		converted.ID.OwnerNodeID = strconv.FormatUint(uint64(descriptor.ID.Owner), 10)
+		converted.ID.Name = descriptor.ID.Name
+		result.Resources[index] = converted
+	}
+	return result
 }
 
 func bindingErrorJSON(err error) string {

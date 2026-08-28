@@ -33,9 +33,12 @@ func TestCrossLanguageGoldenPayloads(t *testing.T) {
 			fresh: func() protocol.ValidatedPayload { return &protocol.ProvisioningPermitV1{} },
 		},
 		{
-			name:  "resource-catalog-v1.json",
-			value: &protocol.ResourceCatalogV1{Version: 1, Revision: 3, Resources: []protocol.ResourceDescriptorV1{{Name: "metrics/cpu", Kind: protocol.ResourceKindVariable, ContentType: "application/json", Schema: "mfh.metrics.cpu.v1", Permission: "metrics.read", MaxValueBytes: 4096}, {Name: protocol.BuiltinResourceCatalog, Kind: protocol.ResourceKindVariable, ContentType: "application/json", Schema: protocol.SchemaResourceCatalogV1, Permission: "resource.catalog.read", MaxValueBytes: protocol.DefaultMaxPayload}}},
-			fresh: func() protocol.ValidatedPayload { return &protocol.ResourceCatalogV1{} },
+			name: "resource-catalog-v2.json",
+			value: &protocol.ResourceCatalogV2{Version: 2, Revision: 3, Resources: []protocol.ResourceDescriptorV2{
+				{ID: protocol.ResourceID{Owner: 1, Name: "metrics/cpu"}, Type: protocol.ResourceTypeVariable, TypeVersion: 1, Capabilities: []protocol.CapabilityDescriptorV2{{Name: protocol.CapabilityRead, Permission: "metrics.read", OutputSchema: "mfh.metrics.cpu.v1", MaxPayloadBytes: 4096}, {Name: protocol.CapabilitySubscribe, Permission: "metrics.read", EventSchema: "mfh.metrics.cpu.v1", MaxPayloadBytes: 4096}}, Schemas: []protocol.SchemaDescriptorV2{{ID: "mfh.metrics.cpu.v1", ContentType: "application/json"}}, Limits: protocol.ResourceLimitsV2{MaxPayloadBytes: 4096}},
+				{ID: protocol.ResourceID{Owner: 1, Name: protocol.BuiltinResourceCatalog}, Type: protocol.ResourceTypeVariable, TypeVersion: 1, Capabilities: []protocol.CapabilityDescriptorV2{{Name: protocol.CapabilityRead, Permission: "resource.catalog.read", OutputSchema: protocol.SchemaResourceCatalogV2, MaxPayloadBytes: protocol.DefaultMaxPayload}, {Name: protocol.CapabilitySubscribe, Permission: "resource.catalog.read", EventSchema: protocol.SchemaResourceCatalogV2, MaxPayloadBytes: protocol.DefaultMaxPayload}}, Schemas: []protocol.SchemaDescriptorV2{{ID: protocol.SchemaResourceCatalogV2, ContentType: "application/json"}}, Limits: protocol.ResourceLimitsV2{MaxPayloadBytes: protocol.DefaultMaxPayload}},
+			}},
+			fresh: func() protocol.ValidatedPayload { return &protocol.ResourceCatalogV2{} },
 		},
 		{
 			name:  "management-health-v1.json",
@@ -85,7 +88,7 @@ func TestCrossLanguageGoldenPayloads(t *testing.T) {
 }
 
 func TestSchemaValidationRejectsUnsafeInputs(t *testing.T) {
-	badCatalog := &protocol.ResourceCatalogV1{Version: 2, Revision: 1}
+	badCatalog := &protocol.ResourceCatalogV2{Version: 1, Revision: 1}
 	if err := badCatalog.Validate(); err == nil {
 		t.Fatal("unknown schema version accepted")
 	}
@@ -101,7 +104,7 @@ func TestSchemaValidationRejectsUnsafeInputs(t *testing.T) {
 	if err := cycle.Validate(); err == nil {
 		t.Fatal("flow cycle accepted")
 	}
-	badPolicy := &protocol.ManagementPolicyRuleV1{Version: 1, Subject: "2", Action: "admin", ResourceNode: "1", ResourceName: "system/health"}
+	badPolicy := &protocol.ManagementPolicyRuleV1{Version: 1, Subject: "2", Action: "bad/action", ResourceNode: "1", ResourceName: "system/health"}
 	if err := badPolicy.Validate(); err == nil {
 		t.Fatal("unknown policy action accepted")
 	}
@@ -113,12 +116,12 @@ func TestSchemaValidationRejectsUnsafeInputs(t *testing.T) {
 }
 
 func FuzzCatalogSchema(f *testing.F) {
-	f.Add([]byte(`{"version":1,"revision":1,"resources":[]}`))
+	f.Add([]byte(`{"version":2,"revision":1,"resources":[]}`))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) > protocol.DefaultMaxPayload {
 			t.Skip()
 		}
-		var value protocol.ResourceCatalogV1
+		var value protocol.ResourceCatalogV2
 		_ = protocol.DecodeJSONPayload(data, protocol.DefaultMaxPayload, &value)
 	})
 }

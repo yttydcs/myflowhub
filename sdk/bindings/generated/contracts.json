@@ -1,17 +1,21 @@
 {
-  "version": 1,
-  "api": "mfh.bindings.v1",
+  "version": 2,
+  "api": "mfh.bindings.v2",
   "methods": [
     "CancelSubscription",
     "CatalogJSON",
     "Close",
     "IdentityJSON",
     "InvokeJSON",
+    "OperateJSON",
     "SnapshotJSON",
+    "StartRFCOMM",
     "StartTCP",
     "StatusJSON",
     "Subscribe",
+    "SubscribeCapability",
     "TrustParent",
+    "UploadFile",
     "WaitConnected"
   ],
   "desktop_methods": [
@@ -21,165 +25,298 @@
     "IdentityJSON",
     "InvokeJSON",
     "Open",
+    "OperateJSON",
     "PollSubscription",
     "SnapshotJSON",
     "StartTCP",
     "StatusJSON",
     "Subscribe",
+    "SubscribeCapability",
     "TrustParent",
+    "UploadFile",
     "WaitConnected"
   ],
   "resources": [
     {
-      "name": "file/cancel",
-      "kind": "command",
-      "request_schema": "mfh.file.cancel.v1",
-      "response_schema": "mfh.file.progress.v1"
-    },
-    {
-      "name": "file/chunk",
-      "kind": "command",
-      "request_schema": "mfh.file.chunk.v1",
-      "response_schema": "mfh.file.progress.v1"
-    },
-    {
-      "name": "file/complete",
-      "kind": "command",
-      "request_schema": "mfh.file.complete.v1",
-      "response_schema": "mfh.file.progress.v1"
-    },
-    {
-      "name": "file/offer",
-      "kind": "command",
-      "request_schema": "mfh.file.offer.v1",
-      "response_schema": "mfh.file.progress.v1"
-    },
-    {
       "name": "file/progress",
-      "kind": "stream",
-      "event_schema": "mfh.file.progress.v1"
+      "type": "mfh.stream",
+      "capabilities": [
+        {
+          "name": "subscribe",
+          "event_schema": "mfh.file.progress.v1"
+        }
+      ]
     },
     {
       "name": "file/transfers",
-      "kind": "variable",
-      "snapshot_schema": "mfh.file.transfers.v1"
+      "type": "mfh.variable",
+      "capabilities": [
+        {
+          "name": "read",
+          "output_schema": "mfh.file.transfers.v1"
+        },
+        {
+          "name": "subscribe",
+          "event_schema": "mfh.file.transfers.v1"
+        }
+      ]
+    },
+    {
+      "name": "file/upload",
+      "type": "mfh.file",
+      "capabilities": [
+        {
+          "name": "open",
+          "input_schema": "mfh.file.offer.v1",
+          "output_schema": "mfh.file.progress.v1"
+        }
+      ]
     },
     {
       "name": "flow/archive",
-      "kind": "command",
-      "request_schema": "mfh.flow.archive.v1",
-      "response_schema": "mfh.flow.archive.v1"
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.flow.archive.v1",
+          "output_schema": "mfh.flow.archive.v1"
+        }
+      ]
     },
     {
       "name": "flow/cancel",
-      "kind": "command",
-      "request_schema": "mfh.flow.cancel.v1",
-      "response_schema": "mfh.flow.run-summary.v1"
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.flow.cancel.v1",
+          "output_schema": "mfh.flow.run-summary.v1"
+        }
+      ]
     },
     {
       "name": "flow/create",
-      "kind": "command",
-      "request_schema": "mfh.flow.definition.v1",
-      "response_schema": "mfh.flow.definition.v1"
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.flow.definition.v1",
+          "output_schema": "mfh.flow.definition.v1"
+        }
+      ]
     },
     {
       "name": "flow/definitions",
-      "kind": "variable",
-      "snapshot_schema": "mfh.flow.definitions.v1"
+      "type": "mfh.variable",
+      "capabilities": [
+        {
+          "name": "read",
+          "output_schema": "mfh.flow.definitions.v1"
+        },
+        {
+          "name": "subscribe",
+          "event_schema": "mfh.flow.definitions.v1"
+        }
+      ]
     },
     {
       "name": "flow/events",
-      "kind": "stream",
-      "event_schema": "mfh.flow.event.v1"
+      "type": "mfh.stream",
+      "capabilities": [
+        {
+          "name": "subscribe",
+          "event_schema": "mfh.flow.event.v1"
+        }
+      ]
     },
     {
       "name": "flow/run",
-      "kind": "command",
-      "request_schema": "mfh.flow.run.v1",
-      "response_schema": "mfh.flow.run-summary.v1"
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.flow.run.v1",
+          "output_schema": "mfh.flow.run-summary.v1"
+        }
+      ]
     },
     {
       "name": "flow/runs",
-      "kind": "variable",
-      "snapshot_schema": "mfh.flow.runs.v1"
+      "type": "mfh.variable",
+      "capabilities": [
+        {
+          "name": "read",
+          "output_schema": "mfh.flow.runs.v1"
+        },
+        {
+          "name": "subscribe",
+          "event_schema": "mfh.flow.runs.v1"
+        }
+      ]
     },
     {
       "name": "flow/update",
-      "kind": "command",
-      "request_schema": "mfh.flow.definition.v1",
-      "response_schema": "mfh.flow.definition.v1"
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.flow.definition.v1",
+          "output_schema": "mfh.flow.definition.v1"
+        }
+      ]
     },
     {
       "name": "notifications/events",
-      "kind": "stream",
-      "event_schema": "mfh.notification.event.v1"
+      "type": "mfh.stream",
+      "capabilities": [
+        {
+          "name": "subscribe",
+          "event_schema": "mfh.notification.event.v1"
+        }
+      ]
     },
     {
       "name": "notifications/publish",
-      "kind": "command",
-      "request_schema": "mfh.notification.publish.v1",
-      "response_schema": "mfh.notification.event.v1"
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.notification.publish.v1",
+          "output_schema": "mfh.notification.event.v1"
+        }
+      ]
     },
     {
       "name": "system/admission/issue",
-      "kind": "command",
-      "request_schema": "mfh.management.issue-permit.v1",
-      "response_schema": "mfh.provisioning.permit.v1"
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.management.issue-permit.v1",
+          "output_schema": "mfh.provisioning.permit.v1"
+        }
+      ]
     },
     {
       "name": "system/admission/revoke",
-      "kind": "command",
-      "request_schema": "mfh.management.revoke-permit.v1",
-      "response_schema": "mfh.management.result.v1"
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.management.revoke-permit.v1",
+          "output_schema": "mfh.management.result.v1"
+        }
+      ]
     },
     {
       "name": "system/audit",
-      "kind": "stream",
-      "event_schema": "mfh.management.audit.v1"
+      "type": "mfh.stream",
+      "capabilities": [
+        {
+          "name": "subscribe",
+          "event_schema": "mfh.management.audit.v1"
+        }
+      ]
     },
     {
       "name": "system/catalog",
-      "kind": "variable",
-      "snapshot_schema": "mfh.catalog.v1"
+      "type": "mfh.variable",
+      "capabilities": [
+        {
+          "name": "read",
+          "output_schema": "mfh.catalog.v2"
+        },
+        {
+          "name": "subscribe",
+          "event_schema": "mfh.catalog.v2"
+        }
+      ]
     },
     {
       "name": "system/config",
-      "kind": "variable",
-      "snapshot_schema": "mfh.management.config.v1"
+      "type": "mfh.variable",
+      "capabilities": [
+        {
+          "name": "read",
+          "output_schema": "mfh.management.config.v1"
+        },
+        {
+          "name": "subscribe",
+          "event_schema": "mfh.management.config.v1"
+        }
+      ]
     },
     {
       "name": "system/config/update",
-      "kind": "command",
-      "request_schema": "mfh.management.config-update.v1",
-      "response_schema": "mfh.management.config.v1"
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.management.config-update.v1",
+          "output_schema": "mfh.management.config.v1"
+        }
+      ]
     },
     {
       "name": "system/health",
-      "kind": "variable",
-      "snapshot_schema": "mfh.management.health.v1"
+      "type": "mfh.variable",
+      "capabilities": [
+        {
+          "name": "read",
+          "output_schema": "mfh.management.health.v1"
+        },
+        {
+          "name": "subscribe",
+          "event_schema": "mfh.management.health.v1"
+        }
+      ]
     },
     {
       "name": "system/node/revoke",
-      "kind": "command",
-      "request_schema": "mfh.management.revoke.v1",
-      "response_schema": "mfh.management.result.v1"
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.management.revoke.v1",
+          "output_schema": "mfh.management.result.v1"
+        }
+      ]
     },
     {
       "name": "system/policy/grant",
-      "kind": "command",
-      "request_schema": "mfh.management.policy-rule.v1",
-      "response_schema": "mfh.management.result.v1"
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.management.policy-rule.v1",
+          "output_schema": "mfh.management.result.v1"
+        }
+      ]
     },
     {
       "name": "system/policy/revoke",
-      "kind": "command",
-      "request_schema": "mfh.management.policy-rule.v1",
-      "response_schema": "mfh.management.result.v1"
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.management.policy-rule.v1",
+          "output_schema": "mfh.management.result.v1"
+        }
+      ]
     },
     {
       "name": "system/topology",
-      "kind": "variable",
-      "snapshot_schema": "mfh.management.topology.v1"
+      "type": "mfh.variable",
+      "capabilities": [
+        {
+          "name": "read",
+          "output_schema": "mfh.management.topology.v1"
+        },
+        {
+          "name": "subscribe",
+          "event_schema": "mfh.management.topology.v1"
+        }
+      ]
     }
   ]
 }

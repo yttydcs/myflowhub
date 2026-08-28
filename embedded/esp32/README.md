@@ -1,6 +1,6 @@
 # MyFlowHub ESP32 leaf demo
 
-This ESP-IDF 6 project consumes `embedded/c` directly and runs the real MFH3 leaf profile over Wi-Fi/TCP. It persists a versioned Ed25519 identity and compiled connection profile in NVS, verifies the parent's signed join acknowledgement, subscribes to `system/health`, and calls `notifications/publish`.
+This ESP-IDF 6 project consumes `embedded/c` directly and runs the real MFH4 v2 leaf profile over Wi-Fi/TCP. It persists a versioned Ed25519 identity and compiled connection profile in NVS, verifies the parent's signed join acknowledgement, subscribes to `system/health`, and calls `notifications/publish`.
 
 Ed25519 is provided by Espressif's pinned `libsodium` component. ESP-IDF 6 uses PSA Crypto broadly, but its current Mbed TLS implementation does not implement the Edwards curve family, so the demo does not pretend that the PSA specification alone provides a working Ed25519 backend.
 

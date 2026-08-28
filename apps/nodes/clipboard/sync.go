@@ -143,7 +143,7 @@ func (s *SyncEngine) consumeSubscription(ctx context.Context, peer protocol.Node
 				return ctx.Err() == nil
 			}
 			switch event.Kind {
-			case sdk.EventStream:
+			case sdk.EventData:
 				var payload TextEventV1
 				if err := protocol.DecodeJSONPayload(event.Value, protocol.DefaultMaxPayload, &payload); err != nil {
 					s.controller.RecordError(fmt.Errorf("decode clipboard peer %d event: %w", peer, err))
@@ -152,7 +152,7 @@ func (s *SyncEngine) consumeSubscription(ctx context.Context, peer protocol.Node
 				if _, err := s.controller.Receive(ctx, peer, payload); err != nil {
 					s.controller.RecordError(fmt.Errorf("receive clipboard peer %d event: %w", peer, redactClipboardError(err, payload.Text)))
 				}
-			case sdk.EventStreamGap:
+			case sdk.EventGap:
 				s.controller.RecordError(fmt.Errorf("clipboard peer %d stream gap: %s", peer, event.Reason))
 			}
 		case err, ok := <-current.Errors:

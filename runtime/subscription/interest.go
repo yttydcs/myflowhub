@@ -14,6 +14,7 @@ type Interest struct {
 	ID               protocol.MessageID
 	Subscriber       protocol.NodeID
 	Resource         protocol.ResourceID
+	Capability       protocol.CapabilityID
 	LinkID           string
 	NextHop          protocol.NodeID
 	LeaseUntil       time.Time
@@ -44,6 +45,9 @@ func (t *InterestTable) Add(interest Interest) (bool, error) {
 		return false, err
 	}
 	if err := interest.Resource.Validate(); err != nil {
+		return false, err
+	}
+	if err := interest.Capability.Validate(); err != nil {
 		return false, err
 	}
 	if interest.LinkID == "" || interest.LeaseUntil.IsZero() || interest.AuthorizedUntil.Before(interest.LeaseUntil) {

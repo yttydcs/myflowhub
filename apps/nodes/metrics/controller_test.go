@@ -36,12 +36,12 @@ func TestControllerPublishesFreshStaleAndTypedCatalog(t *testing.T) {
 		t.Fatal("out-of-range percent was accepted")
 	}
 	catalogPayload := runtime.Registry().Catalog().Snapshot().Value
-	var catalog protocol.ResourceCatalogV1
+	var catalog protocol.ResourceCatalogV2
 	if err := protocol.DecodeJSONPayload(catalogPayload, protocol.DefaultMaxPayload, &catalog); err != nil {
 		t.Fatal(err)
 	}
-	if !catalogContains(catalog, ResourceName(CPUPercent), protocol.ResourceKindVariable, SchemaSampleV1) ||
-		!catalogContains(catalog, CommandName(BrightnessPercent), protocol.ResourceKindCommand, SchemaControlV1) {
+	if !catalogContains(catalog, ResourceName(CPUPercent), protocol.ResourceTypeVariable, SchemaSampleV1) ||
+		!catalogContains(catalog, CommandName(BrightnessPercent), protocol.ResourceTypeCommand, SchemaControlV1) {
 		t.Fatalf("metrics catalog is incomplete: %+v", catalog.Resources)
 	}
 }
@@ -242,10 +242,14 @@ func invokeMetricError(runtime *node.Node, name string, request protocol.Validat
 	return command.Invoke(context.Background(), input)
 }
 
-func catalogContains(catalog protocol.ResourceCatalogV1, name string, kind protocol.ResourceKind, schema string) bool {
+func catalogContains(catalog protocol.ResourceCatalogV2, name string, typeID protocol.ResourceTypeID, schema string) bool {
 	for _, descriptor := range catalog.Resources {
-		if descriptor.Name == name && descriptor.Kind == kind && descriptor.Schema == schema {
-			return true
+		if descriptor.ID.Name == name && descriptor.Type == typeID {
+			for _, current := range descriptor.Schemas {
+				if current.ID == schema {
+					return true
+				}
+			}
 		}
 	}
 	return false

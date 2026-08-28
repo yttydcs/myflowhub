@@ -19,7 +19,7 @@ func TestSessionRejectsApplicationFrameBeforeActivation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	envelope := testEnvelope(protocol.OperationCommandCall, protocol.PhaseRequest)
+	envelope := testEnvelope(protocol.OperationOperate, protocol.PhaseRequest)
 	if err := (protocol.Codec{}).Encode(right, envelope); err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestSessionBoundedDataQueue(t *testing.T) {
 	if err := session.Activate(2, RoleChild, 1); err != nil {
 		t.Fatal(err)
 	}
-	event := testEnvelope(protocol.OperationStreamEvent, protocol.PhaseEvent)
+	event := testEnvelope(protocol.OperationResourceEvent, protocol.PhaseEvent)
 	if err := session.Send(context.Background(), event); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestSessionBoundedDataQueue(t *testing.T) {
 	if err := session.Send(context.Background(), event); !errors.Is(err, ErrQueueFull) {
 		t.Fatalf("expected queue full, got %v", err)
 	}
-	control := testEnvelope(protocol.OperationCommandCall, protocol.PhaseControl)
+	control := testEnvelope(protocol.OperationOperate, protocol.PhaseControl)
 	if err := session.Send(context.Background(), control); err != nil {
 		t.Fatalf("control queue was starved by saturated data: %v", err)
 	}
@@ -103,15 +103,20 @@ func TestSessionParentCancellationClosesPipe(t *testing.T) {
 }
 
 func testEnvelope(operation protocol.Operation, phase protocol.Phase) protocol.Envelope {
-	return protocol.Envelope{
-		Version:   protocol.CurrentVersion,
-		Phase:     phase,
-		Operation: operation,
-		MessageID: protocol.MustMessageID(),
-		Source:    1,
-		Target:    2,
-		Resource:  protocol.ResourceID{Owner: 2, Name: "test"},
+	envelope := protocol.Envelope{
+		Version:    protocol.CurrentVersion,
+		Phase:      phase,
+		Operation:  operation,
+		MessageID:  protocol.MustMessageID(),
+		Source:     1,
+		Target:     2,
+		Resource:   protocol.ResourceID{Owner: 2, Name: "test"},
+		Capability: protocol.CapabilityInvoke,
 	}
+	if operation == protocol.OperationResourceEvent {
+		envelope.CorrelationID = protocol.MustMessageID()
+	}
+	return envelope
 }
 
 type inMemoryPipe struct {

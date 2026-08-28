@@ -2,7 +2,7 @@
 
 ## Product boundary
 
-Embedded is a constrained **leaf/client profile**, not a reduced Hub. C, MicroPython, and ESP32 use the same MFH3 envelope, signed admission, Resource ID, Subscription, Variable/Stream events, and Command contract as Go clients. They do not implement authority, routing, policy storage, or child admission.
+Embedded is a constrained **leaf/client profile**, not a reduced Hub. C, MicroPython, and ESP32 use the same MFH4 v2 envelope, signed admission, Resource ID, Subscription, generic resource events, and operations as Go clients. They do not implement authority, routing, policy storage, or child admission.
 
 ## Implementations
 
@@ -45,7 +45,7 @@ Embedded is a constrained **leaf/client profile**, not a reduced Hub. C, MicroPy
 
 ## Verification
 
-- One complete MFH3 Command frame fixture is shared by Go, C, and MicroPython and compared byte-for-byte.
+- One complete MFH4 v2 operation frame fixture is shared by Go, C, and MicroPython and compared byte-for-byte.
 - Host C tests build with C99 warnings as errors and cover codec, identity, Join, Subscription, Command, invalid/truncated input, and full golden parity.
 - MicroPython tests cover codec limits, persistence mismatch, signed Join, Subscription, Command, reconnect restoration, and unjoined rejection.
 - ESP-IDF build and real ESP32 flash/runtime smoke are environment-dependent gates. On the 2026-08-27 execution host, `idf.py` and a board were unavailable, so source is implemented but those two checks are not reported as passed.

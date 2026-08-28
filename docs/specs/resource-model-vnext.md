@@ -1,5 +1,8 @@
 # Resource Model vNext
 
+> Superseded: 固定 Variable/Stream/Command 类型模型已由
+> [Resource Platform v2](resource-platform-v2.md) 取代。本文仅保留迁移前语义参考。
+
 ## Ownership and addressing
 
 A resource is owned by exactly one node and addressed by `(NodeID, local name)`. Resource names are relative UTF-8 paths with non-empty segments. They do not form another authority or routing tree.

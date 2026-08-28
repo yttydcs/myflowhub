@@ -45,7 +45,7 @@ func newFixture(t *testing.T) fixture {
 func TestManagementCatalogAndTopologyUseCanonicalTree(t *testing.T) {
 	value := newFixture(t)
 	catalogSnapshot := value.node.Registry().Catalog().Snapshot()
-	var catalog protocol.ResourceCatalogV1
+	var catalog protocol.ResourceCatalogV2
 	decode(t, catalogSnapshot.Value, &catalog)
 	for _, name := range []string{
 		protocol.BuiltinManagementIssuePermit,
@@ -265,9 +265,9 @@ func decode(t *testing.T, data []byte, target protocol.ValidatedPayload) {
 	}
 }
 
-func catalogHas(catalog protocol.ResourceCatalogV1, name string) bool {
+func catalogHas(catalog protocol.ResourceCatalogV2, name string) bool {
 	for _, descriptor := range catalog.Resources {
-		if descriptor.Name == name {
+		if descriptor.ID.Name == name {
 			return true
 		}
 	}

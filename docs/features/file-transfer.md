@@ -1,25 +1,41 @@
 # File transfer
 
-## Purpose
+## 定位
 
-File 以受控会话组合 Commands、Variable/Stream 和有界 chunk call，支持跨节点文件传输而不引入独立子协议。
+File 是 Node-owned `mfh.file` Resource，不是独立子协议，也不再以 offer/chunk/complete/cancel 四个
+Command 暴露。客户端对 `file/upload` 打开绑定 subject、resource、capability、link、topology epoch、
+policy generation 和 expiry 的 session；控制消息与有界 data lane 共同使用 canonical wire。
 
-## Observable behavior
+## 资源
 
-- offer/start、chunk、complete、cancel 是带 transfer ID 的 Commands。
-- 状态或结果可读为 Variable，进度与完成事件通过 Stream 订阅。
-- chunk 带 offset、长度、checksum；重复同一 chunk 幂等，gap、冲突内容或越界明确失败。
-- 写入临时文件，完整尺寸和 digest 验证后原子落盘；取消或失败清理临时状态。
+- `file/transfers`：Variable，提供当前与历史 transfer 摘要；
+- `file/progress`：Stream，提供进度、完成、取消和失败事件；
+- `file/upload`：`mfh.file` session Resource，以 `open` capability 创建上传会话。
 
-## Permissions
+open payload 使用 `mfh.file.offer.v1`，返回 grant 与初始 `mfh.file.progress.v1`。每个 data 消息包含
+session ID、offset、data 和 SHA-256；close 选择 commit 或 abort，并返回最终 progress。SDK 的
+`Files(...).UploadFile` 和 Desktop File renderer 封装这一流程。
 
-offer、read、write、list 和管理目标目录分别授权。路径解析固定在配置根内，拒绝绝对路径、dot segment、symlink escape 与非法 UTF-8。
+## 行为与边界
 
-## Non-goals
+- chunk 大小、单文件大小、总活动字节、并发 session、历史记录和有效期全部有界；
+- offset 必须连续；每块 checksum、最终 size 与完整文件 digest 必须一致；
+- 内容先写入配置根下的临时文件，完整验证后原子 rename 到目标；
+- 零字节文件仍经过 open/close commit；过期、撤权、reparent、link 关闭和显式 abort 会清理 session
+  与临时状态并发布失败或取消结果；
+- control/data 使用独立有界队列和公平优先调度，大文件不能无限占用控制队列。
 
-- 不提供任意远程文件系统代理。
-- 不让大文件占用无界 envelope、内存或控制队列。
+## 权限与路径
 
-## Acceptance
+authority 对 `file/upload` 的 exact `open` capability 执行 `file.write` 裁决；owner 在 session open、
+data 和 close 各阶段继续验证绑定与业务约束。路径固定解析在 File 配置根内，拒绝绝对路径、dot
+segment、非法 UTF-8、symlink escape 和非普通源文件。
 
-零字节、大文件、重复/gap chunk、checksum、取消、重启清理、路径逃逸与跨权限测试通过。
+## 非目标
+
+- 不提供任意远程文件系统代理；
+- 不把文件块作为普通 Stream/Topic event；
+- 不提供旧 Command chunk compatibility path；
+- Media/WebRTC/编解码与平台 capture 属于独立后续计划。
+
+完整 session 契约见 [Resource Sessions v2](../specs/resource-sessions-v2.md)。

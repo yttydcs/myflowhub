@@ -68,7 +68,7 @@ int mfh_client_build_join(mfh_client_t *client, const char *permit_json, uint8_t
     if (client == NULL || payload == NULL || written == NULL) return MFH_ERR_ARGUMENT;
     if (client->random(client->crypto_context, client->join_nonce, MFH_NONCE_SIZE) != 0) return MFH_ERR_CRYPTO;
     uint8_t message[9 + 8 + MFH_NONCE_SIZE + 8];
-    memcpy(message, "MFH3-JOIN", 9); write_u64(message + 9, client->identity.node_id);
+    memcpy(message, "MFH4-JOIN", 9); write_u64(message + 9, client->identity.node_id);
     memcpy(message + 17, client->join_nonce, MFH_NONCE_SIZE); write_u64(message + 49, client->topology_epoch);
     uint8_t signature[MFH_SIGNATURE_SIZE];
     if (client->sign(client->crypto_context, message, sizeof(message), signature) != 0) return MFH_ERR_CRYPTO;
@@ -99,9 +99,9 @@ int mfh_client_build_join(mfh_client_t *client, const char *permit_json, uint8_t
 int mfh_client_receive(mfh_client_t *client, mfh_envelope_t *envelope, uint8_t *frame_buffer, size_t frame_capacity) {
     if (client == NULL || envelope == NULL || frame_buffer == NULL || frame_capacity < MFH_HEADER_SIZE) return MFH_ERR_ARGUMENT;
     if (client->read(client->io_context, frame_buffer, MFH_HEADER_SIZE) != 0) return MFH_ERR_IO;
-    if (memcmp(frame_buffer, "MFH3", 4) != 0) return MFH_ERR_WIRE;
-    size_t body = frame_buffer[8] + frame_buffer[9] + read_u16(frame_buffer + 10) + read_u32(frame_buffer + 12);
-    if (body > frame_capacity - MFH_HEADER_SIZE || read_u32(frame_buffer + 12) > client->max_payload) return MFH_ERR_LIMIT;
+    if (memcmp(frame_buffer, "MFH4", 4) != 0) return MFH_ERR_WIRE;
+    size_t body = frame_buffer[8] + frame_buffer[9] + read_u16(frame_buffer + 10) + read_u16(frame_buffer + 12) + read_u32(frame_buffer + 14);
+    if (body > frame_capacity - MFH_HEADER_SIZE || read_u32(frame_buffer + 14) > client->max_payload) return MFH_ERR_LIMIT;
     if (client->read(client->io_context, frame_buffer + MFH_HEADER_SIZE, body) != 0) return MFH_ERR_IO;
     size_t consumed = 0;
     return mfh_decode(frame_buffer, MFH_HEADER_SIZE + body, envelope, &consumed, client->max_payload);
@@ -133,36 +133,37 @@ int mfh_client_join(mfh_client_t *client, const char *permit_json, uint8_t *fram
     return MFH_OK;
 }
 
-static int resource_envelope(mfh_client_t *client, mfh_envelope_t *envelope, uint8_t operation, uint64_t owner, const char *name, const uint8_t *payload, size_t payload_len) {
-    if (!client->joined || owner == 0 || name == NULL || name[0] == '\0') return MFH_ERR_STATE;
+static int resource_envelope(mfh_client_t *client, mfh_envelope_t *envelope, uint8_t operation, uint64_t owner, const char *name, const char *capability, const uint8_t *payload, size_t payload_len) {
+    if (!client->joined || owner == 0 || name == NULL || name[0] == '\0' || capability == NULL || capability[0] == '\0') return MFH_ERR_STATE;
     memset(envelope, 0, sizeof(*envelope));
     envelope->version = MFH_VERSION; envelope->phase = MFH_PHASE_REQUEST; envelope->operation = operation;
     int result = next_id(client, envelope->message_id);
     if (result != MFH_OK) return result;
     envelope->source = client->identity.node_id; envelope->target = owner; envelope->resource_owner = owner;
     envelope->resource_name = (mfh_slice_t){(const uint8_t *)name, strlen(name)};
+    envelope->capability = (mfh_slice_t){(const uint8_t *)capability, strlen(capability)};
     envelope->content_type = (mfh_slice_t){json_content, sizeof(json_content) - 1};
     envelope->payload = (mfh_slice_t){payload, payload_len};
     return MFH_OK;
 }
 
-int mfh_client_subscribe(mfh_client_t *client, uint64_t owner, const char *name, int64_t lease_ms, int queue, uint8_t message_id[MFH_MESSAGE_ID_SIZE], uint8_t *frame_buffer, size_t frame_capacity) {
-    if (lease_ms <= 0 || queue <= 0 || queue > 64 || message_id == NULL) return MFH_ERR_ARGUMENT;
-    uint8_t payload[80]; int count = snprintf((char *)payload, sizeof(payload), "{\"lease_ms\":%lld,\"queue\":%d}", (long long)lease_ms, queue);
+int mfh_client_subscribe(mfh_client_t *client, uint64_t owner, const char *name, const char *capability, int64_t lease_ms, int queue, uint8_t message_id[MFH_MESSAGE_ID_SIZE], uint8_t *frame_buffer, size_t frame_capacity) {
+    if (capability == NULL || lease_ms <= 0 || queue <= 0 || queue > 64 || message_id == NULL) return MFH_ERR_ARGUMENT;
+    uint8_t payload[96]; int count = snprintf((char *)payload, sizeof(payload), "{\"version\":2,\"lease_ms\":%lld,\"queue\":%d}", (long long)lease_ms, queue);
     if (count <= 0 || (size_t)count >= sizeof(payload)) return MFH_ERR_BUFFER;
     mfh_envelope_t envelope;
-    int result = resource_envelope(client, &envelope, MFH_OP_SUBSCRIBE, owner, name, payload, (size_t)count);
+    int result = resource_envelope(client, &envelope, MFH_OP_SUBSCRIBE, owner, name, capability, payload, (size_t)count);
     if (result != MFH_OK) return result;
-    static const uint8_t schema[] = "subscribe.v1";
+    static const uint8_t schema[] = "mfh.subscribe.v2";
     envelope.schema = (mfh_slice_t){schema, sizeof(schema) - 1};
     memcpy(message_id, envelope.message_id, MFH_MESSAGE_ID_SIZE); return send_envelope(client, &envelope, frame_buffer, frame_capacity);
 }
 
-int mfh_client_unsubscribe(mfh_client_t *client, uint64_t owner, const char *name, const uint8_t subscription_id[MFH_MESSAGE_ID_SIZE], uint8_t *frame_buffer, size_t frame_capacity) {
-    if (subscription_id == NULL) return MFH_ERR_ARGUMENT;
+int mfh_client_unsubscribe(mfh_client_t *client, uint64_t owner, const char *name, const char *capability, const uint8_t subscription_id[MFH_MESSAGE_ID_SIZE], uint8_t *frame_buffer, size_t frame_capacity) {
+    if (capability == NULL || subscription_id == NULL) return MFH_ERR_ARGUMENT;
     static const uint8_t payload[] = "{}";
     mfh_envelope_t envelope;
-    int result = resource_envelope(client, &envelope, MFH_OP_UNSUBSCRIBE, owner, name, payload, sizeof(payload) - 1);
+    int result = resource_envelope(client, &envelope, MFH_OP_UNSUBSCRIBE, owner, name, capability, payload, sizeof(payload) - 1);
     if (result != MFH_OK) return result;
     memcpy(envelope.correlation_id, subscription_id, MFH_MESSAGE_ID_SIZE);
     static const uint8_t schema[] = "unsubscribe.v1";
@@ -170,10 +171,10 @@ int mfh_client_unsubscribe(mfh_client_t *client, uint64_t owner, const char *nam
     return send_envelope(client, &envelope, frame_buffer, frame_capacity);
 }
 
-int mfh_client_invoke(mfh_client_t *client, uint64_t owner, const char *name, const char *schema, const uint8_t *json, size_t json_len, int64_t deadline_unix_ms, uint8_t message_id[MFH_MESSAGE_ID_SIZE], uint8_t *frame_buffer, size_t frame_capacity) {
-    if (schema == NULL || json == NULL || json_len == 0 || deadline_unix_ms <= 0 || message_id == NULL) return MFH_ERR_ARGUMENT;
+int mfh_client_operate(mfh_client_t *client, uint64_t owner, const char *name, const char *capability, const char *schema, const uint8_t *json, size_t json_len, int64_t deadline_unix_ms, uint8_t message_id[MFH_MESSAGE_ID_SIZE], uint8_t *frame_buffer, size_t frame_capacity) {
+    if (capability == NULL || schema == NULL || json == NULL || json_len == 0 || deadline_unix_ms <= 0 || message_id == NULL) return MFH_ERR_ARGUMENT;
     mfh_envelope_t envelope;
-    int result = resource_envelope(client, &envelope, MFH_OP_COMMAND_CALL, owner, name, json, json_len);
+    int result = resource_envelope(client, &envelope, MFH_OP_OPERATE, owner, name, capability, json, json_len);
     if (result != MFH_OK) return result;
     envelope.schema = (mfh_slice_t){(const uint8_t *)schema, strlen(schema)};
     envelope.deadline_unix_ms = deadline_unix_ms;

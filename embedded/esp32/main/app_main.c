@@ -26,16 +26,16 @@ void app_main(void) {
     if (mfh_client_join(&client, permit, frame, sizeof(frame)) != MFH_OK) { ESP_LOGE(TAG, "signed join failed"); mfh_esp_close(&platform); return; }
 
     uint8_t subscription_id[MFH_MESSAGE_ID_SIZE];
-    if (mfh_client_subscribe(&client, CONFIG_MFH_PARENT_NODE_ID, "system/health", 60000, 8, subscription_id, frame, sizeof(frame)) != MFH_OK) {
+    if (mfh_client_subscribe(&client, CONFIG_MFH_PARENT_NODE_ID, "system/health", "subscribe", 60000, 8, subscription_id, frame, sizeof(frame)) != MFH_OK) {
         ESP_LOGE(TAG, "health subscription failed"); mfh_esp_close(&platform); return;
     }
     static const uint8_t request[] = "{\"version\":1,\"channel\":\"embedded\",\"content_type\":\"text/plain\",\"body\":\"aGVsbG8=\"}";
     uint8_t command_id[MFH_MESSAGE_ID_SIZE];
-    if (mfh_client_invoke(&client, CONFIG_MFH_PARENT_NODE_ID, "notifications/publish", "mfh.notification.publish.v1",
+    if (mfh_client_operate(&client, CONFIG_MFH_PARENT_NODE_ID, "notifications/publish", "invoke", "mfh.notification.publish.v1",
                           request, sizeof(request) - 1, INT64_MAX, command_id, frame, sizeof(frame)) != MFH_OK) {
         ESP_LOGE(TAG, "notification command failed to send"); mfh_esp_close(&platform); return;
     }
-    ESP_LOGI(TAG, "joined; health subscription and notification Command are active");
+    ESP_LOGI(TAG, "joined; health subscription and notification operation are active");
     for (;;) {
         mfh_envelope_t envelope;
         int result = mfh_client_receive(&client, &envelope, frame, sizeof(frame));

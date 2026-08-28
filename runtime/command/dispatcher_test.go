@@ -14,7 +14,7 @@ func commandRegistry(t *testing.T, handler resource.CommandHandler) (*resource.R
 	t.Helper()
 	id := protocol.ResourceID{Owner: 1, Name: "do"}
 	registry, _ := resource.NewRegistry(1)
-	command, err := resource.NewCommand(resource.Descriptor{ID: id, Kind: resource.KindCommand, MaxValueBytes: 64}, handler)
+	command, err := resource.NewCommand(resource.CommandDescriptor(id, "application/octet-stream", "test.raw.v1", "test.invoke", 64), handler)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func commandRegistry(t *testing.T, handler resource.CommandHandler) (*resource.R
 }
 
 func call(id protocol.ResourceID) Call {
-	return Call{MessageID: protocol.MustMessageID(), Source: 2, Resource: id, Input: []byte("input"), Deadline: time.Now().Add(time.Second), Origin: OriginAdjudicated}
+	return Call{MessageID: protocol.MustMessageID(), Source: 2, Resource: id, Capability: protocol.CapabilityInvoke, Schema: "test.raw.v1", Input: []byte("input"), Deadline: time.Now().Add(time.Second), Origin: OriginAdjudicated}
 }
 
 func TestAdjudicatedAllowDenyAndParentControl(t *testing.T) {

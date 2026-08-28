@@ -12,6 +12,11 @@ import (
 
 const stateVersion = 1
 
+type IdentityStore interface {
+	LoadIdentity() (Identity, bool, error)
+	SaveIdentity(Identity) error
+}
+
 type identityState struct {
 	Version    int                `json:"version"`
 	NodeID     protocol.NodeID    `json:"node_id"`
@@ -51,6 +56,36 @@ func LoadOrCreateIdentity(store *keystore.Store, nodeID protocol.NodeID) (Identi
 	state = identityState{Version: stateVersion, NodeID: identity.NodeID, PublicKey: identity.PublicKey, PrivateKey: identity.PrivateKey}
 	if err := store.Save("identity.json", state); err != nil {
 		return Identity{}, fmt.Errorf("persist new identity: %w", err)
+	}
+	return identity, nil
+}
+
+func LoadOrCreateIdentityWithStore(store IdentityStore, nodeID protocol.NodeID) (Identity, error) {
+	if store == nil {
+		return Identity{}, errors.New("identity store is required")
+	}
+	if err := nodeID.Validate(); err != nil {
+		return Identity{}, err
+	}
+	identity, found, err := store.LoadIdentity()
+	if err != nil {
+		return Identity{}, fmt.Errorf("load protected identity: %w", err)
+	}
+	if found {
+		if identity.NodeID != nodeID {
+			return Identity{}, fmt.Errorf("load protected identity: configured NodeID %d does not match stored NodeID %d", nodeID, identity.NodeID)
+		}
+		if err := identity.Validate(); err != nil {
+			return Identity{}, fmt.Errorf("load protected identity: %w", err)
+		}
+		return identity, nil
+	}
+	identity, err = GenerateIdentity(nodeID)
+	if err != nil {
+		return Identity{}, err
+	}
+	if err := store.SaveIdentity(identity); err != nil {
+		return Identity{}, fmt.Errorf("persist protected identity: %w", err)
 	}
 	return identity, nil
 }

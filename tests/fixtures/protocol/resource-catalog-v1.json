@@ -1,1 +1,0 @@
-{"version":1,"revision":3,"resources":[{"name":"metrics/cpu","kind":"variable","content_type":"application/json","schema":"mfh.metrics.cpu.v1","permission":"metrics.read","max_value_bytes":4096},{"name":"system/catalog","kind":"variable","content_type":"application/json","schema":"mfh.catalog.v1","permission":"resource.catalog.read","max_value_bytes":1048576}]}

@@ -118,34 +118,34 @@ func Register(config Config) (*Controller, error) {
 		return nil, err
 	}
 	owner := config.Node.ID()
-	value.definitionFeed, err = resource.NewVariable(resource.Descriptor{ID: protocol.ResourceID{Owner: owner, Name: protocol.BuiltinFlowDefinitions}, Kind: resource.KindVariable, ContentType: "application/json", Schema: protocol.SchemaFlowDefinitionsV1, Permission: "flow.read", MaxValueBytes: protocol.DefaultMaxPayload}, definitionsPayload)
+	value.definitionFeed, err = resource.NewVariable(resource.VariableDescriptor(protocol.ResourceID{Owner: owner, Name: protocol.BuiltinFlowDefinitions}, "application/json", protocol.SchemaFlowDefinitionsV1, "flow.read", protocol.DefaultMaxPayload), definitionsPayload)
 	if err != nil {
 		cancel()
 		return nil, err
 	}
-	value.runFeed, err = resource.NewVariable(resource.Descriptor{ID: protocol.ResourceID{Owner: owner, Name: protocol.BuiltinFlowRuns}, Kind: resource.KindVariable, ContentType: "application/json", Schema: protocol.SchemaFlowRunsV1, Permission: "flow.read", MaxValueBytes: protocol.DefaultMaxPayload}, runsPayload)
+	value.runFeed, err = resource.NewVariable(resource.VariableDescriptor(protocol.ResourceID{Owner: owner, Name: protocol.BuiltinFlowRuns}, "application/json", protocol.SchemaFlowRunsV1, "flow.read", protocol.DefaultMaxPayload), runsPayload)
 	if err != nil {
 		cancel()
 		return nil, err
 	}
-	value.events, err = resource.NewStream(resource.Descriptor{ID: protocol.ResourceID{Owner: owner, Name: protocol.BuiltinFlowEvents}, Kind: resource.KindStream, ContentType: "application/json", Schema: protocol.SchemaFlowEventV1, Permission: "flow.read", MaxValueBytes: protocol.DefaultMaxPayload})
+	value.events, err = resource.NewStream(resource.StreamDescriptor(protocol.ResourceID{Owner: owner, Name: protocol.BuiltinFlowEvents}, "application/json", protocol.SchemaFlowEventV1, "flow.read", protocol.DefaultMaxPayload))
 	if err != nil {
 		cancel()
 		return nil, err
 	}
 	commands := []struct {
-		name, schema, permission string
-		handler                  resource.CommandHandler
+		name, inputSchema, outputSchema, permission string
+		handler                                     resource.CommandHandler
 	}{
-		{protocol.BuiltinFlowCreate, protocol.SchemaFlowDefinitionV1, "flow.write", value.create},
-		{protocol.BuiltinFlowUpdate, protocol.SchemaFlowDefinitionV1, "flow.write", value.update},
-		{protocol.BuiltinFlowRun, protocol.SchemaFlowRunV1, "flow.run", value.run},
-		{protocol.BuiltinFlowCancel, protocol.SchemaFlowCancelV1, "flow.cancel", value.cancelRun},
-		{protocol.BuiltinFlowArchive, protocol.SchemaFlowArchiveV1, "flow.write", value.archive},
+		{protocol.BuiltinFlowCreate, protocol.SchemaFlowDefinitionV1, protocol.SchemaFlowDefinitionV1, "flow.write", value.create},
+		{protocol.BuiltinFlowUpdate, protocol.SchemaFlowDefinitionV1, protocol.SchemaFlowDefinitionV1, "flow.write", value.update},
+		{protocol.BuiltinFlowRun, protocol.SchemaFlowRunV1, protocol.SchemaFlowRunSummaryV1, "flow.run", value.run},
+		{protocol.BuiltinFlowCancel, protocol.SchemaFlowCancelV1, protocol.SchemaFlowRunSummaryV1, "flow.cancel", value.cancelRun},
+		{protocol.BuiltinFlowArchive, protocol.SchemaFlowArchiveV1, protocol.SchemaFlowArchiveV1, "flow.write", value.archive},
 	}
 	resources := []resource.Resource{value.definitionFeed, value.runFeed, value.events}
 	for _, definition := range commands {
-		current, err := resource.NewCommand(resource.Descriptor{ID: protocol.ResourceID{Owner: owner, Name: definition.name}, Kind: resource.KindCommand, ContentType: "application/json", Schema: definition.schema, Permission: definition.permission, MaxValueBytes: protocol.DefaultMaxPayload}, definition.handler)
+		current, err := resource.NewCommand(resource.CommandDescriptorSchemas(protocol.ResourceID{Owner: owner, Name: definition.name}, "application/json", definition.inputSchema, definition.outputSchema, definition.permission, protocol.DefaultMaxPayload), definition.handler)
 		if err != nil {
 			cancel()
 			return nil, err
@@ -469,7 +469,7 @@ func (c *Controller) executeNode(ctx context.Context, delegation command.Delegat
 		defer current.Cancel()
 		select {
 		case event, ok := <-current.Events:
-			if !ok || event.Kind != subscription.EventVariableSnapshot {
+			if !ok || event.Kind != subscription.EventSnapshot {
 				return nil, errors.New("variable resource did not return a snapshot")
 			}
 			return event.Value, nil

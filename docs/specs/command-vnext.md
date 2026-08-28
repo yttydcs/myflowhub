@@ -1,5 +1,8 @@
 # Command vNext
 
+> Partially superseded: deadline、dedupe、panic isolation 与 correlation 约束继续有效；Command 现在是
+> [Resource Platform v2](resource-platform-v2.md) 的 `mfh.command`/`invoke` capability，不再拥有独立 wire operation。
+
 Command is the imperative complement to Variable and Stream subscriptions. A call carries a unique message ID, caller identity, target resource, bounded input, and an absolute deadline.
 
 ## Authorization origin

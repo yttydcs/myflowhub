@@ -9,27 +9,35 @@ import (
 
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/command"
+	"github.com/yttydcs/myflowhub/runtime/resource"
 	"github.com/yttydcs/myflowhub/runtime/subscription"
 	"github.com/yttydcs/myflowhub/runtime/tree"
 )
 
-func (n *Node) Subscribe(ctx context.Context, resource protocol.ResourceID, lease time.Duration, queue int) (*RemoteSubscription, error) {
-	return n.subscribe(ctx, 0, resource, lease, queue)
+func (n *Node) Subscribe(ctx context.Context, resourceID protocol.ResourceID, lease time.Duration, queue int) (*RemoteSubscription, error) {
+	return n.SubscribeCapability(ctx, resourceID, protocol.CapabilitySubscribe, lease, queue)
 }
 
-func (n *Node) SubscribeDelegated(ctx context.Context, delegation command.Delegation, resource protocol.ResourceID, lease time.Duration, queue int) (*RemoteSubscription, error) {
+func (n *Node) SubscribeCapability(ctx context.Context, resourceID protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int) (*RemoteSubscription, error) {
+	return n.subscribe(ctx, 0, resourceID, capability, lease, queue)
+}
+
+func (n *Node) SubscribeDelegated(ctx context.Context, delegation command.Delegation, resourceID protocol.ResourceID, lease time.Duration, queue int) (*RemoteSubscription, error) {
 	principal, err := n.delegatedPrincipal(delegation)
 	if err != nil {
 		return nil, err
 	}
-	return n.subscribe(ctx, principal, resource, lease, queue)
+	return n.subscribe(ctx, principal, resourceID, protocol.CapabilitySubscribe, lease, queue)
 }
 
-func (n *Node) subscribe(ctx context.Context, principal protocol.NodeID, resource protocol.ResourceID, lease time.Duration, queue int) (*RemoteSubscription, error) {
+func (n *Node) subscribe(ctx context.Context, principal protocol.NodeID, resourceID protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int) (*RemoteSubscription, error) {
 	if ctx == nil {
 		return nil, errors.New("subscribe context is required")
 	}
-	if err := resource.Validate(); err != nil {
+	if err := resourceID.Validate(); err != nil {
+		return nil, err
+	}
+	if err := capability.Validate(); err != nil {
 		return nil, err
 	}
 	if lease <= 0 {
@@ -46,15 +54,16 @@ func (n *Node) subscribe(ctx context.Context, principal protocol.NodeID, resourc
 	if err != nil {
 		return nil, err
 	}
-	payload, err := encodeJSON(subscribePayload{LeaseMS: lease.Milliseconds(), Queue: queue})
+	payload, err := encodeJSON(subscribePayload{Version: protocol.SchemaVersionV2, LeaseMS: lease.Milliseconds(), Queue: queue})
 	if err != nil {
 		n.unregisterPending(id, err)
 		return nil, err
 	}
 	request := protocol.Envelope{
 		Version: protocol.CurrentVersion, Phase: protocol.PhaseRequest, Operation: protocol.OperationSubscribe,
-		MessageID: id, Source: n.ID(), Principal: principal, Target: resource.Owner, Resource: resource, DeadlineUnixMS: time.Now().Add(lease).UnixMilli(),
-		ContentType: "application/json", Schema: "subscribe.v1", Payload: payload,
+		MessageID: id, Source: n.ID(), Principal: principal, Target: resourceID.Owner, Resource: resourceID,
+		DeadlineUnixMS: time.Now().Add(lease).UnixMilli(), ContentType: "application/json", Schema: "mfh.subscribe.v2",
+		Capability: capability, Payload: payload,
 	}
 	var first protocol.Envelope
 	haveFirst := false
@@ -82,7 +91,7 @@ func (n *Node) subscribe(ctx context.Context, principal protocol.NodeID, resourc
 		}
 		return nil, failure
 	}
-	if first.Operation != protocol.OperationSubscribeAck && first.Operation != protocol.OperationVariableSnapshot {
+	if first.Operation != protocol.OperationSubscribeAck && first.Operation != protocol.OperationResourceEvent {
 		err := fmt.Errorf("unexpected subscribe response operation %d", first.Operation)
 		n.unregisterPending(id, err)
 		return nil, err
@@ -90,7 +99,7 @@ func (n *Node) subscribe(ctx context.Context, principal protocol.NodeID, resourc
 	remoteCtx, remoteCancel := context.WithCancel(ctx)
 	events := make(chan subscription.Event, queue)
 	errorsOut := make(chan error, 1)
-	if first.Operation == protocol.OperationVariableSnapshot {
+	if first.Operation == protocol.OperationResourceEvent {
 		event, err := subscriptionEvent(first)
 		if err != nil {
 			remoteCancel()
@@ -101,10 +110,10 @@ func (n *Node) subscribe(ctx context.Context, principal protocol.NodeID, resourc
 	}
 	var cancelOnce sync.Once
 	value := &RemoteSubscription{
-		ID: id, Resource: resource, Events: events, Errors: errorsOut,
+		ID: id, Resource: resourceID, Capability: capability, Events: events, Errors: errorsOut,
 		cancel: func() { cancelOnce.Do(remoteCancel) },
 	}
-	if !n.launch(func() { n.runRemoteSubscription(remoteCtx, id, resource, pending, events, errorsOut) }) {
+	if !n.launch(func() { n.runRemoteSubscription(remoteCtx, id, resourceID, capability, pending, events, errorsOut) }) {
 		remoteCancel()
 		n.unregisterPending(id, errors.New("node is closed"))
 		close(events)
@@ -114,7 +123,7 @@ func (n *Node) subscribe(ctx context.Context, principal protocol.NodeID, resourc
 	return value, nil
 }
 
-func (n *Node) runRemoteSubscription(ctx context.Context, id protocol.MessageID, resource protocol.ResourceID, pending *pendingEntry, events chan<- subscription.Event, errorsOut chan<- error) {
+func (n *Node) runRemoteSubscription(ctx context.Context, id protocol.MessageID, resourceID protocol.ResourceID, capability protocol.CapabilityID, pending *pendingEntry, events chan<- subscription.Event, errorsOut chan<- error) {
 	defer close(events)
 	defer close(errorsOut)
 	defer n.unregisterPending(id, nil)
@@ -135,7 +144,7 @@ func (n *Node) runRemoteSubscription(ctx context.Context, id protocol.MessageID,
 			select {
 			case events <- event:
 			case <-ctx.Done():
-				n.sendUnsubscribe(id, resource)
+				n.sendUnsubscribe(id, resourceID, capability)
 				return
 			}
 		case <-pending.done:
@@ -147,14 +156,14 @@ func (n *Node) runRemoteSubscription(ctx context.Context, id protocol.MessageID,
 			}
 			return
 		case <-ctx.Done():
-			n.sendUnsubscribe(id, resource)
+			n.sendUnsubscribe(id, resourceID, capability)
 			return
 		}
 	}
 }
 
-func (n *Node) sendUnsubscribe(subscriptionID protocol.MessageID, resource protocol.ResourceID) {
-	envelope, err := n.newEnvelope(protocol.PhaseRequest, protocol.OperationUnsubscribe, resource.Owner, resource, subscriptionID, 0, "application/json", "unsubscribe.v1", []byte("{}"))
+func (n *Node) sendUnsubscribe(subscriptionID protocol.MessageID, resourceID protocol.ResourceID, capability protocol.CapabilityID) {
+	envelope, err := n.newEnvelope(protocol.PhaseRequest, protocol.OperationUnsubscribe, resourceID.Owner, resourceID, capability, subscriptionID, 0, "application/json", "mfh.unsubscribe.v2", []byte("{}"))
 	if err != nil {
 		n.emit(err)
 		return
@@ -164,24 +173,33 @@ func (n *Node) sendUnsubscribe(subscriptionID protocol.MessageID, resource proto
 	}
 }
 
-func (n *Node) Invoke(ctx context.Context, resource protocol.ResourceID, input []byte) ([]byte, error) {
-	return n.invoke(ctx, 0, resource, input)
+func (n *Node) Operate(ctx context.Context, resourceID protocol.ResourceID, capability protocol.CapabilityID, schema string, input []byte) (resource.OperationResult, error) {
+	return n.operate(ctx, 0, resourceID, capability, schema, input)
 }
 
-func (n *Node) InvokeDelegated(ctx context.Context, delegation command.Delegation, resource protocol.ResourceID, input []byte) ([]byte, error) {
+func (n *Node) Invoke(ctx context.Context, resourceID protocol.ResourceID, input []byte) ([]byte, error) {
+	result, err := n.Operate(ctx, resourceID, protocol.CapabilityInvoke, "", input)
+	return result.Payload, err
+}
+
+func (n *Node) InvokeDelegated(ctx context.Context, delegation command.Delegation, resourceID protocol.ResourceID, input []byte) ([]byte, error) {
 	principal, err := n.delegatedPrincipal(delegation)
 	if err != nil {
 		return nil, err
 	}
-	return n.invoke(ctx, principal, resource, input)
+	result, err := n.operate(ctx, principal, resourceID, protocol.CapabilityInvoke, "", input)
+	return result.Payload, err
 }
 
-func (n *Node) invoke(ctx context.Context, principal protocol.NodeID, resource protocol.ResourceID, input []byte) ([]byte, error) {
+func (n *Node) operate(ctx context.Context, principal protocol.NodeID, resourceID protocol.ResourceID, capability protocol.CapabilityID, schema string, input []byte) (resource.OperationResult, error) {
 	if ctx == nil {
-		return nil, errors.New("invoke context is required")
+		return resource.OperationResult{}, errors.New("operate context is required")
 	}
-	if err := resource.Validate(); err != nil {
-		return nil, err
+	if err := resourceID.Validate(); err != nil {
+		return resource.OperationResult{}, err
+	}
+	if err := capability.Validate(); err != nil {
+		return resource.OperationResult{}, err
 	}
 	deadline, ok := ctx.Deadline()
 	if !ok {
@@ -189,37 +207,38 @@ func (n *Node) invoke(ctx context.Context, principal protocol.NodeID, resource p
 	}
 	id, err := protocol.NewMessageID()
 	if err != nil {
-		return nil, err
+		return resource.OperationResult{}, err
 	}
 	pending, err := n.registerPending(id, 1)
 	if err != nil {
-		return nil, err
+		return resource.OperationResult{}, err
 	}
 	defer n.unregisterPending(id, nil)
 	request := protocol.Envelope{
-		Version: protocol.CurrentVersion, Phase: protocol.PhaseRequest, Operation: protocol.OperationCommandCall,
-		MessageID: id, Source: n.ID(), Principal: principal, Target: resource.Owner, Resource: resource, DeadlineUnixMS: deadline.UnixMilli(),
-		ContentType: "application/octet-stream", Schema: "command.raw.v1", Payload: append([]byte(nil), input...),
+		Version: protocol.CurrentVersion, Phase: protocol.PhaseRequest, Operation: protocol.OperationOperate,
+		MessageID: id, Source: n.ID(), Principal: principal, Target: resourceID.Owner, Resource: resourceID,
+		DeadlineUnixMS: deadline.UnixMilli(), ContentType: "application/octet-stream", Schema: schema,
+		Capability: capability, Payload: append([]byte(nil), input...),
 	}
 	if sendErr := n.routeEnvelope(ctx, request, nil); sendErr != nil {
 		select {
 		case response := <-pending.frames:
-			return commandResponse(response)
+			return operationResponse(response)
 		default:
-			return nil, sendErr
+			return resource.OperationResult{}, sendErr
 		}
 	}
 	response, err := awaitFrame(ctx, pending)
 	if err != nil {
-		return nil, err
+		return resource.OperationResult{}, err
 	}
-	return commandResponse(response)
+	return operationResponse(response)
 }
 
 func (n *Node) delegatedPrincipal(delegation command.Delegation) (protocol.NodeID, error) {
 	subject, ok := delegation.Subject()
 	if !ok {
-		return 0, errors.New("delegated operation requires an authenticated command context")
+		return 0, errors.New("delegated operation requires an authenticated operation context")
 	}
 	if _, hasParent := n.tree.Parent(); hasParent {
 		return 0, errors.New("only an authority root can originate delegated operations")
@@ -234,17 +253,17 @@ func (n *Node) delegatedPrincipal(delegation command.Delegation) (protocol.NodeI
 	return subject, nil
 }
 
-func commandResponse(response protocol.Envelope) ([]byte, error) {
+func operationResponse(response protocol.Envelope) (resource.OperationResult, error) {
 	switch response.Operation {
-	case protocol.OperationCommandResult:
-		return append([]byte(nil), response.Payload...), nil
+	case protocol.OperationOperateResult:
+		return resource.OperationResult{Schema: response.Schema, Payload: append([]byte(nil), response.Payload...)}, nil
 	case protocol.OperationError:
 		failure, err := protocol.DecodeErrorPayload(response.Payload)
 		if err != nil {
-			return nil, err
+			return resource.OperationResult{}, err
 		}
-		return nil, failure
+		return resource.OperationResult{}, failure
 	default:
-		return nil, fmt.Errorf("unexpected command response operation %d", response.Operation)
+		return resource.OperationResult{}, fmt.Errorf("unexpected operation response %d", response.Operation)
 	}
 }

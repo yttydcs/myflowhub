@@ -22,12 +22,18 @@ func (n *Node) handleLocal(envelope protocol.Envelope, inbound *peerSession) err
 		return n.handleSubscribe(envelope, inbound)
 	case protocol.OperationUnsubscribe:
 		return n.handleUnsubscribe(envelope)
-	case protocol.OperationCommandCall:
-		return n.handleCommand(envelope)
+	case protocol.OperationOperate:
+		return n.handleOperate(envelope)
+	case protocol.OperationSessionOpen:
+		return n.handleSessionOpen(envelope, inbound)
+	case protocol.OperationSessionData:
+		return n.handleSessionData(envelope, inbound)
+	case protocol.OperationSessionClose:
+		return n.handleSessionClose(envelope, inbound)
 	case protocol.OperationError:
 		return nil
-	case protocol.OperationSubscribeAck, protocol.OperationVariableSnapshot, protocol.OperationVariableUpdate,
-		protocol.OperationStreamEvent, protocol.OperationStreamGap, protocol.OperationCommandResult:
+	case protocol.OperationSubscribeAck, protocol.OperationResourceEvent, protocol.OperationResourceGap,
+		protocol.OperationOperateResult, protocol.OperationSessionOpenResult:
 		return nil
 	default:
 		return fmt.Errorf("operation %d has no local handler", envelope.Operation)
@@ -51,8 +57,8 @@ func (n *Node) handleSubscribe(envelope protocol.Envelope, inbound *peerSession)
 		_ = n.sendError(envelope, protocol.CodeMalformed, err.Error())
 		return err
 	}
-	if payload.LeaseMS <= 0 {
-		err := errors.New("subscription lease must be positive")
+	if payload.Version != protocol.SchemaVersionV2 || payload.LeaseMS <= 0 {
+		err := errors.New("subscription version or lease is invalid")
 		_ = n.sendError(envelope, protocol.CodeMalformed, err.Error())
 		return err
 	}
@@ -66,33 +72,36 @@ func (n *Node) handleSubscribe(envelope protocol.Envelope, inbound *peerSession)
 		topologyEpoch = inbound.epoch
 	}
 	current, err := n.subscriptions.Subscribe(subscription.Request{
-		ID: envelope.MessageID, Subscriber: envelope.Source, Resource: envelope.Resource,
-		LinkID: linkID, NextHop: nextHop, Lease: lease,
-		TopologyEpoch: topologyEpoch, PolicyGeneration: auth.PolicyGeneration(n.policy), Queue: payload.Queue,
+		ID: envelope.MessageID, Subscriber: envelope.Subject(), Resource: envelope.Resource, Capability: envelope.Capability,
+		LinkID: linkID, NextHop: nextHop, Lease: lease, TopologyEpoch: topologyEpoch,
+		PolicyGeneration: auth.PolicyGeneration(n.policy), Queue: payload.Queue,
 	})
 	if err != nil {
 		code := protocol.CodeConflict
-		if errors.Is(err, resource.ErrNotFound) {
+		switch {
+		case errors.Is(err, resource.ErrNotFound):
 			code = protocol.CodeNotFound
+		case errors.Is(err, subscription.ErrNotSubscribable):
+			code = protocol.CodeUnsupported
+		case errors.Is(err, subscription.ErrSubscriptionLimit):
+			code = protocol.CodeOverflow
 		}
 		_ = n.sendError(envelope, code, err.Error())
 		return err
 	}
-	value, _ := n.registry.Resolve(envelope.Resource)
-	if _, ok := value.(*resource.Stream); ok {
-		ack, err := n.newEnvelope(protocol.PhaseResponse, protocol.OperationSubscribeAck, envelope.Source, envelope.Resource, envelope.MessageID, 0, "application/json", "subscribe-ack.v1", []byte("{}"))
-		if err != nil {
-			current.Cancel()
-			return err
-		}
-		if err := n.routeEnvelope(n.ctx, ack, nil); err != nil {
-			current.Cancel()
-			return err
-		}
+	ack, err := n.newEnvelope(
+		protocol.PhaseResponse, protocol.OperationSubscribeAck, envelope.Source, envelope.Resource,
+		envelope.Capability, envelope.MessageID, 0, "application/json", "mfh.subscribe-ack.v2", []byte("{}"),
+	)
+	if err != nil {
+		current.Cancel()
+		return err
 	}
-	if !n.launch(func() {
-		n.forwardSubscription(envelope, current)
-	}) {
+	if err := n.routeEnvelope(n.ctx, ack, nil); err != nil {
+		current.Cancel()
+		return err
+	}
+	if !n.launch(func() { n.forwardSubscription(envelope, current) }) {
 		current.Cancel()
 		return errors.New("node is closed")
 	}
@@ -101,35 +110,30 @@ func (n *Node) handleSubscribe(envelope protocol.Envelope, inbound *peerSession)
 
 func (n *Node) forwardSubscription(request protocol.Envelope, current *subscription.Subscription) {
 	for event := range current.Events {
-		var operation protocol.Operation
-		var phase protocol.Phase
-		var payload []byte
-		var err error
-		switch event.Kind {
-		case subscription.EventVariableSnapshot:
-			operation, phase = protocol.OperationVariableSnapshot, protocol.PhaseResponse
-			payload, err = encodeJSON(variablePayload{Revision: event.Revision, Value: event.Value})
-		case subscription.EventVariableUpdate:
-			operation, phase = protocol.OperationVariableUpdate, protocol.PhaseEvent
-			payload, err = encodeJSON(variablePayload{Revision: event.Revision, Value: event.Value})
-		case subscription.EventStream:
-			operation, phase = protocol.OperationStreamEvent, protocol.PhaseEvent
-			payload, err = encodeJSON(streamPayload{Sequence: event.Sequence, Value: event.Value})
-		case subscription.EventStreamGap:
-			operation, phase = protocol.OperationStreamGap, protocol.PhaseEvent
-			payload, err = encodeJSON(streamPayload{GapFrom: event.GapFrom, GapTo: event.GapTo})
-		case subscription.EventExpired:
+		operation := protocol.OperationResourceEvent
+		payload := resourceEventPayload{
+			Version: protocol.SchemaVersionV2, Snapshot: event.Kind == subscription.EventSnapshot,
+			Revision: event.Revision, Sequence: event.Sequence, Publisher: event.Publisher,
+			PublisherSequence: event.PublisherSequence, GapFrom: event.GapFrom, GapTo: event.GapTo,
+			Reason: event.Reason, Schema: event.Schema, Value: event.Value,
+		}
+		if event.Kind == subscription.EventGap {
+			operation = protocol.OperationResourceGap
+		}
+		if event.Kind == subscription.EventExpired {
 			_ = n.sendError(request, protocol.CodeExpired, event.Reason)
 			return
-		default:
-			continue
 		}
+		encoded, err := encodeJSON(payload)
 		if err != nil {
 			n.emit(err)
 			current.Cancel()
 			return
 		}
-		envelope, err := n.newEnvelope(phase, operation, request.Source, request.Resource, request.MessageID, 0, "application/json", "subscription-event.v1", payload)
+		envelope, err := n.newEnvelope(
+			protocol.PhaseEvent, operation, request.Source, request.Resource, request.Capability,
+			request.MessageID, 0, "application/json", "mfh.resource-event.v2", encoded,
+		)
 		if err == nil {
 			err = n.routeEnvelope(n.ctx, envelope, nil)
 		}
@@ -154,22 +158,24 @@ func (n *Node) handleUnsubscribe(envelope protocol.Envelope) error {
 		_ = n.sendError(envelope, protocol.CodeForbidden, err.Error())
 		return err
 	}
-	if !n.subscriptions.UnsubscribeFor(envelope.CorrelationID, envelope.Source) {
+	if !n.subscriptions.UnsubscribeFor(envelope.CorrelationID, envelope.Subject()) {
 		err := errors.New("subscription not found for caller")
 		_ = n.sendError(envelope, protocol.CodeNotFound, err.Error())
 		return err
 	}
-	ack, err := n.newEnvelope(protocol.PhaseResponse, protocol.OperationSubscribeAck, envelope.Source, envelope.Resource, envelope.MessageID, 0, "application/json", "unsubscribe-ack.v1", []byte("{}"))
+	ack, err := n.newEnvelope(
+		protocol.PhaseResponse, protocol.OperationSubscribeAck, envelope.Source, envelope.Resource,
+		envelope.Capability, envelope.MessageID, 0, "application/json", "mfh.unsubscribe-ack.v2", []byte("{}"),
+	)
 	if err != nil {
 		return err
 	}
 	return n.routeEnvelope(n.ctx, ack, nil)
 }
 
-func (n *Node) handleCommand(envelope protocol.Envelope) error {
-	deadline := time.UnixMilli(envelope.DeadlineUnixMS)
+func (n *Node) handleOperate(envelope protocol.Envelope) error {
 	if envelope.DeadlineUnixMS == 0 {
-		err := errors.New("command deadline is required")
+		err := errors.New("resource operation deadline is required")
 		_ = n.sendError(envelope, protocol.CodeMalformed, err.Error())
 		return err
 	}
@@ -177,15 +183,19 @@ func (n *Node) handleCommand(envelope protocol.Envelope) error {
 	if envelope.Phase == protocol.PhaseControl || envelope.Subject() == n.ID() {
 		origin = command.OriginParentControl
 	}
-	result, invokeErr := n.commands.Invoke(n.ctx, command.Call{
+	result, operationErr := n.commands.Invoke(n.ctx, command.Call{
 		MessageID: envelope.MessageID, Source: envelope.Subject(), Resource: envelope.Resource,
-		Input: envelope.Payload, Deadline: deadline, Origin: origin,
+		Capability: envelope.Capability, Schema: envelope.Schema, Input: envelope.Payload,
+		Deadline: time.UnixMilli(envelope.DeadlineUnixMS), Origin: origin,
 	})
 	if result.Failure != nil {
 		_ = n.sendFailure(envelope, *result.Failure)
-		return invokeErr
+		return operationErr
 	}
-	response, err := n.newEnvelope(protocol.PhaseResponse, protocol.OperationCommandResult, envelope.Source, envelope.Resource, envelope.MessageID, 0, envelope.ContentType, envelope.Schema, result.Output)
+	response, err := n.newEnvelope(
+		protocol.PhaseResponse, protocol.OperationOperateResult, envelope.Source, envelope.Resource,
+		envelope.Capability, envelope.MessageID, 0, envelope.ContentType, result.Schema, result.Output,
+	)
 	if err != nil {
 		return err
 	}

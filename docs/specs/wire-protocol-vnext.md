@@ -1,5 +1,8 @@
 # Wire Protocol vNext
 
+> Superseded: MFH3 fixed-operation envelope 已由 [Resource Platform v2](resource-platform-v2.md)
+> 和 [Resource Sessions v2](resource-sessions-v2.md) 定义的 MFH4 v2 通用资源操作取代。本文仅保留迁移前参考。
+
 ## Status
 
 Implemented phase-one contract. Incompatible with the former SubProto envelope.

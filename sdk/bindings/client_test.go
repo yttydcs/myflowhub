@@ -51,8 +51,8 @@ func TestBindingClientTCPJSONAndSubscriptionContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	resources := []auth.Request{
-		{Subject: 2, Action: auth.ActionSubscribe, Resource: protocol.ResourceID{Owner: 1, Name: protocol.BuiltinResourceCatalog}},
-		{Subject: 2, Action: auth.ActionSubscribe, Resource: protocol.ResourceID{Owner: 1, Name: protocol.BuiltinManagementHealth}},
+		{Subject: 2, Action: auth.ActionRead, Resource: protocol.ResourceID{Owner: 1, Name: protocol.BuiltinResourceCatalog}},
+		{Subject: 2, Action: auth.ActionRead, Resource: protocol.ResourceID{Owner: 1, Name: protocol.BuiltinManagementHealth}},
 		{Subject: 2, Action: auth.ActionSubscribe, Resource: protocol.ResourceID{Owner: 1, Name: protocol.BuiltinNotificationEvents}},
 		{Subject: 2, Action: auth.ActionInvoke, Resource: protocol.ResourceID{Owner: 1, Name: protocol.BuiltinNotificationPublish}},
 	}
@@ -86,7 +86,7 @@ func TestBindingClientTCPJSONAndSubscriptionContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var catalog protocol.ResourceCatalogV1
+	var catalog protocol.ResourceCatalogV2
 	if err := json.Unmarshal([]byte(catalogJSON), &catalog); err != nil || len(catalog.Resources) < 10 {
 		t.Fatalf("unexpected binding catalog: %v (%s)", err, catalogJSON)
 	}
@@ -121,7 +121,9 @@ func TestBindingClientTCPJSONAndSubscriptionContract(t *testing.T) {
 	select {
 	case eventJSON := <-listener.events:
 		var event bindingEvent
-		if err := json.Unmarshal([]byte(eventJSON), &event); err != nil || event.Kind != "stream" || event.ResourceName != protocol.BuiltinNotificationEvents {
+		if err := json.Unmarshal([]byte(eventJSON), &event); err != nil || event.Kind != "data" ||
+			event.ResourceName != protocol.BuiltinNotificationEvents || event.Capability != string(protocol.CapabilitySubscribe) ||
+			event.Schema != protocol.SchemaNotificationEventV1 {
 			t.Fatalf("unexpected binding event: %v (%s)", err, eventJSON)
 		}
 		var notification protocol.NotificationEventV1

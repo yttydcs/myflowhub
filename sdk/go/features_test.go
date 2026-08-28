@@ -131,13 +131,10 @@ func featureClientGrants() []auth.Request {
 	}
 	return []auth.Request{
 		resource(auth.ActionInvoke, protocol.BuiltinNotificationPublish),
-		resource(auth.ActionSubscribe, protocol.BuiltinFileTransfers),
-		resource(auth.ActionInvoke, protocol.BuiltinFileOffer),
-		resource(auth.ActionInvoke, protocol.BuiltinFileChunk),
-		resource(auth.ActionInvoke, protocol.BuiltinFileComplete),
-		resource(auth.ActionInvoke, protocol.BuiltinFileCancel),
-		resource(auth.ActionSubscribe, protocol.BuiltinFlowDefinitions),
-		resource(auth.ActionSubscribe, protocol.BuiltinFlowRuns),
+		resource(auth.ActionRead, protocol.BuiltinFileTransfers),
+		resource(auth.ActionOpen, protocol.BuiltinFileUpload),
+		resource(auth.ActionRead, protocol.BuiltinFlowDefinitions),
+		resource(auth.ActionRead, protocol.BuiltinFlowRuns),
 		resource(auth.ActionInvoke, protocol.BuiltinFlowCreate),
 		resource(auth.ActionInvoke, protocol.BuiltinFlowRun),
 		resource(auth.ActionInvoke, protocol.BuiltinFlowArchive),

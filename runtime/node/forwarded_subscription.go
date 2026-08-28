@@ -12,8 +12,10 @@ var ErrForwardedSubscriptionLimit = errors.New("forwarded subscription limit rea
 type forwardedSubscription struct {
 	id         protocol.MessageID
 	source     protocol.NodeID
+	principal  protocol.NodeID
 	target     protocol.NodeID
 	resource   protocol.ResourceID
+	capability protocol.CapabilityID
 	generation uint64
 }
 
@@ -33,8 +35,8 @@ func (n *Node) trackForwardedSubscription(request protocol.Envelope, generation 
 		return errors.New("forwarded subscription ID already exists")
 	}
 	n.forwardedSubscriptions[request.MessageID] = forwardedSubscription{
-		id: request.MessageID, source: request.Source, target: request.Target,
-		resource: request.Resource, generation: generation,
+		id: request.MessageID, source: request.Source, principal: request.Principal, target: request.Target,
+		resource: request.Resource, capability: request.Capability, generation: generation,
 	}
 	return nil
 }
@@ -84,7 +86,8 @@ func (n *Node) expireForwardedSubscription(current forwardedSubscription) {
 	}
 	unsubscribe := protocol.Envelope{
 		Version: protocol.CurrentVersion, Phase: protocol.PhaseControl, Operation: protocol.OperationUnsubscribe,
-		MessageID: messageID, CorrelationID: current.id, Source: current.source, Target: current.target, Resource: current.resource,
+		MessageID: messageID, CorrelationID: current.id, Source: current.source, Principal: current.principal,
+		Target: current.target, Resource: current.resource, Capability: current.capability,
 		ContentType: "application/json", Schema: "unsubscribe.v1", Payload: []byte("{}"),
 	}
 	if err := n.routeEnvelope(n.ctx, unsubscribe, nil); err != nil && n.ctx.Err() == nil {

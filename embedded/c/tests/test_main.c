@@ -31,7 +31,7 @@ static int fake_random(void *context, uint8_t *output, size_t length) {
 }
 
 static int fake_sign(void *context, const uint8_t *message, size_t message_len, uint8_t signature[MFH_SIGNATURE_SIZE]) {
-    (void)context; if (message_len != 57 || memcmp(message, "MFH3-JOIN", 9) != 0) return -1;
+    (void)context; if (message_len != 57 || memcmp(message, "MFH4-JOIN", 9) != 0) return -1;
     memset(signature, 0x5a, MFH_SIGNATURE_SIZE); return 0;
 }
 
@@ -50,13 +50,15 @@ static bool slice_contains(const uint8_t *data, size_t length, const char *text)
 static mfh_envelope_t sample_envelope(void) {
     static const uint8_t content[] = "application/json";
     static const uint8_t schema[] = "mfh.test.v1";
+    static const uint8_t capability[] = "invoke";
     static const uint8_t name[] = "device/led/set";
     static const uint8_t payload[] = "{\"version\":1,\"value\":\"true\"}";
     mfh_envelope_t envelope; memset(&envelope, 0, sizeof(envelope));
-    envelope.version = 1; envelope.phase = MFH_PHASE_REQUEST; envelope.operation = MFH_OP_COMMAND_CALL;
+    envelope.version = MFH_VERSION; envelope.phase = MFH_PHASE_REQUEST; envelope.operation = MFH_OP_OPERATE;
     for (size_t i = 0; i < MFH_MESSAGE_ID_SIZE; ++i) envelope.message_id[i] = (uint8_t)i;
     envelope.message_id[0] = 0x10; envelope.source = 2; envelope.target = 1; envelope.resource_owner = 1; envelope.deadline_unix_ms = 1000;
     envelope.content_type = (mfh_slice_t){content, sizeof(content) - 1}; envelope.schema = (mfh_slice_t){schema, sizeof(schema) - 1};
+    envelope.capability = (mfh_slice_t){capability, sizeof(capability) - 1};
     envelope.resource_name = (mfh_slice_t){name, sizeof(name) - 1}; envelope.payload = (mfh_slice_t){payload, sizeof(payload) - 1};
     return envelope;
 }
@@ -70,7 +72,7 @@ static int hex_digit(int value) {
 
 static int load_frame_fixture(uint8_t *output, size_t capacity, size_t *length) {
     char path[1024];
-    int path_len = snprintf(path, sizeof(path), "%s/embedded/envelope-command-v1.hex", MFH_FIXTURE_ROOT);
+    int path_len = snprintf(path, sizeof(path), "%s/embedded/envelope-operate-v2.hex", MFH_FIXTURE_ROOT);
     if (path_len < 0 || (size_t)path_len >= sizeof(path)) return -1;
     FILE *source = fopen(path, "rb");
     if (source == NULL) return -1;
@@ -100,12 +102,13 @@ static int test_codec(void) {
     CHECK(mfh_encode(&sample, frame, sizeof(frame), &written, MFH_MAX_PAYLOAD) == MFH_OK);
     CHECK(load_frame_fixture(fixture, sizeof(fixture), &fixture_len) == 0);
     CHECK(written == fixture_len && memcmp(frame, fixture, written) == 0);
-    CHECK(written == MFH_HEADER_SIZE + 16 + 11 + 14 + 28);
-    CHECK(memcmp(frame, "MFH3\x00\x01\x01\x0c\x10\x0b\x00\x0e\x00\x00\x00\x1c", 16) == 0);
-    CHECK(frame[23] == 2 && frame[39] == 1 && frame[55] == 0xe8 && frame[95] == 1);
+    CHECK(written == MFH_HEADER_SIZE + 16 + 11 + 6 + 14 + 28);
+    CHECK(memcmp(frame, "MFH4\x00\x02\x01\x0a\x10\x0b\x00\x06\x00\x0e\x00\x00\x00\x1c", 18) == 0);
+    CHECK(frame[25] == 2 && frame[41] == 1 && frame[57] == 0xe8 && frame[97] == 1);
     mfh_envelope_t decoded;
     CHECK(mfh_decode(frame, written, &decoded, &consumed, MFH_MAX_PAYLOAD) == MFH_OK);
-    CHECK(consumed == written && decoded.operation == MFH_OP_COMMAND_CALL && decoded.source == 2 && decoded.target == 1);
+    CHECK(consumed == written && decoded.operation == MFH_OP_OPERATE && decoded.source == 2 && decoded.target == 1);
+    CHECK(decoded.capability.len == 6 && memcmp(decoded.capability.data, "invoke", 6) == 0);
     CHECK(decoded.resource_name.len == 14 && memcmp(decoded.resource_name.data, "device/led/set", 14) == 0);
     CHECK(decoded.payload.len == 28 && memcmp(decoded.payload.data, "{\"version\":1,\"value\":\"true\"}", 28) == 0);
     CHECK(mfh_decode(frame, MFH_HEADER_SIZE - 1, &decoded, &consumed, MFH_MAX_PAYLOAD) == MFH_ERR_WIRE);
@@ -130,7 +133,7 @@ static int test_client_join_and_operations(void) {
     mfh_identity_t identity; memset(&identity, 0, sizeof(identity)); identity.version = 1; identity.node_id = 2; memset(identity.public_key, 0x11, sizeof(identity.public_key));
     memory_io_t io; memset(&io, 0, sizeof(io)); mfh_client_t client;
     CHECK(mfh_client_init(&client, &identity, 1, 7, &io, memory_read, memory_write, NULL, fake_random, fake_sign, fake_verify) == MFH_OK);
-    mfh_envelope_t ack; memset(&ack, 0, sizeof(ack)); ack.version = 1; ack.phase = MFH_PHASE_RESPONSE; ack.operation = MFH_OP_JOIN_ACK;
+    mfh_envelope_t ack; memset(&ack, 0, sizeof(ack)); ack.version = MFH_VERSION; ack.phase = MFH_PHASE_RESPONSE; ack.operation = MFH_OP_JOIN_ACK;
     for (size_t i = 0; i < MFH_MESSAGE_ID_SIZE; ++i) { ack.message_id[i] = (uint8_t)(0x80u + i); ack.correlation_id[i] = (uint8_t)(i + 1); }
     ack.source = 1; ack.target = 2; static const uint8_t content[] = "application/json", schema[] = "join-ack.v1", payload[] = "{}";
     ack.content_type = (mfh_slice_t){content, sizeof(content) - 1}; ack.schema = (mfh_slice_t){schema, sizeof(schema) - 1}; ack.payload = (mfh_slice_t){payload, sizeof(payload) - 1};
@@ -138,11 +141,11 @@ static int test_client_join_and_operations(void) {
     uint8_t frame[MFH_MAX_FRAME]; CHECK(mfh_client_join(&client, NULL, frame, sizeof(frame)) == MFH_OK); CHECK(client.joined && io.output_len > MFH_HEADER_SIZE);
     mfh_envelope_t sent; size_t consumed = 0; CHECK(mfh_decode(io.output, io.output_len, &sent, &consumed, MFH_MAX_PAYLOAD) == MFH_OK);
     CHECK(sent.operation == MFH_OP_JOIN && sent.payload.len > 100 && slice_contains(sent.payload.data, sent.payload.len, "\"node_id\":2"));
-    uint8_t id[16]; CHECK(mfh_client_subscribe(&client, 1, "system/health", 60000, 4, id, frame, sizeof(frame)) == MFH_OK);
+    uint8_t id[16]; CHECK(mfh_client_subscribe(&client, 1, "system/health", "subscribe", 60000, 4, id, frame, sizeof(frame)) == MFH_OK);
     CHECK(mfh_decode(io.output, io.output_len, &sent, &consumed, MFH_MAX_PAYLOAD) == MFH_OK && sent.operation == MFH_OP_SUBSCRIBE);
     static const uint8_t command[] = "{\"version\":1}";
-    CHECK(mfh_client_invoke(&client, 1, "device/led/set", "mfh.device.led.v1", command, sizeof(command) - 1, 1000, id, frame, sizeof(frame)) == MFH_OK);
-    CHECK(mfh_decode(io.output, io.output_len, &sent, &consumed, MFH_MAX_PAYLOAD) == MFH_OK && sent.operation == MFH_OP_COMMAND_CALL);
+    CHECK(mfh_client_operate(&client, 1, "device/led/set", "invoke", "mfh.device.led.v1", command, sizeof(command) - 1, 1000, id, frame, sizeof(frame)) == MFH_OK);
+    CHECK(mfh_decode(io.output, io.output_len, &sent, &consumed, MFH_MAX_PAYLOAD) == MFH_OK && sent.operation == MFH_OP_OPERATE);
     return 0;
 }
 

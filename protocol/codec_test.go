@@ -12,7 +12,7 @@ func validEnvelope() Envelope {
 	return Envelope{
 		Version:        CurrentVersion,
 		Phase:          PhaseControl,
-		Operation:      OperationCommandCall,
+		Operation:      OperationOperate,
 		MessageID:      MustMessageID(),
 		Source:         10,
 		Principal:      11,
@@ -22,6 +22,7 @@ func validEnvelope() Envelope {
 		DeadlineUnixMS: 123456,
 		ContentType:    "application/json",
 		Schema:         "command.restart.v1",
+		Capability:     CapabilityInvoke,
 		Payload:        []byte(`{"delay_ms":10}`),
 	}
 }
@@ -57,7 +58,7 @@ func TestCodecRejectsMalformedAndOversizeFrames(t *testing.T) {
 		{name: "bad magic", input: append([]byte("NOPE"), encoded.Bytes()[4:]...)},
 	}
 	badVersion := append([]byte(nil), encoded.Bytes()...)
-	badVersion[5] = 2
+	badVersion[5] = byte(CurrentVersion + 1)
 	tests = append(tests, struct {
 		name  string
 		input []byte

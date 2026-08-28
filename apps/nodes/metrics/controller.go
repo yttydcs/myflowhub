@@ -194,20 +194,20 @@ func (c *Controller) registerResources() error {
 	if err != nil {
 		return err
 	}
-	c.configVariable, err = resource.NewVariable(resource.Descriptor{
-		ID: protocol.ResourceID{Owner: owner, Name: ResourceConfig}, Kind: resource.KindVariable,
-		ContentType: "application/json", Schema: SchemaConfigV1, Permission: "metrics.config.read", MaxValueBytes: protocol.DefaultMaxPayload,
-	}, configPayload)
+	c.configVariable, err = resource.NewVariable(resource.VariableDescriptor(
+		protocol.ResourceID{Owner: owner, Name: ResourceConfig}, "application/json", SchemaConfigV1,
+		"metrics.config.read", protocol.DefaultMaxPayload,
+	), configPayload)
 	if err != nil {
 		return err
 	}
 	if err := c.register(c.configVariable); err != nil {
 		return err
 	}
-	update, err := resource.NewCommand(resource.Descriptor{
-		ID: protocol.ResourceID{Owner: owner, Name: ResourceConfigUpdate}, Kind: resource.KindCommand,
-		ContentType: "application/json", Schema: SchemaConfigUpdateV1, Permission: "metrics.config.write", MaxValueBytes: protocol.DefaultMaxPayload,
-	}, c.updateConfig)
+	update, err := resource.NewCommand(resource.CommandDescriptorSchemas(
+		protocol.ResourceID{Owner: owner, Name: ResourceConfigUpdate}, "application/json", SchemaConfigUpdateV1, SchemaConfigV1,
+		"metrics.config.write", protocol.DefaultMaxPayload,
+	), c.updateConfig)
 	if err != nil {
 		return err
 	}
@@ -224,10 +224,10 @@ func (c *Controller) registerResources() error {
 		if err != nil {
 			return err
 		}
-		variable, err := resource.NewVariable(resource.Descriptor{
-			ID: protocol.ResourceID{Owner: owner, Name: ResourceName(definition.Name)}, Kind: resource.KindVariable,
-			ContentType: "application/json", Schema: SchemaSampleV1, Permission: "metrics.read", MaxValueBytes: protocol.DefaultMaxPayload,
-		}, payload)
+		variable, err := resource.NewVariable(resource.VariableDescriptor(
+			protocol.ResourceID{Owner: owner, Name: ResourceName(definition.Name)}, "application/json", SchemaSampleV1,
+			"metrics.read", protocol.DefaultMaxPayload,
+		), payload)
 		if err != nil {
 			return err
 		}
@@ -238,10 +238,10 @@ func (c *Controller) registerResources() error {
 		c.samples[definition.Name] = sample
 		if definition.Controllable {
 			name := definition.Name
-			command, err := resource.NewCommand(resource.Descriptor{
-				ID: protocol.ResourceID{Owner: owner, Name: CommandName(name)}, Kind: resource.KindCommand,
-				ContentType: "application/json", Schema: SchemaControlV1, Permission: "metrics.control", MaxValueBytes: protocol.DefaultMaxPayload,
-			}, func(ctx context.Context, input []byte) ([]byte, error) { return c.control(ctx, name, input) })
+			command, err := resource.NewCommand(resource.CommandDescriptorSchemas(
+				protocol.ResourceID{Owner: owner, Name: CommandName(name)}, "application/json", SchemaControlV1, SchemaControlResultV1,
+				"metrics.control", protocol.DefaultMaxPayload,
+			), func(ctx context.Context, input []byte) ([]byte, error) { return c.control(ctx, name, input) })
 			if err != nil {
 				return err
 			}

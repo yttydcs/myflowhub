@@ -25,31 +25,37 @@ func TestClientCatalogSubscriptionInvokeAndTypedErrors(t *testing.T) {
 	defer child.Close()
 
 	statusID := protocol.ResourceID{Owner: root.ID(), Name: "test/status"}
-	status, err := resource.NewVariable(resource.Descriptor{
-		ID: statusID, Kind: resource.KindVariable, ContentType: "application/json", Schema: "test.status.v1", MaxValueBytes: 128,
-	}, []byte(`{"version":1,"state":"ready"}`))
+	status, err := resource.NewVariable(resource.VariableDescriptor(statusID, "application/json", "test.status.v1", "test.read", 128), []byte(`{"version":1,"state":"ready"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := root.Registry().Register(status); err != nil {
 		t.Fatal(err)
 	}
+	writableID := protocol.ResourceID{Owner: root.ID(), Name: "test/writable"}
+	writable, err := resource.NewVariable(resource.WritableVariableDescriptor(writableID, "application/json", "test.settings.v1", "test.read", "test.write", 256), []byte(`{"enabled":false}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := root.Registry().Register(writable); err != nil {
+		t.Fatal(err)
+	}
 	echoID := protocol.ResourceID{Owner: root.ID(), Name: "test/echo"}
-	echo, _ := resource.NewCommand(resource.Descriptor{ID: echoID, Kind: resource.KindCommand, MaxValueBytes: 128}, func(_ context.Context, input []byte) ([]byte, error) {
+	echo, _ := resource.NewCommand(resource.CommandDescriptor(echoID, "application/octet-stream", "test.raw.v1", "test.invoke", 128), func(_ context.Context, input []byte) ([]byte, error) {
 		return append([]byte("echo:"), input...), nil
 	})
 	if err := root.Registry().Register(echo); err != nil {
 		t.Fatal(err)
 	}
 	retryID := protocol.ResourceID{Owner: root.ID(), Name: "test/retry"}
-	retry, _ := resource.NewCommand(resource.Descriptor{ID: retryID, Kind: resource.KindCommand, MaxValueBytes: 128}, func(context.Context, []byte) ([]byte, error) {
+	retry, _ := resource.NewCommand(resource.CommandDescriptor(retryID, "application/octet-stream", "test.raw.v1", "test.invoke", 128), func(context.Context, []byte) ([]byte, error) {
 		return nil, command.Retryable(errors.New("try later"))
 	})
 	if err := root.Registry().Register(retry); err != nil {
 		t.Fatal(err)
 	}
 	malformedID := protocol.ResourceID{Owner: root.ID(), Name: "test/malformed"}
-	malformed, _ := resource.NewVariable(resource.Descriptor{ID: malformedID, Kind: resource.KindVariable, MaxValueBytes: 128}, []byte(`{"version":1,"unexpected":true}`))
+	malformed, _ := resource.NewVariable(resource.VariableDescriptor(malformedID, "application/json", "test.malformed.v1", "test.read", 128), []byte(`{"version":1,"unexpected":true}`))
 	if err := root.Registry().Register(malformed); err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +68,7 @@ func TestClientCatalogSubscriptionInvokeAndTypedErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !catalogHas(catalog, statusID.Name, protocol.ResourceKindVariable) || !catalogHas(catalog, echoID.Name, protocol.ResourceKindCommand) {
+	if !catalogHas(catalog, statusID.Name, protocol.ResourceTypeVariable) || !catalogHas(catalog, echoID.Name, protocol.ResourceTypeCommand) {
 		t.Fatalf("catalog is missing SDK test resources: %+v", catalog.Resources)
 	}
 
@@ -70,13 +76,13 @@ func TestClientCatalogSubscriptionInvokeAndTypedErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if event := receiveEvent(t, current); event.Kind != EventVariableSnapshot || string(event.Value) != `{"version":1,"state":"ready"}` {
+	if event := receiveEvent(t, current); event.Kind != EventSnapshot || string(event.Value) != `{"version":1,"state":"ready"}` {
 		t.Fatalf("unexpected snapshot: %+v", event)
 	}
 	if _, err := status.Set([]byte(`{"version":1,"state":"updated"}`)); err != nil {
 		t.Fatal(err)
 	}
-	if event := receiveEvent(t, current); event.Kind != EventVariableUpdate || event.Revision != 2 {
+	if event := receiveEvent(t, current); event.Kind != EventData || event.Revision != 2 {
 		t.Fatalf("unexpected update: %+v", event)
 	}
 	current.Cancel()
@@ -89,6 +95,20 @@ func TestClientCatalogSubscriptionInvokeAndTypedErrors(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("subscription did not close after cancellation")
 	}
+	writableSub, err := client.Subscribe(ctx, writableID, time.Minute, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writableSnapshot := receiveEvent(t, writableSub)
+	writableSub.Cancel()
+	if _, err := client.WriteVariable(ctx, writableID, writableSnapshot.Revision, []byte(`{"enabled":true}`)); err != nil {
+		t.Fatalf("conditional SDK write failed: %v", err)
+	}
+	if string(writable.Snapshot().Value) != `{"enabled":true}` {
+		t.Fatalf("conditional SDK write did not update owner: %s", writable.Snapshot().Value)
+	}
+	_, err = client.WriteVariable(ctx, writableID, writableSnapshot.Revision, []byte(`{"enabled":false}`))
+	assertSDKError(t, err, protocol.CodeConflict, false)
 
 	output, err := client.Invoke(ctx, echoID, []byte("hello"))
 	if err != nil || string(output) != "echo:hello" {
@@ -193,9 +213,9 @@ func connectedSDKNodes(t *testing.T, ctx context.Context, endpoint string) (*nod
 	return root, child, network
 }
 
-func catalogHas(catalog protocol.ResourceCatalogV1, name string, kind protocol.ResourceKind) bool {
+func catalogHas(catalog protocol.ResourceCatalogV2, name string, typeID protocol.ResourceTypeID) bool {
 	for _, descriptor := range catalog.Resources {
-		if descriptor.Name == name && descriptor.Kind == kind {
+		if descriptor.ID.Name == name && descriptor.Type == typeID {
 			return true
 		}
 	}

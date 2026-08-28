@@ -77,7 +77,7 @@ func TestRunConcurrencyCancelAndOutputLimits(t *testing.T) {
 	policy := auth.NewStaticPolicy()
 	env := newEnvironment(t, policy, flowfeature.Config{MaxActive: 1, MaxActivePerFlow: 1, MaxRuns: 4, MaxNodeOutput: 10, MaxTotalOutput: 20})
 	blockID := protocol.ResourceID{Owner: 1, Name: "test/block"}
-	block, _ := resource.NewCommand(resource.Descriptor{ID: blockID, Kind: resource.KindCommand, MaxValueBytes: 128}, func(ctx context.Context, _ []byte) ([]byte, error) {
+	block, _ := resource.NewCommand(resource.CommandDescriptor(blockID, "application/octet-stream", "test.raw.v1", "test.invoke", 128), func(ctx context.Context, _ []byte) ([]byte, error) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	})
@@ -129,7 +129,7 @@ func TestDelegatedRunUsesInitiatorPermission(t *testing.T) {
 	defer controller.Close()
 	called := make(chan struct{}, 1)
 	targetID := protocol.ResourceID{Owner: 1, Name: "test/protected"}
-	target, _ := resource.NewCommand(resource.Descriptor{ID: targetID, Kind: resource.KindCommand, MaxValueBytes: 128}, func(context.Context, []byte) ([]byte, error) {
+	target, _ := resource.NewCommand(resource.CommandDescriptor(targetID, "application/octet-stream", "test.raw.v1", "test.invoke", 128), func(context.Context, []byte) ([]byte, error) {
 		called <- struct{}{}
 		return []byte(`{"ok":true}`), nil
 	})
@@ -176,7 +176,7 @@ func TestRetryableCommandUsesBoundedBackoff(t *testing.T) {
 	env := newEnvironment(t, auth.NewStaticPolicy(), flowfeature.Config{})
 	var attempts atomic.Int32
 	targetID := protocol.ResourceID{Owner: 1, Name: "test/flaky"}
-	target, _ := resource.NewCommand(resource.Descriptor{ID: targetID, Kind: resource.KindCommand, MaxValueBytes: 128}, func(context.Context, []byte) ([]byte, error) {
+	target, _ := resource.NewCommand(resource.CommandDescriptor(targetID, "application/octet-stream", "test.raw.v1", "test.invoke", 128), func(context.Context, []byte) ([]byte, error) {
 		if attempts.Add(1) < 3 {
 			return nil, command.Retryable(errors.New("temporary"))
 		}

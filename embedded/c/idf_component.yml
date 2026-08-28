@@ -1,5 +1,5 @@
 version: "1.0.0"
-description: "Bounded MyFlowHub vNext MFH3 client profile"
+description: "Bounded MyFlowHub MFH4 v2 client profile"
 url: "https://example.invalid/myflowhub"
 dependencies:
   idf: ">=6.0.0"

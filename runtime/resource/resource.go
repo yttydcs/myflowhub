@@ -11,58 +11,87 @@ import (
 )
 
 var (
-	ErrDuplicate          = errors.New("resource already registered")
-	ErrNotFound           = errors.New("resource not found")
-	ErrRevisionRegression = errors.New("resource revision or sequence regression")
-	ErrValueTooLarge      = errors.New("resource value exceeds configured limit")
-	ErrResourceLimit      = errors.New("resource registry limit reached")
-	ErrReservedResource   = errors.New("built-in resource cannot be replaced or removed")
+	ErrDuplicate             = errors.New("resource already registered")
+	ErrNotFound              = errors.New("resource not found")
+	ErrRevisionRegression    = errors.New("resource revision or sequence regression")
+	ErrRevisionConflict      = errors.New("resource revision conflict")
+	ErrValueTooLarge         = errors.New("resource value exceeds configured limit")
+	ErrResourceLimit         = errors.New("resource registry limit reached")
+	ErrReservedResource      = errors.New("built-in resource cannot be replaced or removed")
+	ErrUnsupportedCapability = errors.New("resource capability is not supported")
+	ErrInvalidSchema         = errors.New("resource operation schema does not match capability")
 )
 
-type Kind uint8
+type Descriptor = protocol.ResourceDescriptorV2
 
-const (
-	KindVariable Kind = iota + 1
-	KindStream
-	KindCommand
-)
-
-func (k Kind) Valid() bool { return k >= KindVariable && k <= KindCommand }
-
-type Descriptor struct {
-	ID            protocol.ResourceID
-	Kind          Kind
-	ContentType   string
-	Schema        string
-	Permission    string
-	MaxValueBytes int
+type OperationRequest struct {
+	Subject    protocol.NodeID
+	Capability protocol.CapabilityID
+	Schema     string
+	Payload    []byte
 }
 
-func (d Descriptor) Validate() error {
-	if err := d.ID.Validate(); err != nil {
-		return err
-	}
-	if !d.Kind.Valid() {
-		return errors.New("resource kind is invalid")
-	}
-	if len(d.ContentType) > protocol.MaxContentTypeBytes || len(d.Schema) > protocol.MaxSchemaBytes {
-		return errors.New("resource content type or schema is too long")
-	}
-	if d.MaxValueBytes <= 0 || d.MaxValueBytes > protocol.DefaultMaxPayload {
-		return fmt.Errorf("resource max value must be between 1 and %d bytes", protocol.DefaultMaxPayload)
-	}
-	return nil
+type OperationResult struct {
+	Schema  string
+	Payload []byte
 }
 
-func (d Descriptor) validateValue(value []byte) error {
-	if len(value) > d.MaxValueBytes {
-		return fmt.Errorf("%w: got %d, max %d", ErrValueTooLarge, len(value), d.MaxValueBytes)
-	}
-	return nil
+type Observation struct {
+	Snapshot          bool
+	Revision          uint64
+	Sequence          uint64
+	Publisher         protocol.NodeID
+	PublisherSequence uint64
+	Schema            string
+	Value             []byte
 }
 
 type Resource interface {
 	Descriptor() Descriptor
+	Operate(context.Context, OperationRequest) (OperationResult, error)
+}
+
+type Observable interface {
+	Resource
+	Observe(func(Observation)) (*Observation, func(), error)
+}
+
+type SessionOpenRequest struct {
+	Subject    protocol.NodeID
+	Capability protocol.CapabilityID
+	Schema     string
+	Payload    []byte
+}
+
+type SessionGrant struct {
+	Capability      protocol.CapabilityID
+	MaxChunkBytes   int
+	MaxTotalBytes   int64
+	ExpiresAtUnixMS int64
+}
+
+type SessionData struct {
+	Offset   int64
+	Payload  []byte
+	Checksum string
+}
+
+type SessionCloseRequest struct {
+	Commit  bool
+	Schema  string
+	Payload []byte
+}
+
+type ActiveSession interface {
+	Grant() SessionGrant
+	Write(context.Context, SessionData) (OperationResult, error)
+	Close(context.Context, SessionCloseRequest) (OperationResult, error)
+	Abort(error)
+}
+
+type SessionResource interface {
+	Resource
+	OpenSession(context.Context, SessionOpenRequest) (ActiveSession, error)
 }
 
 type Registry struct {
@@ -78,11 +107,13 @@ func NewRegistry(owner protocol.NodeID) (*Registry, error) {
 	if err := owner.Validate(); err != nil {
 		return nil, err
 	}
-	descriptor := normalizeDescriptor(Descriptor{
-		ID: protocol.ResourceID{Owner: owner, Name: protocol.BuiltinResourceCatalog}, Kind: KindVariable,
-		ContentType: "application/json", Schema: protocol.SchemaResourceCatalogV1, Permission: "resource.catalog.read", MaxValueBytes: protocol.DefaultMaxPayload,
-	})
-	payload, err := protocol.EncodeJSONPayload(&protocol.ResourceCatalogV1{Version: 1, Revision: 1, Resources: []protocol.ResourceDescriptorV1{catalogDescriptor(descriptor)}}, protocol.DefaultMaxPayload)
+	descriptor := VariableDescriptor(
+		protocol.ResourceID{Owner: owner, Name: protocol.BuiltinResourceCatalog},
+		"application/json", protocol.SchemaResourceCatalogV2, "resource.catalog.read", protocol.DefaultMaxPayload,
+	)
+	catalogValue := protocol.ResourceCatalogV2{Version: protocol.SchemaVersionV2, Revision: 1, Resources: []protocol.ResourceDescriptorV2{descriptor}}
+	catalogValue.Sort()
+	payload, err := protocol.EncodeJSONPayload(&catalogValue, protocol.DefaultMaxPayload)
 	if err != nil {
 		return nil, fmt.Errorf("create resource catalog: %w", err)
 	}
@@ -97,9 +128,8 @@ func (r *Registry) Register(value Resource) error {
 	if value == nil {
 		return errors.New("register resource: value is required")
 	}
-	descriptor := value.Descriptor()
-	descriptor = normalizeDescriptor(descriptor)
-	if err := descriptor.Validate(); err != nil {
+	descriptor, err := normalizeDescriptor(value.Descriptor())
+	if err != nil {
 		return fmt.Errorf("register resource: %w", err)
 	}
 	if descriptor.ID.Owner != r.owner {
@@ -147,6 +177,81 @@ func (r *Registry) Resolve(id protocol.ResourceID) (Resource, bool) {
 	return value, ok
 }
 
+func (r *Registry) Descriptor(id protocol.ResourceID) (Descriptor, bool) {
+	value, ok := r.Resolve(id)
+	if !ok {
+		return Descriptor{}, false
+	}
+	return cloneDescriptor(value.Descriptor()), true
+}
+
+func (r *Registry) Operate(ctx context.Context, id protocol.ResourceID, request OperationRequest) (OperationResult, error) {
+	if ctx == nil {
+		return OperationResult{}, errors.New("resource operation context is required")
+	}
+	value, ok := r.Resolve(id)
+	if !ok {
+		return OperationResult{}, ErrNotFound
+	}
+	descriptor := value.Descriptor()
+	capability, ok := descriptor.Capability(request.Capability)
+	if !ok {
+		return OperationResult{}, fmt.Errorf("%w: %s", ErrUnsupportedCapability, request.Capability)
+	}
+	if len(request.Payload) > capability.MaxPayloadBytes || len(request.Payload) > descriptor.Limits.MaxPayloadBytes {
+		return OperationResult{}, fmt.Errorf("%w: got %d", ErrValueTooLarge, len(request.Payload))
+	}
+	if request.Schema == "" {
+		request.Schema = capability.InputSchema
+	} else if capability.InputSchema != "" && request.Schema != capability.InputSchema {
+		return OperationResult{}, fmt.Errorf("%w: got %q, want %q", ErrInvalidSchema, request.Schema, capability.InputSchema)
+	}
+	request.Payload = append([]byte(nil), request.Payload...)
+	result, err := value.Operate(ctx, request)
+	if err != nil {
+		return OperationResult{}, err
+	}
+	if len(result.Payload) > capability.MaxPayloadBytes || len(result.Payload) > descriptor.Limits.MaxPayloadBytes {
+		return OperationResult{}, fmt.Errorf("%w: operation result got %d", ErrValueTooLarge, len(result.Payload))
+	}
+	if result.Schema == "" {
+		result.Schema = capability.OutputSchema
+	} else if capability.OutputSchema != "" && result.Schema != capability.OutputSchema {
+		return OperationResult{}, fmt.Errorf("%w: result got %q, want %q", ErrInvalidSchema, result.Schema, capability.OutputSchema)
+	}
+	result.Payload = append([]byte(nil), result.Payload...)
+	return result, nil
+}
+
+func (r *Registry) OpenSession(ctx context.Context, id protocol.ResourceID, request SessionOpenRequest) (ActiveSession, error) {
+	if ctx == nil {
+		return nil, errors.New("resource session context is required")
+	}
+	value, ok := r.Resolve(id)
+	if !ok {
+		return nil, ErrNotFound
+	}
+	descriptor := value.Descriptor()
+	capability, ok := descriptor.Capability(request.Capability)
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedCapability, request.Capability)
+	}
+	if len(request.Payload) > capability.MaxPayloadBytes || len(request.Payload) > descriptor.Limits.MaxPayloadBytes {
+		return nil, fmt.Errorf("%w: session open got %d", ErrValueTooLarge, len(request.Payload))
+	}
+	if request.Schema == "" {
+		request.Schema = capability.InputSchema
+	} else if capability.InputSchema != "" && request.Schema != capability.InputSchema {
+		return nil, fmt.Errorf("%w: got %q, want %q", ErrInvalidSchema, request.Schema, capability.InputSchema)
+	}
+	sessionResource, ok := value.(SessionResource)
+	if !ok {
+		return nil, fmt.Errorf("%w: %s is not session-oriented", ErrUnsupportedCapability, id.Name)
+	}
+	request.Payload = append([]byte(nil), request.Payload...)
+	return sessionResource.OpenSession(ctx, request)
+}
+
 func (r *Registry) Remove(id protocol.ResourceID) error {
 	if id.Owner != r.owner {
 		return ErrNotFound
@@ -184,7 +289,7 @@ func (r *Registry) List() []Descriptor {
 	r.mu.RLock()
 	descriptors := make([]Descriptor, 0, len(r.resources))
 	for _, value := range r.resources {
-		descriptors = append(descriptors, value.Descriptor())
+		descriptors = append(descriptors, cloneDescriptor(value.Descriptor()))
 	}
 	r.mu.RUnlock()
 	sort.Slice(descriptors, func(i, j int) bool { return descriptors[i].ID.Name < descriptors[j].ID.Name })
@@ -197,45 +302,174 @@ func (r *Registry) buildCatalogLocked() ([]byte, uint64, error) {
 	if r.catalogRevision == ^uint64(0) {
 		return nil, 0, errors.New("resource catalog revision exhausted")
 	}
-	descriptors := make([]protocol.ResourceDescriptorV1, 0, len(r.resources))
+	descriptors := make([]protocol.ResourceDescriptorV2, 0, len(r.resources))
 	for _, value := range r.resources {
-		descriptors = append(descriptors, catalogDescriptor(normalizeDescriptor(value.Descriptor())))
+		descriptor, err := normalizeDescriptor(value.Descriptor())
+		if err != nil {
+			return nil, 0, err
+		}
+		descriptors = append(descriptors, descriptor)
 	}
-	sort.Slice(descriptors, func(i, j int) bool { return descriptors[i].Name < descriptors[j].Name })
 	revision := r.catalogRevision + 1
-	payload, err := protocol.EncodeJSONPayload(&protocol.ResourceCatalogV1{Version: 1, Revision: revision, Resources: descriptors}, protocol.DefaultMaxPayload)
+	catalog := protocol.ResourceCatalogV2{Version: protocol.SchemaVersionV2, Revision: revision, Resources: descriptors}
+	catalog.Sort()
+	payload, err := protocol.EncodeJSONPayload(&catalog, protocol.DefaultMaxPayload)
 	return payload, revision, err
 }
 
-func normalizeDescriptor(descriptor Descriptor) Descriptor {
-	if descriptor.ContentType == "" {
-		descriptor.ContentType = "application/octet-stream"
+func VariableDescriptor(id protocol.ResourceID, contentType, schema, permission string, maxPayload int) Descriptor {
+	return descriptorFor(id, protocol.ResourceTypeVariable, contentType, schema, permission, maxPayload,
+		protocol.CapabilityDescriptorV2{Name: protocol.CapabilityRead, OutputSchema: schema},
+		protocol.CapabilityDescriptorV2{Name: protocol.CapabilitySubscribe, EventSchema: schema})
+}
+
+func WritableVariableDescriptor(id protocol.ResourceID, contentType, schema, readPermission, writePermission string, maxPayload int) Descriptor {
+	descriptor := VariableDescriptor(id, contentType, schema, readPermission, maxPayload)
+	if writePermission == "" {
+		writePermission = "resource.write"
 	}
-	if descriptor.Schema == "" {
-		descriptor.Schema = "mfh.raw.v1"
+	descriptor.Capabilities = append(descriptor.Capabilities, protocol.CapabilityDescriptorV2{
+		Name: protocol.CapabilityWrite, Permission: writePermission, InputSchema: protocol.SchemaVariableWriteV2,
+		OutputSchema: schema, MaxPayloadBytes: descriptor.Limits.MaxPayloadBytes,
+	})
+	descriptor.Schemas = append(descriptor.Schemas, protocol.SchemaDescriptorV2{ID: protocol.SchemaVariableWriteV2, ContentType: "application/json"})
+	descriptor.Sort()
+	return descriptor
+}
+
+func StreamDescriptor(id protocol.ResourceID, contentType, schema, permission string, maxPayload int) Descriptor {
+	return descriptorFor(id, protocol.ResourceTypeStream, contentType, schema, permission, maxPayload,
+		protocol.CapabilityDescriptorV2{Name: protocol.CapabilitySubscribe, EventSchema: schema})
+}
+
+func CommandDescriptor(id protocol.ResourceID, contentType, schema, permission string, maxPayload int) Descriptor {
+	return CommandDescriptorSchemas(id, contentType, schema, schema, permission, maxPayload)
+}
+
+func CommandDescriptorSchemas(id protocol.ResourceID, contentType, inputSchema, outputSchema, permission string, maxPayload int) Descriptor {
+	if outputSchema == "" {
+		outputSchema = inputSchema
 	}
-	if descriptor.Permission == "" {
-		if descriptor.Kind == KindCommand {
-			descriptor.Permission = "resource.invoke"
-		} else {
-			descriptor.Permission = "resource.subscribe"
-		}
+	descriptor := descriptorFor(id, protocol.ResourceTypeCommand, contentType, inputSchema, permission, maxPayload,
+		protocol.CapabilityDescriptorV2{Name: protocol.CapabilityInvoke, InputSchema: inputSchema, OutputSchema: outputSchema})
+	if outputSchema != inputSchema {
+		descriptor.Schemas = append(descriptor.Schemas, protocol.SchemaDescriptorV2{ID: outputSchema, ContentType: descriptor.Schemas[0].ContentType})
+		descriptor.Sort()
 	}
 	return descriptor
 }
 
-func catalogDescriptor(descriptor Descriptor) protocol.ResourceDescriptorV1 {
-	kind := protocol.ResourceKindVariable
-	switch descriptor.Kind {
-	case KindStream:
-		kind = protocol.ResourceKindStream
-	case KindCommand:
-		kind = protocol.ResourceKindCommand
+func TopicDescriptor(id protocol.ResourceID, contentType, schema, publishPermission, subscribePermission string, maxPayload int) Descriptor {
+	if publishPermission == "" {
+		publishPermission = "resource.publish"
 	}
-	return protocol.ResourceDescriptorV1{
-		Name: descriptor.ID.Name, Kind: kind, ContentType: descriptor.ContentType, Schema: descriptor.Schema,
-		Permission: descriptor.Permission, MaxValueBytes: descriptor.MaxValueBytes,
+	if subscribePermission == "" {
+		subscribePermission = "resource.subscribe"
 	}
+	descriptor := descriptorFor(id, protocol.ResourceTypeTopic, contentType, schema, subscribePermission, maxPayload,
+		protocol.CapabilityDescriptorV2{Name: protocol.CapabilityPublish, Permission: publishPermission, InputSchema: schema},
+		protocol.CapabilityDescriptorV2{Name: protocol.CapabilitySubscribe, Permission: subscribePermission, EventSchema: schema})
+	return descriptor
+}
+
+func SessionDescriptor(id protocol.ResourceID, typeID protocol.ResourceTypeID, contentType, inputSchema, outputSchema, permission string, maxPayload int) Descriptor {
+	if outputSchema == "" {
+		outputSchema = inputSchema
+	}
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	if permission == "" {
+		permission = "resource.open"
+	}
+	if maxPayload <= 0 {
+		maxPayload = protocol.DefaultMaxPayload
+	}
+	descriptor := Descriptor{
+		ID: id, Type: typeID, TypeVersion: 1,
+		Capabilities: []protocol.CapabilityDescriptorV2{{
+			Name: protocol.CapabilityOpen, Permission: permission, InputSchema: inputSchema,
+			OutputSchema: outputSchema, MaxPayloadBytes: maxPayload,
+		}},
+		Schemas: []protocol.SchemaDescriptorV2{
+			{ID: inputSchema, ContentType: contentType},
+			{ID: outputSchema, ContentType: contentType},
+		},
+		Limits:       protocol.ResourceLimitsV2{MaxPayloadBytes: maxPayload, MaxSessions: 64, MaxQueue: 256},
+		Presentation: protocol.PresentationHintV2{Renderer: string(typeID)},
+	}
+	if inputSchema == outputSchema {
+		descriptor.Schemas = descriptor.Schemas[:1]
+	}
+	descriptor.Sort()
+	return descriptor
+}
+
+func descriptorFor(id protocol.ResourceID, typeID protocol.ResourceTypeID, contentType, schema, permission string, maxPayload int, capabilities ...protocol.CapabilityDescriptorV2) Descriptor {
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	if schema == "" {
+		schema = "mfh.raw.v1"
+	}
+	if permission == "" {
+		permission = "resource.access"
+	}
+	if maxPayload <= 0 {
+		maxPayload = protocol.DefaultMaxPayload
+	}
+	for index := range capabilities {
+		if capabilities[index].Permission == "" {
+			capabilities[index].Permission = permission
+		}
+		if capabilities[index].MaxPayloadBytes <= 0 {
+			capabilities[index].MaxPayloadBytes = maxPayload
+		}
+		if capabilities[index].InputSchema == "" && capabilities[index].Name == protocol.CapabilityPublish {
+			capabilities[index].InputSchema = schema
+		}
+	}
+	descriptor := Descriptor{
+		ID: id, Type: typeID, TypeVersion: 1, Capabilities: capabilities,
+		Schemas:      []protocol.SchemaDescriptorV2{{ID: schema, ContentType: contentType}},
+		Limits:       protocol.ResourceLimitsV2{MaxPayloadBytes: maxPayload, MaxSubscribers: 1024, MaxSessions: 64, MaxQueue: 256},
+		Presentation: protocol.PresentationHintV2{Renderer: string(typeID)},
+	}
+	descriptor.Sort()
+	return descriptor
+}
+
+func normalizeDescriptor(descriptor Descriptor) (Descriptor, error) {
+	descriptor = cloneDescriptor(descriptor)
+	if descriptor.TypeVersion == 0 {
+		descriptor.TypeVersion = 1
+	}
+	if descriptor.Limits.MaxPayloadBytes <= 0 {
+		descriptor.Limits.MaxPayloadBytes = protocol.DefaultMaxPayload
+	}
+	for index := range descriptor.Capabilities {
+		if descriptor.Capabilities[index].MaxPayloadBytes <= 0 {
+			descriptor.Capabilities[index].MaxPayloadBytes = descriptor.Limits.MaxPayloadBytes
+		}
+	}
+	descriptor.Sort()
+	if err := descriptor.Validate(); err != nil {
+		return Descriptor{}, err
+	}
+	return descriptor, nil
+}
+
+func cloneDescriptor(descriptor Descriptor) Descriptor {
+	descriptor.Capabilities = append([]protocol.CapabilityDescriptorV2(nil), descriptor.Capabilities...)
+	descriptor.Schemas = append([]protocol.SchemaDescriptorV2(nil), descriptor.Schemas...)
+	return descriptor
+}
+
+func validatePayload(descriptor Descriptor, value []byte) error {
+	if len(value) > descriptor.Limits.MaxPayloadBytes {
+		return fmt.Errorf("%w: got %d, max %d", ErrValueTooLarge, len(value), descriptor.Limits.MaxPayloadBytes)
+	}
+	return nil
 }
 
 type CommandHandler func(context.Context, []byte) ([]byte, error)
@@ -246,12 +480,15 @@ type Command struct {
 }
 
 func NewCommand(descriptor Descriptor, handler CommandHandler) (*Command, error) {
-	descriptor = normalizeDescriptor(descriptor)
-	if descriptor.Kind != KindCommand {
-		return nil, errors.New("command descriptor must use command kind")
-	}
-	if err := descriptor.Validate(); err != nil {
+	descriptor, err := normalizeDescriptor(descriptor)
+	if err != nil {
 		return nil, err
+	}
+	if descriptor.Type != protocol.ResourceTypeCommand {
+		return nil, errors.New("command descriptor must use mfh.command type")
+	}
+	if _, ok := descriptor.Capability(protocol.CapabilityInvoke); !ok {
+		return nil, errors.New("command descriptor requires invoke capability")
 	}
 	if handler == nil {
 		return nil, errors.New("command handler is required")
@@ -259,21 +496,30 @@ func NewCommand(descriptor Descriptor, handler CommandHandler) (*Command, error)
 	return &Command{descriptor: descriptor, handler: handler}, nil
 }
 
-func (c *Command) Descriptor() Descriptor { return c.descriptor }
+func (c *Command) Descriptor() Descriptor { return cloneDescriptor(c.descriptor) }
+
+func (c *Command) Operate(ctx context.Context, request OperationRequest) (OperationResult, error) {
+	if ctx == nil {
+		return OperationResult{}, errors.New("command context is required")
+	}
+	if request.Capability != protocol.CapabilityInvoke {
+		return OperationResult{}, fmt.Errorf("%w: %s", ErrUnsupportedCapability, request.Capability)
+	}
+	if err := validatePayload(c.descriptor, request.Payload); err != nil {
+		return OperationResult{}, err
+	}
+	output, err := c.handler(ctx, append([]byte(nil), request.Payload...))
+	if err != nil {
+		return OperationResult{}, err
+	}
+	if err := validatePayload(c.descriptor, output); err != nil {
+		return OperationResult{}, err
+	}
+	capability, _ := c.descriptor.Capability(protocol.CapabilityInvoke)
+	return OperationResult{Schema: capability.OutputSchema, Payload: append([]byte(nil), output...)}, nil
+}
 
 func (c *Command) Invoke(ctx context.Context, input []byte) ([]byte, error) {
-	if ctx == nil {
-		return nil, errors.New("command context is required")
-	}
-	if err := c.descriptor.validateValue(input); err != nil {
-		return nil, err
-	}
-	output, err := c.handler(ctx, append([]byte(nil), input...))
-	if err != nil {
-		return nil, err
-	}
-	if err := c.descriptor.validateValue(output); err != nil {
-		return nil, err
-	}
-	return append([]byte(nil), output...), nil
+	result, err := c.Operate(ctx, OperationRequest{Capability: protocol.CapabilityInvoke, Payload: input})
+	return result.Payload, err
 }

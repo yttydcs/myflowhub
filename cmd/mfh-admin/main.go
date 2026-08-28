@@ -118,7 +118,7 @@ func run(options options) error {
 		defer current.Cancel()
 		select {
 		case event := <-current.Events:
-			if event.Kind != subscription.EventVariableSnapshot {
+			if event.Kind != subscription.EventSnapshot {
 				return fmt.Errorf("resource %s did not return a Variable snapshot", options.resource)
 			}
 			_, err = os.Stdout.Write(append(event.Value, '\n'))

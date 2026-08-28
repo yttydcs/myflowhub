@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yttydcs/myflowhub/runtime/auth"
 	"github.com/yttydcs/myflowhub/sdk/bindings"
 )
 
@@ -19,10 +20,27 @@ type Client struct {
 }
 
 func (c *Client) Open(stateDirectory string, nodeID int64) error {
+	return c.open(stateDirectory, nodeID, nil)
+}
+
+func (c *Client) OpenWithIdentityStore(stateDirectory string, nodeID int64, identityStore auth.IdentityStore) error {
+	if identityStore == nil {
+		return errors.New("desktop protected identity store is required")
+	}
+	return c.open(stateDirectory, nodeID, identityStore)
+}
+
+func (c *Client) open(stateDirectory string, nodeID int64, identityStore auth.IdentityStore) error {
 	if c == nil {
 		return errors.New("desktop binding client is required")
 	}
-	core, err := bindings.NewClient(stateDirectory, nodeID)
+	var core *bindings.Client
+	var err error
+	if identityStore == nil {
+		core, err = bindings.NewClient(stateDirectory, nodeID)
+	} else {
+		core, err = bindings.NewClientWithIdentityStore(stateDirectory, nodeID, identityStore)
+	}
 	if err != nil {
 		return err
 	}
@@ -102,13 +120,33 @@ func (c *Client) InvokeJSON(ownerID int64, name, requestJSON string, timeoutMS i
 	return core.InvokeJSON(ownerID, name, requestJSON, timeoutMS)
 }
 
+func (c *Client) OperateJSON(ownerID int64, name, capability, schema, requestJSON string, timeoutMS int64) (string, error) {
+	core, err := c.current()
+	if err != nil {
+		return "", err
+	}
+	return core.OperateJSON(ownerID, name, capability, schema, requestJSON, timeoutMS)
+}
+
+func (c *Client) UploadFile(ownerID int64, sourcePath, destination, contentType string, timeoutMS int64) (string, error) {
+	core, err := c.current()
+	if err != nil {
+		return "", err
+	}
+	return core.UploadFile(ownerID, sourcePath, destination, contentType, timeoutMS)
+}
+
 func (c *Client) Subscribe(ownerID int64, name string, leaseMS int64) (int64, error) {
+	return c.SubscribeCapability(ownerID, name, "subscribe", leaseMS)
+}
+
+func (c *Client) SubscribeCapability(ownerID int64, name, capability string, leaseMS int64) (int64, error) {
 	core, err := c.current()
 	if err != nil {
 		return 0, err
 	}
 	listener := newSubscription()
-	id, err := core.Subscribe(ownerID, name, leaseMS, listener)
+	id, err := core.SubscribeCapability(ownerID, name, capability, leaseMS, listener)
 	if err != nil {
 		listener.stop()
 		return 0, err

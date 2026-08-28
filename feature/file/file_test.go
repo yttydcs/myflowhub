@@ -31,19 +31,33 @@ func TestOrderedIdempotentTransferCompletesAtomically(t *testing.T) {
 	defer controller.Close()
 	content := []byte("hello world")
 	offer := protocol.FileOfferV1{Version: 1, TransferID: transferOne, Path: "inbox/greeting.txt", Size: int64(len(content)), SHA256: sum(content), ChunkSize: 5, ExpiresAtUnixMS: time.Now().Add(time.Hour).UnixMilli()}
-	invoke(t, runtime, protocol.BuiltinFileOffer, &offer, &protocol.FileProgressV1{})
-	first := protocol.FileChunkV1{Version: 1, TransferID: transferOne, Offset: 0, Data: content[:5], SHA256: sum(content[:5])}
-	invoke(t, runtime, protocol.BuiltinFileChunk, &first, &protocol.FileProgressV1{})
-	duplicate := invoke(t, runtime, protocol.BuiltinFileChunk, &first, &protocol.FileProgressV1{})
-	if duplicate.(*protocol.FileProgressV1).ReceivedBytes != 5 {
+	session := openSession(t, runtime, offer)
+	send := func(offset int64, data []byte) protocol.FileProgressV1 {
+		result, err := session.Send(context.Background(), offset, data, sum(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var progress protocol.FileProgressV1
+		if err := protocol.DecodeJSONPayload(result.Payload, protocol.DefaultMaxPayload, &progress); err != nil {
+			t.Fatal(err)
+		}
+		return progress
+	}
+	send(0, content[:5])
+	duplicate := send(0, content[:5])
+	if duplicate.ReceivedBytes != 5 {
 		t.Fatal("duplicate chunk advanced transfer")
 	}
-	second := protocol.FileChunkV1{Version: 1, TransferID: transferOne, Offset: 5, Data: content[5:10], SHA256: sum(content[5:10])}
-	third := protocol.FileChunkV1{Version: 1, TransferID: transferOne, Offset: 10, Data: content[10:], SHA256: sum(content[10:])}
-	invoke(t, runtime, protocol.BuiltinFileChunk, &second, &protocol.FileProgressV1{})
-	invoke(t, runtime, protocol.BuiltinFileChunk, &third, &protocol.FileProgressV1{})
-	complete := protocol.FileCompleteV1{Version: 1, TransferID: transferOne, Size: int64(len(content)), SHA256: sum(content)}
-	result := invoke(t, runtime, protocol.BuiltinFileComplete, &complete, &protocol.FileProgressV1{}).(*protocol.FileProgressV1)
+	send(5, content[5:10])
+	send(10, content[10:])
+	closed, err := session.Close(context.Background(), true, "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result protocol.FileProgressV1
+	if err := protocol.DecodeJSONPayload(closed.Payload, protocol.DefaultMaxPayload, &result); err != nil {
+		t.Fatal(err)
+	}
 	if result.State != "completed" || result.ReceivedBytes != int64(len(content)) {
 		t.Fatalf("unexpected completion: %#v", result)
 	}
@@ -65,24 +79,26 @@ func TestZeroLengthGapChecksumAndCancel(t *testing.T) {
 	defer controller.Close()
 	empty := []byte{}
 	offerEmpty := protocol.FileOfferV1{Version: 1, TransferID: transferOne, Path: "empty.bin", Size: 0, SHA256: sum(empty), ChunkSize: 8, ExpiresAtUnixMS: time.Now().Add(time.Hour).UnixMilli()}
-	invoke(t, runtime, protocol.BuiltinFileOffer, &offerEmpty, &protocol.FileProgressV1{})
-	invoke(t, runtime, protocol.BuiltinFileComplete, &protocol.FileCompleteV1{Version: 1, TransferID: transferOne, Size: 0, SHA256: sum(empty)}, &protocol.FileProgressV1{})
+	emptySession := openSession(t, runtime, offerEmpty)
+	if _, err := emptySession.Close(context.Background(), true, "", nil); err != nil {
+		t.Fatal(err)
+	}
 	if info, err := os.Stat(filepath.Join(root, "empty.bin")); err != nil || info.Size() != 0 {
 		t.Fatalf("zero-length file was not completed: %v", err)
 	}
 
 	content := []byte("abcdef")
 	offer := protocol.FileOfferV1{Version: 1, TransferID: transferTwo, Path: "cancel.bin", Size: 6, SHA256: sum(content), ChunkSize: 3, ExpiresAtUnixMS: time.Now().Add(time.Hour).UnixMilli()}
-	invoke(t, runtime, protocol.BuiltinFileOffer, &offer, &protocol.FileProgressV1{})
-	gap := protocol.FileChunkV1{Version: 1, TransferID: transferTwo, Offset: 3, Data: content[3:], SHA256: sum(content[3:])}
-	if _, err := invokeError(runtime, protocol.BuiltinFileChunk, &gap); err == nil {
+	session := openSession(t, runtime, offer)
+	if _, err := session.Send(context.Background(), 3, content[3:], sum(content[3:])); err == nil {
 		t.Fatal("chunk gap was accepted")
 	}
-	bad := protocol.FileChunkV1{Version: 1, TransferID: transferTwo, Offset: 0, Data: content[:3], SHA256: sum([]byte("wrong"))}
-	if _, err := invokeError(runtime, protocol.BuiltinFileChunk, &bad); err == nil {
+	if _, err := session.Send(context.Background(), 0, content[:3], sum([]byte("wrong"))); err == nil {
 		t.Fatal("bad chunk checksum was accepted")
 	}
-	invoke(t, runtime, protocol.BuiltinFileCancel, &protocol.FileCancelV1{Version: 1, TransferID: transferTwo, Reason: "user"}, &protocol.FileProgressV1{})
+	if _, err := session.Close(context.Background(), false, "text/plain", []byte("user")); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := os.Stat(filepath.Join(root, ".mfh-tmp", transferTwo+".part")); !os.IsNotExist(err) {
 		t.Fatal("cancelled transfer temporary file remained")
 	}
@@ -107,9 +123,7 @@ func TestTransferOwnershipAndStartupCleanup(t *testing.T) {
 	}
 	policy := auth.NewStaticPolicy()
 	for _, child := range []protocol.NodeID{2, 3} {
-		for _, name := range []string{protocol.BuiltinFileOffer, protocol.BuiltinFileChunk} {
-			policy.Allow(auth.Request{Subject: child, Action: auth.ActionInvoke, Resource: protocol.ResourceID{Owner: 1, Name: name}})
-		}
+		policy.Allow(auth.Request{Subject: child, Action: auth.ActionOpen, Resource: protocol.ResourceID{Owner: 1, Name: protocol.BuiltinFileUpload}})
 	}
 	rootNode, _ := node.New(context.Background(), node.Config{Identity: rootIdentity, Trust: rootTrust, Policy: policy})
 	defer rootNode.Close()
@@ -130,12 +144,10 @@ func TestTransferOwnershipAndStartupCleanup(t *testing.T) {
 	childB := connectedChild(t, network, rootIdentity, childBIdentity)
 	content := []byte("abc")
 	offer := protocol.FileOfferV1{Version: 1, TransferID: transferTwo, Path: "owned.bin", Size: 3, SHA256: sum(content), ChunkSize: 3, ExpiresAtUnixMS: time.Now().Add(time.Hour).UnixMilli()}
-	if _, err := invokeRemote(childA, protocol.BuiltinFileOffer, &offer); err != nil {
-		t.Fatal(err)
-	}
-	chunk := protocol.FileChunkV1{Version: 1, TransferID: transferTwo, Offset: 0, Data: content, SHA256: sum(content)}
-	if _, err := invokeRemote(childB, protocol.BuiltinFileChunk, &chunk); err == nil {
-		t.Fatal("a different caller wrote another node's transfer")
+	_ = openSession(t, childA, offer)
+	payload, _ := protocol.EncodeJSONPayload(&offer, protocol.DefaultMaxPayload)
+	if _, err := childB.OpenSession(context.Background(), protocol.ResourceID{Owner: 1, Name: protocol.BuiltinFileUpload}, protocol.CapabilityOpen, protocol.SchemaFileOfferV1, payload); err == nil {
+		t.Fatal("a different caller reopened another node's transfer")
 	}
 }
 
@@ -148,7 +160,7 @@ func TestTransferExpiresWithoutAnotherCommand(t *testing.T) {
 	defer controller.Close()
 	content := []byte("abc")
 	offer := protocol.FileOfferV1{Version: 1, TransferID: transferOne, Path: "expires.bin", Size: 3, SHA256: sum(content), ChunkSize: 3, ExpiresAtUnixMS: time.Now().Add(60 * time.Millisecond).UnixMilli()}
-	invoke(t, runtime, protocol.BuiltinFileOffer, &offer, &protocol.FileProgressV1{})
+	_ = openSession(t, runtime, offer)
 	deadline := time.Now().Add(time.Second)
 	for time.Now().Before(deadline) {
 		value, _ := runtime.Registry().Resolve(protocol.ResourceID{Owner: 1, Name: protocol.BuiltinFileTransfers})
@@ -195,28 +207,17 @@ func connectedChild(t *testing.T, network *memory.Network, parent auth.Identity,
 	return runtime
 }
 
-func invoke(t *testing.T, runtime *node.Node, name string, request protocol.ValidatedPayload, response protocol.ValidatedPayload) protocol.ValidatedPayload {
+func openSession(t *testing.T, runtime *node.Node, offer protocol.FileOfferV1) *node.RemoteSession {
 	t.Helper()
-	data, err := invokeRemote(runtime, name, request)
+	payload, err := protocol.EncodeJSONPayload(&offer, protocol.DefaultMaxPayload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := protocol.DecodeJSONPayload(data, protocol.DefaultMaxPayload, response); err != nil {
+	session, err := runtime.OpenSession(context.Background(), protocol.ResourceID{Owner: 1, Name: protocol.BuiltinFileUpload}, protocol.CapabilityOpen, protocol.SchemaFileOfferV1, payload)
+	if err != nil {
 		t.Fatal(err)
 	}
-	return response
-}
-
-func invokeRemote(runtime *node.Node, name string, request protocol.ValidatedPayload) ([]byte, error) {
-	payload, err := protocol.EncodeJSONPayload(request, protocol.DefaultMaxPayload)
-	if err != nil {
-		return nil, err
-	}
-	return runtime.Invoke(context.Background(), protocol.ResourceID{Owner: 1, Name: name}, payload)
-}
-
-func invokeError(runtime *node.Node, name string, request protocol.ValidatedPayload) ([]byte, error) {
-	return invokeRemote(runtime, name, request)
+	return session
 }
 
 func sum(data []byte) string {

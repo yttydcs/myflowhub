@@ -20,11 +20,11 @@ class FakeCrypto:
 
     def sign(self, private_key, message):
         assert private_key == bytes([0x22]) * 64
-        assert message.startswith(b"MFH3-JOIN")
+        assert message.startswith(b"MFH4-JOIN")
         return bytes([0x5A]) * 64
 
     def verify(self, public_key, message, signature):
-        return public_key == bytes([0x44]) * 32 and message.startswith(b"MFH3-ACK") and signature == bytes([0x33]) * 64
+        return public_key == bytes([0x44]) * 32 and message.startswith(b"MFH4-ACK") and signature == bytes([0x33]) * 64
 
 
 class ScriptedTransport:
@@ -55,18 +55,18 @@ class ScriptedTransport:
             self.inbound.extend(protocol.encode(response))
         elif request["operation"] == protocol.OP_SUBSCRIBE:
             payload = b'{"revision":1,"value":"eyJ2ZXJzaW9uIjoxfQ=="}'
-            response = self.response(protocol.OP_VARIABLE_SNAPSHOT, request, message_id, payload, "subscription-event.v1", request["resource_owner"], request["resource_name"])
+            response = self.response(protocol.OP_RESOURCE_EVENT, request, message_id, payload, "mfh.resource-event.v2", request["resource_owner"], request["resource_name"])
             self.inbound.extend(protocol.encode(response))
-        elif request["operation"] == protocol.OP_COMMAND_CALL:
-            response = self.response(protocol.OP_COMMAND_RESULT, request, message_id, b'{"version":1,"status":"ok"}', request["schema"], request["resource_owner"], request["resource_name"])
+        elif request["operation"] == protocol.OP_OPERATE:
+            response = self.response(protocol.OP_OPERATE_RESULT, request, message_id, b'{"version":1,"status":"ok"}', request["schema"], request["resource_owner"], request["resource_name"])
             self.inbound.extend(protocol.encode(response))
 
     def response(self, operation, request, message_id, payload, schema, owner=0, name=""):
         return {
-            "version": 1, "phase": protocol.PHASE_RESPONSE, "operation": operation,
+            "version": protocol.VERSION, "phase": protocol.PHASE_RESPONSE, "operation": operation,
             "message_id": message_id, "correlation_id": request["message_id"], "source": request["target"], "principal": 0,
             "target": request["source"], "resource_owner": owner, "topology_epoch": 0, "deadline_unix_ms": 0,
-            "content_type": "application/json", "schema": schema, "resource_name": name, "payload": payload,
+            "content_type": "application/json", "schema": schema, "capability": request.get("capability", ""), "resource_name": name, "payload": payload,
         }
 
     def read_exact(self, length):
@@ -93,14 +93,14 @@ class ClientTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 Identity.load_or_create(path, 3, self.crypto)
 
-    def test_join_subscribe_command_and_reconnect(self):
+    def test_join_subscribe_operate_and_reconnect(self):
         self.client.connect()
         self.assertTrue(self.client.joined)
         subscription = self.client.subscribe(1, "system/health")
         event = self.client.poll()
-        self.assertEqual(event["operation"], protocol.OP_VARIABLE_SNAPSHOT)
+        self.assertEqual(event["operation"], protocol.OP_RESOURCE_EVENT)
         self.assertEqual(event["correlation_id"], subscription)
-        result = self.client.invoke(1, "device/led/set", "mfh.device.led.v1", {"version": 1, "value": "true"}, 1000)
+        result = self.client.operate(1, "device/led/set", "invoke", "mfh.device.led.v1", {"version": 1, "value": "true"}, 1000)
         self.assertEqual(result["status"], "ok")
         before = len([item for item in self.transport.writes if item["operation"] == protocol.OP_SUBSCRIBE])
         self.client.reconnect(1, lambda _: None)

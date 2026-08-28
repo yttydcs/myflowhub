@@ -17,12 +17,17 @@ type Action string
 const (
 	ActionSubscribe Action = "subscribe"
 	ActionInvoke    Action = "invoke"
+	ActionRead      Action = "read"
+	ActionWrite     Action = "write"
+	ActionPublish   Action = "publish"
+	ActionOpen      Action = "open"
 )
 
 type Request struct {
-	Subject  protocol.NodeID     `json:"subject"`
-	Action   Action              `json:"action"`
-	Resource protocol.ResourceID `json:"resource"`
+	Subject    protocol.NodeID       `json:"subject"`
+	Action     Action                `json:"action"`
+	Capability protocol.CapabilityID `json:"capability"`
+	Resource   protocol.ResourceID   `json:"resource"`
 }
 
 type Policy interface {
@@ -50,12 +55,20 @@ func NewStaticPolicy() *StaticPolicy {
 }
 
 func (p *StaticPolicy) Allow(request Request) {
+	request, err := normalizeRequest(request)
+	if err != nil {
+		return
+	}
 	p.mu.Lock()
 	p.allowed[request] = struct{}{}
 	p.mu.Unlock()
 }
 
 func (p *StaticPolicy) Authorize(_ context.Context, request Request) error {
+	request, err := normalizeRequest(request)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrForbidden, err)
+	}
 	p.mu.RLock()
 	_, ok := p.allowed[request]
 	p.mu.RUnlock()
@@ -65,15 +78,46 @@ func (p *StaticPolicy) Authorize(_ context.Context, request Request) error {
 	return nil
 }
 
+func normalizeRequest(request Request) (Request, error) {
+	if err := request.Subject.Validate(); err != nil {
+		return Request{}, err
+	}
+	if request.Capability == "" {
+		request.Capability = protocol.CapabilityID(request.Action)
+	}
+	if request.Action == "" {
+		request.Action = Action(request.Capability)
+	}
+	if err := request.Capability.Validate(); err != nil {
+		return Request{}, err
+	}
+	if request.Action != Action(request.Capability) {
+		return Request{}, errors.New("policy action and capability must match")
+	}
+	if err := request.Resource.Validate(); err != nil {
+		return Request{}, err
+	}
+	return request, nil
+}
+
 func ActionFor(operation protocol.Operation) (Action, error) {
+	return ActionForCapability(operation, "")
+}
+
+func ActionForCapability(operation protocol.Operation, capability protocol.CapabilityID) (Action, error) {
 	switch operation {
 	case protocol.OperationSubscribe, protocol.OperationUnsubscribe:
-		return ActionSubscribe, nil
-	case protocol.OperationCommandCall:
-		return ActionInvoke, nil
+		if capability == "" {
+			capability = protocol.CapabilitySubscribe
+		}
+	case protocol.OperationOperate, protocol.OperationSessionOpen, protocol.OperationSessionData, protocol.OperationSessionClose:
+		if err := capability.Validate(); err != nil {
+			return "", err
+		}
 	default:
 		return "", fmt.Errorf("operation %d does not require resource authorization", operation)
 	}
+	return Action(capability), nil
 }
 
 func AuthorizeRequest(ctx context.Context, policy Policy, envelope protocol.Envelope) error {
@@ -83,11 +127,11 @@ func AuthorizeRequest(ctx context.Context, policy Policy, envelope protocol.Enve
 	if policy == nil {
 		return errors.New("authorization policy is required")
 	}
-	action, err := ActionFor(envelope.Operation)
+	action, err := ActionForCapability(envelope.Operation, envelope.Capability)
 	if err != nil {
 		return err
 	}
-	return policy.Authorize(ctx, Request{Subject: envelope.Subject(), Action: action, Resource: envelope.Resource})
+	return policy.Authorize(ctx, Request{Subject: envelope.Subject(), Action: action, Capability: envelope.Capability, Resource: envelope.Resource})
 }
 
 func PromoteControl(envelope protocol.Envelope, childEpoch uint64) (protocol.Envelope, error) {

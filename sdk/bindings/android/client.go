@@ -95,6 +95,14 @@ func (c *Client) InvokeJSON(ownerID int64, name, requestJSON string, timeoutMS i
 	return core.InvokeJSON(ownerID, name, requestJSON, timeoutMS)
 }
 
+func (c *Client) OperateJSON(ownerID int64, name, capability, schema, requestJSON string, timeoutMS int64) (string, error) {
+	core, err := c.current()
+	if err != nil {
+		return "", err
+	}
+	return core.OperateJSON(ownerID, name, capability, schema, requestJSON, timeoutMS)
+}
+
 func (c *Client) UploadFile(ownerID int64, sourcePath, destination, contentType string, timeoutMS int64) (string, error) {
 	core, err := c.current()
 	if err != nil {
@@ -104,6 +112,10 @@ func (c *Client) UploadFile(ownerID int64, sourcePath, destination, contentType 
 }
 
 func (c *Client) Subscribe(ownerID int64, name string, leaseMS int64, listener Listener) (int64, error) {
+	return c.SubscribeCapability(ownerID, name, "subscribe", leaseMS, listener)
+}
+
+func (c *Client) SubscribeCapability(ownerID int64, name, capability string, leaseMS int64, listener Listener) (int64, error) {
 	core, err := c.current()
 	if err != nil {
 		return 0, err
@@ -111,7 +123,7 @@ func (c *Client) Subscribe(ownerID int64, name string, leaseMS int64, listener L
 	if listener == nil {
 		return 0, errors.New("Android subscription listener is required")
 	}
-	return core.Subscribe(ownerID, name, leaseMS, listener)
+	return core.SubscribeCapability(ownerID, name, capability, leaseMS, listener)
 }
 
 func (c *Client) CancelSubscription(subscriptionID int64) {

@@ -12,7 +12,7 @@ import (
 )
 
 func TestEmbeddedEnvelopeGolden(t *testing.T) {
-	wantHex, err := os.ReadFile(filepath.Join(fixtures(t), "..", "embedded", "envelope-command-v1.hex"))
+	wantHex, err := os.ReadFile(filepath.Join(fixtures(t), "..", "embedded", "envelope-operate-v2.hex"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -20,7 +20,7 @@ func TestEmbeddedEnvelopeGolden(t *testing.T) {
 	envelope := protocol.Envelope{
 		Version:        protocol.CurrentVersion,
 		Phase:          protocol.PhaseRequest,
-		Operation:      protocol.OperationCommandCall,
+		Operation:      protocol.OperationOperate,
 		MessageID:      messageID,
 		Source:         2,
 		Target:         1,
@@ -28,6 +28,7 @@ func TestEmbeddedEnvelopeGolden(t *testing.T) {
 		DeadlineUnixMS: 1000,
 		ContentType:    "application/json",
 		Schema:         "mfh.test.v1",
+		Capability:     protocol.CapabilityInvoke,
 		Payload:        []byte(`{"version":1,"value":"true"}`),
 	}
 	var encoded bytes.Buffer

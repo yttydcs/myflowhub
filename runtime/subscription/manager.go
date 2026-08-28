@@ -51,6 +51,7 @@ type Request struct {
 	ID               protocol.MessageID
 	Subscriber       protocol.NodeID
 	Resource         protocol.ResourceID
+	Capability       protocol.CapabilityID
 	LinkID           string
 	NextHop          protocol.NodeID
 	Lease            time.Duration
@@ -64,6 +65,7 @@ type Subscription struct {
 	ID         protocol.MessageID
 	Subscriber protocol.NodeID
 	Resource   protocol.ResourceID
+	Capability protocol.CapabilityID
 	LeaseUntil time.Time
 	Events     <-chan Event
 	cancel     func()
@@ -125,6 +127,9 @@ func (m *Manager) Subscribe(request Request) (*Subscription, error) {
 	if err := request.Resource.Validate(); err != nil {
 		return nil, err
 	}
+	if err := request.Capability.Validate(); err != nil {
+		return nil, err
+	}
 	if request.LinkID == "" {
 		return nil, errors.New("subscription link ID is required")
 	}
@@ -159,31 +164,29 @@ func (m *Manager) Subscribe(request Request) (*Subscription, error) {
 			close(ready)
 		}
 	}()
-	switch typed := value.(type) {
-	case *resource.Variable:
-		snapshot, cancel, err := typed.Watch(func(update resource.VariableUpdate) {
-			<-ready
-			valueDelivery.enqueueVariable(Event{Kind: EventVariableUpdate, Resource: request.Resource, Revision: update.Revision, Value: update.Value})
-		})
-		if err != nil {
-			return nil, err
-		}
-		current.watchCancel = cancel
-		valueDelivery.enqueueSnapshot(Event{Kind: EventVariableSnapshot, Resource: request.Resource, Revision: snapshot.Revision, Value: snapshot.Value})
-	case *resource.Stream:
-		cancel, err := typed.Watch(func(event resource.StreamEvent) {
-			<-ready
-			valueDelivery.enqueueStream(Event{Kind: EventStream, Resource: request.Resource, Sequence: event.Sequence, Value: event.Value})
-		})
-		if err != nil {
-			return nil, err
-		}
-		current.watchCancel = cancel
-	default:
+	descriptor := value.Descriptor()
+	capability, exists := descriptor.Capability(request.Capability)
+	if !exists || capability.EventSchema == "" {
 		return nil, ErrNotSubscribable
+	}
+	observable, ok := value.(resource.Observable)
+	if !ok {
+		return nil, ErrNotSubscribable
+	}
+	snapshot, cancel, err := observable.Observe(func(observation resource.Observation) {
+		<-ready
+		current.enqueueObservation(request, observation)
+	})
+	if err != nil {
+		return nil, err
+	}
+	current.watchCancel = cancel
+	if snapshot != nil {
+		current.enqueueObservation(request, *snapshot)
 	}
 	interest := Interest{
 		ID: request.ID, Subscriber: request.Subscriber, Resource: request.Resource, LinkID: request.LinkID, NextHop: request.NextHop,
+		Capability: request.Capability,
 		LeaseUntil: leaseUntil, AuthorizedUntil: request.AuthorizedUntil, TopologyEpoch: request.TopologyEpoch, PolicyGeneration: request.PolicyGeneration,
 	}
 	if _, err := m.interest.Add(interest); err != nil {
@@ -223,7 +226,7 @@ func (m *Manager) Subscribe(request Request) (*Subscription, error) {
 		}
 	}()
 	return &Subscription{
-		ID: request.ID, Subscriber: request.Subscriber, Resource: request.Resource, LeaseUntil: leaseUntil, Events: valueDelivery.out,
+		ID: request.ID, Subscriber: request.Subscriber, Resource: request.Resource, Capability: request.Capability, LeaseUntil: leaseUntil, Events: valueDelivery.out,
 		cancel: func() { m.Unsubscribe(request.ID) },
 	}, nil
 }
@@ -317,5 +320,26 @@ func ValidateRequest(request Request) error {
 	if request.ID.IsZero() || request.LinkID == "" {
 		return fmt.Errorf("subscription ID and link are required")
 	}
-	return request.Resource.Validate()
+	if err := request.Resource.Validate(); err != nil {
+		return err
+	}
+	return request.Capability.Validate()
+}
+
+func (e *entry) enqueueObservation(request Request, observation resource.Observation) {
+	event := Event{
+		Kind: EventData, Resource: request.Resource, Capability: request.Capability, Schema: observation.Schema,
+		Revision: observation.Revision, Sequence: observation.Sequence, Publisher: observation.Publisher,
+		PublisherSequence: observation.PublisherSequence, Value: observation.Value,
+	}
+	if observation.Snapshot {
+		event.Kind = EventSnapshot
+		e.delivery.enqueueSnapshot(event)
+		return
+	}
+	if observation.Revision != 0 {
+		e.delivery.enqueueVariable(event)
+		return
+	}
+	e.delivery.enqueueStream(event)
 }

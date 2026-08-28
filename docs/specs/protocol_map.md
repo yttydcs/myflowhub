@@ -1,44 +1,54 @@
-# vNext Protocol And Resource Mapping
+# MFH4 v2 Protocol And Resource Mapping
 
-本文是 vNext 协议与资源模型的人工速查入口。协议真相位于 `protocol/`，跨语言公开面由 `sdk/bindings/generated/contracts.json` 生成并接受架构测试校验；本文不再同步任何旧 SubProto、VarStore 或 TopicBus 动作表。
+本文是当前协议与资源模型的人工速查入口。机器真相位于 `protocol/`，跨语言公开面由
+`sdk/bindings/generated/contracts.json` 生成并接受架构测试校验。
 
-## Envelope Operations
+## Envelope operations
 
-| 语义 | Operation | Phase | 资源要求 |
+| 语义 | Operation | Phase | Resource/capability |
 |---|---|---|---|
 | 建立父子关系 | `Join` / `JoinAck` | request / response | 无 |
 | 发布或撤销子树路由 | `RouteAnnounce` / `RouteWithdraw` | event | 无 |
-| 建立或取消订阅 | `Subscribe` / `Unsubscribe` / `SubscribeAck` | request/control/response | Variable 或 Stream |
-| Variable 初值与变更 | `VariableSnapshot` / `VariableUpdate` | response / event | Variable |
-| Stream 数据与缺口 | `StreamEvent` / `StreamGap` | event | Stream |
-| 调用 Command | `CommandCall` / `CommandResult` | request/control/response | Command |
-| 显式错误 | `Error` | response | 无 |
+| 建立或取消观察关系 | `Subscribe` / `Unsubscribe` / `SubscribeAck` | request/control/response | 任意 observable capability |
+| 资源事件与缺口 | `ResourceEvent` / `ResourceGap` | response/event | 原 subscription capability |
+| 通用资源操作 | `Operate` / `OperateResult` | request/control/response | `read`、`write`、`publish`、`invoke` 或扩展 capability |
+| 打开会话 | `SessionOpen` / `SessionOpenResult` | request/control/response | session-oriented `open` capability |
+| 会话数据与关闭 | `SessionData` / `SessionClose` | request/control/response | 与 grant 相同的 Resource/capability |
+| 显式错误 | `Error` | response | 关联原请求 |
 | 链路保活 | `Heartbeat` | event | 无 |
 
-`Source` 表示当前发送节点，`Principal` 在转发时保留原始行为主体，`Target` 表示资源所有者；权限判断使用 `Envelope.Subject()`，不能把中继节点误当成授权主体。路由、订阅和指令的详细时序分别见 [wire-protocol-vnext.md](wire-protocol-vnext.md)、[subscription-vnext.md](subscription-vnext.md) 与 [command-vnext.md](command-vnext.md)。
+frame magic 为 `MFH4`、major version 为 2。`Source` 表示当前发送 Node，`Principal` 在合法委托时保留
+原始行为主体，`Target` 表示 Resource owner；权限使用 `Envelope.Subject()` 与 exact capability，不能把
+中继 Node 当成授权主体。Join/ack/permit 的签名 domain 同步使用 MFH4。
 
-## Resource Mapping
+## Resource types
 
-只有三种资源：
+| Type | 基础 capability | 关键语义 |
+|---|---|---|
+| `mfh.variable` | `read`、可选 `write`、`subscribe` | snapshot-first、revision、expected-revision 条件写 |
+| `mfh.stream` | `subscribe` | owner sequence、有界 delivery、explicit gap |
+| `mfh.topic` | `publish`、`subscribe` | Node-owned broker、多 publisher、per-publisher sequence、默认无 replay |
+| `mfh.command` | `invoke` | 独立 input/output schema、deadline、dedupe、panic isolation |
+| `mfh.file` | `open` | subject/link/policy-bound session、有界 data lane、checksum/atomic commit |
 
-- Variable：订阅后先得到 snapshot，再按 revision 接收 update；
-- Stream：订阅后按 sequence 接收 event，丢失或背压必须以 gap 显式可见；
-- Command：有界请求/响应，用于无法自然表达为状态或事件的操作。
+类型 ID 与 capability 是受限的可扩展字符串。未知 type 仍能进入 catalog 与 Desktop inspector；未声明的
+capability、schema mismatch 或未知 major 明确失败。Core 通过 `Resource`、`Observable` 与
+`SessionResource` 接口扩展，不维护产品 type switch。
 
-内置资源族如下；具体 payload schema 由 `protocol/schema_*.go` 定义，完整机器可读清单见 `sdk/bindings/generated/contracts.json`。
+## Built-in resources
 
-| 资源族 | Variable | Stream | Command |
-|---|---|---|---|
-| system | `system/catalog`、`system/config`、`system/health`、`system/topology` | `system/audit` | admission、config update、node revoke、policy grant/revoke |
-| notifications | — | `notifications/events` | `notifications/publish` |
-| file | `file/transfers` | `file/progress` | offer、chunk、complete、cancel |
-| flow | `flow/definitions`、`flow/runs` | `flow/events` | create、update、run、cancel、archive |
+| 资源族 | Observable state/events | Operations/sessions |
+|---|---|---|
+| system | `system/catalog`、`system/config`、`system/health`、`system/topology`、`system/audit` | admission、config update、node revoke、policy grant/revoke |
+| notifications | `notifications/events` | `notifications/publish` invoke |
+| file | `file/transfers`、`file/progress` | `file/upload` open session |
+| flow | `flow/definitions`、`flow/runs`、`flow/events` | create、update、run、cancel、archive invoke |
 
-第一方产品资源继续遵守同一三资源模型，详见 [resource-model-vnext.md](resource-model-vnext.md) 和 [../features/README.md](../features/README.md)，不得新增旁路协议或第二套 dispatcher。
+第一方 Metrics 与 Clipboard 也只注册 Node-owned descriptor/capability，不建立旁路 dispatcher。
 
 ## Maintenance
 
 1. 先修改 `protocol/` 中的版本化类型与 schema。
 2. 运行 `./scripts/mfh.ps1 -Action generate -Target generated` 刷新公开 contract。
-3. 更新受影响的 spec/feature dossier，而不是从旧仓库复制协议文档。
-4. 运行架构、协议和绑定一致性测试；生成文件漂移必须显式失败。
+3. 更新受影响的 current spec/feature，而不是从旧仓复制协议文档。
+4. 运行协议、架构、bindings、Embedded fixture 与 generated drift 门禁。

@@ -42,12 +42,12 @@ func TestJoinedNodeUsesRemoteVariableAndCommand(t *testing.T) {
 	}
 	waitRoute(t, root.Tree(), child.ID())
 	variableID := protocol.ResourceID{Owner: root.ID(), Name: "status"}
-	variable, _ := resource.NewVariable(resource.Descriptor{ID: variableID, Kind: resource.KindVariable, MaxValueBytes: 64}, []byte("ready"))
+	variable, _ := resource.NewVariable(resource.VariableDescriptor(variableID, "application/octet-stream", "test.raw.v1", "test.read", 64), []byte("ready"))
 	if err := root.Registry().Register(variable); err != nil {
 		t.Fatal(err)
 	}
 	commandID := protocol.ResourceID{Owner: root.ID(), Name: "echo"}
-	command, _ := resource.NewCommand(resource.Descriptor{ID: commandID, Kind: resource.KindCommand, MaxValueBytes: 64}, func(_ context.Context, input []byte) ([]byte, error) {
+	command, _ := resource.NewCommand(resource.CommandDescriptor(commandID, "application/octet-stream", "test.raw.v1", "test.invoke", 64), func(_ context.Context, input []byte) ([]byte, error) {
 		return append([]byte("echo:"), input...), nil
 	})
 	if err := root.Registry().Register(command); err != nil {
@@ -58,11 +58,11 @@ func TestJoinedNodeUsesRemoteVariableAndCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer remote.Cancel()
-	if event := receiveRemote(t, remote); event.Kind != subscription.EventVariableSnapshot || string(event.Value) != "ready" {
+	if event := receiveRemote(t, remote); event.Kind != subscription.EventSnapshot || string(event.Value) != "ready" {
 		t.Fatalf("unexpected snapshot: %#v", event)
 	}
 	_, _ = variable.Set([]byte("updated"))
-	if event := receiveRemote(t, remote); event.Kind != subscription.EventVariableUpdate || string(event.Value) != "updated" {
+	if event := receiveRemote(t, remote); event.Kind != subscription.EventData || string(event.Value) != "updated" {
 		t.Fatalf("unexpected update: %#v", event)
 	}
 	output, err := child.Invoke(ctx, commandID, []byte("hi"))
@@ -106,7 +106,7 @@ func TestReconnectCleansSubscriptionsBoundToReplacedLink(t *testing.T) {
 	}
 	waitRoute(t, root.Tree(), child.ID())
 	variableID := protocol.ResourceID{Owner: child.ID(), Name: "status"}
-	variable, _ := resource.NewVariable(resource.Descriptor{ID: variableID, Kind: resource.KindVariable, MaxValueBytes: 64}, []byte("ready"))
+	variable, _ := resource.NewVariable(resource.VariableDescriptor(variableID, "application/octet-stream", "test.raw.v1", "test.read", 64), []byte("ready"))
 	if err := child.Registry().Register(variable); err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestReconnectCleansSubscriptionsBoundToReplacedLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer remote.Cancel()
-	if event := receiveRemote(t, remote); event.Kind != subscription.EventVariableSnapshot {
+	if event := receiveRemote(t, remote); event.Kind != subscription.EventSnapshot {
 		t.Fatalf("unexpected snapshot: %#v", event)
 	}
 	if child.subscriptions.Count() != 1 {

@@ -57,11 +57,12 @@ func (p *pendingEntry) Err() error {
 }
 
 type RemoteSubscription struct {
-	ID       protocol.MessageID
-	Resource protocol.ResourceID
-	Events   <-chan subscription.Event
-	Errors   <-chan error
-	cancel   func()
+	ID         protocol.MessageID
+	Resource   protocol.ResourceID
+	Capability protocol.CapabilityID
+	Events     <-chan subscription.Event
+	Errors     <-chan error
+	cancel     func()
 }
 
 func (s *RemoteSubscription) Cancel() {
@@ -72,25 +73,27 @@ func (s *RemoteSubscription) Cancel() {
 
 func subscriptionEvent(envelope protocol.Envelope) (subscription.Event, error) {
 	switch envelope.Operation {
-	case protocol.OperationVariableSnapshot, protocol.OperationVariableUpdate:
-		var payload variablePayload
+	case protocol.OperationResourceEvent, protocol.OperationResourceGap:
+		var payload resourceEventPayload
 		if err := decodeJSON(envelope.Payload, &payload); err != nil {
 			return subscription.Event{}, err
 		}
-		kind := subscription.EventVariableUpdate
-		if envelope.Operation == protocol.OperationVariableSnapshot {
-			kind = subscription.EventVariableSnapshot
+		if payload.Version != protocol.SchemaVersionV2 {
+			return subscription.Event{}, fmt.Errorf("resource event version must be %d", protocol.SchemaVersionV2)
 		}
-		return subscription.Event{Kind: kind, Resource: envelope.Resource, Revision: payload.Revision, Value: payload.Value}, nil
-	case protocol.OperationStreamEvent, protocol.OperationStreamGap:
-		var payload streamPayload
-		if err := decodeJSON(envelope.Payload, &payload); err != nil {
-			return subscription.Event{}, err
+		kind := subscription.EventData
+		if payload.Snapshot {
+			kind = subscription.EventSnapshot
 		}
-		if envelope.Operation == protocol.OperationStreamGap {
-			return subscription.Event{Kind: subscription.EventStreamGap, Resource: envelope.Resource, GapFrom: payload.GapFrom, GapTo: payload.GapTo, Reason: "remote_gap"}, nil
+		if envelope.Operation == protocol.OperationResourceGap {
+			kind = subscription.EventGap
 		}
-		return subscription.Event{Kind: subscription.EventStream, Resource: envelope.Resource, Sequence: payload.Sequence, Value: payload.Value}, nil
+		return subscription.Event{
+			Kind: kind, Resource: envelope.Resource, Capability: envelope.Capability, Schema: payload.Schema,
+			Revision: payload.Revision, Sequence: payload.Sequence, Publisher: payload.Publisher,
+			PublisherSequence: payload.PublisherSequence, GapFrom: payload.GapFrom, GapTo: payload.GapTo,
+			Value: payload.Value, Reason: payload.Reason,
+		}, nil
 	case protocol.OperationError:
 		failure, err := protocol.DecodeErrorPayload(envelope.Payload)
 		if err != nil {

@@ -16,20 +16,23 @@ type routePayload struct {
 }
 
 type subscribePayload struct {
+	Version int   `json:"version"`
 	LeaseMS int64 `json:"lease_ms"`
 	Queue   int   `json:"queue"`
 }
 
-type variablePayload struct {
-	Revision uint64 `json:"revision"`
-	Value    []byte `json:"value"`
-}
-
-type streamPayload struct {
-	Sequence uint64 `json:"sequence,omitempty"`
-	GapFrom  uint64 `json:"gap_from,omitempty"`
-	GapTo    uint64 `json:"gap_to,omitempty"`
-	Value    []byte `json:"value,omitempty"`
+type resourceEventPayload struct {
+	Version           int             `json:"version"`
+	Snapshot          bool            `json:"snapshot,omitempty"`
+	Revision          uint64          `json:"revision,omitempty"`
+	Sequence          uint64          `json:"sequence,omitempty"`
+	Publisher         protocol.NodeID `json:"publisher,omitempty"`
+	PublisherSequence uint64          `json:"publisher_sequence,omitempty"`
+	GapFrom           uint64          `json:"gap_from,omitempty"`
+	GapTo             uint64          `json:"gap_to,omitempty"`
+	Reason            string          `json:"reason,omitempty"`
+	Schema            string          `json:"schema,omitempty"`
+	Value             []byte          `json:"value,omitempty"`
 }
 
 func encodeJSON(value any) ([]byte, error) {

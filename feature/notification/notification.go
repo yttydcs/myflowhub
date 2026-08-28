@@ -32,18 +32,18 @@ func Register(config Config) (*Controller, error) {
 		config.Now = time.Now
 	}
 	owner := config.Node.ID()
-	events, err := resource.NewStream(resource.Descriptor{
-		ID: protocol.ResourceID{Owner: owner, Name: protocol.BuiltinNotificationEvents}, Kind: resource.KindStream,
-		ContentType: "application/json", Schema: protocol.SchemaNotificationEventV1, Permission: "notification.read", MaxValueBytes: protocol.DefaultMaxPayload,
-	})
+	events, err := resource.NewStream(resource.StreamDescriptor(
+		protocol.ResourceID{Owner: owner, Name: protocol.BuiltinNotificationEvents}, "application/json",
+		protocol.SchemaNotificationEventV1, "notification.read", protocol.DefaultMaxPayload,
+	))
 	if err != nil {
 		return nil, err
 	}
 	value := &Controller{node: config.Node, now: config.Now, events: events}
-	publish, err := resource.NewCommand(resource.Descriptor{
-		ID: protocol.ResourceID{Owner: owner, Name: protocol.BuiltinNotificationPublish}, Kind: resource.KindCommand,
-		ContentType: "application/json", Schema: protocol.SchemaNotificationPublishV1, Permission: "notification.publish", MaxValueBytes: protocol.DefaultMaxPayload,
-	}, value.publish)
+	publish, err := resource.NewCommand(resource.CommandDescriptorSchemas(
+		protocol.ResourceID{Owner: owner, Name: protocol.BuiltinNotificationPublish}, "application/json",
+		protocol.SchemaNotificationPublishV1, protocol.SchemaNotificationEventV1, "notification.publish", protocol.DefaultMaxPayload,
+	), value.publish)
 	if err != nil {
 		return nil, err
 	}

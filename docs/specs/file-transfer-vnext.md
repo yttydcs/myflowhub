@@ -1,5 +1,8 @@
 # File transfer vNext
 
+> Superseded: 普通 Command chunk 数据面由
+> [Resource Sessions v2](resource-sessions-v2.md) 取代。路径、校验和 atomic commit 约束继续有效。
+
 ## Resources
 
 - `file/transfers` Variable：当前节点可见的有界 transfer summaries。

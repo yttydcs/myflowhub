@@ -276,7 +276,7 @@ func permitMessage(permit protocol.ProvisioningPermitV1) []byte {
 		IssuedAtUnixMS  int64  `json:"issued_at_unix_ms"`
 		ExpiresAtUnixMS int64  `json:"expires_at_unix_ms"`
 		MaxUses         int    `json:"max_uses"`
-	}{"MFH3-PERMIT", permit.Version, permit.PermitID, permit.ParentNodeID, permit.ChildNodeID, permit.ChildPublicKey, permit.Role, permit.IssuedAtUnixMS, permit.ExpiresAtUnixMS, permit.MaxUses}
+	}{"MFH4-PERMIT", permit.Version, permit.PermitID, permit.ParentNodeID, permit.ChildNodeID, permit.ChildPublicKey, permit.Role, permit.IssuedAtUnixMS, permit.ExpiresAtUnixMS, permit.MaxUses}
 	data, _ := json.Marshal(unsigned)
 	return data
 }

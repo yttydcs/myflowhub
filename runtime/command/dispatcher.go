@@ -37,12 +37,14 @@ const (
 )
 
 type Call struct {
-	MessageID protocol.MessageID
-	Source    protocol.NodeID
-	Resource  protocol.ResourceID
-	Input     []byte
-	Deadline  time.Time
-	Origin    Origin
+	MessageID  protocol.MessageID
+	Source     protocol.NodeID
+	Resource   protocol.ResourceID
+	Capability protocol.CapabilityID
+	Schema     string
+	Input      []byte
+	Deadline   time.Time
+	Origin     Origin
 }
 
 type Delegation struct {
@@ -66,6 +68,7 @@ func DelegationFromContext(ctx context.Context) (Delegation, bool) {
 func (d Delegation) Subject() (protocol.NodeID, bool) { return d.subject, d.valid }
 
 type Result struct {
+	Schema  string
 	Output  []byte
 	Failure *protocol.ErrorPayload
 }
@@ -156,6 +159,9 @@ func (d *Dispatcher) Invoke(parent context.Context, call Call) (Result, error) {
 	if err := call.Resource.Validate(); err != nil {
 		return Result{}, err
 	}
+	if err := call.Capability.Validate(); err != nil {
+		return Result{}, err
+	}
 	if call.Deadline.IsZero() || !call.Deadline.After(time.Now()) {
 		return timeoutResult("command deadline has expired"), context.DeadlineExceeded
 	}
@@ -215,19 +221,23 @@ func (d *Dispatcher) execute(ctx context.Context, call Call) (result Result) {
 			result = Result{Failure: &failure}
 		}
 	}()
-	value, ok := d.registry.Resolve(call.Resource)
-	if !ok {
-		failure := protocol.ErrorPayload{Code: protocol.CodeNotFound, Message: "command resource not found"}
-		return Result{Failure: &failure}
-	}
-	command, ok := value.(*resource.Command)
-	if !ok {
-		failure := protocol.ErrorPayload{Code: protocol.CodeConflict, Message: "target resource is not a command"}
-		return Result{Failure: &failure}
-	}
-	output, err := command.Invoke(context.WithValue(ctx, callContextKey{}, call), call.Input)
+	operation, err := d.registry.Operate(context.WithValue(ctx, callContextKey{}, call), call.Resource, resource.OperationRequest{
+		Subject: call.Source, Capability: call.Capability, Schema: call.Schema, Payload: call.Input,
+	})
 	if err != nil {
 		failure := protocol.ErrorPayload{Code: protocol.CodeInternal, Message: err.Error()}
+		if errors.Is(err, resource.ErrNotFound) {
+			failure.Code = protocol.CodeNotFound
+		}
+		if errors.Is(err, resource.ErrUnsupportedCapability) {
+			failure.Code = protocol.CodeUnsupported
+		}
+		if errors.Is(err, resource.ErrInvalidSchema) || errors.Is(err, resource.ErrValueTooLarge) {
+			failure.Code = protocol.CodeMalformed
+		}
+		if errors.Is(err, resource.ErrRevisionConflict) {
+			failure.Code = protocol.CodeConflict
+		}
 		var temporary interface{ Retryable() bool }
 		if errors.As(err, &temporary) && temporary.Retryable() {
 			failure.Retryable = true
@@ -237,7 +247,7 @@ func (d *Dispatcher) execute(ctx context.Context, call Call) (result Result) {
 		}
 		return Result{Failure: &failure}
 	}
-	return Result{Output: output}
+	return Result{Schema: operation.Schema, Output: operation.Payload}
 }
 
 func (d *Dispatcher) begin(id protocol.MessageID) (Result, bool) {

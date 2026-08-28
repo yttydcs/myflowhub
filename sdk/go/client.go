@@ -10,6 +10,7 @@ import (
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/link"
 	"github.com/yttydcs/myflowhub/runtime/node"
+	"github.com/yttydcs/myflowhub/runtime/resource"
 	"github.com/yttydcs/myflowhub/runtime/subscription"
 )
 
@@ -60,22 +61,25 @@ func wrapError(err error) error {
 type EventKind string
 
 const (
-	EventVariableSnapshot EventKind = "variable_snapshot"
-	EventVariableUpdate   EventKind = "variable_update"
-	EventStream           EventKind = "stream"
-	EventStreamGap        EventKind = "stream_gap"
-	EventExpired          EventKind = "expired"
+	EventSnapshot EventKind = "snapshot"
+	EventData     EventKind = "data"
+	EventGap      EventKind = "gap"
+	EventExpired  EventKind = "expired"
 )
 
 type Event struct {
-	Kind     EventKind
-	Resource protocol.ResourceID
-	Revision uint64
-	Sequence uint64
-	GapFrom  uint64
-	GapTo    uint64
-	Value    []byte
-	Reason   string
+	Kind              EventKind
+	Resource          protocol.ResourceID
+	Capability        protocol.CapabilityID
+	Schema            string
+	Revision          uint64
+	Sequence          uint64
+	Publisher         protocol.NodeID
+	PublisherSequence uint64
+	GapFrom           uint64
+	GapTo             uint64
+	Value             []byte
+	Reason            string
 }
 
 type Subscription struct {
@@ -113,6 +117,10 @@ func (c *Client) Connect(ctx context.Context, driver link.Driver, endpoint link.
 }
 
 func (c *Client) Subscribe(ctx context.Context, resourceID protocol.ResourceID, lease time.Duration, queue int) (*Subscription, error) {
+	return c.SubscribeCapability(ctx, resourceID, protocol.CapabilitySubscribe, lease, queue)
+}
+
+func (c *Client) SubscribeCapability(ctx context.Context, resourceID protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int) (*Subscription, error) {
 	if ctx == nil {
 		return nil, errors.New("SDK subscription context is required")
 	}
@@ -120,7 +128,7 @@ func (c *Client) Subscribe(ctx context.Context, resourceID protocol.ResourceID, 
 	if err != nil {
 		return nil, err
 	}
-	remote, err := runtime.Subscribe(ctx, resourceID, lease, queue)
+	remote, err := runtime.SubscribeCapability(ctx, resourceID, capability, lease, queue)
 	if err != nil {
 		return nil, wrapError(err)
 	}
@@ -176,33 +184,11 @@ func (c *Client) Snapshot(ctx context.Context, resourceID protocol.ResourceID) (
 	if ctx == nil {
 		return Event{}, errors.New("SDK snapshot context is required")
 	}
-	current, err := c.Subscribe(ctx, resourceID, time.Minute, 4)
+	result, err := c.Operate(ctx, resourceID, protocol.CapabilityRead, "", nil)
 	if err != nil {
 		return Event{}, err
 	}
-	defer current.Cancel()
-	events := current.Events
-	errorsOut := current.Errors
-	for {
-		select {
-		case event, ok := <-events:
-			if !ok {
-				return Event{}, errors.New("SDK snapshot subscription closed")
-			}
-			if event.Kind != EventVariableSnapshot {
-				return Event{}, fmt.Errorf("resource %s is not a Variable", resourceID.Name)
-			}
-			return event, nil
-		case err, ok := <-errorsOut:
-			if !ok {
-				errorsOut = nil
-			} else if err != nil {
-				return Event{}, err
-			}
-		case <-ctx.Done():
-			return Event{}, wrapError(ctx.Err())
-		}
-	}
+	return Event{Kind: EventSnapshot, Resource: resourceID, Capability: protocol.CapabilityRead, Schema: result.Schema, Value: result.Payload}, nil
 }
 
 func (c *Client) DecodeSnapshot(ctx context.Context, resourceID protocol.ResourceID, target protocol.ValidatedPayload) error {
@@ -219,18 +205,33 @@ func (c *Client) DecodeSnapshot(ctx context.Context, resourceID protocol.Resourc
 	return nil
 }
 
-func (c *Client) Catalog(ctx context.Context, owner protocol.NodeID) (protocol.ResourceCatalogV1, error) {
-	var catalog protocol.ResourceCatalogV1
+func (c *Client) WriteVariable(ctx context.Context, resourceID protocol.ResourceID, expectedRevision uint64, value []byte) (resource.OperationResult, error) {
+	request, err := protocol.EncodeJSONPayload(&protocol.VariableWriteV2{
+		Version: protocol.SchemaVersionV2, ExpectedRevision: expectedRevision, Value: append([]byte(nil), value...),
+	}, protocol.DefaultMaxPayload)
+	if err != nil {
+		return resource.OperationResult{}, err
+	}
+	return c.Operate(ctx, resourceID, protocol.CapabilityWrite, protocol.SchemaVariableWriteV2, request)
+}
+
+func (c *Client) Catalog(ctx context.Context, owner protocol.NodeID) (protocol.ResourceCatalogV2, error) {
+	var catalog protocol.ResourceCatalogV2
 	err := c.DecodeSnapshot(ctx, protocol.ResourceID{Owner: owner, Name: protocol.BuiltinResourceCatalog}, &catalog)
 	return catalog, err
 }
 
 func (c *Client) Invoke(ctx context.Context, resourceID protocol.ResourceID, input []byte) ([]byte, error) {
+	result, err := c.Operate(ctx, resourceID, protocol.CapabilityInvoke, "", input)
+	return result.Payload, err
+}
+
+func (c *Client) Operate(ctx context.Context, resourceID protocol.ResourceID, capability protocol.CapabilityID, schema string, input []byte) (resource.OperationResult, error) {
 	runtime, err := c.runtimeNode()
 	if err != nil {
-		return nil, err
+		return resource.OperationResult{}, err
 	}
-	output, err := runtime.Invoke(ctx, resourceID, input)
+	output, err := runtime.Operate(ctx, resourceID, capability, schema, input)
 	return output, wrapError(err)
 }
 
@@ -282,14 +283,17 @@ func (c *Client) runtimeNode() (*node.Node, error) {
 func convertEvent(event subscription.Event) Event {
 	kind := EventExpired
 	switch event.Kind {
-	case subscription.EventVariableSnapshot:
-		kind = EventVariableSnapshot
-	case subscription.EventVariableUpdate:
-		kind = EventVariableUpdate
-	case subscription.EventStream:
-		kind = EventStream
-	case subscription.EventStreamGap:
-		kind = EventStreamGap
+	case subscription.EventSnapshot:
+		kind = EventSnapshot
+	case subscription.EventData:
+		kind = EventData
+	case subscription.EventGap:
+		kind = EventGap
 	}
-	return Event{Kind: kind, Resource: event.Resource, Revision: event.Revision, Sequence: event.Sequence, GapFrom: event.GapFrom, GapTo: event.GapTo, Value: append([]byte(nil), event.Value...), Reason: event.Reason}
+	return Event{
+		Kind: kind, Resource: event.Resource, Capability: event.Capability, Schema: event.Schema,
+		Revision: event.Revision, Sequence: event.Sequence, Publisher: event.Publisher,
+		PublisherSequence: event.PublisherSequence, GapFrom: event.GapFrom, GapTo: event.GapTo,
+		Value: append([]byte(nil), event.Value...), Reason: event.Reason,
+	}
 }

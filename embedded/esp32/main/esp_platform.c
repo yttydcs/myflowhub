@@ -233,7 +233,7 @@ int mfh_esp_verify_ack(void *context, const uint8_t *payload, size_t payload_len
     uint8_t signature[MFH_SIGNATURE_SIZE]; size_t signature_len = 0;
     if (!valid || mbedtls_base64_decode(signature, sizeof(signature), &signature_len, (const unsigned char *)signature_json->valuestring, strlen(signature_json->valuestring)) != 0 || signature_len != sizeof(signature)) { cJSON_Delete(root); return -1; }
     uint8_t message[8 + 8 + 8 + MFH_NONCE_SIZE + 8]; size_t offset = 0;
-    memcpy(message + offset, "MFH3-ACK", 8); offset += 8; write_u64(message + offset, parent_id); offset += 8; write_u64(message + offset, child_id); offset += 8;
+    memcpy(message + offset, "MFH4-ACK", 8); offset += 8; write_u64(message + offset, parent_id); offset += 8; write_u64(message + offset, child_id); offset += 8;
     memcpy(message + offset, nonce, MFH_NONCE_SIZE); offset += MFH_NONCE_SIZE; write_u64(message + offset, epoch);
     int result = crypto_sign_verify_detached(signature, message, sizeof(message), platform->parent_public_key);
     cJSON_Delete(root);

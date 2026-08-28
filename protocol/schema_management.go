@@ -264,8 +264,8 @@ func (r ManagementPolicyRuleV1) Validate() error {
 	if err := validateNodeIDText("subject", r.Subject); err != nil {
 		return err
 	}
-	if r.Action != "subscribe" && r.Action != "invoke" {
-		return errors.New("policy action must be subscribe or invoke")
+	if err := CapabilityID(r.Action).Validate(); err != nil {
+		return fmt.Errorf("policy action: %w", err)
 	}
 	if err := validateNodeIDText("resource_node", r.ResourceNode); err != nil {
 		return err
@@ -304,8 +304,8 @@ func (a ManagementAuditV1) Validate() error {
 	if err := validateNodeIDText("subject", a.Subject); err != nil {
 		return err
 	}
-	if a.Action != "subscribe" && a.Action != "invoke" {
-		return errors.New("audit action is invalid")
+	if err := CapabilityID(a.Action).Validate(); err != nil {
+		return fmt.Errorf("audit action: %w", err)
 	}
 	if err := validateNodeIDText("resource_node", a.ResourceNode); err != nil {
 		return err

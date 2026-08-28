@@ -259,12 +259,27 @@ func (s *Session) writeLoop() {
 		heartbeat = ticker.C
 		defer ticker.Stop()
 	}
+	const maxControlBurst = 8
+	controlBudget := maxControlBurst
 	for {
+		if controlBudget == 0 {
+			select {
+			case envelope := <-s.data:
+				if !s.write(envelope) {
+					return
+				}
+				controlBudget = maxControlBurst
+				continue
+			default:
+				controlBudget = maxControlBurst
+			}
+		}
 		select {
 		case envelope := <-s.control:
 			if !s.write(envelope) {
 				return
 			}
+			controlBudget--
 			continue
 		default:
 		}
@@ -273,10 +288,12 @@ func (s *Session) writeLoop() {
 			if !s.write(envelope) {
 				return
 			}
+			controlBudget--
 		case envelope := <-s.data:
 			if !s.write(envelope) {
 				return
 			}
+			controlBudget = maxControlBurst
 		case <-heartbeat:
 			if s.State() == StateActive {
 				envelope, err := s.heartbeat()
@@ -347,5 +364,5 @@ func (s *Session) watchdog() {
 }
 
 func isData(envelope protocol.Envelope) bool {
-	return envelope.Operation == protocol.OperationVariableUpdate || envelope.Operation == protocol.OperationStreamEvent
+	return envelope.Operation == protocol.OperationResourceEvent || envelope.Operation == protocol.OperationResourceGap || envelope.Operation == protocol.OperationSessionData
 }

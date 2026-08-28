@@ -43,6 +43,17 @@ type Client struct {
 }
 
 func NewClient(stateDirectory string, nodeID int64) (*Client, error) {
+	return newClient(stateDirectory, nodeID, nil)
+}
+
+func NewClientWithIdentityStore(stateDirectory string, nodeID int64, identityStore auth.IdentityStore) (*Client, error) {
+	if identityStore == nil {
+		return nil, errors.New("binding protected identity store is required")
+	}
+	return newClient(stateDirectory, nodeID, identityStore)
+}
+
+func newClient(stateDirectory string, nodeID int64, identityStore auth.IdentityStore) (*Client, error) {
 	if stateDirectory == "" {
 		return nil, errors.New("binding state directory is required")
 	}
@@ -50,7 +61,12 @@ func NewClient(stateDirectory string, nodeID int64) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	state, err := auth.OpenState(stateDirectory, id)
+	var state *auth.State
+	if identityStore == nil {
+		state, err = auth.OpenState(stateDirectory, id)
+	} else {
+		state, err = auth.OpenStateWithIdentityStore(stateDirectory, id, identityStore)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("open binding state: %w", err)
 	}
@@ -224,7 +240,7 @@ func (c *Client) CatalogJSON(ownerID, timeoutMS int64) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return encodeJSON(catalog)
+	return encodeJSON(catalogJSON(catalog))
 }
 
 func (c *Client) SnapshotJSON(ownerID int64, name string, timeoutMS int64) (string, error) {
@@ -252,13 +268,31 @@ func (c *Client) SnapshotJSON(ownerID int64, name string, timeoutMS int64) (stri
 }
 
 func (c *Client) InvokeJSON(ownerID int64, name, requestJSON string, timeoutMS int64) (string, error) {
+	encoded, err := c.OperateJSON(ownerID, name, string(protocol.CapabilityInvoke), "", requestJSON, timeoutMS)
+	if err != nil {
+		return "", err
+	}
+	var result struct {
+		Payload json.RawMessage `json:"payload"`
+	}
+	if err := json.Unmarshal([]byte(encoded), &result); err != nil || !json.Valid(result.Payload) {
+		return "", errors.New("invoke response is not valid JSON")
+	}
+	return string(result.Payload), nil
+}
+
+func (c *Client) OperateJSON(ownerID int64, name, capability, schema, requestJSON string, timeoutMS int64) (string, error) {
 	resourceID, err := bindingResource(ownerID, name)
 	if err != nil {
 		return "", err
 	}
 	request := []byte(requestJSON)
 	if len(request) == 0 || len(request) > protocol.DefaultMaxPayload || !json.Valid(request) {
-		return "", errors.New("command request must be valid JSON within the protocol payload limit")
+		return "", errors.New("resource operation request must be valid JSON within the protocol payload limit")
+	}
+	capabilityID := protocol.CapabilityID(capability)
+	if err := capabilityID.Validate(); err != nil {
+		return "", err
 	}
 	ctx, cancel, err := bindingContext(timeoutMS)
 	if err != nil {
@@ -269,14 +303,17 @@ func (c *Client) InvokeJSON(ownerID int64, name, requestJSON string, timeoutMS i
 	if err != nil {
 		return "", err
 	}
-	response, err := client.Invoke(ctx, resourceID, request)
+	response, err := client.Operate(ctx, resourceID, capabilityID, schema, request)
 	if err != nil {
 		return "", err
 	}
-	if !json.Valid(response) {
-		return "", errors.New("command response is not valid JSON")
+	if !json.Valid(response.Payload) {
+		return "", errors.New("resource operation response is not valid JSON")
 	}
-	return string(response), nil
+	return encodeJSON(struct {
+		Schema  string          `json:"schema,omitempty"`
+		Payload json.RawMessage `json:"payload"`
+	}{Schema: response.Schema, Payload: response.Payload})
 }
 
 func (c *Client) UploadFile(ownerID int64, sourcePath, destination, contentType string, timeoutMS int64) (string, error) {
@@ -305,11 +342,19 @@ func (c *Client) UploadFile(ownerID int64, sourcePath, destination, contentType 
 }
 
 func (c *Client) Subscribe(ownerID int64, name string, leaseMS int64, listener Listener) (int64, error) {
+	return c.SubscribeCapability(ownerID, name, string(protocol.CapabilitySubscribe), leaseMS, listener)
+}
+
+func (c *Client) SubscribeCapability(ownerID int64, name, capability string, leaseMS int64, listener Listener) (int64, error) {
 	if listener == nil {
 		return 0, errors.New("binding subscription listener is required")
 	}
 	resourceID, err := bindingResource(ownerID, name)
 	if err != nil {
+		return 0, err
+	}
+	capabilityID := protocol.CapabilityID(capability)
+	if err := capabilityID.Validate(); err != nil {
 		return 0, err
 	}
 	lease, err := bindingDuration(leaseMS)
@@ -321,7 +366,7 @@ func (c *Client) Subscribe(ownerID int64, name string, leaseMS int64, listener L
 		return 0, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	subscription, err := client.SubscribeDurableConnection(ctx, connection, resourceID, lease, 64)
+	subscription, err := client.SubscribeDurableConnectionCapability(ctx, connection, resourceID, capabilityID, lease, 64)
 	if err != nil {
 		cancel()
 		return 0, err
@@ -452,9 +497,15 @@ func (c *Client) forwardSubscription(id int64, ctx context.Context, subscription
 			if !ok {
 				return
 			}
+			publisher := ""
+			if event.Publisher != 0 {
+				publisher = strconv.FormatUint(uint64(event.Publisher), 10)
+			}
 			payload, err := encodeJSON(bindingEvent{
 				Kind: string(event.Kind), OwnerNodeID: strconv.FormatUint(uint64(event.Resource.Owner), 10), ResourceName: event.Resource.Name,
-				Revision: event.Revision, Sequence: event.Sequence, GapFrom: event.GapFrom, GapTo: event.GapTo, Value: event.Value, Reason: event.Reason,
+				Capability: string(event.Capability), Schema: event.Schema, Revision: event.Revision, Sequence: event.Sequence,
+				PublisherNodeID: publisher, PublisherSequence: event.PublisherSequence,
+				GapFrom: event.GapFrom, GapTo: event.GapTo, Value: event.Value, Reason: event.Reason,
 			})
 			if err != nil {
 				callListenerError(listener, bindingErrorJSON(err))

@@ -17,17 +17,18 @@ import (
 )
 
 type Config struct {
-	Identity      auth.Identity
-	Trust         *auth.TrustStore
-	Policy        auth.Policy
-	Admission     *auth.Admission
-	JoinPermit    *protocol.ProvisioningPermitV1
-	Session       link.SessionConfig
-	Subscriptions subscription.Config
-	Commands      command.Config
-	JoinTimeout   time.Duration
-	MaxHandshakes int
-	MaxPending    int
+	Identity            auth.Identity
+	Trust               *auth.TrustStore
+	Policy              auth.Policy
+	Admission           *auth.Admission
+	JoinPermit          *protocol.ProvisioningPermitV1
+	Session             link.SessionConfig
+	Subscriptions       subscription.Config
+	Commands            command.Config
+	JoinTimeout         time.Duration
+	MaxHandshakes       int
+	MaxPending          int
+	MaxResourceSessions int
 }
 
 type peerSession struct {
@@ -57,6 +58,7 @@ type Node struct {
 	listeners              []link.Listener
 	pending                map[protocol.MessageID]*pendingEntry
 	forwardedSubscriptions map[protocol.MessageID]forwardedSubscription
+	resourceSessions       map[protocol.MessageID]*ownedResourceSession
 	closed                 bool
 	parentGeneration       uint64
 	parentChanged          chan struct{}
@@ -69,8 +71,9 @@ type Node struct {
 }
 
 type OperationalStats struct {
-	ActiveLinks         int
-	ActiveSubscriptions int
+	ActiveLinks            int
+	ActiveSubscriptions    int
+	ActiveResourceSessions int
 }
 
 func New(parent context.Context, config Config) (*Node, error) {
@@ -95,7 +98,10 @@ func New(parent context.Context, config Config) (*Node, error) {
 	if config.MaxPending <= 0 {
 		config.MaxPending = 1024
 	}
-	if config.JoinTimeout < 10*time.Millisecond || config.MaxHandshakes < 1 || config.MaxPending < 1 {
+	if config.MaxResourceSessions <= 0 {
+		config.MaxResourceSessions = 256
+	}
+	if config.JoinTimeout < 10*time.Millisecond || config.MaxHandshakes < 1 || config.MaxPending < 1 || config.MaxResourceSessions < 1 {
 		return nil, errors.New("node limits are invalid")
 	}
 	state, err := tree.New(config.Identity.NodeID)
@@ -113,7 +119,7 @@ func New(parent context.Context, config Config) (*Node, error) {
 		return nil, err
 	}
 	config.Commands.Authorizer = func(ctx context.Context, call command.Call) error {
-		return config.Policy.Authorize(ctx, auth.Request{Subject: call.Source, Action: auth.ActionInvoke, Resource: call.Resource})
+		return config.Policy.Authorize(ctx, auth.Request{Subject: call.Source, Action: auth.Action(call.Capability), Capability: call.Capability, Resource: call.Resource})
 	}
 	dispatcher, err := command.NewDispatcher(registry, config.Commands)
 	if err != nil {
@@ -127,6 +133,7 @@ func New(parent context.Context, config Config) (*Node, error) {
 		tree: state, registry: registry, subscriptions: manager, commands: dispatcher,
 		sessions: make(map[protocol.NodeID]*peerSession), pending: make(map[protocol.MessageID]*pendingEntry),
 		forwardedSubscriptions: make(map[protocol.MessageID]forwardedSubscription),
+		resourceSessions:       make(map[protocol.MessageID]*ownedResourceSession),
 		handshakes:             make(chan struct{}, config.MaxHandshakes), diagnostics: make(chan error, 64),
 		parentChanged: make(chan struct{}),
 	}
@@ -136,6 +143,7 @@ func New(parent context.Context, config Config) (*Node, error) {
 		_, stop, err := generated.WatchGeneration(func(generation uint64) {
 			manager.CleanupPolicyGeneration(generation)
 			value.expireForwardedSubscriptions(generation)
+			value.cleanupResourceSessionsPolicy(generation)
 		})
 		if err != nil {
 			_ = manager.Close()
@@ -157,8 +165,9 @@ func (n *Node) Stats() OperationalStats {
 	n.mu.RLock()
 	links := len(n.sessions)
 	forwarded := len(n.forwardedSubscriptions)
+	resourceSessions := len(n.resourceSessions)
 	n.mu.RUnlock()
-	return OperationalStats{ActiveLinks: links, ActiveSubscriptions: n.subscriptions.Count() + forwarded}
+	return OperationalStats{ActiveLinks: links, ActiveSubscriptions: n.subscriptions.Count() + forwarded, ActiveResourceSessions: resourceSessions}
 }
 
 func (n *Node) DisconnectPeer(peer protocol.NodeID) error {
@@ -264,6 +273,11 @@ func (n *Node) Close() error {
 		}
 		n.pending = make(map[protocol.MessageID]*pendingEntry)
 		n.forwardedSubscriptions = make(map[protocol.MessageID]forwardedSubscription)
+		resourceSessions := make([]*ownedResourceSession, 0, len(n.resourceSessions))
+		for _, current := range n.resourceSessions {
+			resourceSessions = append(resourceSessions, current)
+		}
+		n.resourceSessions = make(map[protocol.MessageID]*ownedResourceSession)
 		n.mu.Unlock()
 		n.cancel()
 		if n.policyWatchCancel != nil {
@@ -277,6 +291,9 @@ func (n *Node) Close() error {
 		}
 		for _, current := range pending {
 			current.fail(errors.New("node closed"))
+		}
+		for _, current := range resourceSessions {
+			current.session.Abort(errors.New("node closed"))
 		}
 		_ = n.subscriptions.Close()
 		n.wg.Wait()

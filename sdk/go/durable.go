@@ -27,6 +27,10 @@ func (s *DurableSubscription) Cancel() {
 }
 
 func (c *Client) SubscribeDurable(ctx context.Context, supervisor *node.ParentSupervisor, resource protocol.ResourceID, lease time.Duration, queue int) (*DurableSubscription, error) {
+	return c.SubscribeDurableCapability(ctx, supervisor, resource, protocol.CapabilitySubscribe, lease, queue)
+}
+
+func (c *Client) SubscribeDurableCapability(ctx context.Context, supervisor *node.ParentSupervisor, resource protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int) (*DurableSubscription, error) {
 	if ctx == nil {
 		return nil, errors.New("durable subscription context is required")
 	}
@@ -39,6 +43,9 @@ func (c *Client) SubscribeDurable(ctx context.Context, supervisor *node.ParentSu
 	if err := resource.Validate(); err != nil {
 		return nil, err
 	}
+	if err := capability.Validate(); err != nil {
+		return nil, err
+	}
 	if lease <= 0 || queue < 1 || queue > 1024 {
 		return nil, errors.New("durable subscription lease or queue is invalid")
 	}
@@ -47,18 +54,22 @@ func (c *Client) SubscribeDurable(ctx context.Context, supervisor *node.ParentSu
 	errorsOut := make(chan error, 1)
 	ready := make(chan struct{})
 	result := &DurableSubscription{Resource: resource, Events: events, Errors: errorsOut, Ready: ready, cancel: cancel}
-	go c.runDurableSubscription(runCtx, supervisor, resource, lease, queue, events, errorsOut, ready)
+	go c.runDurableSubscription(runCtx, supervisor, resource, capability, lease, queue, events, errorsOut, ready)
 	return result, nil
 }
 
 func (c *Client) SubscribeDurableConnection(ctx context.Context, connection *Connection, resource protocol.ResourceID, lease time.Duration, queue int) (*DurableSubscription, error) {
+	return c.SubscribeDurableConnectionCapability(ctx, connection, resource, protocol.CapabilitySubscribe, lease, queue)
+}
+
+func (c *Client) SubscribeDurableConnectionCapability(ctx context.Context, connection *Connection, resource protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int) (*DurableSubscription, error) {
 	if connection == nil || connection.supervisor == nil {
 		return nil, errors.New("durable subscription requires a managed connection")
 	}
-	return c.SubscribeDurable(ctx, connection.supervisor, resource, lease, queue)
+	return c.SubscribeDurableCapability(ctx, connection.supervisor, resource, capability, lease, queue)
 }
 
-func (c *Client) runDurableSubscription(ctx context.Context, supervisor *node.ParentSupervisor, resource protocol.ResourceID, lease time.Duration, queue int, events chan<- Event, errorsOut chan<- error, ready chan struct{}) {
+func (c *Client) runDurableSubscription(ctx context.Context, supervisor *node.ParentSupervisor, resource protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int, events chan<- Event, errorsOut chan<- error, ready chan struct{}) {
 	defer close(events)
 	defer close(errorsOut)
 	var readyOnce sync.Once
@@ -74,7 +85,7 @@ func (c *Client) runDurableSubscription(ctx context.Context, supervisor *node.Pa
 			return
 		}
 		if recovering && sawStream {
-			gap := Event{Kind: EventStreamGap, Resource: resource, GapFrom: lastSequence + 1, GapTo: 0, Reason: "connection_recovered_unknown_range"}
+			gap := Event{Kind: EventGap, Resource: resource, GapFrom: lastSequence + 1, GapTo: 0, Reason: "connection_recovered_unknown_range"}
 			select {
 			case events <- gap:
 			case <-ctx.Done():
@@ -86,7 +97,7 @@ func (c *Client) runDurableSubscription(ctx context.Context, supervisor *node.Pa
 			sendTerminalError(errorsOut, wrapError(runtimeErr))
 			return
 		}
-		remote, err := runtime.Subscribe(ctx, resource, lease, queue)
+		remote, err := runtime.SubscribeCapability(ctx, resource, capability, lease, queue)
 		if err != nil {
 			if permanentSubscriptionError(err) {
 				sendTerminalError(errorsOut, wrapError(err))
@@ -118,7 +129,7 @@ func (c *Client) runDurableSubscription(ctx context.Context, supervisor *node.Pa
 					break
 				}
 				converted := convertEvent(event)
-				if converted.Kind == EventStream {
+				if converted.Kind == EventData && converted.Sequence != 0 {
 					sawStream = true
 					lastSequence = converted.Sequence
 				}

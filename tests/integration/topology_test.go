@@ -58,6 +58,7 @@ func runVerticalSlice(t *testing.T, driver link.Driver, endpoint func(string) li
 	defer cancel()
 	variableID := protocol.ResourceID{Owner: 5, Name: "state"}
 	streamID := protocol.ResourceID{Owner: 5, Name: "events"}
+	topicID := protocol.ResourceID{Owner: 5, Name: "shared/events"}
 	echoID := protocol.ResourceID{Owner: 5, Name: "echo"}
 	deniedID := protocol.ResourceID{Owner: 5, Name: "denied"}
 	slowID := protocol.ResourceID{Owner: 5, Name: "slow"}
@@ -65,24 +66,27 @@ func runVerticalSlice(t *testing.T, driver link.Driver, endpoint func(string) li
 	for _, resourceID := range []protocol.ResourceID{variableID, streamID} {
 		policy.Allow(auth.Request{Subject: 3, Action: auth.ActionSubscribe, Resource: resourceID})
 	}
+	policy.Allow(auth.Request{Subject: 2, Action: auth.ActionSubscribe, Resource: topicID})
+	policy.Allow(auth.Request{Subject: 2, Action: auth.ActionPublish, Resource: topicID})
 	for _, resourceID := range []protocol.ResourceID{echoID, slowID} {
 		policy.Allow(auth.Request{Subject: 3, Action: auth.ActionInvoke, Resource: resourceID})
 	}
 	graph := buildTopology(t, ctx, driver, endpoint, policy)
 	defer closeTopology(graph)
-	variable, _ := resource.NewVariable(resource.Descriptor{ID: variableID, Kind: resource.KindVariable, MaxValueBytes: 128}, []byte("initial"))
-	stream, _ := resource.NewStream(resource.Descriptor{ID: streamID, Kind: resource.KindStream, MaxValueBytes: 128})
-	echo, _ := resource.NewCommand(resource.Descriptor{ID: echoID, Kind: resource.KindCommand, MaxValueBytes: 128}, func(_ context.Context, input []byte) ([]byte, error) {
+	variable, _ := resource.NewVariable(resource.VariableDescriptor(variableID, "application/octet-stream", "test.raw.v1", "test.read", 128), []byte("initial"))
+	stream, _ := resource.NewStream(resource.StreamDescriptor(streamID, "application/octet-stream", "test.raw.v1", "test.read", 128))
+	topic, _ := resource.NewTopic(resource.TopicDescriptor(topicID, "application/octet-stream", "test.raw.v1", "test.publish", "test.subscribe", 128), resource.TopicConfig{})
+	echo, _ := resource.NewCommand(resource.CommandDescriptor(echoID, "application/octet-stream", "test.raw.v1", "test.invoke", 128), func(_ context.Context, input []byte) ([]byte, error) {
 		return append([]byte("ok:"), input...), nil
 	})
-	denied, _ := resource.NewCommand(resource.Descriptor{ID: deniedID, Kind: resource.KindCommand, MaxValueBytes: 128}, func(_ context.Context, input []byte) ([]byte, error) {
+	denied, _ := resource.NewCommand(resource.CommandDescriptor(deniedID, "application/octet-stream", "test.raw.v1", "test.invoke", 128), func(_ context.Context, input []byte) ([]byte, error) {
 		return input, nil
 	})
-	slow, _ := resource.NewCommand(resource.Descriptor{ID: slowID, Kind: resource.KindCommand, MaxValueBytes: 128}, func(ctx context.Context, _ []byte) ([]byte, error) {
+	slow, _ := resource.NewCommand(resource.CommandDescriptor(slowID, "application/octet-stream", "test.raw.v1", "test.invoke", 128), func(ctx context.Context, _ []byte) ([]byte, error) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	})
-	for _, value := range []resource.Resource{variable, stream, echo, denied, slow} {
+	for _, value := range []resource.Resource{variable, stream, topic, echo, denied, slow} {
 		if err := graph.leafB.Registry().Register(value); err != nil {
 			t.Fatal(err)
 		}
@@ -91,11 +95,11 @@ func runVerticalSlice(t *testing.T, driver link.Driver, endpoint func(string) li
 	if err != nil {
 		t.Fatal(err)
 	}
-	if event := receiveEvent(t, variableSub); event.Kind != subscription.EventVariableSnapshot || string(event.Value) != "initial" {
+	if event := receiveEvent(t, variableSub); event.Kind != subscription.EventSnapshot || string(event.Value) != "initial" {
 		t.Fatalf("unexpected variable snapshot: %#v", event)
 	}
 	_, _ = variable.Set([]byte("changed"))
-	if event := receiveEvent(t, variableSub); event.Kind != subscription.EventVariableUpdate || string(event.Value) != "changed" {
+	if event := receiveEvent(t, variableSub); event.Kind != subscription.EventData || string(event.Value) != "changed" {
 		t.Fatalf("unexpected variable update: %#v", event)
 	}
 	streamSub, err := graph.leafA.Subscribe(ctx, streamID, 5*time.Second, 4)
@@ -104,15 +108,53 @@ func runVerticalSlice(t *testing.T, driver link.Driver, endpoint func(string) li
 	}
 	defer streamSub.Cancel()
 	_, _ = stream.Publish([]byte("one"))
-	if event := receiveEvent(t, streamSub); event.Kind != subscription.EventStream || event.Sequence != 1 {
+	if event := receiveEvent(t, streamSub); event.Kind != subscription.EventData || event.Sequence != 1 {
 		t.Fatalf("unexpected stream event: %#v", event)
 	}
 	_, _ = stream.Apply(3, []byte("three"))
-	if event := receiveEvent(t, streamSub); event.Kind != subscription.EventStreamGap || event.GapFrom != 2 || event.GapTo != 2 {
+	if event := receiveEvent(t, streamSub); event.Kind != subscription.EventGap || event.GapFrom != 2 || event.GapTo != 2 {
 		t.Fatalf("unexpected stream gap: %#v", event)
 	}
-	if event := receiveEvent(t, streamSub); event.Kind != subscription.EventStream || event.Sequence != 3 {
+	if event := receiveEvent(t, streamSub); event.Kind != subscription.EventData || event.Sequence != 3 {
 		t.Fatalf("unexpected post-gap event: %#v", event)
+	}
+	topicSub, err := graph.root.SubscribeCapability(ctx, topicID, protocol.CapabilitySubscribe, 5*time.Second, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer topicSub.Cancel()
+	topicSub2, err := graph.branchA.SubscribeCapability(ctx, topicID, protocol.CapabilitySubscribe, 5*time.Second, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer topicSub2.Cancel()
+	if _, err := graph.branchA.Operate(ctx, topicID, protocol.CapabilityPublish, "test.raw.v1", []byte("branch")); err != nil {
+		t.Fatalf("first topic publisher: %v", err)
+	}
+	if _, err := graph.root.Operate(ctx, topicID, protocol.CapabilityPublish, "test.raw.v1", []byte("root")); err != nil {
+		t.Fatalf("second topic publisher: %v", err)
+	}
+	firstTopic := receiveEvent(t, topicSub)
+	secondTopic := receiveEvent(t, topicSub)
+	firstTopic2 := receiveEvent(t, topicSub2)
+	secondTopic2 := receiveEvent(t, topicSub2)
+	if firstTopic.Publisher != graph.branchA.ID() || firstTopic.PublisherSequence != 1 || firstTopic.Sequence != 1 || string(firstTopic.Value) != "branch" {
+		t.Fatalf("unexpected first topic event: %#v", firstTopic)
+	}
+	if secondTopic.Publisher != graph.root.ID() || secondTopic.PublisherSequence != 1 || secondTopic.Sequence != 2 || string(secondTopic.Value) != "root" {
+		t.Fatalf("unexpected second topic event: %#v", secondTopic)
+	}
+	if firstTopic2.Publisher != firstTopic.Publisher || firstTopic2.Sequence != firstTopic.Sequence || secondTopic2.Publisher != secondTopic.Publisher || secondTopic2.Sequence != secondTopic.Sequence {
+		t.Fatalf("topic subscribers diverged: %#v %#v / %#v %#v", firstTopic, secondTopic, firstTopic2, secondTopic2)
+	}
+	if _, err := graph.leafA.Operate(ctx, topicID, protocol.CapabilityPublish, "test.raw.v1", []byte("denied")); errorCode(err) != protocol.CodeForbidden {
+		t.Fatalf("expected forbidden topic publisher, got %v", err)
+	}
+	if deniedSub, err := graph.leafA.SubscribeCapability(ctx, topicID, protocol.CapabilitySubscribe, 5*time.Second, 1); errorCode(err) != protocol.CodeForbidden {
+		if deniedSub != nil {
+			deniedSub.Cancel()
+		}
+		t.Fatalf("expected forbidden topic subscriber, got %v", err)
 	}
 	output, err := graph.leafA.Invoke(ctx, echoID, []byte("call"))
 	if err != nil || string(output) != "ok:call" {

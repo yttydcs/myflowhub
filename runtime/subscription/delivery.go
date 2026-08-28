@@ -7,25 +7,28 @@ import (
 	"github.com/yttydcs/myflowhub/protocol"
 )
 
-type EventKind uint8
+type EventKind string
 
 const (
-	EventVariableSnapshot EventKind = iota + 1
-	EventVariableUpdate
-	EventStream
-	EventStreamGap
-	EventExpired
+	EventSnapshot EventKind = "snapshot"
+	EventData     EventKind = "data"
+	EventGap      EventKind = "gap"
+	EventExpired  EventKind = "expired"
 )
 
 type Event struct {
-	Kind     EventKind
-	Resource protocol.ResourceID
-	Revision uint64
-	Sequence uint64
-	GapFrom  uint64
-	GapTo    uint64
-	Value    []byte
-	Reason   string
+	Kind              EventKind
+	Resource          protocol.ResourceID
+	Capability        protocol.CapabilityID
+	Schema            string
+	Revision          uint64
+	Sequence          uint64
+	Publisher         protocol.NodeID
+	PublisherSequence uint64
+	GapFrom           uint64
+	GapTo             uint64
+	Value             []byte
+	Reason            string
 }
 
 func cloneEvent(event Event) Event {
@@ -106,7 +109,7 @@ func (d *delivery) next() (Event, bool, bool) {
 		return event, true, false
 	}
 	if d.gapFrom != 0 {
-		event := Event{Kind: EventStreamGap, Resource: d.resource, GapFrom: d.gapFrom, GapTo: d.gapTo, Reason: d.gapReason}
+		event := Event{Kind: EventGap, Resource: d.resource, GapFrom: d.gapFrom, GapTo: d.gapTo, Reason: d.gapReason}
 		d.gapFrom, d.gapTo = 0, 0
 		d.gapReason = ""
 		return event, true, false

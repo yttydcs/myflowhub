@@ -15,10 +15,7 @@ const (
 	SchemaFileTransfersV1 = "mfh.file.transfers.v1"
 	BuiltinFileTransfers  = "file/transfers"
 	BuiltinFileProgress   = "file/progress"
-	BuiltinFileOffer      = "file/offer"
-	BuiltinFileChunk      = "file/chunk"
-	BuiltinFileComplete   = "file/complete"
-	BuiltinFileCancel     = "file/cancel"
+	BuiltinFileUpload     = "file/upload"
 )
 
 type FileOfferV1 struct {

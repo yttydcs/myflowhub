@@ -19,6 +19,17 @@ type State struct {
 }
 
 func OpenState(directory string, nodeID protocol.NodeID) (*State, error) {
+	return openState(directory, nodeID, nil)
+}
+
+func OpenStateWithIdentityStore(directory string, nodeID protocol.NodeID, identityStore IdentityStore) (*State, error) {
+	if identityStore == nil {
+		return nil, errors.New("protected identity store is required")
+	}
+	return openState(directory, nodeID, identityStore)
+}
+
+func openState(directory string, nodeID protocol.NodeID, identityStore IdentityStore) (*State, error) {
 	if directory == "" {
 		return nil, errors.New("runtime state directory is required")
 	}
@@ -29,7 +40,12 @@ func OpenState(directory string, nodeID protocol.NodeID) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
-	identity, err := LoadOrCreateIdentity(store, nodeID)
+	var identity Identity
+	if identityStore == nil {
+		identity, err = LoadOrCreateIdentity(store, nodeID)
+	} else {
+		identity, err = LoadOrCreateIdentityWithStore(identityStore, nodeID)
+	}
 	if err != nil {
 		return nil, err
 	}

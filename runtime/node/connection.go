@@ -274,6 +274,7 @@ func (n *Node) runSession(current *peerSession) {
 		}
 	}
 	n.subscriptions.CleanupLink(current.linkID)
+	n.cleanupResourceSessionsLink(current.linkID, errors.New("resource session link disconnected"))
 	n.mu.Lock()
 	isCurrent := n.sessions[current.peer] == current
 	if isCurrent {

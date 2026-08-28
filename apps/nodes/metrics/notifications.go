@@ -141,11 +141,11 @@ func (i *NotificationInbox) consume(ctx context.Context, subscription *sdk.Durab
 			if !ok {
 				return ctx.Err() == nil
 			}
-			if event.Kind == sdk.EventStreamGap {
+			if event.Kind == sdk.EventGap {
 				i.setError(fmt.Errorf("notification stream gap: %s", event.Reason))
 				continue
 			}
-			if event.Kind != sdk.EventStream {
+			if event.Kind != sdk.EventData {
 				continue
 			}
 			var notification protocol.NotificationEventV1

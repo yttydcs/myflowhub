@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-static const uint8_t mfh_magic[4] = {'M', 'F', 'H', '3'};
+static const uint8_t mfh_magic[4] = {'M', 'F', 'H', '4'};
 
 static void put_u16(uint8_t *p, uint16_t v) { p[0] = (uint8_t)(v >> 8); p[1] = (uint8_t)v; }
 static void put_u32(uint8_t *p, uint32_t v) { p[0] = (uint8_t)(v >> 24); p[1] = (uint8_t)(v >> 16); p[2] = (uint8_t)(v >> 8); p[3] = (uint8_t)v; }
@@ -14,14 +14,19 @@ static bool nonzero(const uint8_t *p, size_t n) { for (size_t i = 0; i < n; ++i)
 
 static bool phase_allows(uint8_t phase, uint8_t op) {
     if (op == MFH_OP_JOIN) return phase == MFH_PHASE_REQUEST;
-    if (op == MFH_OP_JOIN_ACK || op == MFH_OP_SUBSCRIBE_ACK || op == MFH_OP_VARIABLE_SNAPSHOT || op == MFH_OP_COMMAND_RESULT || op == MFH_OP_ERROR) return phase == MFH_PHASE_RESPONSE;
-    if (op == MFH_OP_ROUTE_ANNOUNCE || op == MFH_OP_ROUTE_WITHDRAW || op == MFH_OP_VARIABLE_UPDATE || op == MFH_OP_STREAM_EVENT || op == MFH_OP_STREAM_GAP || op == MFH_OP_HEARTBEAT) return phase == MFH_PHASE_EVENT;
-    if (op == MFH_OP_SUBSCRIBE || op == MFH_OP_UNSUBSCRIBE || op == MFH_OP_COMMAND_CALL) return phase == MFH_PHASE_REQUEST || phase == MFH_PHASE_CONTROL;
+    if (op == MFH_OP_JOIN_ACK || op == MFH_OP_SUBSCRIBE_ACK || op == MFH_OP_OPERATE_RESULT || op == MFH_OP_SESSION_OPEN_RESULT || op == MFH_OP_ERROR) return phase == MFH_PHASE_RESPONSE;
+    if (op == MFH_OP_ROUTE_ANNOUNCE || op == MFH_OP_ROUTE_WITHDRAW || op == MFH_OP_RESOURCE_GAP || op == MFH_OP_HEARTBEAT) return phase == MFH_PHASE_EVENT;
+    if (op == MFH_OP_RESOURCE_EVENT) return phase == MFH_PHASE_RESPONSE || phase == MFH_PHASE_EVENT;
+    if (op == MFH_OP_SESSION_DATA || op == MFH_OP_SESSION_CLOSE) return phase == MFH_PHASE_REQUEST || phase == MFH_PHASE_CONTROL || phase == MFH_PHASE_RESPONSE;
+    if (op == MFH_OP_SUBSCRIBE || op == MFH_OP_UNSUBSCRIBE || op == MFH_OP_OPERATE || op == MFH_OP_SESSION_OPEN) return phase == MFH_PHASE_REQUEST || phase == MFH_PHASE_CONTROL;
     return false;
 }
 
-static bool requires_resource(uint8_t op) { return op >= MFH_OP_SUBSCRIBE && op <= MFH_OP_COMMAND_RESULT; }
-static bool requires_correlation(uint8_t op) { return op == MFH_OP_JOIN_ACK || op == MFH_OP_SUBSCRIBE_ACK || op == MFH_OP_VARIABLE_SNAPSHOT || op == MFH_OP_COMMAND_RESULT || op == MFH_OP_ERROR; }
+static bool requires_resource(uint8_t op) { return op >= MFH_OP_SUBSCRIBE && op <= MFH_OP_SESSION_CLOSE; }
+static bool requires_correlation(uint8_t op) {
+    return op == MFH_OP_JOIN_ACK || op == MFH_OP_SUBSCRIBE_ACK || op == MFH_OP_RESOURCE_EVENT || op == MFH_OP_RESOURCE_GAP ||
+           op == MFH_OP_OPERATE_RESULT || op == MFH_OP_SESSION_OPEN_RESULT || op == MFH_OP_SESSION_DATA || op == MFH_OP_SESSION_CLOSE || op == MFH_OP_ERROR;
+}
 
 int mfh_envelope_validate(const mfh_envelope_t *e, size_t max_payload) {
     if (e == NULL) return MFH_ERR_ARGUMENT;
@@ -32,7 +37,8 @@ int mfh_envelope_validate(const mfh_envelope_t *e, size_t max_payload) {
     if (requires_correlation(e->operation) && !nonzero(e->correlation_id, MFH_MESSAGE_ID_SIZE)) return MFH_ERR_ID;
     if (requires_resource(e->operation)) {
         if (e->resource_owner == 0 || e->resource_name.data == NULL || e->resource_name.len == 0 || e->resource_name.len > MFH_MAX_RESOURCE_NAME) return MFH_ERR_RESOURCE;
-    } else if (e->resource_owner != 0 || e->resource_name.len != 0) return MFH_ERR_RESOURCE;
+        if (e->capability.data == NULL || e->capability.len == 0 || e->capability.len > MFH_MAX_CAPABILITY) return MFH_ERR_RESOURCE;
+    } else if (e->resource_owner != 0 || e->resource_name.len != 0 || e->capability.len != 0) return MFH_ERR_RESOURCE;
     if (e->content_type.len > MFH_MAX_CONTENT_TYPE || e->schema.len > MFH_MAX_SCHEMA) return MFH_ERR_LIMIT;
     if (max_payload == 0) max_payload = MFH_MAX_PAYLOAD;
     if (e->payload.len > max_payload || (e->payload.len != 0 && e->payload.data == NULL)) return MFH_ERR_LIMIT;
@@ -43,19 +49,19 @@ int mfh_envelope_validate(const mfh_envelope_t *e, size_t max_payload) {
 int mfh_encode(const mfh_envelope_t *e, uint8_t *output, size_t capacity, size_t *written, size_t max_payload) {
     int result = mfh_envelope_validate(e, max_payload);
     if (result != MFH_OK || output == NULL || written == NULL) return result == MFH_OK ? MFH_ERR_ARGUMENT : result;
-    size_t total = MFH_HEADER_SIZE + e->content_type.len + e->schema.len + e->resource_name.len + e->payload.len;
+    size_t total = MFH_HEADER_SIZE + e->content_type.len + e->schema.len + e->capability.len + e->resource_name.len + e->payload.len;
     if (capacity < total || e->payload.len > UINT32_MAX) return MFH_ERR_BUFFER;
     memset(output, 0, MFH_HEADER_SIZE);
     memcpy(output, mfh_magic, 4);
     put_u16(output + 4, e->version); output[6] = e->phase; output[7] = e->operation;
     output[8] = (uint8_t)e->content_type.len; output[9] = (uint8_t)e->schema.len;
-    put_u16(output + 10, (uint16_t)e->resource_name.len); put_u32(output + 12, (uint32_t)e->payload.len);
-    put_u64(output + 16, e->source); put_u64(output + 24, e->principal); put_u64(output + 32, e->target);
-    put_u64(output + 40, e->topology_epoch); put_u64(output + 48, (uint64_t)e->deadline_unix_ms);
-    memcpy(output + 56, e->message_id, MFH_MESSAGE_ID_SIZE); memcpy(output + 72, e->correlation_id, MFH_MESSAGE_ID_SIZE);
-    put_u64(output + 88, e->resource_owner);
+    put_u16(output + 10, (uint16_t)e->capability.len); put_u16(output + 12, (uint16_t)e->resource_name.len); put_u32(output + 14, (uint32_t)e->payload.len);
+    put_u64(output + 18, e->source); put_u64(output + 26, e->principal); put_u64(output + 34, e->target);
+    put_u64(output + 42, e->topology_epoch); put_u64(output + 50, (uint64_t)e->deadline_unix_ms);
+    memcpy(output + 58, e->message_id, MFH_MESSAGE_ID_SIZE); memcpy(output + 74, e->correlation_id, MFH_MESSAGE_ID_SIZE);
+    put_u64(output + 90, e->resource_owner);
     size_t offset = MFH_HEADER_SIZE;
-    const mfh_slice_t parts[] = {e->content_type, e->schema, e->resource_name, e->payload};
+    const mfh_slice_t parts[] = {e->content_type, e->schema, e->capability, e->resource_name, e->payload};
     for (size_t i = 0; i < sizeof(parts) / sizeof(parts[0]); ++i) { if (parts[i].len != 0) memcpy(output + offset, parts[i].data, parts[i].len); offset += parts[i].len; }
     *written = total;
     return MFH_OK;
@@ -64,20 +70,21 @@ int mfh_encode(const mfh_envelope_t *e, uint8_t *output, size_t capacity, size_t
 int mfh_decode(const uint8_t *input, size_t input_len, mfh_envelope_t *e, size_t *consumed, size_t max_payload) {
     if (input == NULL || e == NULL || consumed == NULL) return MFH_ERR_ARGUMENT;
     if (input_len < MFH_HEADER_SIZE || memcmp(input, mfh_magic, 4) != 0) return MFH_ERR_WIRE;
-    size_t content_len = input[8], schema_len = input[9], name_len = get_u16(input + 10), payload_len = get_u32(input + 12);
-    if (content_len > MFH_MAX_CONTENT_TYPE || schema_len > MFH_MAX_SCHEMA || name_len > MFH_MAX_RESOURCE_NAME) return MFH_ERR_LIMIT;
+    size_t content_len = input[8], schema_len = input[9], capability_len = get_u16(input + 10), name_len = get_u16(input + 12), payload_len = get_u32(input + 14);
+    if (content_len > MFH_MAX_CONTENT_TYPE || schema_len > MFH_MAX_SCHEMA || capability_len > MFH_MAX_CAPABILITY || name_len > MFH_MAX_RESOURCE_NAME) return MFH_ERR_LIMIT;
     if (max_payload == 0) max_payload = MFH_MAX_PAYLOAD;
     if (payload_len > max_payload) return MFH_ERR_LIMIT;
-    size_t total = MFH_HEADER_SIZE + content_len + schema_len + name_len + payload_len;
+    size_t total = MFH_HEADER_SIZE + content_len + schema_len + capability_len + name_len + payload_len;
     if (total < MFH_HEADER_SIZE || input_len < total) return MFH_ERR_BUFFER;
     memset(e, 0, sizeof(*e));
     e->version = get_u16(input + 4); e->phase = input[6]; e->operation = input[7];
-    e->source = get_u64(input + 16); e->principal = get_u64(input + 24); e->target = get_u64(input + 32);
-    e->topology_epoch = get_u64(input + 40); e->deadline_unix_ms = (int64_t)get_u64(input + 48); e->resource_owner = get_u64(input + 88);
-    memcpy(e->message_id, input + 56, MFH_MESSAGE_ID_SIZE); memcpy(e->correlation_id, input + 72, MFH_MESSAGE_ID_SIZE);
+    e->source = get_u64(input + 18); e->principal = get_u64(input + 26); e->target = get_u64(input + 34);
+    e->topology_epoch = get_u64(input + 42); e->deadline_unix_ms = (int64_t)get_u64(input + 50); e->resource_owner = get_u64(input + 90);
+    memcpy(e->message_id, input + 58, MFH_MESSAGE_ID_SIZE); memcpy(e->correlation_id, input + 74, MFH_MESSAGE_ID_SIZE);
     size_t offset = MFH_HEADER_SIZE;
     e->content_type.data = input + offset; e->content_type.len = content_len; offset += content_len;
     e->schema.data = input + offset; e->schema.len = schema_len; offset += schema_len;
+    e->capability.data = input + offset; e->capability.len = capability_len; offset += capability_len;
     e->resource_name.data = input + offset; e->resource_name.len = name_len; offset += name_len;
     e->payload.data = input + offset; e->payload.len = payload_len;
     int result = mfh_envelope_validate(e, max_payload);

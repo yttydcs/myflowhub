@@ -183,13 +183,13 @@ func (n *Node) sendFailure(request protocol.Envelope, failure protocol.ErrorPayl
 	return n.routeEnvelope(n.ctx, response, nil)
 }
 
-func (n *Node) newEnvelope(phase protocol.Phase, operation protocol.Operation, target protocol.NodeID, resource protocol.ResourceID, correlation protocol.MessageID, deadline int64, contentType, schema string, payload []byte) (protocol.Envelope, error) {
+func (n *Node) newEnvelope(phase protocol.Phase, operation protocol.Operation, target protocol.NodeID, resource protocol.ResourceID, capability protocol.CapabilityID, correlation protocol.MessageID, deadline int64, contentType, schema string, payload []byte) (protocol.Envelope, error) {
 	messageID, err := protocol.NewMessageID()
 	if err != nil {
 		return protocol.Envelope{}, err
 	}
 	return protocol.Envelope{
 		Version: protocol.CurrentVersion, Phase: phase, Operation: operation, MessageID: messageID, CorrelationID: correlation,
-		Source: n.ID(), Target: target, Resource: resource, DeadlineUnixMS: deadline, ContentType: contentType, Schema: schema, Payload: payload,
+		Source: n.ID(), Target: target, Resource: resource, Capability: capability, DeadlineUnixMS: deadline, ContentType: contentType, Schema: schema, Payload: payload,
 	}, nil
 }

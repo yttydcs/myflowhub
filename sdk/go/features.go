@@ -23,6 +23,34 @@ func DecodeEvent(event Event, target protocol.ValidatedPayload) error {
 	return nil
 }
 
+type TopicClient struct {
+	client   *Client
+	resource protocol.ResourceID
+	schema   string
+}
+
+func (c *Client) Topic(resourceID protocol.ResourceID, schema string) (*TopicClient, error) {
+	if _, err := c.runtimeNode(); err != nil {
+		return nil, err
+	}
+	if err := resourceID.Validate(); err != nil {
+		return nil, err
+	}
+	if schema == "" {
+		return nil, errors.New("topic schema is required")
+	}
+	return &TopicClient{client: c, resource: resourceID, schema: schema}, nil
+}
+
+func (c *TopicClient) Publish(ctx context.Context, payload []byte) error {
+	_, err := c.client.Operate(ctx, c.resource, protocol.CapabilityPublish, c.schema, payload)
+	return err
+}
+
+func (c *TopicClient) Events(ctx context.Context, lease time.Duration, queue int) (*Subscription, error) {
+	return c.client.SubscribeCapability(ctx, c.resource, protocol.CapabilitySubscribe, lease, queue)
+}
+
 type ManagementClient struct {
 	client *Client
 	owner  protocol.NodeID
@@ -146,30 +174,6 @@ func (c *FileClient) Progress(ctx context.Context, lease time.Duration, queue in
 	return c.client.Subscribe(ctx, c.id(protocol.BuiltinFileProgress), lease, queue)
 }
 
-func (c *FileClient) Offer(ctx context.Context, request protocol.FileOfferV1) (protocol.FileProgressV1, error) {
-	var response protocol.FileProgressV1
-	err := c.client.InvokePayload(ctx, c.id(protocol.BuiltinFileOffer), &request, &response)
-	return response, err
-}
-
-func (c *FileClient) Chunk(ctx context.Context, request protocol.FileChunkV1) (protocol.FileProgressV1, error) {
-	var response protocol.FileProgressV1
-	err := c.client.InvokePayload(ctx, c.id(protocol.BuiltinFileChunk), &request, &response)
-	return response, err
-}
-
-func (c *FileClient) Complete(ctx context.Context, request protocol.FileCompleteV1) (protocol.FileProgressV1, error) {
-	var response protocol.FileProgressV1
-	err := c.client.InvokePayload(ctx, c.id(protocol.BuiltinFileComplete), &request, &response)
-	return response, err
-}
-
-func (c *FileClient) Cancel(ctx context.Context, request protocol.FileCancelV1) (protocol.FileProgressV1, error) {
-	var response protocol.FileProgressV1
-	err := c.client.InvokePayload(ctx, c.id(protocol.BuiltinFileCancel), &request, &response)
-	return response, err
-}
-
 func (c *FileClient) UploadFile(ctx context.Context, sourcePath, destination, contentType string, chunkSize int, lifetime time.Duration) (result protocol.FileProgressV1, err error) {
 	if ctx == nil {
 		return result, errors.New("SDK file upload context is required")
@@ -204,7 +208,16 @@ func (c *FileClient) UploadFile(ctx context.Context, sourcePath, destination, co
 		Version: 1, TransferID: id.String(), Path: destination, Size: info.Size(), SHA256: hex.EncodeToString(hash.Sum(nil)),
 		ChunkSize: chunkSize, ContentType: contentType, ExpiresAtUnixMS: time.Now().Add(lifetime).UnixMilli(),
 	}
-	if result, err = c.Offer(ctx, offer); err != nil {
+	offerPayload, err := protocol.EncodeJSONPayload(&offer, protocol.DefaultMaxPayload)
+	if err != nil {
+		return result, err
+	}
+	runtime, err := c.client.runtimeNode()
+	if err != nil {
+		return result, err
+	}
+	session, err := runtime.OpenSession(ctx, c.id(protocol.BuiltinFileUpload), protocol.CapabilityOpen, protocol.SchemaFileOfferV1, offerPayload)
+	if err != nil {
 		return result, err
 	}
 	completed := false
@@ -212,7 +225,7 @@ func (c *FileClient) UploadFile(ctx context.Context, sourcePath, destination, co
 		if !completed {
 			cancelCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
-			_, _ = c.Cancel(cancelCtx, protocol.FileCancelV1{Version: 1, TransferID: offer.TransferID, Reason: "upload aborted"})
+			_, _ = session.Close(cancelCtx, false, "text/plain", []byte("upload aborted"))
 		}
 	}()
 	buffer := make([]byte, chunkSize)
@@ -222,7 +235,11 @@ func (c *FileClient) UploadFile(ctx context.Context, sourcePath, destination, co
 		if count > 0 {
 			data := append([]byte(nil), buffer[:count]...)
 			digest := sha256.Sum256(data)
-			result, err = c.Chunk(ctx, protocol.FileChunkV1{Version: 1, TransferID: offer.TransferID, Offset: offset, Data: data, SHA256: hex.EncodeToString(digest[:])})
+			operation, sendErr := session.Send(ctx, offset, data, hex.EncodeToString(digest[:]))
+			if sendErr == nil {
+				sendErr = protocol.DecodeJSONPayload(operation.Payload, protocol.DefaultMaxPayload, &result)
+			}
+			err = sendErr
 			if err != nil {
 				return result, err
 			}
@@ -238,7 +255,10 @@ func (c *FileClient) UploadFile(ctx context.Context, sourcePath, destination, co
 			return result, err
 		}
 	}
-	result, err = c.Complete(ctx, protocol.FileCompleteV1{Version: 1, TransferID: offer.TransferID, Size: offer.Size, SHA256: offer.SHA256})
+	operation, err := session.Close(ctx, true, "", nil)
+	if err == nil {
+		err = protocol.DecodeJSONPayload(operation.Payload, protocol.DefaultMaxPayload, &result)
+	}
 	if err == nil {
 		completed = true
 	}
