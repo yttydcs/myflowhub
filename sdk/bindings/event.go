@@ -83,7 +83,7 @@ func catalogJSON(value protocol.ResourceCatalogV2) bindingCatalog {
 		converted := bindingResourceDescriptor{
 			Type: descriptor.Type, TypeVersion: descriptor.TypeVersion,
 			Capabilities: append([]protocol.CapabilityDescriptorV2(nil), descriptor.Capabilities...),
-			Schemas: append([]protocol.SchemaDescriptorV2(nil), descriptor.Schemas...), Limits: descriptor.Limits, Presentation: descriptor.Presentation,
+			Schemas:      append([]protocol.SchemaDescriptorV2(nil), descriptor.Schemas...), Limits: descriptor.Limits, Presentation: descriptor.Presentation,
 		}
 		converted.ID.OwnerNodeID = strconv.FormatUint(uint64(descriptor.ID.Owner), 10)
 		converted.ID.Name = descriptor.ID.Name
