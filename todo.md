@@ -1,59 +1,26 @@
-# Todo - 可扩展资源平台与 Desktop 工作区重构
+# Todo - MyFlowHub canonical local status
 
-## Approved Execution
+## Completed
 
-- [x] DOC01 — target specs、supersession chain 与 feature transition skeleton
-- [x] RES01 — protocol Resource descriptor v2 与 generic operations/wire major
-- [x] RES02 — extensible registry 与 Variable/Stream/Command migration
-- [x] RES03 — Node-owned Topic runtime 与 SDK helpers
-- [x] RES04 — descriptor-driven auth/routing/subscription/catalog
-- [x] SES01 — resource sessions、control/data lanes 与 File migration
-- [x] SDK01 — SDK、bindings、generated 与 Embedded migration
-- [x] APP01 — first-party products migration
-- [x] UI01 — React/shadcn frontend foundation
-- [x] UI02 — Profile/CredentialStore/login/auto-connect/switch
-- [x] UI03 — Node/Resource Explorer 与 Renderer Registry
-- [x] UI04 — Preview/Workspace/View persistence
-- [x] UI05 — built-in renderers、minimal visual system 与 accessibility
-- [x] VAL01 — clean-break cleanup、full validation 与 current-truth docs切换
+- [x] 可扩展 Resource descriptor/capability 与 generic wire/runtime
+- [x] Variable、Stream、Topic、Command、File session 统一迁移
+- [x] SDK、bindings、Embedded 与第一方产品迁移
+- [x] React/shadcn-style Desktop 资源工作区、多 Profile 与 View 持久化
+- [x] 全量、race、重复稳定性、性能与 production Wails UI 验收
+- [x] Archive — plan/change/lesson 归档和分类索引更新
+- [x] Closeout — 本地 merge、workflow worktree 清理和 branch 收敛
 
-## Test Remediation - Completed by `$m-continue`
+## Deferred
 
-- [x] TST01 — 将 admission/permit 拒绝和超时映射为明确、可操作的登录错误
-- [x] TST02 — 让空 Workspace 状态跨越完整工作区宽度并增加视觉回归覆盖
-- [x] TST03 — 隔离 Explorer 滚动区域，避免资源列表绘制到底部状态栏下方
-- [x] TST04 — 定义并执行大资源树、订阅延迟/吞吐量的代表性性能阈值
-
-## Will Not Execute Now
-
-- [ ] MED01 — production Media/WebRTC/codec/QoS/platform capture；需要单独计划
-- [ ] SYNC01 — View同步与多Profile同时在线；首版local-first/单活动Profile
-- [ ] MOB01 — Android/iOS通用资源工作区；Desktop范围外
-- [ ] LEG01 — legacy wire/SubProto/TopicBus compatibility；明确拒绝
-- [ ] PUB01 — push/release/sign/store/hardware certification；需要单独授权
+- [ ] production Media/WebRTC/codec/QoS/platform capture
+- [ ] View sync 与多 Profile 同时在线
+- [ ] Android/iOS 通用资源工作区
+- [ ] legacy compatibility bridge（拒绝）
+- [ ] push/release/sign/publish/remote archive
+- [ ] 真实蓝牙/QUIC/硬件和缺失 Flutter 工具链验证
 
 ## Gate
 
-- Plan drafted: yes
-- Stable requirements/decision added: yes
-- Business logic changed: completed
 - Blocked: no
-- Implementation approved: yes (`$m-execute`, 2026-08-28)
-- Heavy test passed: yes (`$m-continue`, 2026-08-29; two repair/verification iterations)
-- Archive ready: yes
-- Current task: ready for `$m-archive`
-
-## Validation Summary
-
-- [x] Full Go test and vet
-- [x] Generated contract drift gate
-- [x] Desktop Go, Vitest, TypeScript/Vite production build, Wails production build and startup smoke
-- [x] Android gomobile, unit tests and lint
-- [x] Metrics and Clipboard Go/Windows product gates
-- [x] Embedded C/CTest and MicroPython protocol gates
-- [x] Go race gate across runtime/features/SDK/transports/integration/Desktop
-- [x] Link/subscription/integration repeated stability gate (`-count=10`)
-- [x] Actual Wails login/profile/auto-connect/preview/drag/View persistence path
-- [x] Actual Wails visual and admission usability acceptance — TST01-TST03 passed after remediation
-- [x] Quantitative performance threshold acceptance — TST04 passed for large Explorer and memory/TCP subscription budgets
-- [ ] Clipboard Flutter tests — tool unavailable on this host; explicitly skipped by `-AllowUnavailable`
+- Active workflow: none
+- Local closeout: complete

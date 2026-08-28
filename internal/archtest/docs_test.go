@@ -31,6 +31,9 @@ func TestAcceptedArchitectureDocsHaveValidRelativeLinks(t *testing.T) {
 		"docs/change/2026-08-27_canonical-monorepo-unified-node-runtime.md",
 		"docs/plan/plan_archive_2026-08-27_canonical-monorepo-unified-node-runtime.md",
 		"docs/lessons/session-replacement-generation-cleanup.md",
+		"docs/change/2026-08-29_extensible-resource-platform-desktop-workspace.md",
+		"docs/plan/plan_archive_2026-08-29_extensible-resource-platform-desktop-workspace.md",
+		"docs/lessons/desktop-binding-reconnect-and-admission-diagnostics.md",
 	}
 	for _, relative := range files {
 		path := filepath.Join(root, filepath.FromSlash(relative))

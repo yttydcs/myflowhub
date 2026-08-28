@@ -13,6 +13,7 @@
 
 ## Runtime And Architecture
 
+- [desktop-binding-reconnect-and-admission-diagnostics.md](desktop-binding-reconnect-and-admission-diagnostics.md)：Desktop binding 重试必须重建单次生命周期 client，并在超时、permit 与准入失败之间保留可操作诊断。
 - [authority-routing-and-subscription-state.md](authority-routing-and-subscription-state.md)：desired/attached 状态、relay 字段、pending 返程和 generation 边界。
 - [authority-local-admin-actions.md](authority-local-admin-actions.md)：remote authority 管理如何沿节点树路由并保留原始授权主体。
 - [session-replacement-generation-cleanup.md](session-replacement-generation-cleanup.md)：同父重连、epoch 与 generation-scoped cleanup。
