@@ -1,2 +1,9 @@
 *.go text eol=lf
 sdk/bindings/generated/contracts.json text eol=lf
+apps/desktop/frontend/index.html text eol=lf
+apps/desktop/frontend/package.json.md5 -text
+apps/desktop/frontend/dist/** text eol=lf
+apps/desktop/frontend/wailsjs/** text eol=lf
+apps/nodes/metrics/windows/frontend/index.html text eol=lf
+apps/nodes/metrics/windows/frontend/dist/** text eol=lf
+apps/nodes/metrics/windows/frontend/wailsjs/** text eol=lf

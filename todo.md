@@ -6,13 +6,13 @@
 - Base: `master@078f4b75ee8316b0baaed67c4be4d6f7fbf301d9`
 - Worktree: `D:/project/MyFlowHub3/worktrees/reproducible-closeout`
 - Detailed plan: [plan.md](plan.md)
-- Stage: `3.1 amended after RC04 EOL failure; re-enter 3.2`
+- Stage: `3.1 amended after RC04 tracked frontend output drift; re-enter 3.2`
 - Authorization: 用户明确要求完整跑完 workflow；仅授权 RC01-RC04 和默认本地 archive/merge/cleanup。
 
 ## Will Execute
 
 - [x] RC01 — 冻结并审计选入/排除来源
-- [x] RC02 — 修复 canonical HEAD 构建与测试可复现性（补充 `*.go` LF checkout 契约）
+- [x] RC02 — 修复 canonical HEAD 构建与测试可复现性（补充 tracked frontend generated EOL/MD5 契约）
 - [x] RC03 — 导入并治理旧仓提取文档和 checkout 路由
 - [ ] RC04 — 运行当前 worktree 与全新 checkout 完整本地门禁
 
