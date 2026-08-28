@@ -9,7 +9,7 @@
 - Docs Root: `D:/project/MyFlowHub3/repo/MyFlowHub/docs`（与 canonical repo 同库，本地无 remote）
 - Code Repos: 仅 `D:/project/MyFlowHub3/repo/MyFlowHub`
 - Active Worktree: `D:/project/MyFlowHub3/worktrees/reproducible-closeout`
-- Current Stage: `3.2 tracked frontend output repair complete; RC04 reruns in 3.3`
+- Current Stage: `3.3 heavy validation complete; archive ready`
 - Approval: 用户于 2026-08-28 明确要求自行设置 Goal 并把整个重构流程跑完；该授权适用于下列 `Will Execute` Task IDs，不包含计划外、远端或破坏性动作。
 
 ## Stage Records
@@ -267,5 +267,12 @@
 ### Gate
 
 - Blocked: no
-- RC04 clean clones exposed Go checkout EOL drift and tracked frontend output drift；RC02 is reopened for bounded `.gitattributes`/MD5 repair, then RC04 reruns from a fresh clone。
+- RC01-RC04 complete；enter `$m-archive`。
 - Do not dispatch implementation sub-agents。
+
+### Stage 3.3 Validation Results
+
+- `91d14a8` clean clone exposed Windows Go CRLF drift in the canonical `gofmt -l` gate；RC02 returned to planning and added `*.go text eol=lf`。
+- `38fb544` passed full Go/vet, Desktop/Metrics frontend, Android and Metrics gomobile + Gradle unit/lint, Embedded C/CTest and MicroPython checks. Flutter was explicitly unavailable under `-AllowUnavailable`；the run also exposed tracked frontend generated EOL/MD5 drift。
+- `1daa56b` fresh validation worktree passed core, generated freshness, both frontend tests/builds, and real Hub + Desktop + Metrics startup. After all processes were stopped, the tracked worktree remained clean and the three test ports were closed。
+- Security scan found no excluded Wi-Fi credential markers；imported historical credentials were redacted before commit。
