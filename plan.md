@@ -528,3 +528,28 @@ UI01 → UI02 → UI03 → UI04 → UI05
 #### Residual Validation
 
 - `$m-execute` 的实现与自动化验证已完成；真实窗口视觉走查、真实蓝牙/QUIC/硬件链路以及未安装的 Flutter 工具链适合在可选 `$m-test` 阶段补充，不阻塞本阶段代码完成。
+
+### Stage 3.3 - Heavy Test Results
+
+#### Verdict
+
+- `$m-test` 未通过，必须返回 `$m-execute` 修正；当前不得进入 `$m-archive`。
+
+#### Passed Evidence
+
+- 在隔离配置目录和本地 `127.0.0.1:7441` Hub 上启动 production Wails executable，完成真实登录、一次性 admission、Profile 持久化、重启自动连接、Resource 搜索/预览、按钮添加、拖放添加、View 保存和重启恢复。
+- `go test -race ./runtime/... ./feature/... ./sdk/go/... ./sdk/bindings/... ./transport/... ./tests/integration/... ./apps/desktop -count=1` 通过。
+- `go test ./runtime/link ./runtime/subscription ./tests/integration -count=10` 通过，重复验证 control/data queue、subscription 与跨节点集成路径。
+- 临时 admission 测试源已删除；测试 Desktop 和 Hub 进程已停止；测试证据保存在 `.tmp/m-test-resource-platform-20260829/evidence/`，不进入产品状态。
+
+#### Failed Findings
+
+- TST01 — 首次接入缺失/无效 permit 时，登录页等待约 15 秒后只显示 `context deadline exceeded`；默认拒绝生效，但用户无法得知需要 admission permit 或如何处理。
+- TST02 — 空 Workspace 仍使用 12 列 grid，empty-state 未跨列，导致标题和说明被挤在最左侧窄列中逐字换行。
+- TST03 — Explorer 长资源列表会绘制到底部固定状态栏下方，末行与 Node 状态发生视觉重叠。
+- TST04 — 当前只有 bounded queue、竞态和重复压力基线，没有大资源树渲染、端到端订阅延迟或吞吐量的正式阈值；不能把功能压力测试等同于性能验收。
+
+#### Return-to-Execute Scope
+
+- 修正 TST01-TST03，并补充对应 Go/frontend 回归测试和实际窗口复验。
+- 为 TST04 定义可复现的代表性数据规模与延迟/渲染阈值；若决定延期，必须在 current spec 中明确风险与非目标，不能默认为已通过。

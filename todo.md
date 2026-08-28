@@ -17,6 +17,13 @@
 - [x] UI05 — built-in renderers、minimal visual system 与 accessibility
 - [x] VAL01 — clean-break cleanup、full validation 与 current-truth docs切换
 
+## Test Remediation - Return to `$m-execute`
+
+- [ ] TST01 — 将 admission/permit 拒绝和超时映射为明确、可操作的登录错误
+- [ ] TST02 — 让空 Workspace 状态跨越完整工作区宽度并增加视觉回归覆盖
+- [ ] TST03 — 隔离 Explorer 滚动区域，避免资源列表绘制到底部状态栏下方
+- [ ] TST04 — 定义并执行大资源树、订阅延迟/吞吐量的代表性性能阈值，或显式批准延期
+
 ## Will Not Execute Now
 
 - [ ] MED01 — production Media/WebRTC/codec/QoS/platform capture；需要单独计划
@@ -32,7 +39,9 @@
 - Business logic changed: completed
 - Blocked: no
 - Implementation approved: yes (`$m-execute`, 2026-08-28)
-- Current task: execution complete; ready for optional `$m-test`
+- Heavy test passed: no (`$m-test`, 2026-08-29)
+- Archive ready: no
+- Current task: return to `$m-execute` for TST01-TST04
 
 ## Validation Summary
 
@@ -42,4 +51,9 @@
 - [x] Android gomobile, unit tests and lint
 - [x] Metrics and Clipboard Go/Windows product gates
 - [x] Embedded C/CTest and MicroPython protocol gates
+- [x] Go race gate across runtime/features/SDK/transports/integration/Desktop
+- [x] Link/subscription/integration repeated stability gate (`-count=10`)
+- [x] Actual Wails login/profile/auto-connect/preview/drag/View persistence path
+- [ ] Actual Wails visual and admission usability acceptance — TST01-TST03 failed
+- [ ] Quantitative performance threshold acceptance — TST04 unresolved
 - [ ] Clipboard Flutter tests — tool unavailable on this host; explicitly skipped by `-AllowUnavailable`
