@@ -18,28 +18,16 @@ export function Connect() {
   return window['go']['main']['App']['Connect']();
 }
 
+export function DeleteProfile(arg1, arg2) {
+  return window['go']['main']['App']['DeleteProfile'](arg1, arg2);
+}
+
+export function DeleteView(arg1, arg2) {
+  return window['go']['main']['App']['DeleteView'](arg1, arg2);
+}
+
 export function Disconnect() {
   return window['go']['main']['App']['Disconnect']();
-}
-
-export function FileTransfersJSON(arg1) {
-  return window['go']['main']['App']['FileTransfersJSON'](arg1);
-}
-
-export function FlowDefinitionsJSON(arg1) {
-  return window['go']['main']['App']['FlowDefinitionsJSON'](arg1);
-}
-
-export function FlowRunsJSON(arg1) {
-  return window['go']['main']['App']['FlowRunsJSON'](arg1);
-}
-
-export function GrantPolicyJSON(arg1, arg2) {
-  return window['go']['main']['App']['GrantPolicyJSON'](arg1, arg2);
-}
-
-export function HealthJSON(arg1) {
-  return window['go']['main']['App']['HealthJSON'](arg1);
 }
 
 export function IdentityJSON() {
@@ -50,16 +38,16 @@ export function InvokeJSON(arg1, arg2, arg3) {
   return window['go']['main']['App']['InvokeJSON'](arg1, arg2, arg3);
 }
 
-export function IssuePermitJSON(arg1, arg2) {
-  return window['go']['main']['App']['IssuePermitJSON'](arg1, arg2);
+export function LoginJSON(arg1) {
+  return window['go']['main']['App']['LoginJSON'](arg1);
 }
 
 export function LogsJSON() {
   return window['go']['main']['App']['LogsJSON']();
 }
 
-export function ManagementConfigJSON(arg1) {
-  return window['go']['main']['App']['ManagementConfigJSON'](arg1);
+export function OperateJSON(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['OperateJSON'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function PollSubscription(arg1, arg2) {
@@ -70,16 +58,12 @@ export function ResetStorage(arg1) {
   return window['go']['main']['App']['ResetStorage'](arg1);
 }
 
-export function RevokeNodeJSON(arg1, arg2) {
-  return window['go']['main']['App']['RevokeNodeJSON'](arg1, arg2);
+export function SaveProfileJSON(arg1) {
+  return window['go']['main']['App']['SaveProfileJSON'](arg1);
 }
 
-export function RevokePolicyJSON(arg1, arg2) {
-  return window['go']['main']['App']['RevokePolicyJSON'](arg1, arg2);
-}
-
-export function SaveSettingsJSON(arg1) {
-  return window['go']['main']['App']['SaveSettingsJSON'](arg1);
+export function SaveViewJSON(arg1) {
+  return window['go']['main']['App']['SaveViewJSON'](arg1);
 }
 
 export function SettingsJSON() {
@@ -98,12 +82,24 @@ export function Subscribe(arg1, arg2, arg3) {
   return window['go']['main']['App']['Subscribe'](arg1, arg2, arg3);
 }
 
+export function SubscribeCapability(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SubscribeCapability'](arg1, arg2, arg3, arg4);
+}
+
+export function SwitchProfile(arg1) {
+  return window['go']['main']['App']['SwitchProfile'](arg1);
+}
+
 export function TopologyJSON(arg1) {
   return window['go']['main']['App']['TopologyJSON'](arg1);
 }
 
 export function UploadFile(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UploadFile'](arg1, arg2, arg3, arg4);
+}
+
+export function ViewsJSON() {
+  return window['go']['main']['App']['ViewsJSON']();
 }
 
 export function WaitConnected(arg1) {

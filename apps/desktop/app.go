@@ -6,13 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/yttydcs/myflowhub/protocol"
+	"github.com/yttydcs/myflowhub/runtime/auth"
 	desktopbinding "github.com/yttydcs/myflowhub/sdk/bindings/desktop"
 )
 
@@ -28,13 +28,90 @@ type logEntry struct {
 	Message    string `json:"message"`
 }
 
-type App struct {
+type CredentialStore interface {
+	Open(Profile) (*desktopbinding.Client, error)
+	Remove(string) error
+	Mode() string
+}
+
+type profileCredentialStore struct {
+	settings *settingsStore
 	mu       sync.Mutex
-	ctx      context.Context
-	store    *settingsStore
-	settings Settings
-	client   *desktopbinding.Client
-	logs     []logEntry
+	stores   map[string]auth.IdentityStore
+}
+
+func newProfileCredentialStore(settings *settingsStore) *profileCredentialStore {
+	return &profileCredentialStore{settings: settings, stores: make(map[string]auth.IdentityStore)}
+}
+
+func (s *profileCredentialStore) Open(profile Profile) (*desktopbinding.Client, error) {
+	if s == nil || s.settings == nil {
+		return nil, errors.New("desktop credential store is unavailable")
+	}
+	directory, err := s.settings.stateDirectory(profile.ID)
+	if err != nil {
+		return nil, err
+	}
+	nodeID, err := parsePositiveInt64(profile.NodeID, "node_id")
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	identityStore := s.stores[profile.ID]
+	if identityStore == nil {
+		identityStore, err = newPlatformIdentityStore(directory)
+		if err == nil {
+			s.stores[profile.ID] = identityStore
+		}
+	}
+	s.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	client := &desktopbinding.Client{}
+	if err := client.OpenWithIdentityStore(directory, nodeID, identityStore); err != nil {
+		return nil, fmt.Errorf("open profile identity: %w", err)
+	}
+	return client, nil
+}
+
+func (s *profileCredentialStore) Remove(profileID string) error {
+	directory, err := s.settings.stateDirectory(profileID)
+	if err != nil {
+		return err
+	}
+	root, err := filepath.Abs(filepath.Join(s.settings.root, "profiles"))
+	if err != nil {
+		return err
+	}
+	target, err := filepath.Abs(directory)
+	if err != nil {
+		return err
+	}
+	if filepath.Dir(target) != root {
+		return errors.New("refusing to remove profile outside the credential root")
+	}
+	s.mu.Lock()
+	delete(s.stores, profileID)
+	s.mu.Unlock()
+	if err := os.RemoveAll(target); err != nil {
+		return fmt.Errorf("remove profile credentials: %w", err)
+	}
+	return nil
+}
+
+func (*profileCredentialStore) Mode() string {
+	return platformCredentialMode() + "; permits are session-only"
+}
+
+type App struct {
+	mu          sync.Mutex
+	ctx         context.Context
+	store       *settingsStore
+	credentials CredentialStore
+	settings    Settings
+	client      *desktopbinding.Client
+	logs        []logEntry
 }
 
 func NewApp(configRoot string) (*App, error) {
@@ -46,18 +123,32 @@ func NewApp(configRoot string) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	app := &App{store: store, settings: settings, logs: make([]logEntry, 0, maxDesktopLogs)}
-	if err := app.openLocked(); err != nil {
-		return nil, err
+	app := &App{
+		store: store, credentials: newProfileCredentialStore(store), settings: settings,
+		logs: make([]logEntry, 0, maxDesktopLogs),
 	}
-	app.appendLog("info", "desktop profile opened")
+	if settings.ActiveProfileID != "" {
+		profile, _ := findProfile(settings, settings.ActiveProfileID)
+		if err := app.openProfileLocked(profile); err != nil {
+			return nil, err
+		}
+	}
+	app.appendLog("info", "desktop resource workspace opened")
 	return app, nil
 }
 
 func (a *App) Startup(ctx context.Context) {
 	a.mu.Lock()
 	a.ctx = ctx
+	profile, active := findProfile(a.settings, a.settings.ActiveProfileID)
 	a.mu.Unlock()
+	if active && profile.AutoConnect {
+		go func() {
+			if err := a.Connect(); err != nil {
+				a.fail("auto-connect", err)
+			}
+		}()
+	}
 }
 
 func (a *App) Shutdown(context.Context) { _ = a.Close() }
@@ -65,40 +156,161 @@ func (a *App) Shutdown(context.Context) { _ = a.Close() }
 func (a *App) SettingsJSON() (string, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return marshalJSON(a.settings)
+	return marshalJSON(struct {
+		Settings
+		CredentialMode string `json:"credential_mode"`
+	}{Settings: a.settings, CredentialMode: a.credentials.Mode()})
 }
 
-func (a *App) SaveSettingsJSON(raw string) (string, error) {
-	var value Settings
-	if err := decodeBoundedJSON(raw, &value); err != nil {
+func (a *App) SaveProfileJSON(raw string) (string, error) {
+	var profile Profile
+	if err := decodeBoundedJSON(raw, &profile); err != nil {
 		return "", err
 	}
-	value.Version = desktopSettingsVersion
-	if err := validateSettings(value); err != nil {
+	if err := validateProfile(profile); err != nil {
 		return "", err
 	}
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	previous := a.settings
-	if err := a.store.save(value); err != nil {
-		a.mu.Unlock()
+	next := upsertProfile(a.settings, profile)
+	if err := a.store.save(next); err != nil {
 		return "", err
 	}
 	if a.client != nil {
 		_ = a.client.Close()
 		a.client = nil
 	}
-	a.settings = value
-	if err := a.openLocked(); err != nil {
+	a.settings = next
+	if err := a.openProfileLocked(profile); err != nil {
 		a.settings = previous
 		_ = a.store.save(previous)
-		_ = a.openLocked()
-		a.mu.Unlock()
-		return "", fmt.Errorf("apply desktop settings: %w", err)
+		return "", err
 	}
-	result, err := marshalJSON(a.settings)
+	return marshalJSON(profile)
+}
+
+func (a *App) LoginJSON(raw string) (string, error) {
+	var request LoginRequest
+	if err := decodeBoundedJSON(raw, &request); err != nil {
+		return "", err
+	}
+	if err := validateProfile(request.Profile); err != nil {
+		return "", err
+	}
+	if request.PermitJSON != "" && (!json.Valid([]byte(request.PermitJSON)) || len(request.PermitJSON) > protocol.DefaultMaxPayload) {
+		return "", errors.New("permit_json must be valid bounded JSON")
+	}
+	candidate, err := a.credentials.Open(request.Profile)
+	if err != nil {
+		return "", err
+	}
+	connected := false
+	defer func() {
+		if !connected {
+			_ = candidate.Close()
+		}
+	}()
+	if err := connectClient(candidate, request.Profile, request.PermitJSON); err != nil {
+		return "", a.fail("login", err)
+	}
+
+	a.mu.Lock()
+	previous := a.settings
+	next := upsertProfile(previous, request.Profile)
+	if err := a.store.save(next); err != nil {
+		a.mu.Unlock()
+		return "", err
+	}
+	old := a.client
+	a.client = candidate
+	a.settings = next
 	a.mu.Unlock()
-	a.appendLog("info", "desktop settings saved; connection reset")
-	return result, err
+	connected = true
+	if old != nil {
+		_ = old.Close()
+	}
+	a.appendLog("info", "profile logged in: "+request.Profile.Name)
+	return marshalJSON(request.Profile)
+}
+
+func (a *App) SwitchProfile(profileID string) error {
+	a.mu.Lock()
+	profile, exists := findProfile(a.settings, profileID)
+	if !exists {
+		a.mu.Unlock()
+		return errors.New("profile not found")
+	}
+	candidate, err := a.credentials.Open(profile)
+	if err != nil {
+		a.mu.Unlock()
+		return err
+	}
+	next := a.settings
+	next.ActiveProfileID = profile.ID
+	if err := a.store.save(next); err != nil {
+		a.mu.Unlock()
+		_ = candidate.Close()
+		return err
+	}
+	old := a.client
+	a.client = candidate
+	a.settings = next
+	a.mu.Unlock()
+	if old != nil {
+		_ = old.Close()
+	}
+	a.appendLog("info", "active profile switched: "+profile.Name)
+	if profile.AutoConnect {
+		go func() {
+			if err := a.Connect(); err != nil {
+				a.fail("profile auto-connect", err)
+			}
+		}()
+	}
+	return nil
+}
+
+func (a *App) DeleteProfile(profileID, confirmation string) error {
+	if confirmation != "DELETE "+profileID {
+		return errors.New("profile deletion confirmation does not match")
+	}
+	a.mu.Lock()
+	if _, exists := findProfile(a.settings, profileID); !exists {
+		a.mu.Unlock()
+		return errors.New("profile not found")
+	}
+	next := a.settings
+	next.Profiles = append([]Profile(nil), next.Profiles...)
+	for index := range next.Profiles {
+		if next.Profiles[index].ID == profileID {
+			next.Profiles = append(next.Profiles[:index], next.Profiles[index+1:]...)
+			break
+		}
+	}
+	active := next.ActiveProfileID == profileID
+	if active {
+		next.ActiveProfileID = ""
+	}
+	if err := a.store.save(next); err != nil {
+		a.mu.Unlock()
+		return err
+	}
+	var old *desktopbinding.Client
+	if active {
+		old = a.client
+		a.client = nil
+	}
+	a.settings = next
+	a.mu.Unlock()
+	if old != nil {
+		_ = old.Close()
+	}
+	if err := a.credentials.Remove(profileID); err != nil {
+		return err
+	}
+	a.appendLog("warn", "profile and local identity removed: "+profileID)
+	return nil
 }
 
 func (a *App) ResetStorage(confirm string) (string, error) {
@@ -110,7 +322,6 @@ func (a *App) ResetStorage(confirm string) (string, error) {
 	settings, err := a.store.reset(confirm)
 	if err == nil {
 		a.settings = settings
-		err = a.openLocked()
 	}
 	result, encodeErr := marshalJSON(a.settings)
 	a.mu.Unlock()
@@ -120,7 +331,7 @@ func (a *App) ResetStorage(confirm string) (string, error) {
 	if encodeErr != nil {
 		return "", encodeErr
 	}
-	a.appendLog("warn", "desktop settings reset explicitly; identity state was retained")
+	a.appendLog("warn", "desktop profile index reset; profile identities were retained")
 	return result, nil
 }
 
@@ -134,43 +345,53 @@ func (a *App) IdentityJSON() (string, error) {
 
 func (a *App) Connect() error {
 	a.mu.Lock()
-	settings := a.settings
+	profile, exists := findProfile(a.settings, a.settings.ActiveProfileID)
 	client := a.client
 	a.mu.Unlock()
-	if client == nil {
-		return errors.New("desktop client is not open")
+	if !exists || client == nil {
+		return errors.New("no active profile")
 	}
-	endpoint := strings.TrimSpace(settings.Endpoint)
-	if endpoint == "" {
-		return errors.New("endpoint is required")
-	}
-	parentID, err := parsePositiveInt64(settings.ParentNodeID, "parent_node_id")
-	if err != nil {
+	if err := connectClient(client, profile, ""); err != nil {
 		return err
-	}
-	if strings.TrimSpace(settings.ParentPublicKey) == "" {
-		return errors.New("parent_public_key is required")
-	}
-	if err := client.TrustParent(parentID, settings.ParentPublicKey); err != nil {
-		return a.fail("trust parent", err)
-	}
-	if err := client.StartTCP(endpoint, parentID, settings.PermitJSON); err != nil {
-		return a.fail("connect", err)
 	}
 	a.appendLog("info", "managed TCP connection started")
 	return nil
 }
 
-func (a *App) Disconnect() error {
-	a.mu.Lock()
-	if a.client != nil {
-		_ = a.client.Close()
-		a.client = nil
-	}
-	err := a.openLocked()
-	a.mu.Unlock()
+func connectClient(client *desktopbinding.Client, profile Profile, permitJSON string) error {
+	parentID, err := parsePositiveInt64(profile.ParentNodeID, "parent_node_id")
 	if err != nil {
 		return err
+	}
+	if err := client.TrustParent(parentID, profile.ParentPublicKey); err != nil {
+		return fmt.Errorf("trust parent: %w", err)
+	}
+	if err := client.StartTCP(profile.Endpoint, parentID, permitJSON); err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	if err := client.WaitConnected(defaultRequestTimeoutMS); err != nil {
+		return fmt.Errorf("wait for connection: %w", err)
+	}
+	return nil
+}
+
+func (a *App) Disconnect() error {
+	a.mu.Lock()
+	profile, exists := findProfile(a.settings, a.settings.ActiveProfileID)
+	old := a.client
+	a.client = nil
+	if exists {
+		client, err := a.credentials.Open(profile)
+		if err != nil {
+			a.client = old
+			a.mu.Unlock()
+			return err
+		}
+		a.client = client
+	}
+	a.mu.Unlock()
+	if old != nil {
+		_ = old.Close()
 	}
 	a.appendLog("info", "desktop connection stopped")
 	return nil
@@ -187,12 +408,16 @@ func (a *App) WaitConnected(timeoutMS int64) error {
 func (a *App) StatusJSON() (string, error) {
 	client, err := a.currentClient()
 	if err != nil {
-		return "", err
+		return marshalJSON(map[string]string{"state": "signed_out"})
 	}
 	return client.StatusJSON()
 }
 
-func (a *App) CatalogJSON(ownerID int64) (string, error) {
+func (a *App) CatalogJSON(ownerNodeID string) (string, error) {
+	ownerID, err := parsePositiveInt64(ownerNodeID, "owner_node_id")
+	if err != nil {
+		return "", err
+	}
 	client, err := a.currentClient()
 	if err != nil {
 		return "", err
@@ -200,7 +425,11 @@ func (a *App) CatalogJSON(ownerID int64) (string, error) {
 	return client.CatalogJSON(ownerID, defaultRequestTimeoutMS)
 }
 
-func (a *App) SnapshotJSON(ownerID int64, name string) (string, error) {
+func (a *App) SnapshotJSON(ownerNodeID, name string) (string, error) {
+	ownerID, err := parsePositiveInt64(ownerNodeID, "owner_node_id")
+	if err != nil {
+		return "", err
+	}
 	client, err := a.currentClient()
 	if err != nil {
 		return "", err
@@ -208,33 +437,56 @@ func (a *App) SnapshotJSON(ownerID int64, name string) (string, error) {
 	return client.SnapshotJSON(ownerID, name, defaultRequestTimeoutMS)
 }
 
-func (a *App) InvokeJSON(ownerID int64, name, requestJSON string) (string, error) {
+func (a *App) OperateJSON(ownerNodeID, name, capability, schema, requestJSON string) (string, error) {
+	ownerID, err := parsePositiveInt64(ownerNodeID, "owner_node_id")
+	if err != nil {
+		return "", err
+	}
 	client, err := a.currentClient()
 	if err != nil {
 		return "", err
 	}
-	result, err := client.InvokeJSON(ownerID, name, requestJSON, defaultRequestTimeoutMS)
+	result, err := client.OperateJSON(ownerID, name, capability, schema, requestJSON, defaultRequestTimeoutMS)
 	if err != nil {
-		return "", a.fail("invoke "+name, err)
+		return "", a.fail("operate "+name+"/"+capability, err)
 	}
-	a.appendLog("info", "command completed: "+name)
+	a.appendLog("info", "resource operation completed: "+name+"/"+capability)
 	return result, nil
 }
 
-func (a *App) Subscribe(ownerID int64, name string, leaseMS int64) (int64, error) {
+func (a *App) InvokeJSON(ownerNodeID, name, requestJSON string) (string, error) {
+	ownerID, err := parsePositiveInt64(ownerNodeID, "owner_node_id")
+	if err != nil {
+		return "", err
+	}
+	client, err := a.currentClient()
+	if err != nil {
+		return "", err
+	}
+	return client.InvokeJSON(ownerID, name, requestJSON, defaultRequestTimeoutMS)
+}
+
+func (a *App) SubscribeCapability(ownerNodeID, name, capability string, leaseMS int64) (int64, error) {
 	if leaseMS == 0 {
 		leaseMS = defaultLeaseMS
+	}
+	ownerID, err := parsePositiveInt64(ownerNodeID, "owner_node_id")
+	if err != nil {
+		return 0, err
 	}
 	client, err := a.currentClient()
 	if err != nil {
 		return 0, err
 	}
-	id, err := client.Subscribe(ownerID, name, leaseMS)
+	id, err := client.SubscribeCapability(ownerID, name, capability, leaseMS)
 	if err != nil {
-		return 0, a.fail("subscribe "+name, err)
+		return 0, a.fail("subscribe "+name+"/"+capability, err)
 	}
-	a.appendLog("info", "subscription ready: "+name)
 	return id, nil
+}
+
+func (a *App) Subscribe(ownerNodeID, name string, leaseMS int64) (int64, error) {
+	return a.SubscribeCapability(ownerNodeID, name, string(protocol.CapabilitySubscribe), leaseMS)
 }
 
 func (a *App) PollSubscription(subscriptionID, timeoutMS int64) (string, error) {
@@ -252,109 +504,73 @@ func (a *App) CancelSubscription(subscriptionID int64) {
 	}
 }
 
-func (a *App) TopologyJSON(ownerID int64) (string, error) {
-	return a.SnapshotJSON(ownerID, protocol.BuiltinManagementTopology)
+func (a *App) TopologyJSON(ownerNodeID string) (string, error) {
+	return a.SnapshotJSON(ownerNodeID, protocol.BuiltinManagementTopology)
 }
 
-func (a *App) HealthJSON(ownerID int64) (string, error) {
-	return a.SnapshotJSON(ownerID, protocol.BuiltinManagementHealth)
-}
-
-func (a *App) ManagementConfigJSON(ownerID int64) (string, error) {
-	return a.SnapshotJSON(ownerID, protocol.BuiltinManagementConfig)
-}
-
-func (a *App) IssuePermitJSON(ownerID int64, requestJSON string) (string, error) {
-	var request protocol.ManagementIssuePermitV1
-	if err := decodeBoundedJSON(requestJSON, &request); err != nil {
-		return "", err
-	}
-	if err := request.Validate(); err != nil {
-		return "", err
-	}
-	return a.InvokeJSON(ownerID, protocol.BuiltinManagementIssuePermit, requestJSON)
-}
-
-func (a *App) RevokeNodeJSON(ownerID int64, requestJSON string) (string, error) {
-	var request protocol.ManagementRevokeV1
-	if err := decodeBoundedJSON(requestJSON, &request); err != nil {
-		return "", err
-	}
-	if err := request.Validate(); err != nil {
-		return "", err
-	}
-	return a.InvokeJSON(ownerID, protocol.BuiltinManagementRevokeNode, requestJSON)
-}
-
-func (a *App) GrantPolicyJSON(ownerID int64, requestJSON string) (string, error) {
-	var request protocol.ManagementPolicyRuleV1
-	if err := decodeBoundedJSON(requestJSON, &request); err != nil {
-		return "", err
-	}
-	if err := request.Validate(); err != nil {
-		return "", err
-	}
-	return a.InvokeJSON(ownerID, protocol.BuiltinManagementPolicyGrant, requestJSON)
-}
-
-func (a *App) RevokePolicyJSON(ownerID int64, requestJSON string) (string, error) {
-	var request protocol.ManagementPolicyRuleV1
-	if err := decodeBoundedJSON(requestJSON, &request); err != nil {
-		return "", err
-	}
-	if err := request.Validate(); err != nil {
-		return "", err
-	}
-	return a.InvokeJSON(ownerID, protocol.BuiltinManagementPolicyRevoke, requestJSON)
-}
-
-func (a *App) FileTransfersJSON(ownerID int64) (string, error) {
-	return a.SnapshotJSON(ownerID, protocol.BuiltinFileTransfers)
-}
-
-func (a *App) FlowDefinitionsJSON(ownerID int64) (string, error) {
-	return a.SnapshotJSON(ownerID, protocol.BuiltinFlowDefinitions)
-}
-
-func (a *App) FlowRunsJSON(ownerID int64) (string, error) {
-	return a.SnapshotJSON(ownerID, protocol.BuiltinFlowRuns)
-}
-
-func (a *App) UploadFile(ownerID int64, sourcePath, destination, contentType string) (string, error) {
-	info, err := os.Stat(sourcePath)
-	if err != nil || !info.Mode().IsRegular() {
-		return "", errors.New("upload source must be a readable regular file")
-	}
-	if info.Size() > 64<<20 {
-		return "", errors.New("desktop upload is limited to 64 MiB")
-	}
-	data, err := os.ReadFile(sourcePath)
-	if err != nil {
-		return "", fmt.Errorf("read upload source: %w", err)
-	}
-	transferID, digest := fileIdentity(data)
-	offer := protocol.FileOfferV1{Version: 1, TransferID: transferID, Path: destination, Size: int64(len(data)), SHA256: digest, ChunkSize: protocol.MaxFileChunkBytes, ContentType: contentType, ExpiresAtUnixMS: time.Now().Add(time.Hour).UnixMilli()}
-	if err := offer.Validate(); err != nil {
-		return "", err
-	}
-	offerJSON, _ := marshalJSON(offer)
-	_, err = a.InvokeJSON(ownerID, protocol.BuiltinFileOffer, offerJSON)
+func (a *App) UploadFile(ownerNodeID, sourcePath, destination, contentType string) (string, error) {
+	ownerID, err := parsePositiveInt64(ownerNodeID, "owner_node_id")
 	if err != nil {
 		return "", err
 	}
-	for offset := 0; offset < len(data); offset += protocol.MaxFileChunkBytes {
-		end := min(offset+protocol.MaxFileChunkBytes, len(data))
-		chunk := protocol.FileChunkV1{Version: 1, TransferID: transferID, Offset: int64(offset), Data: data[offset:end], SHA256: sha256Hex(data[offset:end])}
-		chunkJSON, _ := marshalJSON(chunk)
-		_, err = a.InvokeJSON(ownerID, protocol.BuiltinFileChunk, chunkJSON)
-		if err != nil {
-			cancel, _ := marshalJSON(protocol.FileCancelV1{Version: 1, TransferID: transferID, Reason: "desktop upload failed"})
-			_, _ = a.InvokeJSON(ownerID, protocol.BuiltinFileCancel, cancel)
-			return "", err
-		}
+	client, err := a.currentClient()
+	if err != nil {
+		return "", err
 	}
-	complete, _ := marshalJSON(protocol.FileCompleteV1{Version: 1, TransferID: transferID, Size: int64(len(data)), SHA256: digest})
-	return a.InvokeJSON(ownerID, protocol.BuiltinFileComplete, complete)
+	return client.UploadFile(ownerID, sourcePath, destination, contentType, 10*60*1000)
+}
+
+func (a *App) ViewsJSON() (string, error) {
+	store, err := a.activeViewStore()
+	if err != nil {
+		return "", err
+	}
+	document, err := store.load()
+	if err != nil {
+		return "", err
+	}
+	return marshalJSON(document)
+}
+
+func (a *App) SaveViewJSON(raw string) (string, error) {
+	var view ViewDefinition
+	if err := decodeBoundedJSON(raw, &view); err != nil {
+		return "", err
+	}
+	store, err := a.activeViewStore()
+	if err != nil {
+		return "", err
+	}
+	saved, err := store.saveView(view)
+	if err != nil {
+		return "", err
+	}
+	return marshalJSON(saved)
+}
+
+func (a *App) DeleteView(viewID string, revision int64) error {
+	if revision <= 0 {
+		return errors.New("view revision must be positive")
+	}
+	store, err := a.activeViewStore()
+	if err != nil {
+		return err
+	}
+	return store.deleteView(viewID, uint64(revision))
+}
+
+func (a *App) activeViewStore() (*viewStore, error) {
+	a.mu.Lock()
+	profileID := a.settings.ActiveProfileID
+	a.mu.Unlock()
+	if profileID == "" {
+		return nil, errors.New("no active profile")
+	}
+	directory, err := a.store.stateDirectory(profileID)
+	if err != nil {
+		return nil, err
+	}
+	return newViewStore(directory)
 }
 
 func (a *App) LogsJSON() (string, error) {
@@ -379,22 +595,14 @@ func (a *App) currentClient() (*desktopbinding.Client, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.client == nil {
-		return nil, errors.New("desktop client is not open")
+		return nil, errors.New("desktop is signed out")
 	}
 	return a.client, nil
 }
 
-func (a *App) openLocked() error {
-	directory, err := a.store.stateDirectory(a.settings.Profile)
+func (a *App) openProfileLocked(profile Profile) error {
+	client, err := a.credentials.Open(profile)
 	if err != nil {
-		return err
-	}
-	nodeID, err := parsePositiveInt64(a.settings.NodeID, "node_id")
-	if err != nil {
-		return err
-	}
-	client := &desktopbinding.Client{}
-	if err := client.Open(directory, nodeID); err != nil {
 		return err
 	}
 	a.client = client
@@ -422,21 +630,11 @@ func (a *App) fail(action string, err error) error {
 	return err
 }
 
-func parsePositiveInt64(raw, name string) (int64, error) {
-	value, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
-	if err != nil || value <= 0 {
-		return 0, fmt.Errorf("%s must be a positive signed 64-bit integer", name)
-	}
-	return value, nil
-}
-
 func decodeBoundedJSON(raw string, target any) error {
 	if len(raw) == 0 || len(raw) > protocol.DefaultMaxPayload || !json.Valid([]byte(raw)) {
 		return errors.New("request must be valid JSON within the protocol payload limit")
 	}
-	decoder := json.NewDecoder(strings.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(target); err != nil {
+	if err := decodeStrictJSON([]byte(raw), target); err != nil {
 		return fmt.Errorf("decode request: %w", err)
 	}
 	return nil

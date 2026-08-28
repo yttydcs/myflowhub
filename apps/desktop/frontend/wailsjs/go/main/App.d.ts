@@ -3,54 +3,52 @@
 
 export function CancelSubscription(arg1:number):Promise<void>;
 
-export function CatalogJSON(arg1:number):Promise<string>;
+export function CatalogJSON(arg1:string):Promise<string>;
 
 export function Close():Promise<void>;
 
 export function Connect():Promise<void>;
 
+export function DeleteProfile(arg1:string,arg2:string):Promise<void>;
+
+export function DeleteView(arg1:string,arg2:number):Promise<void>;
+
 export function Disconnect():Promise<void>;
-
-export function FileTransfersJSON(arg1:number):Promise<string>;
-
-export function FlowDefinitionsJSON(arg1:number):Promise<string>;
-
-export function FlowRunsJSON(arg1:number):Promise<string>;
-
-export function GrantPolicyJSON(arg1:number,arg2:string):Promise<string>;
-
-export function HealthJSON(arg1:number):Promise<string>;
 
 export function IdentityJSON():Promise<string>;
 
-export function InvokeJSON(arg1:number,arg2:string,arg3:string):Promise<string>;
+export function InvokeJSON(arg1:string,arg2:string,arg3:string):Promise<string>;
 
-export function IssuePermitJSON(arg1:number,arg2:string):Promise<string>;
+export function LoginJSON(arg1:string):Promise<string>;
 
 export function LogsJSON():Promise<string>;
 
-export function ManagementConfigJSON(arg1:number):Promise<string>;
+export function OperateJSON(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<string>;
 
 export function PollSubscription(arg1:number,arg2:number):Promise<string>;
 
 export function ResetStorage(arg1:string):Promise<string>;
 
-export function RevokeNodeJSON(arg1:number,arg2:string):Promise<string>;
+export function SaveProfileJSON(arg1:string):Promise<string>;
 
-export function RevokePolicyJSON(arg1:number,arg2:string):Promise<string>;
-
-export function SaveSettingsJSON(arg1:string):Promise<string>;
+export function SaveViewJSON(arg1:string):Promise<string>;
 
 export function SettingsJSON():Promise<string>;
 
-export function SnapshotJSON(arg1:number,arg2:string):Promise<string>;
+export function SnapshotJSON(arg1:string,arg2:string):Promise<string>;
 
 export function StatusJSON():Promise<string>;
 
-export function Subscribe(arg1:number,arg2:string,arg3:number):Promise<number>;
+export function Subscribe(arg1:string,arg2:string,arg3:number):Promise<number>;
 
-export function TopologyJSON(arg1:number):Promise<string>;
+export function SubscribeCapability(arg1:string,arg2:string,arg3:string,arg4:number):Promise<number>;
 
-export function UploadFile(arg1:number,arg2:string,arg3:string,arg4:string):Promise<string>;
+export function SwitchProfile(arg1:string):Promise<void>;
+
+export function TopologyJSON(arg1:string):Promise<string>;
+
+export function UploadFile(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
+
+export function ViewsJSON():Promise<string>;
 
 export function WaitConnected(arg1:number):Promise<void>;
