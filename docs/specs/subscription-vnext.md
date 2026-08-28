@@ -24,6 +24,10 @@ Stream events retain sequence order while capacity is available. A source sequen
 
 Intermediate interest aggregation suppresses duplicate upstream ownership work, but every subscriber's identity, link, authorization deadline, policy generation, and topology epoch remain distinct. Aggregation never grants one subscriber another subscriber's authority.
 
+## Performance acceptance
+
+The representative cross-subtree gate sends 50 sequential Variable updates across four Node links and measures publish-to-receive latency after the initial snapshot. Memory transport must remain below 100 ms p95 and 1 s total; TCP loopback must remain below 250 ms p95 and 2 s total. `tests/integration/TestCrossSubtreeSubscriptionLatencyBudget` owns this reproducible threshold. These are regression budgets, not production network SLOs.
+
 ## Related Changes
 
 - [Canonical Monorepo 与统一节点运行时第一阶段](../change/2026-08-27_canonical-monorepo-unified-node-runtime.md)

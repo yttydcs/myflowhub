@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -106,6 +107,7 @@ func (*profileCredentialStore) Mode() string {
 
 type App struct {
 	mu          sync.Mutex
+	lifecycleMu sync.Mutex
 	ctx         context.Context
 	store       *settingsStore
 	credentials CredentialStore
@@ -163,6 +165,8 @@ func (a *App) SettingsJSON() (string, error) {
 }
 
 func (a *App) SaveProfileJSON(raw string) (string, error) {
+	a.lifecycleMu.Lock()
+	defer a.lifecycleMu.Unlock()
 	var profile Profile
 	if err := decodeBoundedJSON(raw, &profile); err != nil {
 		return "", err
@@ -191,6 +195,8 @@ func (a *App) SaveProfileJSON(raw string) (string, error) {
 }
 
 func (a *App) LoginJSON(raw string) (string, error) {
+	a.lifecycleMu.Lock()
+	defer a.lifecycleMu.Unlock()
 	var request LoginRequest
 	if err := decodeBoundedJSON(raw, &request); err != nil {
 		return "", err
@@ -235,6 +241,8 @@ func (a *App) LoginJSON(raw string) (string, error) {
 }
 
 func (a *App) SwitchProfile(profileID string) error {
+	a.lifecycleMu.Lock()
+	defer a.lifecycleMu.Unlock()
 	a.mu.Lock()
 	profile, exists := findProfile(a.settings, profileID)
 	if !exists {
@@ -272,6 +280,8 @@ func (a *App) SwitchProfile(profileID string) error {
 }
 
 func (a *App) DeleteProfile(profileID, confirmation string) error {
+	a.lifecycleMu.Lock()
+	defer a.lifecycleMu.Unlock()
 	if confirmation != "DELETE "+profileID {
 		return errors.New("profile deletion confirmation does not match")
 	}
@@ -314,6 +324,8 @@ func (a *App) DeleteProfile(profileID, confirmation string) error {
 }
 
 func (a *App) ResetStorage(confirm string) (string, error) {
+	a.lifecycleMu.Lock()
+	defer a.lifecycleMu.Unlock()
 	a.mu.Lock()
 	if a.client != nil {
 		_ = a.client.Close()
@@ -344,14 +356,38 @@ func (a *App) IdentityJSON() (string, error) {
 }
 
 func (a *App) Connect() error {
+	a.lifecycleMu.Lock()
+	defer a.lifecycleMu.Unlock()
 	a.mu.Lock()
 	profile, exists := findProfile(a.settings, a.settings.ActiveProfileID)
-	client := a.client
+	old := a.client
+	a.client = nil
 	a.mu.Unlock()
-	if !exists || client == nil {
+	if !exists {
+		if old != nil {
+			a.mu.Lock()
+			a.client = old
+			a.mu.Unlock()
+		}
 		return errors.New("no active profile")
 	}
-	if err := connectClient(client, profile, ""); err != nil {
+	if old != nil {
+		_ = old.Close()
+	}
+	candidate, err := a.credentials.Open(profile)
+	if err != nil {
+		return err
+	}
+	a.mu.Lock()
+	current, currentExists := findProfile(a.settings, a.settings.ActiveProfileID)
+	if !currentExists || current.ID != profile.ID {
+		a.mu.Unlock()
+		_ = candidate.Close()
+		return errors.New("active profile changed while reconnecting")
+	}
+	a.client = candidate
+	a.mu.Unlock()
+	if err := connectClient(candidate, profile, ""); err != nil {
 		return err
 	}
 	a.appendLog("info", "managed TCP connection started")
@@ -370,12 +406,24 @@ func connectClient(client *desktopbinding.Client, profile Profile, permitJSON st
 		return fmt.Errorf("connect: %w", err)
 	}
 	if err := client.WaitConnected(defaultRequestTimeoutMS); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return connectionTimeoutGuidance(err, permitJSON)
+		}
 		return fmt.Errorf("wait for connection: %w", err)
 	}
 	return nil
 }
 
+func connectionTimeoutGuidance(err error, permitJSON string) error {
+	if strings.TrimSpace(permitJSON) == "" {
+		return fmt.Errorf("连接超时：首次接入需要粘贴父节点签发的一次性准入 Permit；如果此前已准入，请检查连接端点、父节点状态和网络。技术详情：%w", err)
+	}
+	return fmt.Errorf("连接超时：Permit 可能无效、已使用或已过期；请重新签发 Permit，并检查连接端点和父节点状态。技术详情：%w", err)
+}
+
 func (a *App) Disconnect() error {
+	a.lifecycleMu.Lock()
+	defer a.lifecycleMu.Unlock()
 	a.mu.Lock()
 	profile, exists := findProfile(a.settings, a.settings.ActiveProfileID)
 	old := a.client
@@ -581,6 +629,8 @@ func (a *App) LogsJSON() (string, error) {
 }
 
 func (a *App) Close() error {
+	a.lifecycleMu.Lock()
+	defer a.lifecycleMu.Unlock()
 	a.mu.Lock()
 	client := a.client
 	a.client = nil

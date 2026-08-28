@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"testing"
 	"time"
 
@@ -50,6 +51,83 @@ func TestCrossSubtreeVerticalSlice(t *testing.T) {
 			runVerticalSlice(t, driver, test.endpoint)
 		})
 	}
+}
+
+func TestCrossSubtreeSubscriptionLatencyBudget(t *testing.T) {
+	tests := []struct {
+		name        string
+		driver      func() (link.Driver, func())
+		endpoint    func(string) link.Endpoint
+		p95Budget   time.Duration
+		totalBudget time.Duration
+	}{
+		{
+			name: "memory", p95Budget: 100 * time.Millisecond, totalBudget: time.Second,
+			driver: func() (link.Driver, func()) {
+				network := memory.NewNetwork()
+				return network, func() { _ = network.Close() }
+			},
+			endpoint: func(name string) link.Endpoint { return link.Endpoint("latency-" + name) },
+		},
+		{
+			name: "tcp", p95Budget: 250 * time.Millisecond, totalBudget: 2 * time.Second,
+			driver:   func() (link.Driver, func()) { return tcp.Driver{}, func() {} },
+			endpoint: func(string) link.Endpoint { return "127.0.0.1:0" },
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			driver, closeDriver := test.driver()
+			defer closeDriver()
+			runSubscriptionLatencyBudget(t, driver, test.endpoint, test.p95Budget, test.totalBudget)
+		})
+	}
+}
+
+func runSubscriptionLatencyBudget(t *testing.T, driver link.Driver, endpoint func(string) link.Endpoint, p95Budget, totalBudget time.Duration) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	resourceID := protocol.ResourceID{Owner: 5, Name: "latency/state"}
+	policy := auth.NewStaticPolicy()
+	policy.Allow(auth.Request{Subject: 3, Action: auth.ActionSubscribe, Resource: resourceID})
+	graph := buildTopology(t, ctx, driver, endpoint, policy)
+	defer closeTopology(graph)
+	variable, err := resource.NewVariable(resource.VariableDescriptor(resourceID, "application/octet-stream", "test.raw.v1", "test.read", 128), []byte("initial"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := graph.leafB.Registry().Register(variable); err != nil {
+		t.Fatal(err)
+	}
+	remote, err := graph.leafA.Subscribe(ctx, resourceID, 5*time.Second, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer remote.Cancel()
+	_ = receiveEvent(t, remote)
+
+	const samples = 50
+	latencies := make([]time.Duration, 0, samples)
+	totalStarted := time.Now()
+	for index := 0; index < samples; index++ {
+		started := time.Now()
+		if _, err := variable.Set([]byte(fmt.Sprintf("value-%d", index))); err != nil {
+			t.Fatal(err)
+		}
+		event := receiveEvent(t, remote)
+		if event.Kind != subscription.EventData {
+			t.Fatalf("unexpected latency sample event: %#v", event)
+		}
+		latencies = append(latencies, time.Since(started))
+	}
+	total := time.Since(totalStarted)
+	sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
+	p95 := latencies[(samples*95/100)-1]
+	if p95 > p95Budget || total > totalBudget {
+		t.Fatalf("subscription latency budget exceeded: p95=%s (budget %s), total=%s (budget %s)", p95, p95Budget, total, totalBudget)
+	}
+	t.Logf("subscription latency: samples=%d p95=%s total=%s", samples, p95, total)
 }
 
 func runVerticalSlice(t *testing.T, driver link.Driver, endpoint func(string) link.Endpoint) {

@@ -9,7 +9,7 @@
 - Docs Root: `D:/project/MyFlowHub3/worktrees/resource-platform-desktop-workspace/docs`
 - Code Repos: canonical monorepo `MyFlowHub` only
 - Worktree: `D:/project/MyFlowHub3/worktrees/resource-platform-desktop-workspace`
-- Current Stage: `3.2 execute complete; VAL01 completed, ready for optional $m-test`
+- Current Stage: `3.3 heavy test passed after $m-continue convergence; ready for $m-archive`
 - Compatibility: clean break；不保留 fixed-three-kind wire、TopicBus、SubProto、旧 Desktop UI 或旧配置静默兼容
 
 ## Stage Records
@@ -533,7 +533,7 @@ UI01 → UI02 → UI03 → UI04 → UI05
 
 #### Verdict
 
-- `$m-test` 未通过，必须返回 `$m-execute` 修正；当前不得进入 `$m-archive`。
+- `$m-continue` 已完成两轮修复/复验收敛，TST01-TST04 全部通过；当前可进入 `$m-archive`。
 
 #### Passed Evidence
 
@@ -542,14 +542,18 @@ UI01 → UI02 → UI03 → UI04 → UI05
 - `go test ./runtime/link ./runtime/subscription ./tests/integration -count=10` 通过，重复验证 control/data queue、subscription 与跨节点集成路径。
 - 临时 admission 测试源已删除；测试 Desktop 和 Hub 进程已停止；测试证据保存在 `.tmp/m-test-resource-platform-20260829/evidence/`，不进入产品状态。
 
-#### Failed Findings
+#### Remediation And UI Review
 
-- TST01 — 首次接入缺失/无效 permit 时，登录页等待约 15 秒后只显示 `context deadline exceeded`；默认拒绝生效，但用户无法得知需要 admission permit 或如何处理。
-- TST02 — 空 Workspace 仍使用 12 列 grid，empty-state 未跨列，导致标题和说明被挤在最左侧窄列中逐字换行。
-- TST03 — Explorer 长资源列表会绘制到底部固定状态栏下方，末行与 Node 状态发生视觉重叠。
-- TST04 — 当前只有 bounded queue、竞态和重复压力基线，没有大资源树渲染、端到端订阅延迟或吞吐量的正式阈值；不能把功能压力测试等同于性能验收。
+- TST01 — binding timeout 保留最后一次连接诊断；Desktop 将首次准入、已提供 Permit 和普通链路超时映射为可操作中文错误。失败登录不再清空一次性 Permit；真实窗口已验证错误提示。
+- TST02 — empty state 跨越完整 12 列；production Wails 暗色窗口已验证工作区占满可用宽度并保持居中。
+- TST03 — Tabs/ScrollArea/Explorer footer 的高度、overflow、底部 padding 与 stacking 已隔离；真实长列表滚动到底部后末行不再落入状态栏下方。
+- TST04 — 代表性 Explorer 基准固定为 2,000 Nodes + 10,000 Resources、build+filter `<750ms`；本轮 Vitest 样本约 `37-39ms`。跨子树 50 次顺序 Variable 事件门禁固定为 memory p95 `<100ms`/total `<1s`、TCP loopback p95 `<250ms`/total `<2s`；三次复验最慢为 memory p95 `1.1056ms`/total `11.0432ms`、TCP p95 `4.5976ms`/total `111.9591ms`。
+- 实际窗口额外发现并修复：失败连接后的重试必须重建 binding client，避免 started client 无法重新 trust parent；连接/切换 busy 不再错误显示为 View 保存中；暗色模式继承色、空画布、新建视图和选中 View 对比度已修复。
+- UI 审查同时补齐深层后代搜索、部分目录失败提示、未保存 View 的切换/登录/新建/关闭保护、View 删除确认、File 双提交保护、停止订阅状态文案、焦点/label/aria-live/装饰图标语义，以及大列表 row containment 和热点 O(n²) Map 化。
 
-#### Return-to-Execute Scope
+#### Final Validation
 
-- 修正 TST01-TST03，并补充对应 Go/frontend 回归测试和实际窗口复验。
-- 为 TST04 定义可复现的代表性数据规模与延迟/渲染阈值；若决定延期，必须在 current spec 中明确风险与非目标，不能默认为已通过。
+- `go test ./... -count=1`、上述 race gate、重复稳定性 gate、Desktop Vitest 10/10、TypeScript/Vite production build、Windows Wails production build、`mfh check generated` 和 `git diff --check`：通过。
+- production Wails 实际路径：自动连接、2 Nodes/25 Resources、列表到底部、搜索/预览、按钮添加、拖放 `file/transfers`、保存、重启恢复、空 View、未保存切换取消、删除取消、暗色主题：通过。
+- 隔离验收只向测试 Hub 增加 Node 2002 的 topology/catalog read grants；生产数据、远端仓库和主 checkout 均未修改。
+- 剩余非阻塞项仅为已排除的真实蓝牙/硬件、production Media、View sync、多活动 Profile、移动工作区和本机缺失 Flutter 工具链；这些不改变本轮通过结论。

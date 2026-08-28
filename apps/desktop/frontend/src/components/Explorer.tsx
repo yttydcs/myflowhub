@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, CircleDot, Command, FileUp, Gauge, GripVerti
 import { Input } from './ui/input'
 import { ScrollArea } from './ui/scroll-area'
 import { Badge } from './ui/badge'
-import { buildExplorerTree, type ExplorerNode } from '../store'
+import { buildExplorerTree, filterExplorerTree, type ExplorerNode } from '../store'
 import type { ResourceDescriptor, Topology, WorkspaceSelection } from '../types'
 
 type Props = {
@@ -36,42 +36,40 @@ function ResourceRow({ resource, selected, onSelect, onAdd }: {
       ref={draggable.setNodeRef}
       className={`resource-row ${selected ? 'is-selected' : ''} ${draggable.isDragging ? 'is-dragging' : ''}`}
       style={draggable.transform ? { transform: `translate3d(${draggable.transform.x}px, ${draggable.transform.y}px, 0)` } : undefined}
+      role="treeitem"
+      aria-selected={selected}
     >
-      <button ref={draggable.setActivatorNodeRef} className="drag-handle" {...draggable.listeners} {...draggable.attributes} aria-label={`拖动 ${resource.id.name} 到工作区`}><GripVertical size={13} /></button>
+      <button ref={draggable.setActivatorNodeRef} className="drag-handle" {...draggable.listeners} {...draggable.attributes} aria-label={`拖动 ${resource.id.name} 到工作区`}><GripVertical aria-hidden="true" size={13} /></button>
       <button className="tree-main" onClick={onSelect}>
-        <Icon size={15} />
+        <Icon aria-hidden="true" size={15} />
         <span><strong>{resource.presentation?.label || resource.id.name.split('/').at(-1)}</strong><small>{resource.id.name}</small></span>
       </button>
-      <button className="row-action" onClick={onAdd} aria-label={`添加 ${resource.id.name} 到工作区`}><Plus size={14} /></button>
+      <button className="row-action" onClick={onAdd} aria-label={`添加 ${resource.id.name} 到工作区`}><Plus aria-hidden="true" size={14} /></button>
     </div>
   )
 }
 
-function NodeBranch({ node, query, selection, onSelect, onAdd }: {
+function NodeBranch({ node, selection, onSelect, onAdd }: {
   node: ExplorerNode
-  query: string
   selection: WorkspaceSelection
   onSelect(selection: WorkspaceSelection): void
   onAdd(resource: ResourceDescriptor): void
 }) {
   const [open, setOpen] = useState(true)
-  const resources = node.resources.filter((resource) => resource.id.name.toLowerCase().includes(query))
-  const childMatches = node.children.filter((child) => !query || child.node_id.includes(query) || child.resources.some((resource) => resource.id.name.toLowerCase().includes(query)))
-  if (query && resources.length === 0 && childMatches.length === 0 && !node.node_id.includes(query)) return null
   const nodeSelected = selection?.kind === 'node' && selection.node.node_id === node.node_id
   return (
-    <div className="node-branch">
+    <div className="node-branch" role="treeitem" aria-expanded={open} aria-selected={nodeSelected}>
       <div className={`node-row ${nodeSelected ? 'is-selected' : ''}`}>
         <button className="disclosure" onClick={() => setOpen((value) => !value)} aria-label={`${open ? '折叠' : '展开'}节点 ${node.node_id}`}>
-          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          {open ? <ChevronDown aria-hidden="true" size={14} /> : <ChevronRight aria-hidden="true" size={14} />}
         </button>
         <button className="tree-main" onClick={() => onSelect({ kind: 'node', node })}>
-          <CircleDot size={15} /><span><strong>{node.display_name || `Node ${node.node_id}`}</strong><small>{node.role}</small></span>
+          <CircleDot aria-hidden="true" size={15} /><span><strong>{node.display_name || `Node ${node.node_id}`}</strong><small>{node.role}</small></span>
         </button>
         <Badge>{node.resources.length}</Badge>
       </div>
-      {open && <div className="branch-children">
-        {resources.map((resource) => (
+      {open && <div className="branch-children" role="group">
+        {node.resources.map((resource) => (
           <ResourceRow
             key={resource.id.name}
             resource={resource}
@@ -80,7 +78,7 @@ function NodeBranch({ node, query, selection, onSelect, onAdd }: {
             onAdd={() => onAdd(resource)}
           />
         ))}
-        {childMatches.map((child) => <NodeBranch key={child.node_id} node={child} query={query} selection={selection} onSelect={onSelect} onAdd={onAdd} />)}
+        {node.children.map((child) => <NodeBranch key={child.node_id} node={child} selection={selection} onSelect={onSelect} onAdd={onAdd} />)}
       </div>}
     </div>
   )
@@ -89,12 +87,15 @@ function NodeBranch({ node, query, selection, onSelect, onAdd }: {
 export function Explorer(props: Props) {
   const [query, setQuery] = useState('')
   const tree = useMemo(() => buildExplorerTree(props.topology, props.resources), [props.topology, props.resources])
+  const visibleTree = useMemo(() => filterExplorerTree(tree, query), [tree, query])
   return (
     <div className="explorer">
-      <div className="search-box"><Search size={15} /><Input aria-label="搜索节点和资源" value={query} onChange={(event) => setQuery(event.target.value.toLowerCase())} placeholder="搜索资源…" /></div>
+      <div className="search-box"><Search aria-hidden="true" size={15} /><Input aria-label="搜索节点和资源" name="resource-search" autoComplete="off" spellCheck={false} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索节点或资源…" /></div>
       <ScrollArea className="explorer-scroll">
         <div className="tree" role="tree" aria-label="节点与资源">
-          {tree.map((node) => <NodeBranch key={node.node_id} node={node} query={query} selection={props.selection} onSelect={props.onSelect} onAdd={props.onAdd} />)}
+          {visibleTree.length === 0
+            ? <p className="empty-copy">没有匹配的节点或资源</p>
+            : visibleTree.map((node) => <NodeBranch key={node.node_id} node={node} selection={props.selection} onSelect={props.onSelect} onAdd={props.onAdd} />)}
         </div>
       </ScrollArea>
     </div>

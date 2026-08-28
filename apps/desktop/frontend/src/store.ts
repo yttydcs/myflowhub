@@ -13,15 +13,51 @@ export function buildExplorerTree(topology: Topology, resources: ResourceDescrip
     if (parent) parent.children.push(node)
     else roots.push(node)
   }
-  const sort = (nodes: ExplorerNode[]) => {
-    nodes.sort((a, b) => a.node_id.localeCompare(b.node_id, undefined, { numeric: true }))
-    for (const node of nodes) {
-      node.resources.sort((a, b) => a.id.name.localeCompare(b.id.name))
-      sort(node.children)
-    }
+  roots.sort(compareNodes)
+  const pending = [...roots]
+  while (pending.length > 0) {
+    const node = pending.pop()!
+    node.resources.sort((a, b) => a.id.name.localeCompare(b.id.name))
+    node.children.sort(compareNodes)
+    pending.push(...node.children)
   }
-  sort(roots)
   return roots
+}
+
+function compareNodes(a: ExplorerNode, b: ExplorerNode): number {
+  return a.node_id.localeCompare(b.node_id, undefined, { numeric: true })
+}
+
+export function filterExplorerTree(nodes: ExplorerNode[], rawQuery: string): ExplorerNode[] {
+  const query = rawQuery.trim().toLowerCase()
+  if (!query) return nodes
+  const filtered = new Map<ExplorerNode, ExplorerNode | null>()
+  const pending = nodes.map((node) => ({ node, visited: false }))
+  while (pending.length > 0) {
+    const current = pending.pop()!
+    if (!current.visited) {
+      pending.push({ node: current.node, visited: true })
+      for (const child of current.node.children) pending.push({ node: child, visited: false })
+      continue
+    }
+    const children = current.node.children.flatMap((child) => {
+      const match = filtered.get(child)
+      return match ? [match] : []
+    })
+    const nodeMatches = [current.node.node_id, current.node.display_name || '', current.node.role]
+      .some((value) => value.toLowerCase().includes(query))
+    const resources = nodeMatches
+      ? current.node.resources
+      : current.node.resources.filter((resource) => [resource.id.name, resource.presentation?.label || '', resource.type]
+        .some((value) => value.toLowerCase().includes(query)))
+    filtered.set(current.node, nodeMatches || resources.length > 0 || children.length > 0
+      ? { ...current.node, resources, children }
+      : null)
+  }
+  return nodes.flatMap((node) => {
+    const match = filtered.get(node)
+    return match ? [match] : []
+  })
 }
 
 export function indexResources(resources: ResourceDescriptor[]): Map<string, ResourceDescriptor> {

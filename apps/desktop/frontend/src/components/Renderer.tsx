@@ -28,7 +28,7 @@ function decodeEventPayload(event: ResourceEvent): unknown {
 }
 
 function StateMessage({ kind, children }: { kind?: 'error' | 'loading'; children: React.ReactNode }) {
-  return <div className={`renderer-state ${kind || ''}`}>{kind === 'error' ? <AlertTriangle size={17} /> : <LoaderCircle size={17} />}{children}</div>
+  return <div className={`renderer-state ${kind || ''}`} role={kind === 'error' ? 'alert' : 'status'} aria-live="polite">{kind === 'error' ? <AlertTriangle aria-hidden="true" size={17} /> : <LoaderCircle aria-hidden="true" size={17} />}{children}</div>
 }
 
 function VariableRenderer({ api, resource }: RendererProps) {
@@ -74,8 +74,8 @@ function VariableRenderer({ api, resource }: RendererProps) {
   if (loading) return <StateMessage kind="loading">正在读取快照…</StateMessage>
   if (error) return <StateMessage kind="error">{error}</StateMessage>
   return <div className="value-renderer">
-    {writable ? <label>当前值 · revision {revision}<Textarea value={input} onChange={(event) => setInput(event.target.value)} rows={5} spellCheck={false} /></label> : <pre>{pretty(value)}</pre>}
-    <div className="value-actions"><Button variant="ghost" size="sm" onClick={() => void refresh()}><RefreshCw size={14} />刷新</Button>{writable && <Button size="sm" disabled={writing || revision === 0} onClick={() => void write()}>{writing ? '写入中…' : '条件写入'}</Button>}</div>
+    {writable ? <label>当前值 · revision {revision}<Textarea name="variable-value" autoComplete="off" value={input} onChange={(event) => setInput(event.target.value)} rows={5} spellCheck={false} /></label> : <pre>{pretty(value)}</pre>}
+    <div className="value-actions"><Button variant="ghost" size="sm" onClick={() => void refresh()}><RefreshCw aria-hidden="true" size={14} />刷新</Button>{writable && <Button size="sm" disabled={writing || revision === 0} onClick={() => void write()}>{writing ? '写入中…' : '条件写入'}</Button>}</div>
   </div>
 }
 
@@ -108,7 +108,7 @@ function EventRenderer({ api, resource }: RendererProps) {
   }, [api, resource.id.owner_node_id, resource.id.name])
   if (error) return <StateMessage kind="error">{error}</StateMessage>
   return <div className="event-renderer">
-    <div className="live-line"><span className={`live-dot ${state}`} />{state === 'live' ? '实时订阅中' : '正在建立订阅'}<Badge>{events.length} events</Badge></div>
+    <div className="live-line" role="status" aria-live="polite"><span className={`live-dot ${state}`} aria-hidden="true" />{{ connecting: '正在建立订阅…', live: '实时订阅中', stopped: '订阅已停止' }[state]}<Badge>{events.length} events</Badge></div>
     <div className="event-list">{events.length === 0 ? <p className="empty-copy">等待第一条事件</p> : events.map((event, index) => (
       <article key={`${event.sequence || 0}-${index}`}><small>#{event.sequence || event.revision || '—'}{event.publisher_node_id ? ` · publisher ${event.publisher_node_id}/${event.publisher_sequence || 0}` : ''} · {event.schema || 'raw'}</small><pre>{pretty(decodeEventPayload(event))}</pre></article>
     ))}</div>
@@ -130,9 +130,9 @@ function OperationRenderer({ api, resource, capability = 'invoke' }: RendererPro
     finally { setBusy(false) }
   }
   return <div className="operation-renderer">
-    <label>输入 · {descriptor?.input_schema || 'application/json'}<Textarea value={input} onChange={(event) => setInput(event.target.value)} rows={5} spellCheck={false} /></label>
-    {error && <p className="form-error" role="alert">{error}</p>}
-    <Button size="sm" disabled={busy} onClick={() => void submit()}><Play size={14} />{busy ? '执行中…' : `执行 ${capability}`}</Button>
+    <label>输入 · {descriptor?.input_schema || 'application/json'}<Textarea name={`${capability}-input`} autoComplete="off" value={input} onChange={(event) => setInput(event.target.value)} rows={5} spellCheck={false} /></label>
+    {error && <p className="form-error" role="alert" aria-live="polite">{error}</p>}
+    <Button size="sm" disabled={busy} onClick={() => void submit()}><Play aria-hidden="true" size={14} />{busy ? '执行中…' : `执行 ${capability}`}</Button>
     {result !== undefined && <pre className="result-block">{pretty(result)}</pre>}
   </div>
 }
@@ -142,24 +142,26 @@ function FileRenderer({ api, resource }: RendererProps) {
   const [destination, setDestination] = useState('')
   const [result, setResult] = useState<unknown>()
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
   const upload = async () => {
-    setError('')
+    setBusy(true); setError('')
     try { setResult(await api.uploadFile(resource.id.owner_node_id, source, destination, 'application/octet-stream')) }
     catch (current) { setError(errorText(current)) }
+    finally { setBusy(false) }
   }
   return <div className="file-renderer">
-    <FileUp size={26} />
+    <FileUp aria-hidden="true" size={26} />
     <p>文件通过绑定到此资源的有界 session 传输；控制帧不会被数据块淹没。</p>
-    <label>本地文件路径<Input value={source} onChange={(event) => setSource(event.target.value)} /></label>
-    <label>目标路径<Input value={destination} onChange={(event) => setDestination(event.target.value)} /></label>
-    {error && <p className="form-error">{error}</p>}
-    <Button size="sm" disabled={!source || !destination} onClick={() => void upload()}><Send size={14} />开始上传</Button>
+    <label>本地文件路径<Input name="upload-source" autoComplete="off" spellCheck={false} value={source} onChange={(event) => setSource(event.target.value)} /></label>
+    <label>目标路径<Input name="upload-destination" autoComplete="off" spellCheck={false} value={destination} onChange={(event) => setDestination(event.target.value)} /></label>
+    {error && <p className="form-error" role="alert" aria-live="polite">{error}</p>}
+    <Button size="sm" disabled={busy || !source || !destination} onClick={() => void upload()}><Send aria-hidden="true" size={14} />{busy ? '上传中…' : '开始上传'}</Button>
     {result !== undefined && <pre className="result-block">{pretty(result)}</pre>}
   </div>
 }
 
 function UnknownRenderer({ resource }: RendererProps) {
-  return <div className="unknown-renderer"><Braces size={24} /><p>没有安装 <strong>{resource.type}</strong> 的专用 renderer。资源仍保持可发现。</p><pre>{pretty(resource)}</pre></div>
+  return <div className="unknown-renderer"><Braces aria-hidden="true" size={24} /><p>没有安装 <strong>{resource.type}</strong> 的专用 renderer。资源仍保持可发现。</p><pre>{pretty(resource)}</pre></div>
 }
 
 type RendererProps = { api: DesktopAPI; resource: ResourceDescriptor }
@@ -178,16 +180,20 @@ export function ResourceRenderer(props: RendererProps) {
   const publishable = props.resource.type === 'mfh.topic' && props.resource.capabilities.some((item) => item.name === 'publish')
   const genericOperations = Renderer === UnknownRenderer ? props.resource.capabilities.filter((item) => item.input_schema && item.name !== 'open') : []
   return <div className="resource-renderer">
-    {publishable && <details className="publish-box"><summary><Radio size={14} />发布到 Topic</summary><OperationRenderer {...props} capability="publish" /></details>}
+    {publishable && <details className="publish-box"><summary><Radio aria-hidden="true" size={14} />发布到 Topic</summary><OperationRenderer {...props} capability="publish" /></details>}
     <Renderer {...props} />
-    {genericOperations.map((capability) => <details className="publish-box" key={capability.name}><summary><Play size={14} />通用操作 {capability.name}</summary><OperationRenderer {...props} capability={capability.name} /></details>)}
+    {genericOperations.map((capability) => <details className="publish-box" key={capability.name}><summary><Play aria-hidden="true" size={14} />通用操作 {capability.name}</summary><OperationRenderer {...props} capability={capability.name} /></details>)}
   </div>
 }
 
 export function NodeRenderer({ node, resources }: { node: TopologyNode; resources: ResourceDescriptor[] }) {
-  const counts = useMemo(() => Object.entries(resources.reduce<Record<string, number>>((all, resource) => ({ ...all, [resource.type]: (all[resource.type] || 0) + 1 }), {})), [resources])
+  const counts = useMemo(() => {
+    const byType = new Map<string, number>()
+    for (const resource of resources) byType.set(resource.type, (byType.get(resource.type) || 0) + 1)
+    return [...byType.entries()]
+  }, [resources])
   return <div className="node-overview">
-    <div className="node-orbit"><SquareTerminal size={28} /><span>{node.node_id}</span></div>
+    <div className="node-orbit"><SquareTerminal aria-hidden="true" size={28} /><span>{node.node_id}</span></div>
     <div><p className="eyebrow">AUTHORITY NODE</p><h2>{node.display_name || `Node ${node.node_id}`}</h2><p>{node.parent_id ? `由 Node ${node.parent_id} 控制` : 'Authority root'} · generation {node.generation}</p></div>
     <div className="type-counts">{counts.map(([type, count]) => <span key={type}><strong>{count}</strong>{type.replace('mfh.', '')}</span>)}</div>
   </div>

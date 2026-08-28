@@ -1,11 +1,14 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DesktopAPI } from './api'
 import { App } from './App'
 import type { Profile, ResourceDescriptor, Settings, ViewDefinition } from './types'
 
 const profile: Profile = {
   id: 'personal', name: 'Personal', node_id: '2', endpoint: 'localhost:9540', parent_node_id: '1', parent_public_key: 'key', auto_connect: true,
+}
+const secondProfile: Profile = {
+  ...profile, id: 'work', name: 'Work', node_id: '3',
 }
 const resource: ResourceDescriptor = {
   id: { owner_node_id: '1', name: 'metrics/cpu' }, type: 'mfh.variable', type_version: 1,
@@ -28,6 +31,8 @@ function mockAPI(settings: Settings): DesktopAPI {
 }
 
 describe('desktop resource workspace', () => {
+  afterEach(() => vi.restoreAllMocks())
+
   it('shows a persistent-profile login when no profile is active', async () => {
     const settings: Settings = { version: 2, profiles: [], updated_at_unix_ms: 1, credential_mode: 'session-only' }
     render(<App api={mockAPI(settings)} />)
@@ -58,5 +63,50 @@ describe('desktop resource workspace', () => {
     expect(screen.getByLabelText('Profile 名称')).toHaveValue(profile.name)
     fireEvent.click(screen.getByRole('button', { name: `删除 Profile ${profile.name}` }))
     await waitFor(() => expect(api.deleteProfile).toHaveBeenCalledWith(profile.id, `DELETE ${profile.id}`))
+  })
+
+  it('keeps a one-time permit available after a failed admission attempt', async () => {
+    const settings: Settings = { version: 2, profiles: [], updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
+    const api = mockAPI(settings)
+    vi.mocked(api.login).mockRejectedValue(new Error('首次接入需要一次性准入 Permit'))
+    render(<App api={api} />)
+    fireEvent.change(await screen.findByLabelText('Profile 名称'), { target: { value: 'Personal' } })
+    fireEvent.change(screen.getByLabelText('Profile ID'), { target: { value: 'personal' } })
+    fireEvent.change(screen.getByLabelText('本机 Node ID'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('父 Node ID'), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText('连接端点'), { target: { value: '127.0.0.1:7441' } })
+    fireEvent.change(screen.getByLabelText('父节点公钥'), { target: { value: 'public-key' } })
+    const permit = screen.getByLabelText(/一次性准入 Permit/)
+    fireEvent.change(permit, { target: { value: '{"version":1}' } })
+    fireEvent.click(screen.getByRole('button', { name: /登录并进入工作区/ }))
+    const error = await screen.findByRole('alert')
+    expect(error).toHaveTextContent('一次性准入 Permit')
+    expect(error).toHaveFocus()
+    expect(permit).toHaveValue('{"version":1}')
+  })
+
+  it('does not switch profiles while unsaved workspace changes are rejected', async () => {
+    const settings: Settings = { version: 2, active_profile_id: profile.id, profiles: [profile, secondProfile], updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
+    const api = mockAPI(settings)
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<App api={api} />)
+    await screen.findByText('CPU')
+    fireEvent.click(screen.getByRole('button', { name: '添加 metrics/cpu 到工作区' }))
+    fireEvent.change(screen.getByLabelText('活动 Profile'), { target: { value: secondProfile.id } })
+    await waitFor(() => expect(window.confirm).toHaveBeenCalled())
+    expect(api.switchProfile).not.toHaveBeenCalled()
+    expect(screen.getByText('未保存')).toBeInTheDocument()
+  })
+
+  it('requires confirmation before deleting a persisted view', async () => {
+    const settings: Settings = { version: 2, active_profile_id: profile.id, profiles: [profile], updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
+    const api = mockAPI(settings)
+    vi.mocked(api.views).mockResolvedValue({ version: 1, views: [{ id: 'saved', name: 'Saved view', revision: 1, widgets: [] }] })
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<App api={api} />)
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: '视图' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('button', { name: '删除视图 Saved view' }))
+    expect(window.confirm).toHaveBeenCalled()
+    expect(api.deleteView).not.toHaveBeenCalled()
   })
 })

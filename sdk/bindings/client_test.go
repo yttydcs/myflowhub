@@ -5,12 +5,15 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/yttydcs/myflowhub/host/hub"
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/auth"
+	sdk "github.com/yttydcs/myflowhub/sdk/go"
 	"github.com/yttydcs/myflowhub/transport/tcp"
 )
 
@@ -168,6 +171,13 @@ func TestBindingRejectsInvalidBoundaryValues(t *testing.T) {
 	}
 	if _, err := client.InvokeJSON(1, "test/command", "not-json", 1_000); err == nil {
 		t.Fatal("invalid command JSON was accepted")
+	}
+}
+
+func TestConnectionWaitErrorKeepsLatestDiagnostic(t *testing.T) {
+	err := connectionWaitError(context.DeadlineExceeded, sdk.ConnectionSnapshot{LastError: "remote closed during admission"})
+	if !errors.Is(err, context.DeadlineExceeded) || !strings.Contains(err.Error(), "remote closed during admission") {
+		t.Fatalf("latest connection diagnostic was lost: %v", err)
 	}
 }
 

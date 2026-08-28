@@ -1,13 +1,100 @@
 package main
 
 import (
+	"context"
+	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/yttydcs/myflowhub/host/hub"
+	"github.com/yttydcs/myflowhub/protocol"
+	"github.com/yttydcs/myflowhub/transport/tcp"
 )
+
+func TestConnectClientProvidesActionableAdmissionTimeout(t *testing.T) {
+	err := connectionTimeoutGuidance(context.DeadlineExceeded, "")
+	if err == nil || !strings.Contains(err.Error(), "一次性准入 Permit") || !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("missing first-admission guidance: %v", err)
+	}
+	err = connectionTimeoutGuidance(context.DeadlineExceeded, `{}`)
+	if err == nil || !strings.Contains(err.Error(), "无效、已使用或已过期") || !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("missing permit-reissue guidance: %v", err)
+	}
+}
+
+func TestAppReconnectReplacesAStartedBindingClient(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	root, err := hub.StartPersistent(ctx, hub.PersistentConfig{
+		StateDirectory: t.TempDir(), NodeID: 1,
+		Listeners: []hub.ListenerConfig{{Driver: tcp.Driver{}, Endpoint: "127.0.0.1:0"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	app, err := NewApp(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Close()
+	profile := testProfile("reconnect", "2")
+	profile.Endpoint = string(root.Endpoint)
+	profile.ParentPublicKey = base64.RawStdEncoding.EncodeToString(root.Runtime.Identity.PublicKey)
+	profileJSON, _ := json.Marshal(profile)
+	if _, err := app.SaveProfileJSON(string(profileJSON)); err != nil {
+		t.Fatal(err)
+	}
+	identityJSON, err := app.IdentityJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var identity struct {
+		PublicKey string `json:"public_key"`
+	}
+	if err := json.Unmarshal([]byte(identityJSON), &identity); err != nil {
+		t.Fatal(err)
+	}
+	publicKey, err := base64.RawStdEncoding.DecodeString(identity.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	permit, err := root.Runtime.Admission.Issue(2, ed25519.PublicKey(publicKey), "desktop-reconnect", time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	permitJSON, _ := protocol.EncodeJSONPayload(&permit, protocol.DefaultMaxPayload)
+	requestJSON, _ := json.Marshal(LoginRequest{Profile: profile, PermitJSON: string(permitJSON)})
+	if _, err := app.LoginJSON(string(requestJSON)); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Disconnect(); err != nil {
+		t.Fatal(err)
+	}
+	started, err := app.currentClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := started.TrustParent(1, profile.ParentPublicKey); err != nil {
+		t.Fatal(err)
+	}
+	if err := started.StartTCP("127.0.0.1:1", 1, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Connect(); err != nil {
+		t.Fatalf("reconnect did not replace the already-started binding client: %v", err)
+	}
+	status, err := app.StatusJSON()
+	if err != nil || !strings.Contains(status, `"state":"connected"`) {
+		t.Fatalf("unexpected reconnect status: %v (%s)", err, status)
+	}
+}
 
 func testProfile(id, nodeID string) Profile {
 	return Profile{

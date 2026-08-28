@@ -217,9 +217,16 @@ func (c *Client) WaitConnected(timeoutMS int64) error {
 				return errors.New("binding connection stopped")
 			}
 		case <-ctx.Done():
-			return fmt.Errorf("wait for binding connection: %w", ctx.Err())
+			return connectionWaitError(ctx.Err(), connection.Snapshot())
 		}
 	}
+}
+
+func connectionWaitError(cause error, snapshot sdk.ConnectionSnapshot) error {
+	if snapshot.LastError != "" {
+		return fmt.Errorf("wait for binding connection: %w; last connection error: %s", cause, snapshot.LastError)
+	}
+	return fmt.Errorf("wait for binding connection: %w", cause)
 }
 
 func (c *Client) CatalogJSON(ownerID, timeoutMS int64) (string, error) {
