@@ -145,6 +145,22 @@ function Start-CanonicalProcess(
     return $process
 }
 
+function Invoke-CanonicalCommand(
+    [string]$Name,
+    [string]$Executable,
+    [string]$WorkingDirectory,
+    [string[]]$Arguments
+) {
+    Push-Location $WorkingDirectory
+    try {
+        Write-Host "${Name}: $Executable $($Arguments -join ' ')" -ForegroundColor DarkGray
+        & $Executable @Arguments | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw "$Name failed with exit code $LASTEXITCODE" }
+    } finally {
+        Pop-Location
+    }
+}
+
 $startHub = -not $SkipHub
 $startDesktop = -not $SkipDesktop
 $startMetrics = -not $SkipMetrics
@@ -164,6 +180,15 @@ if ($DryRun) {
     New-Item -ItemType Directory -Path $hubState, $desktopState, $logDirectory -Force | Out-Null
     $go = if ($startHub) { Require-Command 'go' 'Hub development' } else { '' }
     $wails = if ($startDesktop -or $startMetrics) { Require-Command 'wails' 'Wails development' } else { '' }
+
+    # Both apps share the root Go module. Generate their product-specific bindings
+    # serially, then keep the concurrent dev processes away from shared module state.
+    if ($startDesktop) {
+        Invoke-CanonicalCommand 'desktop bindings' $wails $desktopDirectory @('generate', 'module')
+    }
+    if ($startMetrics) {
+        Invoke-CanonicalCommand 'metrics bindings' $wails $metricsDirectory @('generate', 'module')
+    }
 
     if ($startHub) {
         [void](Start-CanonicalProcess 'hub' $go $root @(
@@ -188,16 +213,19 @@ if ($DryRun) {
         if ($startDesktop) {
             $env:MFH_DESKTOP_CONFIG_DIR = $desktopState
             [void](Start-CanonicalProcess 'desktop' $wails $desktopDirectory @(
-                'dev', '-devserver', "127.0.0.1:$desktopPort"
+                'dev', '-m', '-nosyncgomod', '-skipbindings', '-devserver', "127.0.0.1:$desktopPort"
             ))
         }
         if ($startMetrics) {
             [void](Start-CanonicalProcess 'metrics' $wails $metricsDirectory @(
-                'dev', '-devserver', "127.0.0.1:$metricsPort"
+                'dev', '-m', '-nosyncgomod', '-skipbindings', '-devserver', "127.0.0.1:$metricsPort"
             ))
         }
     } finally {
         $env:MFH_DESKTOP_CONFIG_DIR = $previousDesktopConfig
+    }
+    if ($startDesktop -or $startMetrics) {
+        Write-Host 'Wails bindings were generated at launch; restart this script after changing exported bound Go methods.' -ForegroundColor Cyan
     }
 }
 

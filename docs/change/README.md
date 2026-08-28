@@ -23,6 +23,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-08-28_wails-dev-concurrency-and-refactor-closeout.md](2026-08-28_wails-dev-concurrency-and-refactor-closeout.md)
 - [2026-08-27_vnext-full-migration.md](2026-08-27_vnext-full-migration.md)
 - [2026-08-27_legacy-repository-retirement.md](2026-08-27_legacy-repository-retirement.md)
 - [2026-08-27_canonical-monorepo-unified-node-runtime.md](2026-08-27_canonical-monorepo-unified-node-runtime.md)

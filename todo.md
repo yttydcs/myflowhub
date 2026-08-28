@@ -2,11 +2,11 @@
 
 ## Context
 
-- Branch: `refactor/vnext-full-migration`
-- Worktree: `D:/project/MyFlowHub3/worktrees/vnext-full-migration`
+- Branch: `master`（已整合 `refactor/vnext-full-migration`）
+- Checkout: `D:/project/MyFlowHub3/repo/MyFlowHub`
 - Base: `master@87cd7b6`
 - Detailed Plan: [plan.md](plan.md)
-- Stage: `4.0 archive complete; local merge and worktree cleanup authorized by $m-archive`
+- Stage: `4.0 archive and local closeout complete`
 - Implementation authorized: yes — explicit `$m-execute`
 
 ## Approved Execution Scope
@@ -45,6 +45,6 @@
 
 - Blocked: no
 - FM00–FM16 execution complete; every completed gate remains buildable
-- Current gate: archive complete — `$m-archive` local merge/cleanup closeout in progress
+- Current gate: closed — canonical checkout is already on `master`; no workflow worktree or feature branch remains
 - Do not dispatch implementation sub-agents
-- No commit, merge, push, publish, remote archive, main-dirt deletion or worktree cleanup is authorized; legacy-repo deletion was separately authorized and completed after `$m-execute`
+- `$m-archive` authorized the local workflow-owned closeout. Push, publish, remote archive and unrelated main-dirt deletion remain separately authorized actions.

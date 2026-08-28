@@ -84,3 +84,20 @@ func TestDevelopmentEntrypointUsesCanonicalProducts(t *testing.T) {
 		}
 	}
 }
+
+func TestDevelopmentEntrypointSerializesWailsBindings(t *testing.T) {
+	script := readBuildFile(t, repositoryRoot(t), "scripts/run-dev.ps1")
+	desktopGenerate := strings.Index(script, "Invoke-CanonicalCommand 'desktop bindings'")
+	metricsGenerate := strings.Index(script, "Invoke-CanonicalCommand 'metrics bindings'")
+	desktopStart := strings.Index(script, "Start-CanonicalProcess 'desktop'")
+	metricsStart := strings.Index(script, "Start-CanonicalProcess 'metrics'")
+	if desktopGenerate < 0 || metricsGenerate < 0 || desktopStart < 0 || metricsStart < 0 {
+		t.Fatal("development entry must explicitly generate and start both Wails products")
+	}
+	if desktopGenerate >= metricsGenerate || metricsGenerate >= desktopStart || metricsGenerate >= metricsStart {
+		t.Fatal("Desktop and Metrics bindings must be generated serially before either Wails dev process starts")
+	}
+	if count := strings.Count(script, "'dev', '-m', '-nosyncgomod', '-skipbindings'"); count != 2 {
+		t.Fatalf("both Wails dev processes must skip binding and go.mod mutation after pre-generation, got %d guarded starts", count)
+	}
+}
