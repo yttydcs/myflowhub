@@ -9,7 +9,7 @@
 - Docs Root: `D:/project/MyFlowHub3/worktrees/resource-platform-desktop-workspace/docs`
 - Code Repos: canonical monorepo `MyFlowHub` only
 - Worktree: `D:/project/MyFlowHub3/worktrees/resource-platform-desktop-workspace`
-- Current Stage: `3.2 execute; DOC01 completed, RES01 in progress`
+- Current Stage: `3.2 execute complete; VAL01 completed, ready for optional $m-test`
 - Compatibility: clean break；不保留 fixed-three-kind wire、TopicBus、SubProto、旧 Desktop UI 或旧配置静默兼容
 
 ## Stage Records
@@ -275,19 +275,19 @@ type SessionResource interface {
 #### Executable Task List
 
 - [x] DOC01 — target specs、supersession chain 与 feature transition skeleton。
-- [ ] RES01 — protocol Resource descriptor v2 与 generic operations/wire major。
-- [ ] RES02 — extensible registry/type interfaces 与 Variable/Stream/Command migration。
-- [ ] RES03 — Node-owned Topic runtime 与 typed SDK helpers。
-- [ ] RES04 — auth、routing、subscription、catalog descriptor-driven generalization。
-- [ ] SES01 — bounded resource sessions/control-data lanes 与 File migration。
-- [ ] SDK01 — Go SDK、bindings、generated contract 和 Embedded contract migration。
-- [ ] APP01 — Hub、Management、Metrics、Clipboard、Notification、Flow 和 commands migration。
-- [ ] UI01 — React/shadcn frontend foundation 与 Wails boundary model。
-- [ ] UI02 — Profile、CredentialStore、login/admission、auto-connect 与切换。
-- [ ] UI03 — Node/Resource Explorer、normalized store 与 Renderer Registry。
-- [ ] UI04 — Preview、responsive workspace、drag/add/resize 与 View persistence。
-- [ ] UI05 — built-in renderers、状态覆盖、minimal visual system 与 accessibility。
-- [ ] VAL01 — clean-break cleanup、全产品/GUI/clean-checkout validation 与 docs current-truth切换。
+- [x] RES01 — protocol Resource descriptor v2 与 generic operations/wire major。
+- [x] RES02 — extensible registry/type interfaces 与 Variable/Stream/Command migration。
+- [x] RES03 — Node-owned Topic runtime 与 typed SDK helpers。
+- [x] RES04 — auth、routing、subscription、catalog descriptor-driven generalization。
+- [x] SES01 — bounded resource sessions/control-data lanes 与 File migration。
+- [x] SDK01 — Go SDK、bindings、generated contract 和 Embedded contract migration。
+- [x] APP01 — Hub、Management、Metrics、Clipboard、Notification、Flow 和 commands migration。
+- [x] UI01 — React/shadcn frontend foundation 与 Wails boundary model。
+- [x] UI02 — Profile、CredentialStore、login/admission、auto-connect 与切换。
+- [x] UI03 — Node/Resource Explorer、normalized store 与 Renderer Registry。
+- [x] UI04 — Preview、responsive workspace、drag/add/resize 与 View persistence。
+- [x] UI05 — built-in renderers、状态覆盖、minimal visual system 与 accessibility。
+- [x] VAL01 — clean-break cleanup、全产品/GUI/clean-checkout validation 与 docs current-truth切换。
 - [ ] MED01 — production Media data plane（deferred）。
 - [ ] SYNC01 — synced Views 与多 Profile 同时在线（deferred）。
 - [ ] MOB01 — Android/iOS 通用资源工作区（deferred）。
@@ -498,3 +498,33 @@ UI01 → UI02 → UI03 → UI04 → UI05
 
 - Blocking issues: none。
 - Approval required: 用户必须明确调用 `$m-execute` 或批准Will Execute Task IDs后才能写业务逻辑。
+
+### Stage 3.2 - Execution Results
+
+#### Delivered
+
+- MFH4 v2 使用 extensible `ResourceDescriptor`、generic operation/subscription/session wire；Variable、Stream、Topic、Command 与 File session 均通过统一 registry、auth 和 routing 工作。
+- authority 继续由唯一 Node tree 强制执行；权限精确绑定 subject、resource、capability，session grant 额外绑定 link、topology/policy generation 和 expiry。
+- Go SDK、generated bindings、Android、Embedded C/MicroPython 以及全部第一方产品已 clean-break 迁移，不保留旧 fixed-kind/SubProto/TopicBus runtime bridge。
+- Desktop 已重建为 React/Vite 工作区，提供受保护的持久身份、多 Profile、自动连接、Node/Resource Explorer、renderer registry、预览、拖放/键盘添加、12 列 View 布局与原子持久化。
+- stable feature/spec/ADR 已切换为 current truth，并明确生产 Media、View sync、多活动 Profile 与移动工作区不属于本轮范围。
+
+#### Execution Decisions
+
+- Desktop 采用 Radix primitives 与项目持有的 shadcn-style 组件/CSS tokens，没有保留未使用的 Tailwind 构建层；领域状态、renderer 和 workspace 布局仍由项目代码拥有。
+- Windows identity 使用 current-user DPAPI 保存 Ed25519 identity；permit 只在连接会话中使用，不进入 Profile 或长期配置。非 Windows 明确降级为仅会话 identity，不写明文私钥。
+- Topic 是 Node-owned、多 publisher 的 Resource，按 publisher 独立 sequence，默认无 replay；File 使用 resource session/data lane，不再模拟为一组 chunk Commands。
+
+#### Validation Results
+
+- `go test ./... -count=1` 与 `go vet ./...`：通过。
+- `./scripts/mfh.ps1 -Action check -Target generated`：通过，生成后无 drift。
+- `./scripts/mfh.ps1 -Action check -Target all -AllowUnavailable`：通过 core、Hub、Desktop、Android、Metrics、Clipboard Go/Windows 与 Embedded；本机未安装 `flutter`，仅 Clipboard Flutter 测试被脚本按 unavailable 明确跳过。
+- Android 使用 JDK 21 与短 `TEMP`/`jdk.net.unixdomain.tmpdir` 后，gomobile、`testDebugUnitTest` 和 `lintDebug` 通过；该设置只用于绕过 Codex Windows 子进程的 AF_UNIX 临时路径限制，不进入产品配置。
+- Desktop Vitest 5/5、TypeScript/Vite production build、`wails build -clean -trimpath -platform windows/amd64` 和可执行文件隐藏启动烟测：通过。
+- Embedded CMake/CTest 1/1、MicroPython 6/6、共享 MFH4 protocol fixtures：通过。
+- `git diff --check`、credential/legacy inventory 和工作树一致性检查：通过。
+
+#### Residual Validation
+
+- `$m-execute` 的实现与自动化验证已完成；真实窗口视觉走查、真实蓝牙/QUIC/硬件链路以及未安装的 Flutter 工具链适合在可选 `$m-test` 阶段补充，不阻塞本阶段代码完成。

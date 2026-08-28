@@ -95,7 +95,7 @@ cd ..
 wails build -clean
 ```
 
-生产产物为 `apps/desktop/build/bin/myflowhub-desktop.exe`。目标契约见
+生产产物为 `apps/desktop/build/bin/mfh-desktop.exe`。目标契约见
 [Desktop Resource Workspace v2](../specs/desktop-resource-workspace-v2.md)。
 
 ## 明确移除
