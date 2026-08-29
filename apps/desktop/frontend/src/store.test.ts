@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   addWidget,
   buildExplorerIndex,
-  buildExplorerTree,
   explorerBreadcrumb,
-  filterExplorerTree,
-  flattenExplorerRows,
+  flattenNodeRows,
+  groupResources,
   nodeRowKey,
   updateWidget,
 } from './store'
@@ -20,7 +19,7 @@ const resource: ResourceDescriptor = {
 }
 
 describe('workspace domain', () => {
-  it('builds the authority tree without deriving ownership from paths', () => {
+  it('indexes authority and resource ownership without deriving either from resource paths', () => {
     const topology: Topology = {
       version: 1,
       epoch: 2,
@@ -29,9 +28,9 @@ describe('workspace domain', () => {
         { node_id: '3', parent_id: '1', role: 'child', generation: 1 },
       ],
     }
-    const tree = buildExplorerTree(topology, [resource])
-    expect(tree[0]?.children[0]?.node_id).toBe('3')
-    expect(tree[0]?.children[0]?.resources[0]?.id.name).toBe('metrics/cpu')
+    const index = buildExplorerIndex(topology, [resource])
+    expect(index.childrenByID.get('1')).toEqual(['3'])
+    expect(index.resourcesByNodeID.get('3')?.[0]?.id.name).toBe('metrics/cpu')
   })
 
   it('adds and bounds responsive widgets', () => {
@@ -41,31 +40,18 @@ describe('workspace domain', () => {
     expect(resized[0]).toMatchObject({ x: 4, w: 8, h: 24 })
   })
 
-  it('keeps matching resources from deep descendant nodes', () => {
-    const topology: Topology = {
-      version: 1,
-      epoch: 2,
-      nodes: [
-        { node_id: '1', role: 'root', generation: 1 },
-        { node_id: '2', parent_id: '1', role: 'branch', generation: 1 },
-        { node_id: '3', parent_id: '2', role: 'leaf', generation: 1 },
-      ],
-    }
-    const filtered = filterExplorerTree(buildExplorerTree(topology, [resource]), 'metrics/cpu')
-    expect(filtered[0]?.children[0]?.children[0]?.resources[0]?.id.name).toBe('metrics/cpu')
-  })
-
-  it('flattens arbitrary-depth trees and exposes ARIA hierarchy metadata without recursion', () => {
+  it('flattens arbitrary-depth Node trees with Node-only ARIA hierarchy metadata', () => {
     const nodes = Array.from({ length: 3_000 }, (_, index) => ({
       node_id: String(index + 1),
       parent_id: index === 0 ? undefined : String(index),
       role: index === 0 ? 'root' : 'child',
       generation: 1,
     }))
-    const index = buildExplorerIndex({ version: 1, epoch: 1, nodes }, [])
-    const rows = flattenExplorerRows(index, new Set(nodes.map((node) => node.node_id)), '')
+    const index = buildExplorerIndex({ version: 1, epoch: 1, nodes }, [resource])
+    const rows = flattenNodeRows(index, new Set(nodes.map((node) => node.node_id)), '')
     expect(rows).toHaveLength(nodes.length)
     expect(rows.at(-1)).toMatchObject({ key: nodeRowKey('3000'), depth: 3000, posInSet: 1, setSize: 1 })
+    expect(rows.some((row) => row.key.includes('metrics/cpu'))).toBe(false)
     expect(explorerBreadcrumb(index, '3000')).toHaveLength(3000)
   })
 
@@ -80,48 +66,65 @@ describe('workspace domain', () => {
       ],
     }, [])
     expect(index.roots).toEqual(['1', '2', '3'])
-    expect(flattenExplorerRows(index, new Set(), '')).toHaveLength(3)
+    expect(flattenNodeRows(index, new Set(), '')).toHaveLength(3)
   })
 
-  it('keeps matched deep resources and all ancestors in visible row order', () => {
+  it('keeps matching deep Nodes and their ancestors without mixing Resources into search results', () => {
     const topology: Topology = {
       version: 1,
       epoch: 1,
       nodes: [
-        { node_id: '1', role: 'root', generation: 1 },
-        { node_id: '2', parent_id: '1', role: 'branch', generation: 1 },
-        { node_id: '3', parent_id: '2', role: 'leaf', generation: 1 },
+        { node_id: '1', display_name: 'Root', role: 'root', generation: 1 },
+        { node_id: '2', parent_id: '1', display_name: 'Branch', role: 'branch', generation: 1 },
+        { node_id: '3', parent_id: '2', display_name: 'Leaf', role: 'leaf', generation: 1 },
       ],
     }
-    const unrelatedResource: ResourceDescriptor = {
-      ...resource,
-      id: { owner_node_id: '3', name: 'metrics/memory' },
-    }
-    const rows = flattenExplorerRows(buildExplorerIndex(topology, [resource, unrelatedResource]), new Set(), 'metrics/cpu')
-    expect(rows.map((row) => row.key)).toEqual([
+    const index = buildExplorerIndex(topology, [resource])
+    expect(flattenNodeRows(index, new Set(), 'leaf').map((row) => row.key)).toEqual([
       nodeRowKey('1'),
       nodeRowKey('2'),
       nodeRowKey('3'),
-      'resource:3:metrics/cpu',
     ])
+    expect(flattenNodeRows(index, new Set(), 'metrics/cpu')).toHaveLength(0)
   })
 
-  it('builds and filters a representative large catalog within the desktop budget', () => {
+  it('groups direct Resources by presentation prefix and filters without changing descriptors', () => {
+    const resources: ResourceDescriptor[] = [
+      resource,
+      { ...resource, id: { owner_node_id: '3', name: 'system/health' }, presentation: { label: 'Health' } },
+      { ...resource, id: { owner_node_id: '3', name: 'metrics/memory' } },
+      { ...resource, id: { owner_node_id: '3', name: 'other/value' } },
+      { ...resource, id: { owner_node_id: '3', name: 'ungrouped' } },
+    ]
+    const groups = groupResources(resources)
+    expect(groups.map((group) => [group.label, group.resources.length])).toEqual([
+      ['metrics', 2],
+      ['other', 1],
+      ['system', 1],
+      ['其他', 1],
+    ])
+    expect(groupResources(resources, 'health')[0]?.resources[0]).toBe(resources[1])
+  })
+
+  it('indexes, flattens, and filters a representative large catalog within the desktop budget', () => {
     const nodes = Array.from({ length: 2_000 }, (_, index) => ({
       node_id: String(index + 1),
       parent_id: index === 0 ? undefined : '1',
+      display_name: index === 1_999 ? 'Target leaf' : undefined,
       role: index === 0 ? 'root' : 'child',
       generation: 1,
     }))
     const resources = Array.from({ length: 10_000 }, (_, index): ResourceDescriptor => ({
       ...resource,
-      id: { owner_node_id: String((index % nodes.length) + 1), name: `metrics/value-${index}` },
+      id: { owner_node_id: '1', name: `metrics/value-${index}` },
     }))
     const started = performance.now()
-    const tree = buildExplorerTree({ version: 1, epoch: 1, nodes }, resources)
-    const filtered = filterExplorerTree(tree, 'value-9999')
+    const explorerIndex = buildExplorerIndex({ version: 1, epoch: 1, nodes }, resources)
+    const rows = flattenNodeRows(explorerIndex, new Set(), 'target leaf')
+    const groups = groupResources(explorerIndex.resourcesByNodeID.get('1') || [], 'value-9999')
     const elapsed = performance.now() - started
-    expect(filtered).toHaveLength(1)
+    expect(rows.map((row) => row.node.node_id)).toEqual(['1', '2000'])
+    expect(groups[0]?.resources[0]?.id.name).toBe('metrics/value-9999')
     expect(elapsed).toBeLessThan(750)
   })
 })

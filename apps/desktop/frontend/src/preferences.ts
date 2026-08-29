@@ -1,3 +1,5 @@
+import { DEFAULT_EXPLORER_SPLIT_RATIO, isExplorerSplitRatio } from './lib/explorer-split'
+
 export type Theme = 'light' | 'dark'
 
 export interface UIPreferences {
@@ -5,6 +7,7 @@ export interface UIPreferences {
   theme: Theme
   expanded_node_ids?: string[]
   focused_node_id?: string
+  explorer_split_ratio?: number
 }
 
 export interface LoadedUIPreferences {
@@ -16,7 +19,7 @@ const STORAGE_PREFIX = 'mfh.desktop.ui.v1:'
 const MAX_TREE_STATE_SIZE = 10_000
 
 export function defaultUIPreferences(): UIPreferences {
-  return { version: 1, theme: 'light' }
+  return { version: 1, theme: 'light', explorer_split_ratio: DEFAULT_EXPLORER_SPLIT_RATIO }
 }
 
 export function loadUIPreferences(profileID: string): LoadedUIPreferences {
@@ -26,7 +29,7 @@ export function loadUIPreferences(profileID: string): LoadedUIPreferences {
     if (!raw) return { value: defaultUIPreferences() }
     const parsed = JSON.parse(raw) as unknown
     if (!isUIPreferences(parsed)) throw new Error('invalid preference document')
-    return { value: parsed }
+    return { value: { ...defaultUIPreferences(), ...parsed } }
   } catch {
     return {
       value: defaultUIPreferences(),
@@ -54,6 +57,7 @@ function isUIPreferences(value: unknown): value is UIPreferences {
   const candidate = value as Partial<UIPreferences>
   if (candidate.version !== 1 || (candidate.theme !== 'light' && candidate.theme !== 'dark')) return false
   if (candidate.focused_node_id !== undefined && !isTreeID(candidate.focused_node_id)) return false
+  if (candidate.explorer_split_ratio !== undefined && !isExplorerSplitRatio(candidate.explorer_split_ratio)) return false
   if (candidate.expanded_node_ids === undefined) return true
   return Array.isArray(candidate.expanded_node_ids)
     && candidate.expanded_node_ids.length <= MAX_TREE_STATE_SIZE

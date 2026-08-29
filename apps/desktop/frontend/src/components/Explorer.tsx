@@ -10,22 +10,25 @@ import {
   Gauge,
   GripVertical,
   Layers3,
+  Network,
   Plus,
   Radio,
   Search,
   Variable,
 } from 'lucide-react'
-import { Input } from './ui/input'
-import { ScrollArea } from './ui/scroll-area'
 import {
   buildExplorerIndex,
   defaultExpandedNodeIDs,
   explorerBreadcrumb,
-  flattenExplorerRows,
-  nodeRowKey,
-  type ExplorerRow,
+  flattenNodeRows,
+  groupResources,
+  resourceRowKey,
+  type NodeExplorerRow,
 } from '../store'
 import type { ResourceDescriptor, Topology, TopologyNode, WorkspaceSelection } from '../types'
+import { ExplorerSplitPane } from './ExplorerSplitPane'
+import { Input } from './ui/input'
+import { ScrollArea } from './ui/scroll-area'
 
 type Props = {
   topology: Topology
@@ -33,8 +36,10 @@ type Props = {
   selection: WorkspaceSelection
   expandedNodeIDs?: string[]
   focusedNodeID?: string
+  splitRatio?: number
   onExpandedNodeIDsChange(nodeIDs: string[]): void
   onFocusedNodeIDChange(nodeID?: string): void
+  onSplitRatioChange(ratio: number): void
   onSelect(selection: WorkspaceSelection): void
   onAdd(resource: ResourceDescriptor): void
 }
@@ -47,25 +52,24 @@ const resourceIcons: Record<string, typeof Variable> = {
   'mfh.file': FileUp,
 }
 
-type RowCommonProps = {
-  row: ExplorerRow
+type NodeRowProps = {
+  row: NodeExplorerRow
   active: boolean
-  selected: boolean
-  setRef(key: string, element: HTMLButtonElement | null): void
-  onFocus(key: string): void
-  onKeyDown(event: KeyboardEvent<HTMLButtonElement>, row: ExplorerRow): void
-}
-
-function NodeRow(props: RowCommonProps & {
+  current: boolean
   expanded: boolean
   expandable: boolean
   resourceCount: number
+  setRef(key: string, element: HTMLButtonElement | null): void
+  onFocus(key: string): void
+  onKeyDown(event: KeyboardEvent<HTMLButtonElement>, row: NodeExplorerRow): void
   onSelect(node: TopologyNode): void
   onToggle(nodeID: string): void
-}) {
-  const node = props.row.node!
+}
+
+function NodeRow(props: NodeRowProps) {
+  const node = props.row.node
   return (
-    <div className={`tree-row-shell node-row ${props.selected ? 'is-selected' : ''}`} role="none" style={rowIndent(props.row.depth)}>
+    <div className={`tree-row-shell node-row ${props.current ? 'is-selected' : ''}`} role="none" style={rowIndent(props.row.depth)}>
       <button
         className="disclosure"
         onClick={() => props.onToggle(node.node_id)}
@@ -85,7 +89,7 @@ function NodeRow(props: RowCommonProps & {
         aria-posinset={props.row.posInSet}
         aria-setsize={props.row.setSize}
         aria-expanded={props.expandable ? props.expanded : undefined}
-        aria-selected={props.selected}
+        aria-selected={props.current}
         tabIndex={props.active ? 0 : -1}
         onFocus={() => props.onFocus(props.row.key)}
         onClick={() => props.onSelect(node)}
@@ -103,14 +107,22 @@ function NodeRow(props: RowCommonProps & {
   )
 }
 
-function ResourceRow(props: RowCommonProps & {
+type ResourceRowProps = {
   resource: ResourceDescriptor
+  active: boolean
+  selected: boolean
+  setRef(key: string, element: HTMLButtonElement | null): void
+  onFocus(key: string): void
+  onKeyDown(event: KeyboardEvent<HTMLButtonElement>, resource: ResourceDescriptor): void
   onSelect(resource: ResourceDescriptor): void
   onAdd(resource: ResourceDescriptor): void
-}) {
+}
+
+function ResourceRow(props: ResourceRowProps) {
   const { resource } = props
+  const key = resourceRowKey(resource)
   const draggable = useDraggable({
-    id: `resource:${resource.id.owner_node_id}:${resource.id.name}`,
+    id: key,
     data: { resource },
   })
   const Icon = resourceIcons[resource.type] ?? Layers3
@@ -118,13 +130,10 @@ function ResourceRow(props: RowCommonProps & {
     <div
       ref={draggable.setNodeRef}
       className={`tree-row-shell resource-row ${props.selected ? 'is-selected' : ''} ${draggable.isDragging ? 'is-dragging' : ''}`}
-      role="none"
-      style={{
-        ...rowIndent(props.row.depth),
-        ...(draggable.transform
-          ? { transform: `translate3d(${draggable.transform.x}px, ${draggable.transform.y}px, 0)` }
-          : undefined),
-      }}
+      role="listitem"
+      style={draggable.transform
+        ? { transform: `translate3d(${draggable.transform.x}px, ${draggable.transform.y}px, 0)` }
+        : undefined}
     >
       <button
         ref={draggable.setActivatorNodeRef}
@@ -137,17 +146,13 @@ function ResourceRow(props: RowCommonProps & {
         <GripVertical aria-hidden="true" size={12} />
       </button>
       <button
-        ref={(element) => props.setRef(props.row.key, element)}
+        ref={(element) => props.setRef(key, element)}
         className="tree-main"
-        role="treeitem"
-        aria-level={props.row.depth}
-        aria-posinset={props.row.posInSet}
-        aria-setsize={props.row.setSize}
-        aria-selected={props.selected}
+        aria-pressed={props.selected}
         tabIndex={props.active ? 0 : -1}
-        onFocus={() => props.onFocus(props.row.key)}
+        onFocus={() => props.onFocus(key)}
         onClick={() => props.onSelect(resource)}
-        onKeyDown={(event) => props.onKeyDown(event, props.row)}
+        onKeyDown={(event) => props.onKeyDown(event, resource)}
       >
         <Icon aria-hidden="true" size={14} />
         <span className="tree-label">
@@ -163,40 +168,86 @@ function ResourceRow(props: RowCommonProps & {
 }
 
 export function Explorer(props: Props) {
-  const [query, setQuery] = useState('')
-  const deferredQuery = useDeferredValue(query)
-  const [activeKey, setActiveKey] = useState('')
-  const searchRef = useRef<HTMLInputElement>(null)
-  const rowRefs = useRef(new Map<string, HTMLButtonElement>())
+  const [nodeQuery, setNodeQuery] = useState('')
+  const [resourceQuery, setResourceQuery] = useState('')
+  const deferredNodeQuery = useDeferredValue(nodeQuery)
+  const deferredResourceQuery = useDeferredValue(resourceQuery)
+  const [activeNodeKey, setActiveNodeKey] = useState('')
+  const [activeResourceKey, setActiveResourceKey] = useState('')
+  const [currentNodeID, setCurrentNodeID] = useState('')
+  const nodeRowRefs = useRef(new Map<string, HTMLButtonElement>())
+  const resourceRowRefs = useRef(new Map<string, HTMLButtonElement>())
   const index = useMemo(() => buildExplorerIndex(props.topology, props.resources), [props.topology, props.resources])
   const defaultExpanded = useMemo(() => defaultExpandedNodeIDs(index), [index])
   const expandedNodeIDs = props.expandedNodeIDs ?? defaultExpanded
   const expanded = useMemo(() => new Set(expandedNodeIDs), [expandedNodeIDs])
-  const rows = useMemo(
-    () => flattenExplorerRows(index, expanded, deferredQuery, props.focusedNodeID),
-    [deferredQuery, expanded, index, props.focusedNodeID],
+  const nodeRows = useMemo(
+    () => flattenNodeRows(index, expanded, deferredNodeQuery, props.focusedNodeID),
+    [deferredNodeQuery, expanded, index, props.focusedNodeID],
   )
   const breadcrumb = useMemo(() => explorerBreadcrumb(index, props.focusedNodeID), [index, props.focusedNodeID])
+  const selectedOwnerID = selectionOwnerID(props.selection)
+  const resolvedNodeID = index.nodesByID.has(selectedOwnerID)
+    ? selectedOwnerID
+    : index.nodesByID.has(currentNodeID)
+      ? currentNodeID
+      : props.focusedNodeID && index.nodesByID.has(props.focusedNodeID)
+        ? props.focusedNodeID
+        : index.roots[0] || ''
+  const currentNode = index.nodesByID.get(resolvedNodeID)
+  const currentResources = index.resourcesByNodeID.get(resolvedNodeID) || []
+  const resourceGroups = useMemo(
+    () => groupResources(currentResources, deferredResourceQuery),
+    [currentResources, deferredResourceQuery],
+  )
+  const resourceRows = useMemo(
+    () => resourceGroups.flatMap((group) => group.resources),
+    [resourceGroups],
+  )
 
   useEffect(() => {
-    if (rows.length === 0) {
-      if (activeKey) setActiveKey('')
+    if (resolvedNodeID && resolvedNodeID !== currentNodeID) setCurrentNodeID(resolvedNodeID)
+  }, [currentNodeID, resolvedNodeID])
+
+  useEffect(() => {
+    if (nodeRows.length === 0) {
+      if (activeNodeKey) setActiveNodeKey('')
       return
     }
-    const firstRow = rows[0]
-    if (firstRow && !rows.some((row) => row.key === activeKey)) setActiveKey(firstRow.key)
-  }, [activeKey, rows])
+    const firstRow = nodeRows[0]
+    if (firstRow && !nodeRows.some((row) => row.key === activeNodeKey)) setActiveNodeKey(firstRow.key)
+  }, [activeNodeKey, nodeRows])
 
-  function setRowRef(key: string, element: HTMLButtonElement | null) {
-    if (element) rowRefs.current.set(key, element)
-    else rowRefs.current.delete(key)
+  useEffect(() => {
+    if (resourceRows.length === 0) {
+      if (activeResourceKey) setActiveResourceKey('')
+      return
+    }
+    const firstKey = resourceRowKey(resourceRows[0]!)
+    if (!resourceRows.some((resource) => resourceRowKey(resource) === activeResourceKey)) setActiveResourceKey(firstKey)
+  }, [activeResourceKey, resourceRows])
+
+  function setNodeRowRef(key: string, element: HTMLButtonElement | null) {
+    setMapRef(nodeRowRefs.current, key, element)
   }
 
-  function focusRow(rowIndex: number) {
-    const row = rows[rowIndex]
+  function setResourceRowRef(key: string, element: HTMLButtonElement | null) {
+    setMapRef(resourceRowRefs.current, key, element)
+  }
+
+  function focusNodeRow(rowIndex: number) {
+    const row = nodeRows[rowIndex]
     if (!row) return
-    setActiveKey(row.key)
-    requestAnimationFrame(() => rowRefs.current.get(row.key)?.focus())
+    setActiveNodeKey(row.key)
+    requestAnimationFrame(() => nodeRowRefs.current.get(row.key)?.focus())
+  }
+
+  function focusResourceRow(rowIndex: number) {
+    const resource = resourceRows[rowIndex]
+    if (!resource) return
+    const key = resourceRowKey(resource)
+    setActiveResourceKey(key)
+    requestAnimationFrame(() => resourceRowRefs.current.get(key)?.focus())
   }
 
   function setExpanded(nodeID: string, shouldExpand: boolean) {
@@ -210,69 +261,78 @@ export function Explorer(props: Props) {
     setExpanded(nodeID, !expanded.has(nodeID))
   }
 
-  function handleTreeKeyDown(event: KeyboardEvent<HTMLButtonElement>, row: ExplorerRow) {
-    const rowIndex = rows.findIndex((candidate) => candidate.key === row.key)
+  function selectNode(node: TopologyNode) {
+    setCurrentNodeID(node.node_id)
+    setResourceQuery('')
+    props.onSelect({ kind: 'node', node })
+  }
+
+  function handleNodeKeyDown(event: KeyboardEvent<HTMLButtonElement>, row: NodeExplorerRow) {
+    const rowIndex = nodeRows.findIndex((candidate) => candidate.key === row.key)
     if (rowIndex < 0) return
-    if (event.key === 'ArrowDown') focusRow(Math.min(rows.length - 1, rowIndex + 1))
-    else if (event.key === 'ArrowUp') focusRow(Math.max(0, rowIndex - 1))
-    else if (event.key === 'Home') focusRow(0)
-    else if (event.key === 'End') focusRow(rows.length - 1)
-    else if (event.key === 'ArrowRight' && row.kind === 'node') {
-      const nodeID = row.node!.node_id
-      const expandable = hasChildren(index, nodeID)
+    if (event.key === 'ArrowDown') focusNodeRow(Math.min(nodeRows.length - 1, rowIndex + 1))
+    else if (event.key === 'ArrowUp') focusNodeRow(Math.max(0, rowIndex - 1))
+    else if (event.key === 'Home') focusNodeRow(0)
+    else if (event.key === 'End') focusNodeRow(nodeRows.length - 1)
+    else if (event.key === 'ArrowRight') {
+      const nodeID = row.node.node_id
+      const expandable = hasChildNodes(index, nodeID)
       if (expandable && !expanded.has(nodeID)) setExpanded(nodeID, true)
       else {
-        const childIndex = rows.findIndex((candidate, indexInRows) => indexInRows > rowIndex && candidate.parentKey === row.key)
-        if (childIndex >= 0) focusRow(childIndex)
+        const childIndex = nodeRows.findIndex((candidate, indexInRows) => indexInRows > rowIndex && candidate.parentKey === row.key)
+        if (childIndex >= 0) focusNodeRow(childIndex)
       }
     } else if (event.key === 'ArrowLeft') {
-      if (row.kind === 'node' && expanded.has(row.node!.node_id)) setExpanded(row.node!.node_id, false)
+      if (expanded.has(row.node.node_id) && hasChildNodes(index, row.node.node_id)) setExpanded(row.node.node_id, false)
       else if (row.parentKey) {
-        const parentIndex = rows.findIndex((candidate) => candidate.key === row.parentKey)
-        if (parentIndex >= 0) focusRow(parentIndex)
+        const parentIndex = nodeRows.findIndex((candidate) => candidate.key === row.parentKey)
+        if (parentIndex >= 0) focusNodeRow(parentIndex)
       }
-    } else if (event.key === 'Enter' || event.key === ' ') {
-      if (row.kind === 'node') props.onSelect({ kind: 'node', node: row.node! })
-      else props.onSelect({ kind: 'resource', resource: row.resource! })
-    } else if (event.key === '*') {
-      const parentKey = row.parentKey
+    } else if (event.key === 'Enter' || event.key === ' ') selectNode(row.node)
+    else if (event.key === '*') {
       const next = new Set(expanded)
-      for (const sibling of rows) {
-        if (sibling.kind === 'node' && sibling.parentKey === parentKey && hasChildren(index, sibling.node!.node_id)) {
-          next.add(sibling.node!.node_id)
-        }
+      for (const sibling of nodeRows) {
+        if (sibling.parentKey === row.parentKey && hasChildNodes(index, sibling.node.node_id)) next.add(sibling.node.node_id)
       }
       props.onExpandedNodeIDsChange([...next])
     } else return
     event.preventDefault()
   }
 
-  function handleExplorerKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === '/' && event.target !== searchRef.current) {
-      event.preventDefault()
-      searchRef.current?.focus()
-    }
+  function handleResourceKeyDown(event: KeyboardEvent<HTMLButtonElement>, resource: ResourceDescriptor) {
+    const key = resourceRowKey(resource)
+    const rowIndex = resourceRows.findIndex((candidate) => resourceRowKey(candidate) === key)
+    if (rowIndex < 0) return
+    if (event.key === 'ArrowDown') focusResourceRow(Math.min(resourceRows.length - 1, rowIndex + 1))
+    else if (event.key === 'ArrowUp') focusResourceRow(Math.max(0, rowIndex - 1))
+    else if (event.key === 'Home') focusResourceRow(0)
+    else if (event.key === 'End') focusResourceRow(resourceRows.length - 1)
+    else if (event.key === 'Enter' || event.key === ' ') props.onSelect({ kind: 'resource', resource })
+    else return
+    event.preventDefault()
   }
 
-  return (
-    <div className="explorer" onKeyDown={handleExplorerKeyDown}>
+  const nodePane = (
+    <section className="explorer-pane node-explorer-pane" aria-label="节点列表">
+      <header className="explorer-pane-heading">
+        <span><Network aria-hidden="true" size={13} /><strong>节点</strong></span>
+        <small>{index.nodesByID.size}</small>
+      </header>
       <div className="search-box">
         <Search aria-hidden="true" size={14} />
         <Input
-          ref={searchRef}
-          aria-label="搜索节点和资源"
-          name="resource-search"
+          aria-label="搜索节点"
+          name="node-search"
           autoComplete="off"
           spellCheck={false}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索节点或资源"
+          value={nodeQuery}
+          onChange={(event) => setNodeQuery(event.target.value)}
+          placeholder="搜索节点"
         />
-        <kbd>/</kbd>
       </div>
       {breadcrumb.length > 0 && (
         <div className="tree-focus-bar">
-          <button onClick={() => props.onFocusedNodeIDChange(undefined)} aria-label="返回完整资源树">
+          <button onClick={() => props.onFocusedNodeIDChange(undefined)} aria-label="返回完整节点树">
             <ChevronLeft aria-hidden="true" size={13} /> 返回
           </button>
           <div className="tree-breadcrumb" aria-label="当前节点路径">
@@ -286,58 +346,113 @@ export function Explorer(props: Props) {
         </div>
       )}
       <ScrollArea className="explorer-scroll">
-        <div className="tree" role="tree" aria-label="节点与资源" aria-busy={query !== deferredQuery}>
-          {rows.length === 0 && <p className="empty-copy">没有匹配的节点或资源</p>}
-          {rows.map((row) => {
-            const selected = isRowSelected(row, props.selection)
-            const common: RowCommonProps = {
-              row,
-              active: activeKey === row.key,
-              selected,
-              setRef: setRowRef,
-              onFocus: setActiveKey,
-              onKeyDown: handleTreeKeyDown,
-            }
-            if (row.kind === 'node') {
-              const nodeID = row.node!.node_id
-              return (
-                <NodeRow
-                  key={row.key}
-                  {...common}
-                  expanded={expanded.has(nodeID) || deferredQuery.trim().length > 0}
-                  expandable={hasChildren(index, nodeID)}
-                  resourceCount={(index.resourcesByNodeID.get(nodeID) || []).length}
-                  onSelect={(node) => props.onSelect({ kind: 'node', node })}
-                  onToggle={toggleNode}
-                />
-              )
-            }
+        <div className="tree" role="tree" aria-label="节点" aria-busy={nodeQuery !== deferredNodeQuery}>
+          {nodeRows.length === 0 && <p className="empty-copy">没有匹配的节点</p>}
+          {nodeRows.map((row) => {
+            const nodeID = row.node.node_id
             return (
-              <ResourceRow
+              <NodeRow
                 key={row.key}
-                {...common}
-                resource={row.resource!}
-                onSelect={(resource) => props.onSelect({ kind: 'resource', resource })}
-                onAdd={props.onAdd}
+                row={row}
+                active={activeNodeKey === row.key}
+                current={resolvedNodeID === nodeID}
+                expanded={expanded.has(nodeID) || deferredNodeQuery.trim().length > 0}
+                expandable={hasChildNodes(index, nodeID)}
+                resourceCount={(index.resourcesByNodeID.get(nodeID) || []).length}
+                setRef={setNodeRowRef}
+                onFocus={setActiveNodeKey}
+                onKeyDown={handleNodeKeyDown}
+                onSelect={selectNode}
+                onToggle={toggleNode}
               />
             )
           })}
         </div>
       </ScrollArea>
+    </section>
+  )
+
+  const resourcePane = (
+    <section className="explorer-pane resource-explorer-pane" aria-label="资源列表">
+      <header className="explorer-pane-heading">
+        <span><Layers3 aria-hidden="true" size={13} /><strong>资源</strong></span>
+        <small title={currentNode?.display_name || currentNode?.node_id}>{currentNode ? currentNode.display_name || `Node ${currentNode.node_id}` : '未选择节点'} · {currentResources.length}</small>
+      </header>
+      <div className="search-box">
+        <Search aria-hidden="true" size={14} />
+        <Input
+          aria-label="搜索当前节点资源"
+          name="resource-search"
+          autoComplete="off"
+          spellCheck={false}
+          value={resourceQuery}
+          onChange={(event) => setResourceQuery(event.target.value)}
+          placeholder="搜索当前节点资源"
+          disabled={!currentNode}
+        />
+      </div>
+      <ScrollArea className="explorer-scroll resource-scroll">
+        <div className="resource-groups" aria-busy={resourceQuery !== deferredResourceQuery}>
+          {!currentNode && <p className="empty-copy">选择一个节点以查看资源</p>}
+          {currentNode && currentResources.length === 0 && <p className="empty-copy">此节点没有资源</p>}
+          {currentNode && currentResources.length > 0 && resourceGroups.length === 0 && <p className="empty-copy">没有匹配的资源</p>}
+          {resourceGroups.map((group) => (
+            <section className="resource-group" key={group.key} aria-label={`${group.label} 资源`}>
+              <header className="resource-group-heading"><strong>{group.label}</strong><span>{group.resources.length}</span></header>
+              <div role="list">
+                {group.resources.map((resource) => (
+                  <ResourceRow
+                    key={resourceRowKey(resource)}
+                    resource={resource}
+                    active={activeResourceKey === resourceRowKey(resource)}
+                    selected={isResourceSelected(resource, props.selection)}
+                    setRef={setResourceRowRef}
+                    onFocus={setActiveResourceKey}
+                    onKeyDown={handleResourceKeyDown}
+                    onSelect={(selected) => props.onSelect({ kind: 'resource', resource: selected })}
+                    onAdd={props.onAdd}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </ScrollArea>
+    </section>
+  )
+
+  return (
+    <div className="explorer">
+      <ExplorerSplitPane
+        ratio={props.splitRatio}
+        onRatioChange={props.onSplitRatioChange}
+        topID="explorer-node-pane"
+        bottomID="explorer-resource-pane"
+        top={nodePane}
+        bottom={resourcePane}
+      />
     </div>
   )
 }
 
-function hasChildren(index: ReturnType<typeof buildExplorerIndex>, nodeID: string): boolean {
-  return (index.childrenByID.get(nodeID)?.length || 0) + (index.resourcesByNodeID.get(nodeID)?.length || 0) > 0
+function hasChildNodes(index: ReturnType<typeof buildExplorerIndex>, nodeID: string): boolean {
+  return (index.childrenByID.get(nodeID)?.length || 0) > 0
 }
 
-function isRowSelected(row: ExplorerRow, selection: WorkspaceSelection): boolean {
-  if (!selection) return false
-  if (row.kind === 'node') return selection.kind === 'node' && selection.node.node_id === row.node!.node_id
-  return selection.kind === 'resource'
-    && selection.resource.id.owner_node_id === row.resource!.id.owner_node_id
-    && selection.resource.id.name === row.resource!.id.name
+function selectionOwnerID(selection: WorkspaceSelection): string {
+  if (!selection) return ''
+  return selection.kind === 'node' ? selection.node.node_id : selection.resource.id.owner_node_id
+}
+
+function isResourceSelected(resource: ResourceDescriptor, selection: WorkspaceSelection): boolean {
+  return selection?.kind === 'resource'
+    && selection.resource.id.owner_node_id === resource.id.owner_node_id
+    && selection.resource.id.name === resource.id.name
+}
+
+function setMapRef(map: Map<string, HTMLButtonElement>, key: string, element: HTMLButtonElement | null) {
+  if (element) map.set(key, element)
+  else map.delete(key)
 }
 
 function rowIndent(depth: number): CSSProperties {

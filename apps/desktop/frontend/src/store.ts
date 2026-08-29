@@ -1,8 +1,6 @@
 import type { ResourceDescriptor, Topology, TopologyNode, ViewWidget } from './types'
 import { resourceKey } from './lib/utils'
 
-export type ExplorerNode = TopologyNode & { children: ExplorerNode[]; resources: ResourceDescriptor[] }
-
 export interface ExplorerIndex {
   roots: string[]
   nodesByID: Map<string, TopologyNode>
@@ -11,15 +9,19 @@ export interface ExplorerIndex {
   resourcesByNodeID: Map<string, ResourceDescriptor[]>
 }
 
-export interface ExplorerRow {
+export interface NodeExplorerRow {
   key: string
-  kind: 'node' | 'resource'
   depth: number
   parentKey?: string
   posInSet: number
   setSize: number
-  node?: TopologyNode
-  resource?: ResourceDescriptor
+  node: TopologyNode
+}
+
+export interface ResourceGroup {
+  key: string
+  label: string
+  resources: ResourceDescriptor[]
 }
 
 export function nodeRowKey(nodeID: string): string {
@@ -89,79 +91,17 @@ function breakParentCycles(parentByID: Map<string, string | undefined>): void {
   }
 }
 
-export function buildExplorerTree(topology: Topology, resources: ResourceDescriptor[]): ExplorerNode[] {
-  const index = buildExplorerIndex(topology, resources)
-  const built = new Map<string, ExplorerNode>()
-  const pending = index.roots.map((nodeID) => ({ nodeID, visited: false }))
-  while (pending.length > 0) {
-    const current = pending.pop()!
-    if (!current.visited) {
-      pending.push({ ...current, visited: true })
-      const children = index.childrenByID.get(current.nodeID) || []
-      for (let childIndex = children.length - 1; childIndex >= 0; childIndex -= 1) {
-        const childID = children[childIndex]
-        if (childID) pending.push({ nodeID: childID, visited: false })
-      }
-      continue
-    }
-    const node = index.nodesByID.get(current.nodeID)
-    if (!node) continue
-    built.set(current.nodeID, {
-      ...node,
-      children: (index.childrenByID.get(current.nodeID) || []).flatMap((childID) => {
-        const child = built.get(childID)
-        return child ? [child] : []
-      }),
-      resources: index.resourcesByNodeID.get(current.nodeID) || [],
-    })
-  }
-  return index.roots.flatMap((nodeID) => {
-    const node = built.get(nodeID)
-    return node ? [node] : []
-  })
-}
-
-export function filterExplorerTree(nodes: ExplorerNode[], rawQuery: string): ExplorerNode[] {
-  const query = rawQuery.trim().toLocaleLowerCase()
-  if (!query) return nodes
-  const filtered = new Map<ExplorerNode, ExplorerNode | null>()
-  const pending = nodes.map((node) => ({ node, visited: false }))
-  while (pending.length > 0) {
-    const current = pending.pop()!
-    if (!current.visited) {
-      pending.push({ node: current.node, visited: true })
-      for (const child of current.node.children) pending.push({ node: child, visited: false })
-      continue
-    }
-    const children = current.node.children.flatMap((child) => {
-      const match = filtered.get(child)
-      return match ? [match] : []
-    })
-    const nodeMatches = nodeSearchValues(current.node).some((value) => value.includes(query))
-    const matchingResources = nodeMatches
-      ? current.node.resources
-      : current.node.resources.filter((resource) => resourceSearchValues(resource).some((value) => value.includes(query)))
-    filtered.set(current.node, nodeMatches || matchingResources.length > 0 || children.length > 0
-      ? { ...current.node, resources: matchingResources, children }
-      : null)
-  }
-  return nodes.flatMap((node) => {
-    const match = filtered.get(node)
-    return match ? [match] : []
-  })
-}
-
-export function flattenExplorerRows(
+export function flattenNodeRows(
   index: ExplorerIndex,
   expandedNodeIDs: ReadonlySet<string>,
   rawQuery: string,
   focusedNodeID?: string,
-): ExplorerRow[] {
+): NodeExplorerRow[] {
   const query = rawQuery.trim().toLocaleLowerCase()
-  const search = buildSearchIndex(index, query)
+  const visibleNodeIDs = query ? buildVisibleNodeIDs(index, query) : undefined
   const focused = focusedNodeID && index.nodesByID.has(focusedNodeID) ? focusedNodeID : undefined
   const roots = focused ? [focused] : index.roots
-  const rows: ExplorerRow[] = []
+  const rows: NodeExplorerRow[] = []
   const stack: Array<{
     nodeID: string
     depth: number
@@ -178,13 +118,12 @@ export function flattenExplorerRows(
 
   while (stack.length > 0) {
     const current = stack.pop()!
-    if (query && !search.visibleNodeIDs.has(current.nodeID)) continue
+    if (visibleNodeIDs && !visibleNodeIDs.has(current.nodeID)) continue
     const node = index.nodesByID.get(current.nodeID)
     if (!node) continue
-    const nodeKey = nodeRowKey(current.nodeID)
+    const key = nodeRowKey(current.nodeID)
     rows.push({
-      key: nodeKey,
-      kind: 'node',
+      key,
       depth: current.depth,
       parentKey: current.parentKey,
       posInSet: current.posInSet,
@@ -192,65 +131,30 @@ export function flattenExplorerRows(
       node,
     })
 
-    const expanded = query.length > 0 || expandedNodeIDs.has(current.nodeID)
-    if (!expanded) continue
-    const resources = (index.resourcesByNodeID.get(current.nodeID) || []).filter((resource) => (
-      !query || search.matchedNodeIDs.has(current.nodeID) || search.matchedResourceKeys.has(resourceRowKey(resource))
-    ))
+    if (!query && !expandedNodeIDs.has(current.nodeID)) continue
     const children = (index.childrenByID.get(current.nodeID) || []).filter((childID) => (
-      !query || search.visibleNodeIDs.has(childID)
+      !visibleNodeIDs || visibleNodeIDs.has(childID)
     ))
-    const childSetSize = resources.length + children.length
     for (let childIndex = children.length - 1; childIndex >= 0; childIndex -= 1) {
       const childID = children[childIndex]
       if (!childID) continue
       stack.push({
         nodeID: childID,
         depth: current.depth + 1,
-        parentKey: nodeKey,
-        posInSet: resources.length + childIndex + 1,
-        setSize: childSetSize,
-      })
-    }
-    for (let resourceIndex = 0; resourceIndex < resources.length; resourceIndex += 1) {
-      const resource = resources[resourceIndex]
-      if (!resource) continue
-      rows.push({
-        key: resourceRowKey(resource),
-        kind: 'resource',
-        depth: current.depth + 1,
-        parentKey: nodeKey,
-        posInSet: resourceIndex + 1,
-        setSize: childSetSize,
-        resource,
+        parentKey: key,
+        posInSet: childIndex + 1,
+        setSize: children.length,
       })
     }
   }
   return rows
 }
 
-function buildSearchIndex(index: ExplorerIndex, query: string): {
-  matchedNodeIDs: Set<string>
-  matchedResourceKeys: Set<string>
-  visibleNodeIDs: Set<string>
-} {
-  const matchedNodeIDs = new Set<string>()
-  const matchedResourceKeys = new Set<string>()
+function buildVisibleNodeIDs(index: ExplorerIndex, query: string): Set<string> {
   const visibleNodeIDs = new Set<string>()
-  if (!query) return { matchedNodeIDs, matchedResourceKeys, visibleNodeIDs }
-
   for (const [nodeID, node] of index.nodesByID) {
-    const nodeMatched = nodeSearchValues(node).some((value) => value.includes(query))
-    let resourceMatched = false
-    for (const resource of index.resourcesByNodeID.get(nodeID) || []) {
-      if (!resourceSearchValues(resource).some((value) => value.includes(query))) continue
-      matchedResourceKeys.add(resourceRowKey(resource))
-      resourceMatched = true
-    }
-    if (nodeMatched) matchedNodeIDs.add(nodeID)
-    if (nodeMatched || resourceMatched) visibleNodeIDs.add(nodeID)
+    if (nodeSearchValues(node).some((value) => value.includes(query))) visibleNodeIDs.add(nodeID)
   }
-
   for (const nodeID of [...visibleNodeIDs]) {
     let current = index.parentByID.get(nodeID)
     while (current && !visibleNodeIDs.has(current)) {
@@ -258,7 +162,7 @@ function buildSearchIndex(index: ExplorerIndex, query: string): {
       current = index.parentByID.get(current)
     }
   }
-  return { matchedNodeIDs, matchedResourceKeys, visibleNodeIDs }
+  return visibleNodeIDs
 }
 
 function nodeSearchValues(node: TopologyNode): string[] {
@@ -267,6 +171,29 @@ function nodeSearchValues(node: TopologyNode): string[] {
 
 function resourceSearchValues(resource: ResourceDescriptor): string[] {
   return [resource.id.name, resource.presentation?.label || '', resource.type].map((value) => value.toLocaleLowerCase())
+}
+
+export function groupResources(resources: ResourceDescriptor[], rawQuery = ''): ResourceGroup[] {
+  const query = rawQuery.trim().toLocaleLowerCase()
+  const groups = new Map<string, ResourceGroup>()
+  for (const resource of resources) {
+    if (query && !resourceSearchValues(resource).some((value) => value.includes(query))) continue
+    const separator = resource.id.name.indexOf('/')
+    const segment = separator > 0 ? resource.id.name.slice(0, separator) : undefined
+    const key = segment ? `segment:${segment}` : 'ungrouped'
+    let group = groups.get(key)
+    if (!group) {
+      group = { key, label: segment || '其他', resources: [] }
+      groups.set(key, group)
+    }
+    group.resources.push(resource)
+  }
+  return [...groups.values()]
+    .sort((left, right) => {
+      if (left.key === 'ungrouped') return 1
+      if (right.key === 'ungrouped') return -1
+      return left.label.localeCompare(right.label, undefined, { numeric: true })
+    })
 }
 
 export function defaultExpandedNodeIDs(index: ExplorerIndex): string[] {

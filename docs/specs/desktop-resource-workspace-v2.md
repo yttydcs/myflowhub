@@ -31,15 +31,20 @@ secret 只能通过 `CredentialStore` 保存，首选系统安全存储；不可
 承载 View 与 Settings，右侧 Inspector 承载临时 Node/Resource preview。Settings 打开时铺满主区并隐藏
 Inspector，包含 Connection、Profile 和 Appearance。
 
-Explorer 展示 authoritative Node tree；每个 Node 下展示它拥有的 Resources。Node 深度只由 `parent_id`
-决定，不设固定层数。选择 Node 或 Resource 打开 Inspector；Resource 可通过拖放、键盘添加或按钮加入当前
-View。深层 Node 可聚焦为局部子树，顶部显示从 authority root 到焦点的 breadcrumb，并能返回完整树。
+Explorer 是上下 master/detail 分区：上方只展示 authoritative Node tree，下方只展示当前 Node 直接拥有的
+Resources。Node 深度只由 `parent_id` 决定，不设固定层数。选择 Node 会更新 Resource 区并打开 Node
+Inspector；选择 Resource 打开对应 renderer。Resource 可通过拖放、键盘添加或按钮加入当前 View。深层
+Node 可聚焦为局部子树，顶部显示从 authority root 到焦点的 breadcrumb，并能返回完整树。
 
-Explorer 先用迭代索引构建 authority tree，再派生扁平 visible rows；expanded/focused/active row 由单一状态
-拥有，不能分散在递归 Node component 中。搜索匹配 Node ID、display name、role、Resource name、label 和
-type，并保留命中对象的祖先路径。Tree row 暴露 `aria-level`、`aria-posinset`、`aria-setsize`、
-`aria-expanded` 和 `aria-selected`；使用 roving `tabIndex`，支持 Arrow Up/Down/Left/Right、Home、End、
-Enter 和 Space。
+Explorer 先用一次迭代索引建立 Node hierarchy、Resource ownership 与查找 Map，再派生扁平 Node visible
+rows；expanded/focused/active row 由单一状态拥有，不能分散在递归 Node component 中。Node 搜索只匹配
+Node ID、display name 和 role 并保留命中 Node 的祖先路径；Resource 搜索独立匹配当前 Node 的 full name、
+label 和 type。Resource 按 full name 的首个 `/` 段分组，无 `/` 的项目进入明确的 fallback group；分组标签
+不得替代稳定身份 `(owner_node_id, full name)`。
+
+只有 Node row 属于 WAI-ARIA tree，并暴露 `aria-level`、`aria-posinset`、`aria-setsize`、`aria-expanded`
+和 `aria-selected`；使用 roving `tabIndex`，支持 Arrow Up/Down/Left/Right、Home、End、Enter 和 Space。
+Resource 区是分组 list，使用可聚焦选择动作和 Arrow Up/Down、Home、End、Enter、Space，不伪造第二棵 tree。
 
 ## Renderer registry
 
@@ -62,16 +67,23 @@ View 属于 Profile，首版只在本机保存。文档包含 version、id、nam
 ## Interaction and accessibility
 
 拖放必须有等价键盘入口；树、tabs、dialog、resize handle、commands 和表单具有可见 focus、标签与
-语义状态。loading、empty、offline、forbidden、expired、gap、unknown、detached 和 corrupt 都有明确呈现。
+语义状态。Node 与 Resource 区各自滚动，Explorer shell 约束 overflow/min-height，使固定的 Profile/Connection
+footer 不随列表滚动。水平 resize handle 使用 `role="separator"`、`aria-orientation="horizontal"`、
+`aria-controls` 和当前/最小/最大值；支持指针捕获、Arrow Up/Down（含大步进）、Home/End 与双击复位。
+拖动中的比例只做本地预览，释放后提交。loading、empty、offline、forbidden、expired、gap、unknown、
+detached 和 corrupt 都有明确呈现。
 
 视觉方向是浅色默认的矿物蓝 + 石墨灰工具界面；深色使用独立 token 重配色而不是简单反色。
 面板依靠连续分栏与 1px 边界组织，圆角限制在小型交互控件，禁止副标题、英文 eyebrow、装饰性卡片墙、
-渐变、发光和重复状态胶囊。Theme 与 Explorer 展开/聚焦属于版本化非秘密 UI preference，按 Profile
-隔离保存；损坏数据回退到 light/default expansion，不影响 settings、identity 或 View store。
+渐变、发光和重复状态胶囊。Theme、Explorer 展开/聚焦和 `explorer_split_ratio` 属于版本化非秘密 UI
+preference，按 Profile 隔离保存。分区比例默认 `0.35`，持久值必须是 `0.2`–`0.8` 的有限数；布局同时
+保证 Node 区 112 px、Resource 区 144 px 的可用最小高度，容器过短时按两者比例锁定。损坏数据回退到
+light/default expansion/default split，不影响 settings、identity 或 View store。
 
 ## Performance acceptance
 
-- Explorer 的代表性基准为 2,000 个 Node、10,000 个 Resource；构建 authority tree 并完成一次精确筛选必须在 750 ms 内完成。
+- Explorer 的代表性基准为 2,000 个 Node、10,000 个 Resource；构建 authority/ownership index、派生 Node
+  visible rows 并完成一次精确筛选/当前 Node 分组必须在 750 ms 内完成。
 - 可见树必须扁平化并为重复查询建立 Map/Set 索引；超过 50 行使用浏览器跳过离屏绘制的能力或等价
   虚拟化。当前 API 仍一次返回完整 topology 并按 Node 拉取 catalog，因此服务端 lazy-load/pagination 与
   真正 DOM windowing 作为后续协议工作；首版不能因规模增大引入第二套资源模型或伪加载状态。

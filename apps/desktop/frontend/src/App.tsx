@@ -367,13 +367,16 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
               <TabsList><TabsTrigger value="explorer"><Boxes aria-hidden="true" size={14} />资源</TabsTrigger><TabsTrigger value="views"><Layers3 aria-hidden="true" size={14} />视图</TabsTrigger></TabsList>
               <TabsContent className="tabs-content" value="explorer">
                 <Explorer
+                  key={activeProfile.id}
                   topology={topology}
                   resources={resources}
                   selection={selection}
                   expandedNodeIDs={preferences.expanded_node_ids}
                   focusedNodeID={preferences.focused_node_id}
+                  splitRatio={preferences.explorer_split_ratio}
                   onExpandedNodeIDsChange={(expandedNodeIDs) => updatePreferences({ expanded_node_ids: expandedNodeIDs })}
                   onFocusedNodeIDChange={(focusedNodeID) => updatePreferences({ focused_node_id: focusedNodeID })}
+                  onSplitRatioChange={(splitRatio) => updatePreferences({ explorer_split_ratio: splitRatio })}
                   onSelect={setSelection}
                   onAdd={addResource}
                 />

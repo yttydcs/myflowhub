@@ -23,7 +23,8 @@
 - 首次启动创建 Profile、配置父 Hub、完成准入并进入工作区。
 - 再次启动恢复上次 Profile，并在身份仍有效时自动连接。
 - 在两个 Profile 之间切换，旧连接和订阅被明确释放，新 Profile 状态独立加载。
-- 在资源树中搜索/展开 Node，单击 Node 查看概览，单击 Resource 查看预览。
+- 在上方 Node tree 中搜索/展开 Node，在下方当前 Node Resource list 中独立搜索；单击 Node 查看概览，
+  单击 Resource 查看预览，并按需要调整两区高度。
 - 通过拖放、按钮或键盘把 Resource 添加到当前 View。
 - 调整 Widget 顺序和尺寸，保存、重命名、复制、删除并重新打开 View。
 - Resource 离线、被撤权或类型升级后，View 保留位置并显示可恢复错误状态。
@@ -34,8 +35,10 @@
 2. 每个 Profile 隔离 Hub/Transport 设置、本地 Node identity、受信任父节点、View、最近项和 UI preferences。
 3. 首版每个应用实例只能激活一个 Profile；切换必须先关闭旧连接、subscription 和 session。
 4. 身份准备不得激活 Profile、启动连接或导出私钥；一次性 permit 在成功 admission 后不得继续作为长期明文配置保存，私钥或 refresh secret 必须通过 CredentialStore abstraction 保护。
-5. Resource Explorer 必须按 authoritative Node tree 展示 Node，并在 owner 下展示 Resource；Resource path 分组只影响显示，不建立第二棵 authority tree。
-6. Explorer 必须支持搜索、展开/折叠、选择、加载、空状态、断线状态和键盘导航。
+5. Resource Explorer 必须把 authoritative Node tree 与当前 owner 的直接 Resource list 分为上下两区；
+   Resource path 首段分组只影响显示，不进入 Node tree，也不建立第二棵 authority tree。
+6. Node 与 Resource 区必须支持独立搜索和独立滚动；Node 区支持展开/折叠，两个区域都支持选择、加载、
+   空状态、断线状态和键盘导航。两区高度必须可调、有界、可键盘操作，并按 Profile 隔离保存。
 7. Explorer 必须支持任意深度的 Node 关系、独立资源类型图标、深层 Node 聚焦、路径面包屑和返回完整树；
    实现不得依赖固定层数或演示数据。
 8. Node preview 至少显示身份、连接/健康状态、父子关系和资源摘要；Node/Resource 临时预览位于右侧
@@ -55,7 +58,8 @@
   副标题、装饰性卡片墙、渐变或发光。
 - 浅色为默认主题，深色必须完整重配色；支持减少动画偏好。
 - 树浏览、拖放、View 管理和核心操作必须具有键盘等价路径与可读辅助技术标签；Tree 遵循 WAI-ARIA
-  tree 的 roving focus 与方向键/Home/End/Enter/Space 交互。
+  tree 的 roving focus 与方向键/Home/End/Enter/Space 交互；分区调整使用 horizontal separator 语义，
+  支持方向键、Home/End 和可发现的复位操作。
 - Explorer 必须使用单一派生树模型和扁平可见行，避免递归组件状态与热点 O(n²)；超过 50 行使用
   `content-visibility` 或等价离屏策略。服务端按需加载或真正 DOM windowing 在现有 topology/catalog API
   不支持时必须作为明确分期边界记录，不能用第二套资源模型伪装。
@@ -75,7 +79,8 @@
 
 - 两个 Profile 的身份、连接设置和 Views 相互隔离；切换后旧订阅数量归零。
 - 成功登录后重启可以自动进入/连接；无效身份必须回到明确登录恢复流程。
-- Resource Explorer 展示跨子树 Node 和 Resource，并通过鼠标与键盘完成预览/添加。
+- Resource Explorer 上方仅展示跨子树 Node，下方仅展示当前 Node Resources；两区可独立搜索/滚动，
+  通过鼠标与键盘完成切换、预览、添加和有界高度调整，Profile/Connection footer 不随内容滚走。
 - 至少 6 层 Node fixture 可展开、搜索、聚焦并用 breadcrumb 返回；Arrow/Home/End/Enter/Space 键盘门禁通过。
 - Resource 可拖入工作区、调整布局、保存 View，重启后恢复完全一致。
 - 左下 Profile/Connection 入口能打开 Settings Tab；连接、Profile CRUD/切换和浅/深色在真实 API/mock boundary 下可操作，顶栏无重复状态。

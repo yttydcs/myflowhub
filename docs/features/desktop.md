@@ -49,9 +49,10 @@ backup 和 rename 提交。损坏或不兼容的 settings/View 不会被静默�
 
 顶部只保留产品标识、资源刷新和主题动作，不重复展示连接状态或 Profile。左侧通过 Tabs 切换：
 
-- Resource Explorer：按 authoritative Node tree 展示 Node，并在 owner 下展示 Resources；支持搜索、
-  展开、选择、独立类型图标、拖动手柄和“添加到工作区”按钮；任意深度由 `parent_id` 数据驱动，
-  深层 Node 可聚焦为子树并通过路径面包屑返回完整树；
+- Resource Explorer：上半区只展示 authoritative Node tree，下半区展示当前 Node 的直接 Resources；
+  两区使用独立搜索与滚动，水平分隔条可通过指针或键盘调整高度并按 Profile 保存。Resource 按名称首段
+  分组，分组仅影响显示，完整 owner/name 身份仍用于预览、拖放和“添加到工作区”。Node 任意深度由
+  `parent_id` 数据驱动，深层 Node 可聚焦为子树并通过路径面包屑返回完整树；
 - View Manager：创建、打开和删除当前 Profile 的本地 Views。
 
 左下角固定显示当前 Profile 和连接状态，点击进入主区 Settings Tab。Settings 铺满可用主区并隐藏右侧
@@ -76,9 +77,10 @@ renderer 由 descriptor 的 type、capability、schema 和 presentation hint 驱
 
 加载、空、离线、Forbidden、订阅失败、缺失资源和未知 renderer 都会明确呈现。拖放具有独立键盘
 激活手柄和添加按钮等价路径；Tree 使用 roving focus，并实现 Arrow Up/Down/Left/Right、Home、End、
-Enter 与 Space 的 WAI-ARIA 键盘路径；Tabs、表单和动作有辅助技术标签。视觉使用 Radix/shadcn 风格
-primitives、CSS tokens、浅色默认、完整深色重配色与 reduced-motion，不维护第二套旧 UI。主题、树展开
-与聚焦状态作为版本化非秘密 UI preference 按 Profile 保存，损坏 preference 只回退到显式默认值。
+Enter 与 Space 的 WAI-ARIA 键盘路径；上下区分隔条使用 horizontal separator 语义，支持方向键、
+Home/End 与双击复位；Tabs、表单和动作有辅助技术标签。视觉使用 Radix/shadcn 风格 primitives、CSS
+tokens、浅色默认、完整深色重配色与 reduced-motion，不维护第二套旧 UI。主题、树展开/聚焦与 Explorer
+分区比例作为版本化非秘密 UI preference 按 Profile 保存，损坏 preference 只回退到显式默认值。
 
 视觉采用矿物蓝与石墨灰，使用连续平面分栏、1px 边界、紧凑缩进和克制圆角。界面不使用宣传式副标题、
 英文 eyebrow、渐变、发光、装饰性卡片墙或重复状态胶囊。
