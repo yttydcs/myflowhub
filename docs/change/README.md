@@ -26,6 +26,7 @@
 
 ## Docs / Workspace
 - [2026-08-29_brand-icon-coupled-seam.md](2026-08-29_brand-icon-coupled-seam.md)
+- [2026-08-29_desktop-explorer-split-pane.md](2026-08-29_desktop-explorer-split-pane.md)
 - [2026-08-29_desktop-first-admission-onboarding.md](2026-08-29_desktop-first-admission-onboarding.md)
 - [2026-08-29_desktop-codex-interface-production.md](2026-08-29_desktop-codex-interface-production.md)
 - [2026-08-29_extensible-resource-platform-desktop-workspace.md](2026-08-29_extensible-resource-platform-desktop-workspace.md)
