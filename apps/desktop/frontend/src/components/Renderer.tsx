@@ -194,7 +194,12 @@ export function NodeRenderer({ node, resources }: { node: TopologyNode; resource
   }, [resources])
   return <div className="node-overview">
     <div className="node-orbit"><SquareTerminal aria-hidden="true" size={28} /><span>{node.node_id}</span></div>
-    <div><p className="eyebrow">AUTHORITY NODE</p><h2>{node.display_name || `Node ${node.node_id}`}</h2><p>{node.parent_id ? `由 Node ${node.parent_id} 控制` : 'Authority root'} · generation {node.generation}</p></div>
+    <dl className="inspector-facts">
+      <div><dt>Node ID</dt><dd>{node.node_id}</dd></div>
+      <div><dt>角色</dt><dd>{node.role}</dd></div>
+      <div><dt>父 Node</dt><dd>{node.parent_id || 'Authority root'}</dd></div>
+      <div><dt>Generation</dt><dd>{node.generation}</dd></div>
+    </dl>
     <div className="type-counts">{counts.map(([type, count]) => <span key={type}><strong>{count}</strong>{type.replace('mfh.', '')}</span>)}</div>
   </div>
 }

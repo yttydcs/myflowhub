@@ -19,48 +19,76 @@ const resource: ResourceDescriptor = {
 function mockAPI(settings: Settings): DesktopAPI {
   return {
     settings: vi.fn().mockResolvedValue(settings),
-    saveProfile: vi.fn(), login: vi.fn(), switchProfile: vi.fn(), deleteProfile: vi.fn(),
-    identity: vi.fn().mockResolvedValue({ node_id: '2', public_key: 'key' }), connect: vi.fn(), disconnect: vi.fn(),
+    saveProfile: vi.fn().mockImplementation(async (next: Profile) => next),
+    login: vi.fn().mockImplementation(async (next: Profile) => next),
+    switchProfile: vi.fn(),
+    deleteProfile: vi.fn(),
+    identity: vi.fn().mockResolvedValue({ node_id: '2', public_key: 'key' }),
+    connect: vi.fn(),
+    disconnect: vi.fn(),
     status: vi.fn().mockResolvedValue({ state: 'connected', endpoint: 'localhost:9540' }),
     catalog: vi.fn().mockResolvedValue({ version: 2, revision: 1, resources: [resource] }),
     topology: vi.fn().mockResolvedValue({ version: 1, epoch: 1, nodes: [{ node_id: '1', role: 'root', generation: 1 }] }),
-    snapshot: vi.fn().mockResolvedValue({ value: 42 }), operate: vi.fn(), subscribe: vi.fn(), poll: vi.fn(), cancel: vi.fn(), uploadFile: vi.fn(),
+    snapshot: vi.fn().mockResolvedValue({ value: 42 }),
+    operate: vi.fn(),
+    subscribe: vi.fn(),
+    poll: vi.fn(),
+    cancel: vi.fn(),
+    uploadFile: vi.fn(),
     views: vi.fn().mockResolvedValue({ version: 1, views: [] }),
-    saveView: vi.fn().mockImplementation(async (view: ViewDefinition) => ({ ...view, revision: 1 })), deleteView: vi.fn(),
+    saveView: vi.fn().mockImplementation(async (next: ViewDefinition) => ({ ...next, revision: 1 })),
+    deleteView: vi.fn(),
   }
 }
 
 describe('desktop resource workspace', () => {
-  afterEach(() => vi.restoreAllMocks())
-
-  it('shows a persistent-profile login when no profile is active', async () => {
-    const settings: Settings = { version: 2, profiles: [], updated_at_unix_ms: 1, credential_mode: 'session-only' }
-    render(<App api={mockAPI(settings)} />)
-    expect(await screen.findByRole('heading', { name: '登录 Profile' })).toBeInTheDocument()
-    expect(screen.getByText(/permit 仅用于本次登录/)).toBeInTheDocument()
+  afterEach(() => {
+    vi.restoreAllMocks()
+    window.localStorage.clear()
+    document.documentElement.removeAttribute('data-theme')
   })
 
-  it('discovers resources, previews them, and adds them through a keyboard-equivalent action', async () => {
+  it('shows a compact persistent-profile login when no profile is active', async () => {
+    const settings: Settings = { version: 2, profiles: [], updated_at_unix_ms: 1, credential_mode: 'session-only' }
+    render(<App api={mockAPI(settings)} />)
+    expect(await screen.findByRole('heading', { name: '登录 MyFlowHub' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/一次性准入 Permit/)).toBeInTheDocument()
+    expect(screen.queryByText(/让设备成为节点/)).not.toBeInTheDocument()
+  })
+
+  it('discovers resources, previews them in the inspector, and adds them through a keyboard-equivalent action', async () => {
     const settings: Settings = { version: 2, active_profile_id: profile.id, profiles: [profile], updated_at_unix_ms: 1, credential_mode: 'session-only' }
     const api = mockAPI(settings)
     render(<App api={api} />)
-    const resourceLabel = await screen.findByText('CPU')
-    fireEvent.click(resourceLabel.closest('button')!)
+    const resourceItem = await screen.findByRole('treeitem', { name: /CPU/ })
+    fireEvent.click(resourceItem)
+    expect(await screen.findByRole('complementary', { name: 'CPU 预览' })).toBeInTheDocument()
     await waitFor(() => expect(api.snapshot).toHaveBeenCalledWith('1', 'metrics/cpu'))
     fireEvent.click(screen.getByRole('button', { name: '添加 metrics/cpu 到工作区' }))
     expect(screen.getByText('未保存')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /保存视图/ }))
     await waitFor(() => expect(api.saveView).toHaveBeenCalled())
+    vi.mocked(api.catalog).mockResolvedValue({ version: 2, revision: 2, resources: [] })
+    fireEvent.click(screen.getByRole('button', { name: '刷新节点树' }))
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'CPU 预览' })).not.toBeInTheDocument())
   })
 
-  it('creates, edits, and explicitly deletes profiles from the login shell', async () => {
+  it('creates and deletes profiles from the full settings tab', async () => {
     const settings: Settings = { version: 2, active_profile_id: profile.id, profiles: [profile], updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
     const api = mockAPI(settings)
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     render(<App api={api} />)
-    fireEvent.click(await screen.findByRole('button', { name: '新建 Profile' }))
-    fireEvent.click(screen.getByRole('button', { name: `编辑 Profile ${profile.name}` }))
-    expect(screen.getByLabelText('Profile 名称')).toHaveValue(profile.name)
+    fireEvent.click(await screen.findByRole('button', { name: `打开 ${profile.name} 的设置` }))
+    fireEvent.click(screen.getByRole('button', { name: 'Profile' }))
+    fireEvent.click(screen.getByRole('button', { name: '新建 Profile' }))
+    fireEvent.change(screen.getByLabelText('Profile 名称'), { target: { value: 'Lab' } })
+    fireEvent.change(screen.getByLabelText('Profile ID'), { target: { value: 'lab' } })
+    fireEvent.change(screen.getByLabelText('本机 Node ID'), { target: { value: '4' } })
+    fireEvent.change(screen.getByLabelText('父 Node ID'), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText('连接端点'), { target: { value: '127.0.0.1:7441' } })
+    fireEvent.change(screen.getByLabelText('父节点公钥'), { target: { value: 'public-key' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存 Profile' }))
+    await waitFor(() => expect(api.saveProfile).toHaveBeenCalledWith(expect.objectContaining({ id: 'lab', name: 'Lab' })))
     fireEvent.click(screen.getByRole('button', { name: `删除 Profile ${profile.name}` }))
     await waitFor(() => expect(api.deleteProfile).toHaveBeenCalledWith(profile.id, `DELETE ${profile.id}`))
   })
@@ -79,9 +107,9 @@ describe('desktop resource workspace', () => {
     const permit = screen.getByLabelText(/一次性准入 Permit/)
     fireEvent.change(permit, { target: { value: '{"version":1}' } })
     fireEvent.click(screen.getByRole('button', { name: /登录并进入工作区/ }))
-    const error = await screen.findByRole('alert')
-    expect(error).toHaveTextContent('一次性准入 Permit')
-    expect(error).toHaveFocus()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('一次性准入 Permit')
+    expect(alert).toHaveFocus()
     expect(permit).toHaveValue('{"version":1}')
   })
 
@@ -90,12 +118,13 @@ describe('desktop resource workspace', () => {
     const api = mockAPI(settings)
     vi.spyOn(window, 'confirm').mockReturnValue(false)
     render(<App api={api} />)
-    await screen.findByText('CPU')
+    await screen.findByRole('treeitem', { name: /CPU/ })
     fireEvent.click(screen.getByRole('button', { name: '添加 metrics/cpu 到工作区' }))
-    fireEvent.change(screen.getByLabelText('活动 Profile'), { target: { value: secondProfile.id } })
+    fireEvent.click(screen.getByRole('button', { name: `打开 ${profile.name} 的设置` }))
+    fireEvent.click(screen.getByRole('button', { name: 'Profile' }))
+    fireEvent.click(screen.getByRole('button', { name: '启用' }))
     await waitFor(() => expect(window.confirm).toHaveBeenCalled())
     expect(api.switchProfile).not.toHaveBeenCalled()
-    expect(screen.getByText('未保存')).toBeInTheDocument()
   })
 
   it('requires confirmation before deleting a persisted view', async () => {
@@ -108,5 +137,14 @@ describe('desktop resource workspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: '删除视图 Saved view' }))
     expect(window.confirm).toHaveBeenCalled()
     expect(api.deleteView).not.toHaveBeenCalled()
+  })
+
+  it('persists the theme per active profile without duplicating Profile controls in the top bar', async () => {
+    const settings: Settings = { version: 2, active_profile_id: profile.id, profiles: [profile], updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
+    render(<App api={mockAPI(settings)} />)
+    fireEvent.click(await screen.findByRole('button', { name: '切换到深色主题' }))
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(window.localStorage.getItem('mfh.desktop.ui.v1:personal')).toContain('"theme":"dark"')
+    expect(screen.queryByLabelText('活动 Profile')).not.toBeInTheDocument()
   })
 })

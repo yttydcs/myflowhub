@@ -4,8 +4,8 @@ import { ArrowLeft, ArrowRight, Grid2X2, Minus, Plus, Save, Trash2 } from 'lucid
 import type { DesktopAPI } from '../api'
 import { resourceKey } from '../lib/utils'
 import { removeWidget, updateWidget } from '../store'
-import type { ResourceDescriptor, ViewDefinition, WorkspaceSelection } from '../types'
-import { NodeRenderer, ResourceRenderer } from './Renderer'
+import type { ResourceDescriptor, ViewDefinition } from '../types'
+import { ResourceRenderer } from './Renderer'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -13,7 +13,6 @@ import { Input } from './ui/input'
 type Props = {
   id?: string
   api: DesktopAPI
-  selection: WorkspaceSelection
   resources: ResourceDescriptor[]
   view: ViewDefinition
   dirty: boolean
@@ -22,28 +21,15 @@ type Props = {
   onSave(): void
 }
 
-export function Workspace({ id, api, selection, resources, view, dirty, saving, onChange, onSave }: Props) {
+export function Workspace({ id, api, resources, view, dirty, saving, onChange, onSave }: Props) {
   const drop = useDroppable({ id: 'workspace-drop' })
   const resourceIndex = useMemo(() => new Map(resources.map((resource) => [resourceKey(resource.id.owner_node_id, resource.id.name), resource])), [resources])
-  const selectedNodeResources = useMemo(() => selection?.kind === 'node'
-    ? resources.filter((resource) => resource.id.owner_node_id === selection.node.node_id)
-    : [], [resources, selection])
   const changeWidgets = (widgets: ViewDefinition['widgets']) => onChange({ ...view, widgets })
   return <section id={id} ref={drop.setNodeRef} className={`workspace ${drop.isOver ? 'is-drop-target' : ''}`} aria-label="资源工作区" tabIndex={-1}>
     <header className="workspace-toolbar">
       <div className="view-name"><Grid2X2 aria-hidden="true" size={16} /><Input aria-label="视图名称" name="view-name" autoComplete="off" value={view.name} onChange={(event) => onChange({ ...view, name: event.target.value })} /></div>
       <div className="toolbar-meta"><Badge>{view.widgets.length} widgets</Badge>{dirty && <span className="dirty-dot" role="status">未保存</span>}<Button size="sm" onClick={onSave} disabled={saving || !dirty}><Save aria-hidden="true" size={14} />{saving ? '保存中…' : '保存视图'}</Button></div>
     </header>
-
-    {selection && <div className="preview-card">
-      <div className="preview-heading">
-        <div><p className="eyebrow">LIVE PREVIEW</p><h2>{selection.kind === 'node' ? selection.node.display_name || `Node ${selection.node.node_id}` : selection.resource.presentation?.label || selection.resource.id.name}</h2></div>
-        {selection.kind === 'resource' && <Badge>{selection.resource.type}</Badge>}
-      </div>
-      {selection.kind === 'node'
-        ? <NodeRenderer node={selection.node} resources={selectedNodeResources} />
-        : <ResourceRenderer api={api} resource={selection.resource} />}
-    </div>}
 
     <div className={`widget-grid ${view.widgets.length === 0 ? 'is-empty' : ''}`}>
       {view.widgets.length === 0 && <div className="workspace-empty"><span className="drop-glyph">＋</span><h3>把资源放到这里</h3><p>从左侧拖入，或使用资源行末尾的添加按钮。布局会保存在当前 Profile。</p></div>}

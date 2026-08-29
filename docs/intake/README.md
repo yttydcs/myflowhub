@@ -4,6 +4,7 @@
 
 ## Current Records
 
+- [Desktop Codex 风格界面生产化](2026-08-29_desktop-codex-interface-production.md)
 - [可扩展资源平台与 Desktop 工作区重构](2026-08-28_extensible-resources-and-desktop-workspace-redesign.md)
 - [重构可复现性与文档治理收口](2026-08-28_reproducible-refactor-closeout.md)
 - [工作区目录清理与文档治理](2026-08-27_workspace-directory-docs-governance.md)

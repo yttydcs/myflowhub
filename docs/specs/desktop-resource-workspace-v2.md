@@ -20,9 +20,20 @@ secret 只能通过 `CredentialStore` 保存，首选系统安全存储；不可
 
 ## Shell
 
-左侧窄工作栏使用 tabs 切换 Resource Explorer 与 View Manager，右侧是 Workspace。
-Explorer 展示 authoritative Node tree；每个 Node 下展示它拥有的 Resources。选择 Node 或 Resource
-打开临时预览。拖放、键盘添加或命令面板可把资源加入当前 View。
+顶部只放产品标识、刷新与主题动作。左侧窄工作栏使用 tabs 切换 Resource Explorer 与 View Manager，
+底部显示 active Profile 与 Connection state 并打开 Settings Tab；顶部不重复这些状态。主区使用内容 Tabs
+承载 View 与 Settings，右侧 Inspector 承载临时 Node/Resource preview。Settings 打开时铺满主区并隐藏
+Inspector，包含 Connection、Profile 和 Appearance。
+
+Explorer 展示 authoritative Node tree；每个 Node 下展示它拥有的 Resources。Node 深度只由 `parent_id`
+决定，不设固定层数。选择 Node 或 Resource 打开 Inspector；Resource 可通过拖放、键盘添加或按钮加入当前
+View。深层 Node 可聚焦为局部子树，顶部显示从 authority root 到焦点的 breadcrumb，并能返回完整树。
+
+Explorer 先用迭代索引构建 authority tree，再派生扁平 visible rows；expanded/focused/active row 由单一状态
+拥有，不能分散在递归 Node component 中。搜索匹配 Node ID、display name、role、Resource name、label 和
+type，并保留命中对象的祖先路径。Tree row 暴露 `aria-level`、`aria-posinset`、`aria-setsize`、
+`aria-expanded` 和 `aria-selected`；使用 roving `tabIndex`，支持 Arrow Up/Down/Left/Right、Home、End、
+Enter 和 Space。
 
 ## Renderer registry
 
@@ -47,11 +58,15 @@ View 属于 Profile，首版只在本机保存。文档包含 version、id、nam
 拖放必须有等价键盘入口；树、tabs、dialog、resize handle、commands 和表单具有可见 focus、标签与
 语义状态。loading、empty、offline、forbidden、expired、gap、unknown、detached 和 corrupt 都有明确呈现。
 
-视觉方向是安静的技术工作台：温暖浅色背景、墨色层级、低饱和青绿 accent、紧凑但不拥挤的排版，
-依靠间距、细边框和状态密度建立层次，而不是渐变堆叠或装饰性卡片墙。
+视觉方向是浅色默认的矿物蓝 + 石墨灰工具界面；深色使用独立 token 重配色而不是简单反色。
+面板依靠连续分栏与 1px 边界组织，圆角限制在小型交互控件，禁止副标题、英文 eyebrow、装饰性卡片墙、
+渐变、发光和重复状态胶囊。Theme 与 Explorer 展开/聚焦属于版本化非秘密 UI preference，按 Profile
+隔离保存；损坏数据回退到 light/default expansion，不影响 settings、identity 或 View store。
 
 ## Performance acceptance
 
 - Explorer 的代表性基准为 2,000 个 Node、10,000 个 Resource；构建 authority tree 并完成一次精确筛选必须在 750 ms 内完成。
-- 超过 50 行的树列表必须使用浏览器跳过离屏绘制的能力或等价虚拟化；不能因规模增大引入第二套资源模型。
+- 可见树必须扁平化并为重复查询建立 Map/Set 索引；超过 50 行使用浏览器跳过离屏绘制的能力或等价
+  虚拟化。当前 API 仍一次返回完整 topology 并按 Node 拉取 catalog，因此服务端 lazy-load/pagination 与
+  真正 DOM windowing 作为后续协议工作；首版不能因规模增大引入第二套资源模型或伪加载状态。
 - 基准由 `frontend/src/store.test.ts` 执行；阈值覆盖前端数据整形与筛选，不把网络目录加载时间混入渲染预算。

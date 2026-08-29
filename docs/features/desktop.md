@@ -46,16 +46,21 @@ backup 和 rename 提交。损坏或不兼容的 settings/View 不会被静默�
 
 ## 工作区
 
-顶部显示连接状态、手动重连、刷新、新建 Profile 和 Profile 切换。左侧通过 Tabs 切换：
+顶部只保留产品标识、资源刷新和主题动作，不重复展示连接状态或 Profile。左侧通过 Tabs 切换：
 
 - Resource Explorer：按 authoritative Node tree 展示 Node，并在 owner 下展示 Resources；支持搜索、
-  展开、选择、拖动手柄和“添加到工作区”按钮；
+  展开、选择、独立类型图标、拖动手柄和“添加到工作区”按钮；任意深度由 `parent_id` 数据驱动，
+  深层 Node 可聚焦为子树并通过路径面包屑返回完整树；
 - View Manager：创建、打开和删除当前 Profile 的本地 Views。
 
-右侧包含临时预览和 12 列响应式工作区。点击 Node 显示父节点控制关系、generation 和资源类型摘要；
-点击 Resource 选择 renderer。资源可通过拖放或按钮加入 View，widget 可左右移动、调整宽度、移除，
-View 可重命名并保存。View 只保存资源引用、renderer、布局和局部设置；资源暂不可用时保留布局并显示
-detached 状态。
+左下角固定显示当前 Profile 和连接状态，点击进入主区 Settings Tab。Settings 铺满可用主区并隐藏右侧
+Inspector，包含 Connection、Profile 和 Appearance 三类设置；Profile 切换、编辑、删除和连接动作继续经过
+Wails boundary。主区顶部使用可关闭的内容 Tab；Settings 是其中一种内容，不弹出第二个设置窗口。
+
+右侧 Inspector 承载临时 Node/Resource preview，不与 View widget 混在同一内容流。点击 Node 显示父节点
+控制关系、generation 和资源类型摘要；点击 Resource 选择 renderer。资源可通过拖放或按钮加入 12 列响应式
+View，widget 可左右移动、调整宽度、移除，View 可重命名并保存。View 只保存资源引用、renderer、布局和
+局部设置；资源暂不可用时保留布局并显示 detached 状态。
 
 ## Renderer
 
@@ -69,8 +74,14 @@ renderer 由 descriptor 的 type、capability、schema 和 presentation hint 驱
 - unknown：完整显示 descriptor，不隐藏未知 type。
 
 加载、空、离线、Forbidden、订阅失败、缺失资源和未知 renderer 都会明确呈现。拖放具有独立键盘
-激活手柄和添加按钮等价路径；Tabs、表单和动作有辅助技术标签。视觉使用 Radix/shadcn 风格 primitives、
-CSS tokens、系统浅深色与 reduced-motion，不维护第二套旧 UI。
+激活手柄和添加按钮等价路径；Tree 使用 roving focus，并实现 Arrow Up/Down/Left/Right、Home、End、
+Enter 与 Space 的 WAI-ARIA 键盘路径；Tabs、表单和动作有辅助技术标签。视觉使用 Radix/shadcn 风格
+primitives、CSS tokens、浅色默认、完整深色重配色与 reduced-motion，不维护第二套旧 UI。主题、树展开
+与聚焦状态作为版本化非秘密 UI preference 按 Profile 保存，损坏 preference 只回退到显式默认值。
+
+视觉采用矿物蓝与石墨灰，使用连续平面分栏、1px 边界、紧凑缩进和克制圆角。界面不使用宣传式副标题、
+英文 eyebrow、渐变、发光、装饰性卡片墙或重复状态胶囊。
+
 
 ## 安全边界
 
