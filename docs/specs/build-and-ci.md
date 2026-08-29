@@ -39,7 +39,7 @@ Some sandboxed Windows hosts virtualize `%TEMP%` into a path that exceeds the JD
 | Target | Tests | Build outputs |
 | --- | --- | --- |
 | core / Hub | full Go tests, vet, architecture and migration guards | root `out/bin` Go CLIs |
-| Desktop | Go service/MCP, Vitest, TypeScript/Vite | Wails Windows binary |
+| Desktop | Go host/binding, Vitest, TypeScript/Vite | Wails Windows binary |
 | Android | Go binding, JVM unit, Android lint | dual-ABI gomobile AAR and debug APK |
 | MetricsNode | Go core/platform, Vitest, JVM unit/lint | Wails binary, dual-ABI AAR, debug APK |
 | ClipboardNode | Go core/bridge, Flutter analyze/widget | Windows bundle + bridge, Web bundle, dual-ABI APK |

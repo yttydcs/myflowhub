@@ -14,7 +14,7 @@
 ## Products
 
 - [Hub](hub.md)：权威根节点、准入、树管理和系统资源。
-- [Desktop](desktop.md)：桌面宿主、MCP 和本地管理入口。
+- [Desktop](desktop.md)：桌面宿主与本地资源工作台。
 - [Android](android.md)：Android 节点、前台服务和 RFCOMM 接入。
 - [MetricsNode](metrics-node.md)：指标变量、通知与平台控制。
 - [ClipboardNode](clipboard-node.md)：跨平台剪贴板同步与历史。

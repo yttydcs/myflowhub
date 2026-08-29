@@ -116,7 +116,7 @@ function Build-Hub {
 }
 
 function Test-Desktop {
-    Invoke-Native $root 'go' @('test', './apps/desktop/...', './apps/desktop/mcp', '-count=1')
+    Invoke-Native $root 'go' @('test', './apps/desktop/...', '-count=1')
     if (-not (Require-Tool 'npm' 'Desktop frontend tests')) { return }
     $frontend = Join-Path $root 'apps/desktop/frontend'
     Invoke-Native $frontend 'npm' @('ci')

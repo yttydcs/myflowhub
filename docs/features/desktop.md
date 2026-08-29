@@ -10,11 +10,10 @@ Desktop 是 Node/Resource 平台的通用工作台，不是另一套 Hub 或业�
 
 - `apps/desktop`：Wails host、Profile/CredentialStore、View store 和 React 工作区；
 - `sdk/bindings/desktop`：字符串 Node ID、JSON operation、subscription polling 和 File session boundary；
-- `apps/desktop/mcp`：与 Desktop 使用同一 binding 的本地自动化入口；
-- `cmd/mfh-desktop`、`cmd/mfh-desktop-mcp`：无 UI identity 工具与 stdio MCP 入口。
+- `cmd/mfh-desktop`：无 UI identity 工具。
 
 ```text
-React workspace / MCP host
+React workspace
           │
           ▼
 Desktop binding: catalog · operate · subscribe · session
@@ -90,7 +89,6 @@ tokens、浅色默认、完整深色重配色与 reduced-motion，不维护第�
 
 - Wails boundary 再次校验 Node ID、Profile、JSON 大小、capability/schema 和 View layout；
 - Desktop 日志最多 500 条，不记录 operation payload、文件块、剪贴板正文、private key 或 permit；
-- MCP 单条 NDJSON 请求限制 1 MiB，写操作必须显式启用；
 - 权限、schema、session 与路径最终由 authority 和 Resource owner 校验；
 - File 只接受普通本地文件，服务端路径固定在配置根内，chunk 有大小与 SHA-256 校验。
 
@@ -99,7 +97,7 @@ tokens、浅色默认、完整深色重配色与 reduced-motion，不维护第�
 ```powershell
 $env:GOWORK='off'
 go test ./apps/desktop/... ./sdk/bindings/desktop
-go vet ./apps/desktop/... ./cmd/mfh-desktop ./cmd/mfh-desktop-mcp
+go vet ./apps/desktop/... ./cmd/mfh-desktop
 
 cd apps/desktop/frontend
 npm ci
@@ -117,4 +115,5 @@ wails build -clean
 - Vanilla TypeScript imperative UI 与固定产品页面；
 - fixed Variable/Stream/Command kind switch 与独立子协议；
 - settings version 1 的猜测迁移；
-- 明文持久 permit/private identity 和前端权限裁决。
+- 明文持久 permit/private identity 和前端权限裁决；
+- Desktop 内置 MCP/stdio 自动化入口；未来对外 Agent 接口作为独立产品重新设计。

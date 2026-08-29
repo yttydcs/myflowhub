@@ -45,7 +45,7 @@ cmd · apps · embedded
 
 - Hub：`cmd/mfh-hub`、`host/hub`、`feature/management`；
 - 管理 CLI：`cmd/mfh-admin`；
-- Desktop：`apps/desktop`、`cmd/mfh-desktop`、`cmd/mfh-desktop-mcp`；
+- Desktop：`apps/desktop`、`cmd/mfh-desktop`；
 - Android：`apps/android`；
 - Metrics：`apps/nodes/metrics/{windows,android}`；
 - Clipboard：`apps/nodes/clipboard`；
