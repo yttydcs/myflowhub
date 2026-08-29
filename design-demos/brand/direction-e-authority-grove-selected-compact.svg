@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64" fill="none">
+  <title>MyFlowHub Authority Grove open compact mark</title>
+  <g stroke="#3F6F8F" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M32 16v13M32 26L18 39M32 26l14 13M32 26v18"/>
+    <circle cx="32" cy="11" r="7" fill="#3F6F8F"/>
+    <circle cx="18" cy="42" r="7" fill="#F5F5F4"/>
+    <circle cx="46" cy="42" r="7" fill="#F5F5F4"/>
+    <circle cx="32" cy="50" r="6" fill="#F5F5F4"/>
+  </g>
+</svg>

@@ -12,6 +12,8 @@
 - 可被反复引用的验收标准
 
 ## Current Status
+- [brand-identity.md](brand-identity.md)
+  - Coupled Seam 品牌主标、canonical 入口、多尺寸资产与平台派生的长期要求。
 - [extensible-resource-platform.md](extensible-resource-platform.md)
   - Node-owned 可扩展 Resource type、capability、Topic、session 和全产品迁移的长期需求。
 - [desktop-resource-workspace.md](desktop-resource-workspace.md)

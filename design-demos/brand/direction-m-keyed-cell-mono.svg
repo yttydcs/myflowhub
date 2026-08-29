@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Keyed Cell monochrome symbol</title>
+  <defs><path id="keyed-cell-master-mono" d="M22 8h48c11 0 18 7 18 18v6H76l-8 8v16l8 8h12v6c0 11-7 18-18 18H22C12 88 8 81 8 70V26C8 15 12 8 22 8Z"/></defs>
+  <use href="#keyed-cell-master-mono" transform="translate(128 128) rotate(45) scale(2.05) translate(-48 -48)" fill="#202222"/>
+</svg>

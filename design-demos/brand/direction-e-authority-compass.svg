@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Authority Compass emblem</title>
+  <g stroke="#3F6F8F" stroke-width="14" stroke-linecap="round">
+    <path d="M128 78v100"/>
+    <path d="M78 128h100"/>
+  </g>
+  <circle cx="128" cy="48" r="30" fill="#3F6F8F"/>
+  <circle cx="128" cy="48" r="10" fill="#F5F5F4"/>
+  <circle cx="48" cy="128" r="30" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10"/>
+  <circle cx="208" cy="128" r="30" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10"/>
+  <circle cx="128" cy="208" r="30" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10"/>
+  <g fill="#86B2C9">
+    <circle cx="38" cy="124" r="7"/>
+    <circle cx="57" cy="135" r="7"/>
+    <circle cx="198" cy="135" r="7"/>
+    <circle cx="217" cy="124" r="7"/>
+    <circle cx="118" cy="208" r="7"/>
+    <circle cx="138" cy="208" r="7"/>
+  </g>
+</svg>

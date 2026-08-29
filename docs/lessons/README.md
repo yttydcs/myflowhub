@@ -21,6 +21,7 @@
 
 ## Platform And Toolchain
 
+- [brand-symbol-optical-size-variants.md](brand-symbol-optical-size-variants.md)：品牌主标在 16/20/24px 必须使用独立光学校正版，避免 tray/favicon 负空间闭合。
 - [windows-clean-checkout-eol-and-generated-drift.md](windows-clean-checkout-eol-and-generated-drift.md)：Windows `core.autocrlf`、gofmt 全仓误报、Wails/Vite byte drift、Gradle short TEMP 与 JDK 选择。
 - [android-runtime-and-mobile-bindings.md](android-runtime-and-mobile-bindings.md)：sticky restart、live session、FGS/RFCOMM、URI staging 与真实 AAR 证明。
 - [embedded-toolchain-and-board-preflight.md](embedded-toolchain-and-board-preflight.md)：ESP-IDF/MicroPython 工具链、真板、网络和打包预检。

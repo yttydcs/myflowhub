@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Flow Loom with orthogonal circuit traces</title>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M54 40v176M202 40v176" stroke="#3F6F8F" stroke-width="14"/>
+    <path d="M54 72h28v40h30M202 72h-28v40h-30" stroke="#86B2C9" stroke-width="12"/>
+    <path d="M54 128h47M202 128h-47" stroke="#3F6F8F" stroke-width="12"/>
+    <path d="M54 184h28v-40h30M202 184h-28v-40h-30" stroke="#86B2C9" stroke-width="12"/>
+  </g>
+  <g fill="#3F6F8F">
+    <circle cx="54" cy="40" r="12"/>
+    <rect x="190" y="30" width="24" height="20" rx="4"/>
+    <path d="M42 204h24l-12 20z"/>
+    <circle cx="202" cy="216" r="12"/>
+  </g>
+  <g fill="#86B2C9">
+    <circle cx="82" cy="112" r="5"/>
+    <circle cx="82" cy="144" r="5"/>
+    <circle cx="174" cy="112" r="5"/>
+    <circle cx="174" cy="144" r="5"/>
+  </g>
+  <path d="M128 101l27 27-27 27-27-27z" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10" stroke-linejoin="round"/>
+  <circle cx="128" cy="128" r="8" fill="#3F6F8F"/>
+</svg>

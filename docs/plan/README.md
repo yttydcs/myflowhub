@@ -24,6 +24,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Snapshots / Meta
+- [plan_archive_2026-08-29_brand-icon-coupled-seam.md](plan_archive_2026-08-29_brand-icon-coupled-seam.md)
 - [plan_archive_2026-08-29_desktop-first-admission-onboarding.md](plan_archive_2026-08-29_desktop-first-admission-onboarding.md)
 - [plan_archive_2026-08-29_desktop-codex-interface-production.md](plan_archive_2026-08-29_desktop-codex-interface-production.md)
 - [plan_archive_2026-08-29_extensible-resource-platform-desktop-workspace.md](plan_archive_2026-08-29_extensible-resource-platform-desktop-workspace.md)

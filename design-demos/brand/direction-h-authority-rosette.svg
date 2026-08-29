@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Authority Rosette emblem</title>
+  <defs>
+    <path id="authority-petal" d="M128 128c-29-20-29-52 0-86 29 34 29 66 0 86z"/>
+  </defs>
+  <g stroke="#3F6F8F" stroke-width="10" stroke-linejoin="round">
+    <use href="#authority-petal" transform="rotate(180 128 128)" fill="#F5F5F4"/>
+    <use href="#authority-petal" transform="rotate(-90 128 128)" fill="#F5F5F4"/>
+    <use href="#authority-petal" transform="rotate(90 128 128)" fill="#F5F5F4"/>
+    <use href="#authority-petal" fill="#3F6F8F"/>
+  </g>
+  <path d="M128 61l11 7v13l-11 7-11-7V68z" fill="#F5F5F4"/>
+  <g fill="#86B2C9">
+    <circle cx="78" cy="128" r="8"/>
+    <circle cx="178" cy="128" r="8"/>
+    <circle cx="128" cy="178" r="8"/>
+  </g>
+  <path d="M128 112l14 8v16l-14 8-14-8v-16z" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="7"/>
+</svg>

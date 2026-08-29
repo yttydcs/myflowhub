@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MyFlowHub Brand Symbol V5 · Production Refinement</title>
+  <!--
+    Assumptions:
+    1. V4 Coupled Seam 已由用户确认，V5 只做生产级几何与光学校正。
+    2. 当前字标仍为临时 Segoe UI，不在本轮固化为正式轮廓。
+    3. V4 和现用 myflowhub-icon.svg 保留；本页不触发产品实现。
+  -->
+  <style>
+    :root {
+      --mineral: #3f6f8f;
+      --mineral-light: #86b2c9;
+      --graphite: #202222;
+      --muted: #69706e;
+      --warm: #f5f5f2;
+      --paper: #fbfbf8;
+      --canvas: #e9ebe8;
+      --line: #d4d8d4;
+      --strong-line: #b9c0bc;
+      --night: #191a1a;
+      --good: #36785b;
+      --risk: #9b5d3d;
+      --rail: 236px;
+      color-scheme: light;
+      font-family: "Segoe UI", "Noto Sans SC", Arial, sans-serif;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--graphite); background: var(--canvas); font-size: 14px; line-height: 1.55; }
+    button, a { font: inherit; }
+    img { display: block; }
+    a { color: inherit; }
+    .rail {
+      position: fixed; inset: 0 auto 0 0; z-index: 5;
+      width: var(--rail); padding: 28px 20px 22px;
+      display: flex; flex-direction: column;
+      background: #f0f1ee; border-right: 1px solid var(--line);
+    }
+    .rail-brand { display: flex; align-items: center; gap: 9px; font-weight: 660; letter-spacing: -.02em; }
+    .rail-brand img { width: 26px; height: 26px; }
+    .rail-kicker { margin-top: 22px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .rail h1 { margin: 7px 0 0; font-size: 20px; line-height: 1.15; letter-spacing: -.04em; }
+    .rail nav { margin-top: 28px; }
+    .rail nav a { display: flex; align-items: center; min-height: 36px; padding: 0 9px; color: #555c59; border-radius: 6px; text-decoration: none; }
+    .rail nav a:hover { color: var(--graphite); background: #e4e7e3; }
+    .rail nav a::before { content: ""; width: 5px; height: 5px; margin-right: 10px; border-radius: 50%; background: var(--strong-line); }
+    .rail nav a:first-child::before { background: var(--mineral); }
+    .rail-foot { margin-top: auto; padding-top: 16px; color: var(--muted); border-top: 1px solid var(--line); font-size: 11px; }
+    .state { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: var(--graphite); font-size: 12px; }
+    .state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
+    main { width: min(1300px, calc(100% - var(--rail))); margin-left: var(--rail); padding: 32px clamp(22px, 4vw, 58px) 78px; }
+    .page { max-width: 1140px; margin: 0 auto; }
+    .topline { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; color: var(--muted); font-size: 11px; }
+    .topline b { color: var(--graphite); font-weight: 620; letter-spacing: .1em; text-transform: uppercase; }
+    section { scroll-margin-top: 24px; }
+    .hero {
+      min-height: 620px; display: grid; grid-template-columns: 1.22fr .78fr;
+      color: #f3f4f1; background: var(--night); border: 1px solid #292c2b; border-radius: 11px; overflow: hidden;
+    }
+    .hero-stage { position: relative; min-height: 620px; display: grid; place-items: center; border-right: 1px solid #303332; }
+    .hero-stage::before, .hero-stage::after { content: ""; position: absolute; background: #2d302f; }
+    .hero-stage::before { width: 1px; height: calc(100% - 64px); left: 50%; top: 32px; }
+    .hero-stage::after { height: 1px; width: calc(100% - 64px); left: 32px; top: 50%; }
+    .lockup { position: relative; z-index: 1; display: flex; align-items: center; gap: 28px; padding: 26px 28px; background: var(--night); }
+    .lockup img { width: clamp(122px, 13vw, 174px); height: clamp(122px, 13vw, 174px); }
+    .wordmark { font-size: clamp(42px, 4.8vw, 68px); font-weight: 640; letter-spacing: -.058em; line-height: .92; white-space: nowrap; transform: translateY(-1.5%); }
+    .hero-panel { padding: 40px 36px 32px; display: flex; flex-direction: column; }
+    .hero-panel .version { color: var(--mineral-light); font-size: 10px; font-weight: 720; letter-spacing: .14em; }
+    .hero-panel h2 { margin: 78px 0 18px; font-size: 29px; line-height: 1.15; letter-spacing: -.045em; }
+    .hero-panel p { margin: 0; color: #b7bdb9; font-size: 14px; }
+    .mode-switch { margin-top: auto; padding-top: 24px; display: flex; gap: 7px; border-top: 1px solid #343736; }
+    .mode-switch button { min-height: 32px; padding: 0 11px; color: #aeb4b1; background: transparent; border: 1px solid #424644; border-radius: 5px; cursor: pointer; }
+    .mode-switch button[aria-pressed="true"] { color: #fff; background: var(--mineral); border-color: var(--mineral); }
+    .hero[data-mode="light"] .hero-stage, .hero[data-mode="light"] .lockup { color: var(--graphite); background: var(--warm); }
+    .hero[data-mode="light"] .hero-stage { border-color: var(--line); }
+    .hero[data-mode="light"] .hero-stage::before, .hero[data-mode="light"] .hero-stage::after { background: #e0e2de; }
+    .hero[data-mode="light"] .wordmark { color: var(--graphite); }
+
+    .section-head { margin: 74px 0 22px; display: grid; grid-template-columns: 1fr 1fr; align-items: end; gap: 32px; }
+    .section-head h2 { margin: 0; font-size: clamp(27px, 3vw, 39px); line-height: 1.05; font-weight: 640; letter-spacing: -.048em; }
+    .section-head p { margin: 0; color: var(--muted); max-width: 520px; text-wrap: pretty; }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .compare-item { min-height: 466px; padding: 24px; display: flex; flex-direction: column; }
+    .compare-item:first-child { border-right: 1px solid var(--line); }
+    .compare-title { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .compare-title b { font-size: 12px; }
+    .tag { padding: 3px 8px; color: var(--muted); background: #eceeeb; border-radius: 4px; font-size: 10px; }
+    .tag.selected { color: #fff; background: var(--mineral); }
+    .compare-visual { flex: 1; display: grid; place-items: center; min-height: 310px; }
+    .compare-visual img { width: 232px; height: 232px; }
+    .delta { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
+    .delta div { padding: 14px 10px 2px 0; }
+    .delta b { display: block; color: var(--mineral); font-size: 16px; font-weight: 650; }
+    .delta span { color: var(--muted); font-size: 10px; }
+
+    .micro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .micro { padding: 18px; background: var(--paper); border: 1px solid var(--line); border-radius: 9px; }
+    .micro.selected { border-color: var(--mineral); box-shadow: inset 0 0 0 1px var(--mineral); }
+    .micro-head { display: flex; align-items: center; justify-content: space-between; }
+    .micro-head b { font-size: 12px; }
+    .micro-visual { min-height: 240px; display: grid; place-items: center; }
+    .micro-visual img, .micro-visual svg { width: 188px; height: 188px; }
+    .micro p { margin: 0; min-height: 58px; color: var(--muted); font-size: 11px; }
+    .reason { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--risk); font-size: 10px; }
+    .selected .reason { color: var(--good); }
+
+    .geometry { display: grid; grid-template-columns: 1.1fr .9fr; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .geometry-stage { min-height: 520px; position: relative; display: grid; place-items: center; background-color: #f0f1ee; background-image: linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px); background-size: 32px 32px; }
+    .safe-area { width: 344px; height: 344px; display: grid; place-items: center; border: 1px dashed var(--mineral); position: relative; }
+    .safe-area::before { content: "25% clear space"; position: absolute; left: -1px; top: -25px; color: var(--mineral); font-size: 10px; }
+    .safe-area img { width: 252px; height: 252px; }
+    .geometry-copy { padding: 38px; border-left: 1px solid var(--line); }
+    .geometry-copy h3 { margin: 0 0 22px; font-size: 20px; letter-spacing: -.035em; }
+    .geo-row { display: grid; grid-template-columns: 42px 1fr; gap: 12px; padding: 16px 0; border-top: 1px solid var(--line); }
+    .geo-row code { color: var(--mineral); font: 700 12px/1.4 "Cascadia Mono", monospace; }
+    .geo-row b { display: block; margin-bottom: 3px; font-size: 12px; }
+    .geo-row p { margin: 0; color: var(--muted); font-size: 11px; }
+
+    .production { display: grid; grid-template-columns: .9fr 1.1fr; gap: 12px; }
+    .card { min-width: 0; padding: 25px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
+    .card h3 { margin: 0; font-size: 16px; letter-spacing: -.025em; }
+    .card > p { margin: 6px 0 24px; color: var(--muted); font-size: 11px; }
+    .surface-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .surface { aspect-ratio: 1; display: grid; place-items: center; border: 1px solid var(--line); }
+    .surface img { width: 68%; height: 68%; }
+    .surface.warm { background: var(--warm); }
+    .surface.night { background: var(--night); border-color: #2d302f; }
+    .surface.gray { background: #dfe2df; }
+    .surface-labels { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 8px; color: var(--muted); font-size: 9px; text-align: center; }
+    .app-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 28px; }
+    .app { color: var(--muted); font-size: 9px; text-align: center; }
+    .app-icon { width: 82px; height: 82px; margin: 0 auto 8px; overflow: hidden; background: var(--warm); border: 1px solid var(--line); box-shadow: 0 7px 15px rgba(25,26,26,.08); }
+    .app-icon img { width: 100%; height: 100%; }
+    .app-icon.soft { border-radius: 12px; }
+    .app-icon.round { border-radius: 23px; }
+    .app-icon.circle { border-radius: 50%; }
+
+    .size-bench { min-height: 414px; padding: 28px; display: flex; flex-direction: column; background: #dfe2df; border-radius: 8px; }
+    .size-row { flex: 1; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; padding: 36px 4px 44px; }
+    .size { min-width: 48px; text-align: center; }
+    .size-box { height: 140px; display: flex; align-items: flex-end; justify-content: center; }
+    .size b { display: block; margin-top: 9px; font-size: 10px; }
+    .size small { color: var(--muted); font-size: 9px; }
+    .tray { min-height: 48px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; color: #e8eae7; background: #242626; border-radius: 6px; font-size: 10px; }
+    .tray span { display: flex; align-items: center; gap: 9px; }
+    .tray img { width: 16px; height: 16px; }
+
+    .assets { display: grid; grid-template-columns: repeat(2,1fr); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--paper); }
+    .asset { min-width: 0; padding: 18px 20px; display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 13px; border-bottom: 1px solid var(--line); }
+    .asset:nth-child(odd) { border-right: 1px solid var(--line); }
+    .asset:nth-last-child(-n+2) { border-bottom: 0; }
+    .asset img { width: 32px; height: 32px; }
+    .asset b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+    .asset span { display: block; color: var(--muted); font-size: 9px; }
+    .asset code { color: var(--mineral); font: 700 9px/1 "Cascadia Mono",monospace; }
+
+    .review { display: grid; grid-template-columns: .68fr 1.32fr; color: #f1f3ef; background: var(--night); border-radius: 10px; overflow: hidden; }
+    .review-score { padding: 36px; border-right: 1px solid #343736; }
+    .review-score strong { display: block; font-size: 78px; line-height: .9; letter-spacing: -.08em; font-weight: 620; }
+    .review-score strong small { color: #7e8582; font-size: 18px; letter-spacing: 0; }
+    .review-score p { margin: 20px 0 0; color: #aeb4b1; font-size: 11px; }
+    .review-score .decision { margin-top: 64px; padding-top: 16px; border-top: 1px solid #343736; }
+    .review-score .decision b { color: var(--mineral-light); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
+    .review-score .decision span { display: block; margin-top: 7px; font-size: 14px; }
+    .metrics { padding: 22px 32px; }
+    .metric { min-height: 52px; display: grid; grid-template-columns: 105px 1fr 34px; gap: 14px; align-items: center; border-bottom: 1px solid #303332; }
+    .metric:last-child { border-bottom: 0; }
+    .metric b { font-size: 11px; font-weight: 550; }
+    .bar { height: 4px; background: #383c3a; }
+    .bar i { display: block; height: 100%; background: var(--mineral-light); }
+    .metric span { color: #aeb4b1; font-size: 10px; text-align: right; }
+    footer { margin-top: 48px; display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
+
+    @media (max-width: 980px) {
+      :root { --rail: 0px; }
+      .rail { display: none; }
+      main { width: 100%; margin-left: 0; }
+      .hero { grid-template-columns: 1fr; }
+      .hero-stage { min-height: 460px; border-right: 0; border-bottom: 1px solid #303332; }
+      .hero-panel { min-height: 340px; }
+      .hero-panel h2 { margin-top: 42px; }
+      .geometry { grid-template-columns: 1fr; }
+      .geometry-copy { border-left: 0; border-top: 1px solid var(--line); }
+      .production { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      main { padding: 18px 13px 56px; }
+      .topline span { display: none; }
+      .section-head, .compare, .micro-grid, .review, .assets { grid-template-columns: 1fr; }
+      .section-head { align-items: start; }
+      .compare-item:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
+      .lockup { flex-direction: column; gap: 16px; }
+      .wordmark { font-size: 40px; }
+      .safe-area { width: 272px; height: 272px; }
+      .safe-area img { width: 200px; height: 200px; }
+      .geometry-copy { padding: 28px 22px; }
+      .card { padding: 21px 17px; }
+      .app-icon { width: 72px; height: 72px; }
+      .size-bench { padding: 20px 12px; }
+      .size-row { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); align-items: end; padding: 24px 0 30px; }
+      .size { min-width: 0; }
+      .size-box { height: 104px; }
+      .asset:nth-child(odd) { border-right: 0; }
+      .asset:nth-last-child(2) { border-bottom: 1px solid var(--line); }
+      .review-score { border-right: 0; border-bottom: 1px solid #343736; }
+      .metric { grid-template-columns: 86px 1fr 30px; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="rail" aria-label="V5 精修板导航">
+    <div class="rail-brand"><img src="myflowhub-symbol-v5-compact.svg" alt="" />MyFlowHub</div>
+    <div class="rail-kicker">Production refinement / V5</div>
+    <h1>Coupled Seam<br />光学精修</h1>
+    <nav>
+      <a href="#final">最终主标</a>
+      <a href="#delta">V4 → V5</a>
+      <a href="#variants">微调取舍</a>
+      <a href="#geometry">几何规范</a>
+      <a href="#production">生产适配</a>
+      <a href="#assets">资产清单</a>
+      <a href="#review">最终评审</a>
+    </nav>
+    <div class="rail-foot"><div class="state">方向已确认</div>V4 完整保留<br />正式资产尚未替换</div>
+  </aside>
+
+  <main>
+    <div class="page">
+      <div class="topline"><b>MyFlowHub / Identity laboratory</b><span>Selected direction · optical refinement</span></div>
+
+      <section class="hero" id="final" data-mode="dark">
+        <div class="hero-stage">
+          <div class="lockup"><img id="hero-symbol" src="myflowhub-symbol-v5.svg" alt="MyFlowHub Coupled Seam V5" /><div class="wordmark">MyFlowHub</div></div>
+        </div>
+        <div class="hero-panel">
+          <div class="version">V5 / CALIBRATED SEAM</div>
+          <h2>不换方向，<br />只让它更准确</h2>
+          <p>保留 V4 的第一印象，延长键口并加宽接缝。两个节点更稳定地分开，单色与小尺寸不再依赖颜色解释关系。</p>
+          <div class="mode-switch" aria-label="标志预览背景">
+            <button type="button" data-preview="color" aria-pressed="true">彩色</button>
+            <button type="button" data-preview="mono" aria-pressed="false">单色</button>
+            <button type="button" data-preview="inverse" aria-pressed="false">反白</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="delta">
+        <div class="section-head"><h2>V4 到 V5，<br />只动三个数值</h2><p>获选方向已经成立，精修不应重新设计。这里所有变化都服务于接缝稳定性，不改变轮廓、角度和双色关系。</p></div>
+        <div class="compare">
+          <article class="compare-item">
+            <div class="compare-title"><b>V4 · Selected baseline</b><span class="tag">基线保留</span></div>
+            <div class="compare-visual"><img src="direction-n-coupled-seam.svg" alt="V4 基线" /></div>
+            <div class="delta"><div><b>12</b><span>键口高度</span></div><div><b>8</b><span>键口入口</span></div><div><b>7</b><span>全尺寸接缝</span></div></div>
+          </article>
+          <article class="compare-item">
+            <div class="compare-title"><b>V5 · Calibrated</b><span class="tag selected">当前精修</span></div>
+            <div class="compare-visual"><img src="myflowhub-symbol-v5.svg" alt="V5 精修版本" /></div>
+            <div class="delta"><div><b>13</b><span>键口高度</span></div><div><b>9</b><span>键口入口</span></div><div><b>9</b><span>全尺寸接缝</span></div></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="variants">
+        <div class="section-head"><h2>精修不是加元素，<br />而是知道何时停下</h2><p>三组微调在同色、同尺寸、无文字干扰下比较。B 与 C 的语义更强，却都让造型更像已有符号，因此主动淘汰。</p></div>
+        <div class="micro-grid">
+          <article class="micro selected">
+            <div class="micro-head"><b>A · Calibrated Seam</b><span class="tag selected">采用</span></div>
+            <div class="micro-visual"><img src="myflowhub-symbol-v5.svg" alt="A 微调" /></div>
+            <p>接缝加宽，键口延长一个单位。保持安静的轮廓，同时改善 24px 单色表现。</p>
+            <div class="reason">保留第一印象 · 提升生产稳定性</div>
+          </article>
+          <article class="micro">
+            <div class="micro-head"><b>B · Directional Key</b><span class="tag">淘汰</span></div>
+            <div class="micro-visual">
+              <svg viewBox="0 0 256 256" fill="none" aria-label="B 不对称键口版本"><defs><path id="bcell" d="M22 8h48c11 0 18 7 18 18v6H77l-9 9v15h20v14c0 11-7 18-18 18H22C12 88 8 81 8 70V26C8 15 12 8 22 8Z"/><mask id="bgap"><rect width="256" height="256" fill="white"/><use href="#bcell" transform="translate(160 160) rotate(225) scale(1.2) translate(-48 -48)" fill="black" stroke="black" stroke-width="9"/></mask></defs><use href="#bcell" transform="translate(96 96) rotate(45) scale(1.2) translate(-48 -48)" fill="#3F6F8F" mask="url(#bgap)"/><use href="#bcell" transform="translate(160 160) rotate(225) scale(1.2) translate(-48 -48)" fill="#86B2C9"/></svg>
+            </div>
+            <p>L 形键口直接表达“父方向”，但中央形成锯齿与拼图联想，过度解释。</p>
+            <div class="reason">破坏稳重感 · 接缝成为装饰</div>
+          </article>
+          <article class="micro">
+            <div class="micro-head"><b>C · Tight Coupling</b><span class="tag">淘汰</span></div>
+            <div class="micro-visual">
+              <svg viewBox="0 0 256 256" fill="none" aria-label="C 紧密耦合版本"><defs><path id="ccell" d="M22 8h48c11 0 18 7 18 18v6H76l-8 8v16l8 8h12v6c0 11-7 18-18 18H22C12 88 8 81 8 70V26C8 15 12 8 22 8Z"/><mask id="cgap"><rect width="256" height="256" fill="white"/><use href="#ccell" transform="translate(156 156) rotate(225) scale(1.22) translate(-48 -48)" fill="black" stroke="black" stroke-width="9"/></mask></defs><use href="#ccell" transform="translate(100 100) rotate(45) scale(1.22) translate(-48 -48)" fill="#3F6F8F" mask="url(#cgap)"/><use href="#ccell" transform="translate(156 156) rotate(225) scale(1.22) translate(-48 -48)" fill="#86B2C9"/></svg>
+            </div>
+            <p>中心距离缩短后更像一个整体，但接缝退化成普通圆孔，失去“缝”的方向。</p>
+            <div class="reason">原创性下降 · 容易变成链环</div>
+          </article>
+        </div>
+      </section>
+
+      <section id="geometry">
+        <div class="section-head"><h2>外部柔和，<br />内部精确</h2><p>所有视觉重量由两条同源路径与一条负空间接缝完成。没有阴影、描边或第三个元素替造型补救。</p></div>
+        <div class="geometry">
+          <div class="geometry-stage"><div class="safe-area"><img src="myflowhub-symbol-v5.svg" alt="V5 安全区示意" /></div></div>
+          <div class="geometry-copy">
+            <h3>256 × 256 master</h3>
+            <div class="geo-row"><code>96</code><div><b>第一单元中心</b><p>深色主体位于左上，建立稳重的视觉入口。</p></div></div>
+            <div class="geo-row"><code>160</code><div><b>第二单元中心</b><p>浅色主体位于右下，等比例、等旋转跨度。</p></div></div>
+            <div class="geo-row"><code>9</code><div><b>完整接缝</b><p>32px 以上使用，避免中央负空间显得像第三个主体。</p></div></div>
+            <div class="geo-row"><code>24</code><div><b>Compact 接缝</b><p>20–31px 主动扩宽，不进行机械缩放。</p></div></div>
+            <div class="geo-row"><code>30</code><div><b>Tray 接缝</b><p>16px 单色专用，优先保证两主体分离。</p></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="production">
+        <div class="section-head"><h2>一种识别，<br />三套生产图形</h2><p>品牌主标、应用图标和托盘 glyph 共享同一母形，但各自针对背景、系统遮罩与实际像素做校正。</p></div>
+        <div class="production">
+          <article class="card">
+            <h3>背景与系统遮罩</h3><p>完整方形源文件不预制圆角；平台负责最终 mask 和 shadow。</p>
+            <div class="surface-row">
+              <div class="surface warm"><img src="myflowhub-symbol-v5.svg" alt="彩色" /></div>
+              <div class="surface gray"><img src="myflowhub-symbol-v5-mono.svg" alt="单色" /></div>
+              <div class="surface night"><img src="myflowhub-symbol-v5-inverse.svg" alt="反白" /></div>
+            </div>
+            <div class="surface-labels"><span>Color</span><span>Mono</span><span>Inverse</span></div>
+            <div class="app-row">
+              <div class="app"><div class="app-icon soft"><img src="myflowhub-app-icon-source-v5.svg" alt="Desktop 遮罩" /></div>Desktop</div>
+              <div class="app"><div class="app-icon round"><img src="myflowhub-app-icon-source-v5.svg" alt="Mobile 遮罩" /></div>Mobile</div>
+              <div class="app"><div class="app-icon circle"><img src="myflowhub-app-icon-source-v5.svg" alt="Circle 遮罩" /></div>Circle</div>
+            </div>
+          </article>
+          <article class="card">
+            <h3>实际像素工作台</h3><p>下列图形按浏览器真实 CSS 像素渲染；16px 与 20px 已切换专用版本。</p>
+            <div class="size-bench">
+              <div class="size-row">
+                <div class="size"><div class="size-box"><img src="myflowhub-tray-v5.svg" width="16" height="16" alt="16px" /></div><b>16</b><small>tray</small></div>
+                <div class="size"><div class="size-box"><img src="myflowhub-symbol-v5-compact-mono.svg" width="20" height="20" alt="20px" /></div><b>20</b><small>compact</small></div>
+                <div class="size"><div class="size-box"><img src="myflowhub-symbol-v5-compact.svg" width="24" height="24" alt="24px" /></div><b>24</b><small>compact</small></div>
+                <div class="size"><div class="size-box"><img src="myflowhub-symbol-v5.svg" width="32" height="32" alt="32px" /></div><b>32</b><small>full</small></div>
+                <div class="size"><div class="size-box"><img src="myflowhub-symbol-v5.svg" width="48" height="48" alt="48px" /></div><b>48</b><small>full</small></div>
+                <div class="size"><div class="size-box"><img src="myflowhub-symbol-v5.svg" width="88" height="88" alt="88px" /></div><b>88</b><small>brand</small></div>
+              </div>
+              <div class="tray"><span><img src="myflowhub-tray-v5-inverse.svg" alt="" />MyFlowHub connected</span><span>⌃　12:48</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="assets">
+        <div class="section-head"><h2>生产资产清单</h2><p>文件按使用场景命名，避免产品接入时用错大尺寸、compact 或 inverse 版本。</p></div>
+        <div class="assets">
+          <div class="asset"><img src="myflowhub-symbol-v5.svg" alt="" /><div><b>myflowhub-symbol-v5.svg</b><span>32px+ · brand color</span></div><code>FULL</code></div>
+          <div class="asset"><img src="myflowhub-symbol-v5-mono.svg" alt="" /><div><b>myflowhub-symbol-v5-mono.svg</b><span>32px+ · one color</span></div><code>MONO</code></div>
+          <div class="asset"><img src="myflowhub-symbol-v5-inverse.svg" alt="" style="background:#202222" /><div><b>myflowhub-symbol-v5-inverse.svg</b><span>32px+ · dark surface</span></div><code>WHITE</code></div>
+          <div class="asset"><img src="myflowhub-symbol-v5-compact.svg" alt="" /><div><b>myflowhub-symbol-v5-compact.svg</b><span>20–31px · color</span></div><code>SMALL</code></div>
+          <div class="asset"><img src="myflowhub-symbol-v5-compact-mono.svg" alt="" /><div><b>myflowhub-symbol-v5-compact-mono.svg</b><span>20–31px · one color</span></div><code>SMALL</code></div>
+          <div class="asset"><img src="myflowhub-tray-v5.svg" alt="" /><div><b>myflowhub-tray-v5.svg</b><span>16px · system tray</span></div><code>16PX</code></div>
+          <div class="asset"><img src="myflowhub-tray-v5-inverse.svg" alt="" style="background:#202222" /><div><b>myflowhub-tray-v5-inverse.svg</b><span>16px · inverse tray</span></div><code>16PX</code></div>
+          <div class="asset"><img src="myflowhub-app-icon-source-v5.svg" alt="" /><div><b>myflowhub-app-icon-source-v5.svg</b><span>1024px · unmasked source</span></div><code>APP</code></div>
+        </div>
+      </section>
+
+      <section id="review">
+        <div class="section-head"><h2>精修已经提高完成度，<br />但没有伪装成终点</h2><p>几何与生产适配已可进入产品接入准备；正式发布前仍建议完成商标近似检索，并决定临时系统字标是否需要定制。</p></div>
+        <div class="review">
+          <div class="review-score"><strong>8.4<small>/10</small></strong><p>相较 V4 的 7.8，提升主要来自 craft 与小尺寸 functionality；核心概念没有改变。</p><div class="decision"><b>Decision</b><span>标志方向冻结<br />进入接入前准备</span></div></div>
+          <div class="metrics">
+            <div class="metric"><b>Concept</b><div class="bar"><i style="width:88%"></i></div><span>8.8</span></div>
+            <div class="metric"><b>Philosophy</b><div class="bar"><i style="width:86%"></i></div><span>8.6</span></div>
+            <div class="metric"><b>Hierarchy</b><div class="bar"><i style="width:86%"></i></div><span>8.6</span></div>
+            <div class="metric"><b>Craft</b><div class="bar"><i style="width:84%"></i></div><span>8.4</span></div>
+            <div class="metric"><b>Functionality</b><div class="bar"><i style="width:88%"></i></div><span>8.8</span></div>
+            <div class="metric"><b>Originality</b><div class="bar"><i style="width:70%"></i></div><span>7.0</span></div>
+          </div>
+        </div>
+      </section>
+
+      <footer><span>MyFlowHub Coupled Seam · V5</span><span>2026-08-29 · production refinement study</span></footer>
+    </div>
+  </main>
+
+  <script>
+    const hero = document.querySelector('.hero');
+    const heroSymbol = document.querySelector('#hero-symbol');
+    const buttons = document.querySelectorAll('[data-preview]');
+    const files = {
+      color: 'myflowhub-symbol-v5.svg',
+      mono: 'myflowhub-symbol-v5-mono.svg',
+      inverse: 'myflowhub-symbol-v5-inverse.svg'
+    };
+    buttons.forEach(button => button.addEventListener('click', () => {
+      const mode = button.dataset.preview;
+      buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      heroSymbol.src = files[mode];
+      hero.dataset.mode = mode === 'inverse' ? 'dark' : 'light';
+    }));
+  </script>
+</body>
+</html>

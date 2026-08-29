@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Flow Monogram monochrome emblem</title>
+  <defs>
+    <mask id="flow-monogram-cutout" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256">
+      <rect width="256" height="256" fill="white"/>
+      <path d="M128 128l17 10v20l-17 10-17-10v-20z" fill="black"/>
+    </mask>
+  </defs>
+  <path d="M33 224V38c0-7 5-12 12-12h30l53 58 53-58h30c7 0 12 5 12 12v186h-48V103l-47 51-47-51v121H33Z" fill="#202222" mask="url(#flow-monogram-cutout)"/>
+  <path d="M81 139h28l19 21 19-21h28v36h-42l-5 6-5-6H81z" fill="#202222" mask="url(#flow-monogram-cutout)"/>
+</svg>

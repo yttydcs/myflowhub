@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64" fill="none">
+  <title>MyFlowHub Node Vault compact mark</title>
+  <path d="M26 10H15c-5 0-8 3-8 8v34c0 5 3 8 8 8h34c5 0 8-3 8-8V18c0-5-3-8-8-8H38" stroke="#3F6F8F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 3l7 4v8l-7 4-7-4V7z" fill="#3F6F8F"/>
+  <path d="M32 8l3 2v3l-3 2-3-2v-3z" fill="#F5F5F4"/>
+  <g stroke="#86B2C9" stroke-width="3" stroke-linecap="round">
+    <path d="M32 19v13M32 27L23 37M32 27l9 10M32 27v18"/>
+  </g>
+  <g fill="#F5F5F4" stroke="#3F6F8F" stroke-width="3">
+    <circle cx="21" cy="41" r="6"/>
+    <circle cx="43" cy="41" r="6"/>
+    <circle cx="32" cy="52" r="6"/>
+  </g>
+</svg>

@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MyFlowHub Brand Emblem Directions</title>
+  <!--
+    Assumptions:
+    1. 这轮只探索品牌图标，不替换生产资产，不同步到 Desktop 实现任务。
+    2. MyFlowHub 的独特性来自：唯一权威节点树、节点拥有可扩展资源、订阅优先、链路可插拔。
+    3. 完整徽记服务于项目主页、启动页和大尺寸应用图标；16–32px 使用独立简化图形，不机械缩放。
+    Reasoning:
+    上一轮把架构概念直接画成网络图，语义准确但像图标库。本轮改用“器物 / 生态 / 地形”三种视觉母题，
+    让结构先形成可记忆的轮廓，再由细节承载产品语义。
+  -->
+  <style>
+    :root {
+      font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+      color: #202222;
+      background: #eceeed;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 1080px; }
+    header {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      background: #f8f8f7;
+      border-bottom: 1px solid #d7dad8;
+    }
+    .title { display: flex; align-items: baseline; gap: 12px; }
+    .title strong { font-size: 17px; letter-spacing: -0.01em; }
+    .title span, header > span { color: #747977; font-size: 12px; }
+    main {
+      height: calc(100vh - 72px);
+      min-height: 720px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      background: #d7dad8;
+    }
+    article {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: 320px auto 1fr;
+      background: #f8f8f7;
+    }
+    article.selected { box-shadow: inset 0 3px 0 #3f6f8f; }
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid #dfe1e0;
+    }
+    .hero > div { display: grid; place-items: center; position: relative; overflow: hidden; }
+    .hero .light { background: #f8f8f7; }
+    .hero .dark { background: #1b1d1d; }
+    .hero .dark::before {
+      content: "DARK";
+      position: absolute;
+      top: 15px;
+      right: 16px;
+      color: #747a78;
+      font-size: 9px;
+      letter-spacing: .14em;
+    }
+    .hero img { width: 172px; height: 172px; }
+    .hero .dark img { filter: brightness(1.22) saturate(.86); }
+    .copy { padding: 21px 24px 18px; border-bottom: 1px solid #dfe1e0; }
+    .eyebrow { margin-bottom: 8px; color: #3f6f8f; font-size: 10px; font-weight: 650; letter-spacing: .12em; }
+    h2 { margin: 0 0 9px; font-size: 20px; letter-spacing: -.02em; }
+    p { margin: 0; min-height: 63px; color: #666c69; font-size: 13px; line-height: 1.65; text-wrap: pretty; }
+    .concepts { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+    .concepts span { padding: 3px 7px; border: 1px solid #cfd4d2; border-radius: 999px; color: #505654; font-size: 10px; }
+    .samples { display: grid; grid-template-rows: auto 1fr; padding: 20px 24px 24px; }
+    .sample-title { color: #8a8f8d; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+    .sample-grid { display: grid; grid-template-columns: 118px 1fr; align-items: center; gap: 22px; }
+    .app-tile {
+      width: 112px;
+      height: 112px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #d8dcda;
+      border-radius: 25px;
+      background: #fff;
+      box-shadow: 0 12px 28px rgba(30, 42, 39, .08);
+    }
+    .app-tile img { width: 72px; height: 72px; }
+    .size-rack { display: flex; align-items: flex-end; gap: 16px; min-width: 0; }
+    .size {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      color: #969b99;
+      font-size: 9px;
+    }
+    .size img { display: block; }
+    .s16 img { width: 16px; height: 16px; }
+    .s24 img { width: 24px; height: 24px; }
+    .s32 img { width: 32px; height: 32px; }
+    .s48 img { width: 48px; height: 48px; }
+    .note {
+      position: absolute;
+      left: 16px;
+      bottom: 14px;
+      color: #929795;
+      font-size: 9px;
+      letter-spacing: .08em;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title"><strong>MyFlowHub 品牌徽记探索</strong><span>第二轮 · 结构优先</span></div>
+    <span>当前选择：E · 权威林</span>
+  </header>
+  <main>
+    <article>
+      <section class="hero">
+        <div class="light"><img src="direction-d-flow-loom-circuit-traces.svg" alt="流织机正交电路走线完整徽记"><span class="note">MASTER MARK · CIRCUIT TRACES</span></div>
+        <div class="dark"><img src="direction-d-flow-loom-circuit-traces.svg" alt="流织机正交电路走线深色预览"></div>
+      </section>
+      <section class="copy">
+        <div class="eyebrow">D · FLOW LOOM</div>
+        <h2>流织机 · 电路走线</h2>
+        <p>中央部分恢复第一版的菱形方块与圆点，只把两侧连接改为水平线和直角折线。转折处保留焊盘节点，形成克制的 PCB 走线感。</p>
+        <div class="concepts"><span>原始中心</span><span>正交走线</span><span>资源总线</span></div>
+      </section>
+      <section class="samples">
+        <span class="sample-title">独立小尺寸重绘</span>
+        <div class="sample-grid">
+          <div class="app-tile"><img src="direction-d-flow-loom-circuit-traces-compact.svg" alt="流织机电路走线应用图标"></div>
+          <div class="size-rack">
+            <span class="size s16"><img src="direction-d-flow-loom-circuit-traces-compact.svg" alt=""><span>16</span></span>
+            <span class="size s24"><img src="direction-d-flow-loom-circuit-traces-compact.svg" alt=""><span>24</span></span>
+            <span class="size s32"><img src="direction-d-flow-loom-circuit-traces-compact.svg" alt=""><span>32</span></span>
+            <span class="size s48"><img src="direction-d-flow-loom-circuit-traces-compact.svg" alt=""><span>48</span></span>
+          </div>
+        </div>
+      </section>
+    </article>
+    <article class="selected">
+      <section class="hero">
+        <div class="light"><img src="direction-e-authority-compass-branch.svg" alt="权威罗盘分支链路完整徽记"><span class="note">SELECTED · BRANCHING AUTHORITY LINKS</span></div>
+        <div class="dark"><img src="direction-e-authority-compass-branch.svg" alt="权威罗盘分支链路深色预览"></div>
+      </section>
+      <section class="copy">
+        <div class="eyebrow">E · AUTHORITY GROVE · SELECTED</div>
+        <h2>权威罗盘 · 分支链路</h2>
+        <p>四个标准圆沿上下左右均匀分布。中央采用连续垂直主干，左右资源节点通过两条无弧度的斜线向上汇入同一交点；顶部六边形严格居中。</p>
+        <div class="concepts"><span>父控子</span><span>原始分支</span><span>资源归属</span></div>
+      </section>
+      <section class="samples">
+        <span class="sample-title">独立小尺寸重绘</span>
+        <div class="sample-grid">
+          <div class="app-tile"><img src="direction-e-authority-compass-branch-compact.svg" alt="权威罗盘分支链路应用图标"></div>
+          <div class="size-rack">
+            <span class="size s16"><img src="direction-e-authority-compass-branch-compact.svg" alt=""><span>16</span></span>
+            <span class="size s24"><img src="direction-e-authority-compass-branch-compact.svg" alt=""><span>24</span></span>
+            <span class="size s32"><img src="direction-e-authority-compass-branch-compact.svg" alt=""><span>32</span></span>
+            <span class="size s48"><img src="direction-e-authority-compass-branch-compact.svg" alt=""><span>48</span></span>
+          </div>
+        </div>
+      </section>
+    </article>
+    <article>
+      <section class="hero">
+        <div class="light"><img src="direction-f-resource-cartography.svg" alt="资源地形完整徽记"><span class="note">MASTER MARK</span></div>
+        <div class="dark"><img src="direction-f-resource-cartography.svg" alt="资源地形深色预览"></div>
+      </section>
+      <section class="copy">
+        <div class="eyebrow">F · RESOURCE CARTOGRAPHY</div>
+        <h2>资源地形</h2>
+        <p>多层开放轨迹像一张不断生长的资源地图：中央是稳定寻址的资源，外层是订阅路径与可替换链路。它更抽象，也最接近品牌符号。</p>
+        <div class="concepts"><span>稳定寻址</span><span>可插拔链路</span><span>资源目录</span></div>
+      </section>
+      <section class="samples">
+        <span class="sample-title">独立小尺寸重绘</span>
+        <div class="sample-grid">
+          <div class="app-tile"><img src="direction-f-resource-cartography-compact.svg" alt="资源地形应用图标"></div>
+          <div class="size-rack">
+            <span class="size s16"><img src="direction-f-resource-cartography-compact.svg" alt=""><span>16</span></span>
+            <span class="size s24"><img src="direction-f-resource-cartography-compact.svg" alt=""><span>24</span></span>
+            <span class="size s32"><img src="direction-f-resource-cartography-compact.svg" alt=""><span>32</span></span>
+            <span class="size s48"><img src="direction-f-resource-cartography-compact.svg" alt=""><span>48</span></span>
+          </div>
+        </div>
+      </section>
+    </article>
+  </main>
+</body>
+</html>

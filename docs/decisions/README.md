@@ -4,6 +4,7 @@
 
 ## Current Decisions
 
+- [采用 Coupled Seam 作为 MyFlowHub canonical 品牌身份](2026-08-29_coupled-seam-brand-identity.md)
 - [可扩展 Resource type system 与 Desktop workspace](2026-08-28_extensible-resource-type-system-and-desktop-workspace.md)
 - [单迁移分支、分门禁实施与最终一次切换](2026-08-27_gated-full-migration-cutover.md)
 - [使用单一 Canonical Monorepo](2026-08-27_single-canonical-monorepo.md)

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Node Vault emblem</title>
+  <path d="M105 38H62c-15 0-24 9-24 24v132c0 15 9 24 24 24h132c15 0 24-9 24-24V62c0-15-9-24-24-24h-43" stroke="#3F6F8F" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M128 12l23 13v26l-23 13-23-13V25z" fill="#3F6F8F"/>
+  <path d="M128 27l10 6v11l-10 6-10-6V33z" fill="#F5F5F4"/>
+  <g stroke="#86B2C9" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128 64v40"/>
+    <path d="M128 104l-25 28"/>
+    <path d="M128 104l25 28"/>
+    <path d="M128 104v64"/>
+  </g>
+  <g fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10">
+    <circle cx="86" cy="150" r="23"/>
+    <circle cx="170" cy="150" r="23"/>
+    <circle cx="128" cy="191" r="23"/>
+  </g>
+  <g fill="#86B2C9">
+    <circle cx="86" cy="150" r="7"/>
+    <circle cx="170" cy="150" r="7"/>
+    <circle cx="128" cy="191" r="7"/>
+  </g>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Resource Aperture emblem</title>
+  <defs>
+    <path id="resource-blade" d="M128 34c42 0 76 30 88 70l-47 8c-7-18-22-30-41-32z"/>
+  </defs>
+  <use href="#resource-blade" fill="#3F6F8F"/>
+  <use href="#resource-blade" transform="rotate(120 128 128)" fill="#86B2C9"/>
+  <use href="#resource-blade" transform="rotate(240 128 128)" fill="#3F6F8F"/>
+  <path d="M128 101l23 14v26l-23 14-23-14v-26z" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="9" stroke-linejoin="round"/>
+  <circle cx="128" cy="128" r="8" fill="#86B2C9"/>
+</svg>

@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MyFlowHub 品牌图标研究 V3</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+      color: #202222;
+      background: #e9eae9;
+      font-synthesis: none;
+      --paper: #f7f7f6;
+      --panel: #fff;
+      --wash: #f0f1f0;
+      --line: #d9dcda;
+      --line-strong: #c5c9c7;
+      --text: #202222;
+      --muted: #666c69;
+      --faint: #8a908d;
+      --blue: #3f6f8f;
+      --blue-light: #86b2c9;
+      --blue-soft: #e7eff4;
+      --night: #191a1a;
+      --success: #34785a;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; min-width: 1120px; background: #e9eae9; }
+    button, a { font: inherit; }
+    a { color: inherit; }
+    .topbar {
+      position: sticky; top: 0; z-index: 20; height: 58px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px; border-bottom: 1px solid var(--line); background: rgba(247,247,246,.96); backdrop-filter: blur(12px);
+    }
+    .brandline { display: flex; align-items: center; gap: 12px; }
+    .brandline strong { font-size: 15px; letter-spacing: -.015em; }
+    .brandline span, .top-meta { color: var(--muted); font-size: 12px; }
+    .nav { display: flex; align-items: center; gap: 3px; }
+    .nav a { padding: 7px 10px; border-radius: 4px; color: var(--muted); font-size: 12px; text-decoration: none; }
+    .nav a:hover { color: var(--text); background: #eceeed; }
+    main { width: 100%; max-width: 1540px; margin: 0 auto; border-inline: 1px solid var(--line); background: var(--paper); }
+    section { border-bottom: 1px solid var(--line); }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 36px; padding: 38px 42px 24px; }
+    .section-head h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
+    .section-head p { max-width: 650px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; text-wrap: pretty; }
+    .hero { min-height: 640px; display: grid; grid-template-columns: minmax(0,1.15fr) minmax(420px,.85fr); background: var(--panel); }
+    .hero-art { min-height: 640px; display: grid; grid-template-columns: 1fr 1fr; border-right: 1px solid var(--line); }
+    .hero-stage { position: relative; display: grid; place-items: center; overflow: hidden; }
+    .hero-stage.light { background: #f5f5f4; }
+    .hero-stage.dark { background: var(--night); }
+    .hero-stage:first-child { border-right: 1px solid var(--line); }
+    .hero-stage img { width: min(69%, 286px); aspect-ratio: 1; }
+    .stage-label { position: absolute; left: 18px; top: 17px; color: var(--faint); font-size: 10px; letter-spacing: .12em; }
+    .dark .stage-label { color: #777d7a; }
+    .hero-copy { display: flex; flex-direction: column; padding: 48px 48px 38px; }
+    .index { color: var(--blue); font-size: 11px; font-weight: 680; letter-spacing: .13em; }
+    h1 { margin: 16px 0 14px; font-size: clamp(38px, 4vw, 58px); line-height: 1; letter-spacing: -.055em; }
+    .lead { margin: 0; color: #4f5552; font-size: 16px; line-height: 1.9; text-wrap: pretty; }
+    .thesis { margin: 32px 0 0; padding: 19px 0; border-block: 1px solid var(--line); font-size: 20px; line-height: 1.55; letter-spacing: -.02em; }
+    .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; margin-top: 28px; }
+    .fact dt { margin-bottom: 6px; color: var(--faint); font-size: 10px; letter-spacing: .09em; }
+    .fact dd { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .recommendation { margin-top: auto; display: flex; align-items: center; justify-content: space-between; padding-top: 28px; }
+    .recommendation span { color: var(--muted); font-size: 12px; }
+    .recommendation strong { color: var(--blue); font-size: 12px; }
+    .candidate-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); border-top: 1px solid var(--line); }
+    .candidate { min-width: 0; background: var(--panel); }
+    .candidate + .candidate { border-left: 1px solid var(--line); }
+    .candidate-preview { height: 320px; display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); }
+    .candidate-preview > div { position: relative; display: grid; place-items: center; }
+    .candidate-preview > div + div { border-left: 1px solid var(--line); background: var(--night); }
+    .candidate-preview img { width: 166px; height: 166px; }
+    .candidate-copy { min-height: 255px; padding: 24px 26px 25px; }
+    .candidate-title { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; }
+    .candidate-title h3 { margin: 0; font-size: 20px; letter-spacing: -.025em; }
+    .candidate-title span { color: var(--faint); font-size: 10px; letter-spacing: .11em; }
+    .candidate-copy p { margin: 14px 0 18px; color: var(--muted); font-size: 13px; line-height: 1.72; }
+    .reading { display: grid; grid-template-columns: auto 1fr; gap: 8px 13px; padding-top: 15px; border-top: 1px solid var(--line); font-size: 11px; line-height: 1.55; }
+    .reading dt { color: var(--faint); }
+    .reading dd { margin: 0; color: #505653; }
+    .asset-links { display: flex; gap: 13px; margin-top: 18px; }
+    .asset-links a { color: var(--blue); font-size: 11px; text-underline-offset: 3px; }
+    .system-grid { display: grid; grid-template-columns: 1.25fr .75fr; border-top: 1px solid var(--line); }
+    .anatomy { min-height: 540px; display: grid; grid-template-columns: minmax(420px,.9fr) 1.1fr; background: var(--panel); border-right: 1px solid var(--line); }
+    .anatomy-figure { position: relative; display: grid; place-items: center; min-height: 540px; background: #f1f2f1; border-right: 1px solid var(--line); }
+    .anatomy-figure > img { width: 300px; height: 300px; }
+    .callout { position: absolute; display: flex; align-items: center; gap: 7px; color: #59605c; font-size: 11px; }
+    .callout b { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: var(--blue); font-size: 10px; }
+    .callout::after { content: ""; width: 45px; height: 1px; background: #9da3a0; }
+    .callout.one { top: 61px; right: 16px; flex-direction: row-reverse; }
+    .callout.two { left: 19px; top: 246px; }
+    .callout.three { right: 19px; bottom: 87px; flex-direction: row-reverse; }
+    .anatomy-copy { padding: 42px 38px; }
+    .anatomy-copy h3 { margin: 0 0 26px; font-size: 22px; letter-spacing: -.03em; }
+    .anatomy-list { margin: 0; padding: 0; list-style: none; }
+    .anatomy-list li { display: grid; grid-template-columns: 28px 1fr; gap: 13px; padding: 16px 0; border-top: 1px solid var(--line); }
+    .anatomy-list b { width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--blue); font-size: 10px; }
+    .anatomy-list strong { display: block; margin-bottom: 5px; font-size: 13px; }
+    .anatomy-list span { color: var(--muted); font-size: 12px; line-height: 1.65; }
+    .geometry { padding: 42px 38px; background: var(--panel); }
+    .geometry h3 { margin: 0 0 26px; font-size: 22px; letter-spacing: -.03em; }
+    .metric { display: grid; grid-template-columns: 80px 1fr; gap: 18px; padding: 15px 0; border-top: 1px solid var(--line); }
+    .metric strong { font-variant-numeric: tabular-nums; color: var(--blue); font-size: 18px; }
+    .metric span { color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .contexts { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); border-top: 1px solid var(--line); background: var(--line); gap: 1px; }
+    .context { min-height: 330px; display: flex; flex-direction: column; padding: 25px; background: var(--panel); }
+    .context h3 { margin: 0; font-size: 13px; }
+    .context p { margin: 7px 0 22px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .app-tile { width: 144px; height: 144px; display: grid; place-items: center; margin: auto; border: 1px solid #d9dcda; border-radius: 31px; background: #f8f8f7; box-shadow: 0 18px 34px rgba(27,34,31,.09); }
+    .app-tile img { width: 88px; height: 88px; }
+    .sidebar-mock { width: 100%; margin: auto 0; border: 1px solid var(--line); background: #f0f1f0; }
+    .sidebar-head { height: 42px; display: flex; align-items: center; gap: 9px; padding: 0 11px; border-bottom: 1px solid var(--line); background: #fff; font-size: 12px; font-weight: 650; }
+    .sidebar-head img { width: 19px; height: 19px; }
+    .sidebar-body { height: 116px; padding: 12px 9px; }
+    .tree-line { height: 28px; display: flex; align-items: center; gap: 8px; padding: 0 7px; color: #4f5552; font-size: 11px; }
+    .tree-line.active { border-left: 2px solid var(--blue); background: #e7ecef; color: var(--text); }
+    .tree-dot { width: 10px; height: 10px; border: 1.5px solid var(--blue); border-radius: 2px; }
+    .tray-mock { margin: auto; display: grid; justify-items: center; gap: 17px; }
+    .tray-bar { width: 242px; height: 42px; display: flex; align-items: center; justify-content: flex-end; gap: 17px; padding: 0 16px; border: 1px solid #333535; background: #202121; }
+    .tray-bar img { width: 20px; height: 20px; }
+    .tray-dot { width: 4px; height: 4px; border-radius: 50%; background: #929795; box-shadow: 10px 0 #929795,20px 0 #929795; }
+    .tray-label { color: var(--faint); font-size: 10px; }
+    .size-rack { margin: auto; display: flex; align-items: end; gap: 18px; }
+    .size-item { display: grid; justify-items: center; gap: 10px; color: var(--faint); font-size: 9px; }
+    .size-item img { display: block; }
+    .s16 img { width: 16px; height: 16px; }.s24 img { width: 24px; height: 24px; }.s32 img { width: 32px; height: 32px; }.s48 img { width: 48px; height: 48px; }.s64 img { width: 64px; height: 64px; }
+    .color-grid { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }
+    .palette { padding: 30px 34px; border-right: 1px solid var(--line); background: var(--panel); }
+    .palette h3, .lockups h3 { margin: 0 0 22px; font-size: 16px; }
+    .swatches { display: grid; grid-template-columns: repeat(5,1fr); border: 1px solid var(--line); }
+    .swatch { min-height: 122px; padding: 75px 12px 12px; font-size: 10px; }
+    .swatch b { display: block; margin-bottom: 3px; }
+    .swatch span { opacity: .72; font-variant-numeric: tabular-nums; }
+    .swatch.graphite { color: #fff; background: #202222; }.swatch.mineral { color: #fff; background: #3f6f8f; }.swatch.lightblue { background: #86b2c9; }.swatch.warm { background: #f5f5f4; }.swatch.night { color: #fff; background: #191a1a; }
+    .lockups { padding: 30px 34px; background: var(--panel); }
+    .lockup-row { height: 70px; display: flex; align-items: center; gap: 13px; padding: 0 17px; border-top: 1px solid var(--line); }
+    .lockup-row:last-child { border-bottom: 1px solid var(--line); }
+    .lockup-row img { width: 34px; height: 34px; }
+    .lockup-row strong { font-size: 18px; letter-spacing: -.035em; }
+    .lockup-row.compact strong { font-size: 14px; }
+    .lockup-row.mono img { filter: grayscale(1) contrast(1.3); }
+    .decision-wrap { padding: 0 42px 42px; }
+    table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); background: var(--panel); font-size: 12px; }
+    th, td { padding: 15px 16px; border-bottom: 1px solid var(--line); text-align: left; }
+    th + th, td + td { border-left: 1px solid var(--line); }
+    th { color: var(--muted); background: #f1f2f1; font-weight: 600; }
+    td:first-child { font-weight: 650; }
+    .score { color: var(--blue); letter-spacing: .08em; }
+    .risk { color: #875a1c; }
+    .critique { display: grid; grid-template-columns: repeat(3,1fr); border-top: 1px solid var(--line); background: var(--line); gap: 1px; }
+    .critique article { min-height: 228px; padding: 27px 30px; background: var(--panel); }
+    .critique h3 { margin: 0 0 15px; font-size: 15px; }
+    .critique p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.75; }
+    .critique .verdict { margin-top: 17px; color: var(--text); font-weight: 620; }
+    footer { min-height: 92px; display: flex; align-items: center; justify-content: space-between; padding: 0 42px; background: #f0f1f0; color: var(--muted); font-size: 11px; }
+    footer strong { color: var(--text); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brandline"><strong>MyFlowHub 品牌图标研究</strong><span>V3 · 语义与使用系统</span></div>
+    <nav class="nav" aria-label="页面目录"><a href="#directions">方向</a><a href="#system">系统</a><a href="#usage">使用场景</a><a href="#decision">评估</a></nav>
+    <span class="top-meta">选型研究，不替换当前图标</span>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-art">
+        <div class="hero-stage light"><span class="stage-label">LIGHT / MASTER</span><img src="direction-j-node-key.svg" alt="节点键浅色母版"></div>
+        <div class="hero-stage dark"><span class="stage-label">DARK / MASTER</span><img src="direction-j-node-key.svg" alt="节点键深色母版"></div>
+      </div>
+      <div class="hero-copy">
+        <span class="index">DESIGN THESIS</span>
+        <h1 id="hero-title">可信节点<br>承载持续资源</h1>
+        <p class="lead">本轮不再把树、链路、资源类型逐个画成小图标，而是把它们压缩成一个可识别的整体：稳定的 Node 轮廓、唯一的上游入口、在内部展开的多资源通道。</p>
+        <p class="thesis">“一个可信边界，组织多种资源，并让它们持续可达。”</p>
+        <dl class="facts">
+          <div class="fact"><dt>品牌主体</dt><dd>Node，而不是 Hub 服务器、传输协议或某一种资源。</dd></div>
+          <div class="fact"><dt>核心动作</dt><dd>Subscription 的持续可观察性，以贯通的负空间表达。</dd></div>
+          <div class="fact"><dt>视觉取舍</dt><dd>不使用网络圆点、无线波纹、外圈、光圈和装饰电路。</dd></div>
+          <div class="fact"><dt>当前推荐</dt><dd>J 的单体识别最强，且能够自然压缩到 16 px。</dd></div>
+        </dl>
+        <div class="recommendation"><span>当前仅形成设计倾向，等待选型</span><strong>推荐继续深化 J</strong></div>
+      </div>
+    </section>
+
+    <section id="directions">
+      <div class="section-head"><h2>三个完整方向</h2><p>三个方案分别强调架构、名称和产品体验，不共享旧方案的外圈与节点连线。每个方向都提供母版、紧凑重绘和单色版本。</p></div>
+      <div class="candidate-grid">
+        <article class="candidate">
+          <div class="candidate-preview"><div><span class="stage-label">MASTER</span><img src="direction-j-node-key.svg" alt="J 节点键"></div><div><span class="stage-label">DARK</span><img src="direction-j-node-key.svg" alt="J 节点键深色"></div></div>
+          <div class="candidate-copy"><div class="candidate-title"><h3>J · 节点键</h3><span>NODE KEY</span></div><p>一枚软六边形定义 Node，贯通顶部的负空间是唯一 authority 入口，三向切口直接穿过主体边界，只表示“可扩展的复数资源”。中心浅蓝核心把分流收束成一个 Hub。</p><dl class="reading"><dt>优势</dt><dd>整体剪影强、语义完整、小尺寸稳定。</dd><dt>风险</dt><dd>六边形仍带少量技术徽章联想，需要控制应用磁贴的外层形状。</dd></dl><div class="asset-links"><a href="direction-j-node-key.svg">母版 SVG</a><a href="direction-j-node-key-compact.svg">Compact</a><a href="direction-j-node-key-mono.svg">单色</a></div></div>
+        </article>
+        <article class="candidate">
+          <div class="candidate-preview"><div><span class="stage-label">MASTER</span><img src="direction-k-flow-monogram.svg" alt="K 流枢字标"></div><div><span class="stage-label">DARK</span><img src="direction-k-flow-monogram.svg" alt="K 流枢字标深色"></div></div>
+          <div class="candidate-copy"><div class="candidate-title"><h3>K · 流枢字标</h3><span>FLOW MONOGRAM</span></div><p>以 MyFlowHub 的 M 为主轮廓，两侧立柱与中部横带同时暗示 H；中央六边形是 Hub。它不直接复述架构，而是优先建立名称与图形之间的记忆。</p><dl class="reading"><dt>优势</dt><dd>字母归属明确，横向品牌组合自然。</dd><dt>风险</dt><dd>宽重笔画偏企业字标，独立图标的项目语义较弱。</dd></dl><div class="asset-links"><a href="direction-k-flow-monogram.svg">母版 SVG</a><a href="direction-k-flow-monogram-compact.svg">Compact</a><a href="direction-k-flow-monogram-mono.svg">单色</a></div></div>
+        </article>
+        <article class="candidate">
+          <div class="candidate-preview"><div><span class="stage-label">MASTER</span><img src="direction-l-resource-register.svg" alt="L 资源谱"></div><div><span class="stage-label">DARK</span><img src="direction-l-resource-register.svg" alt="L 资源谱深色"></div></div>
+          <div class="candidate-copy"><div class="candidate-title"><h3>L · 资源谱</h3><span>RESOURCE REGISTER</span></div><p>单一节点载体内部形成三行连续资源通道，右上切角表示可插拔描述符。节奏来自目录和工作区，不强调“网络”，更接近安静的专业工具。</p><dl class="reading"><dt>优势</dt><dd>与资源浏览器、Catalog 和工作台关联直接。</dd><dt>风险</dt><dd>容易被理解为文档或列表，需要保留左侧贯通的节点脊线。</dd></dl><div class="asset-links"><a href="direction-l-resource-register.svg">母版 SVG</a><a href="direction-l-resource-register-compact.svg">Compact</a><a href="direction-l-resource-register-mono.svg">单色</a></div></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="system">
+      <div class="section-head"><h2>推荐方向的结构</h2><p>J 使用“一个轮廓 + 贯穿负空间 + 一个核心”三层语法。没有任何元素代表固定的 Variable、Stream 或 Topic，因此资源类型扩展不会让标志失效。</p></div>
+      <div class="system-grid">
+        <div class="anatomy">
+          <div class="anatomy-figure"><img src="direction-j-node-key.svg" alt="节点键结构拆解"><span class="callout one"><b>1</b>权威入口</span><span class="callout two"><b>2</b>节点边界</span><span class="callout three"><b>3</b>资源通道</span></div>
+          <div class="anatomy-copy"><h3>只保留稳定语义</h3><ol class="anatomy-list"><li><b>1</b><div><strong>唯一的上游入口</strong><span>入口与主体相切，不额外悬挂父节点圆点；方向明确，但不把图标画成一棵微型树。</span></div></li><li><b>2</b><div><strong>连续的 Node 轮廓</strong><span>主体是唯一视觉质量中心，代表身份、authority、路由与资源归属共享同一个运行期事实。</span></div></li><li><b>3</b><div><strong>复数资源，而非三种固定类型</strong><span>三个出口是一种视觉节奏，只表达 Node 内部存在一组可发现资源，避免类型系统变化破坏品牌。</span></div></li></ol></div>
+        </div>
+        <aside class="geometry"><h3>几何约束</h3><div class="metric"><strong>256</strong><span>母版坐标网格；主体边界落在 21–229，四周保留稳定安全区。</span></div><div class="metric"><strong>17</strong><span>母版负空间通道宽度；圆端只用于内切口，不扩散到主体外轮廓。</span></div><div class="metric"><strong>64</strong><span>Compact 独立重绘网格；移除三枚资源端仓，只保留贯通分流。</span></div><div class="metric"><strong>1+1</strong><span>一个主色与一个辅助色；单色版不依赖辅助色维持识别。</span></div><div class="metric"><strong>0</strong><span>无描边、无渐变、无滤镜、无透明叠色，适合离线桌面与嵌入式资产链。</span></div></aside>
+      </div>
+    </section>
+
+    <section id="usage">
+      <div class="section-head"><h2>真实尺寸与产品场景</h2><p>图标必须首先服务于桌面产品，而不是只在 512 px 展板中成立。这里使用推荐方向的 Compact 版本检查应用磁贴、侧栏、托盘与 16–64 px 阶梯。</p></div>
+      <div class="contexts">
+        <article class="context"><h3>应用磁贴</h3><p>外层磁贴已经提供圆角，标志本身不再套第二个圆形边框。</p><div class="app-tile"><img src="direction-j-node-key-compact.svg" alt="MyFlowHub 应用磁贴"></div></article>
+        <article class="context"><h3>桌面侧栏</h3><p>19 px 下与产品名并置，不抢占树浏览器的视觉层级。</p><div class="sidebar-mock"><div class="sidebar-head"><img src="direction-j-node-key-compact.svg" alt=""><span>MyFlowHub</span></div><div class="sidebar-body"><div class="tree-line active"><i class="tree-dot"></i>本机工作台</div><div class="tree-line"><i class="tree-dot"></i>书房节点</div><div class="tree-line"><i class="tree-dot"></i>移动设备</div></div></div></article>
+        <article class="context"><h3>系统托盘</h3><p>深色任务栏中仍保持一个整体，不使用绿色改写品牌主体。</p><div class="tray-mock"><div class="tray-bar"><img src="direction-j-node-key-compact.svg" alt="MyFlowHub 托盘图标"><span class="tray-dot"></span></div><span class="tray-label">20 px · 深色系统栏</span></div></article>
+        <article class="context"><h3>尺寸阶梯</h3><p>16/24 使用 compact，48 px 起可以切回母版。</p><div class="size-rack"><span class="size-item s16"><img src="direction-j-node-key-compact.svg" alt=""><span>16</span></span><span class="size-item s24"><img src="direction-j-node-key-compact.svg" alt=""><span>24</span></span><span class="size-item s32"><img src="direction-j-node-key-compact.svg" alt=""><span>32</span></span><span class="size-item s48"><img src="direction-j-node-key.svg" alt=""><span>48</span></span><span class="size-item s64"><img src="direction-j-node-key.svg" alt=""><span>64</span></span></div></article>
+      </div>
+      <div class="color-grid">
+        <div class="palette"><h3>品牌色与界面 token 同源</h3><div class="swatches"><div class="swatch graphite"><b>Graphite</b><span>#202222</span></div><div class="swatch mineral"><b>Mineral</b><span>#3F6F8F</span></div><div class="swatch lightblue"><b>Mineral Light</b><span>#86B2C9</span></div><div class="swatch warm"><b>Warm White</b><span>#F5F5F4</span></div><div class="swatch night"><b>Night</b><span>#191A1A</span></div></div></div>
+        <div class="lockups"><h3>基础组合关系</h3><div class="lockup-row"><img src="direction-j-node-key-compact.svg" alt=""><strong>MyFlowHub</strong></div><div class="lockup-row compact"><img src="direction-j-node-key-compact.svg" alt=""><strong>MyFlowHub Desktop</strong></div><div class="lockup-row mono"><img src="direction-j-node-key-mono.svg" alt=""><strong>MyFlowHub</strong></div></div>
+      </div>
+    </section>
+
+    <section id="decision">
+      <div class="section-head"><h2>选型评估</h2><p>分数不是审美投票，而是根据当前架构语义、产品界面和生产尺寸约束进行的阶段性判断。视觉联想风险保留在表中，不用文案掩盖。</p></div>
+      <div class="decision-wrap"><table><thead><tr><th>方向</th><th>项目独特性</th><th>架构语义</th><th>16 px</th><th>单色</th><th>主要风险</th></tr></thead><tbody><tr><td>J · 节点键</td><td class="score">●●●●○</td><td class="score">●●●●●</td><td class="score">●●●●○</td><td class="score">●●●●●</td><td class="risk">技术徽章 / 路由分叉</td></tr><tr><td>K · 流枢字标</td><td class="score">●●●○○</td><td class="score">●●●○○</td><td class="score">●●●●●</td><td class="score">●●●●●</td><td class="risk">企业 M 字标</td></tr><tr><td>L · 资源谱</td><td class="score">●●●●○</td><td class="score">●●●●○</td><td class="score">●●●●○</td><td class="score">●●●●●</td><td class="risk">文档 / 列表</td></tr></tbody></table></div>
+      <div class="critique">
+        <article><h3>J 的自我审查</h3><p>首轮渲染中的三个圆头资源端点会把它读成网络/电路图，现已改为切穿主体的连续负空间，整体性明显提升。不过软六边形仍属于技术品牌常用母形，下一轮应继续微调上下比例，形成更专有的剪影。</p><p class="verdict">结论：进入深化，当前推荐。</p></article>
+        <article><h3>K 的自我审查</h3><p>字母记忆比架构图更耐久，Compact 也最清晰。但 M 的份量过大，中央 Hub 容易变成装饰孔；如果用户希望品牌更像一个成熟软件公司而不是协议项目，它才有优势。</p><p class="verdict">结论：保留为品牌化备选。</p></article>
+        <article><h3>L 的自我审查</h3><p>资源目录的语义安静且贴合 Desktop，节拍也比旧树状节点更统一；右上切角和三行结构却会把第一联想拉向文件。若深化，应去掉“纸张折角”，保留贯通脊线与错位资源槽。</p><p class="verdict">结论：概念可取，轮廓需重做。</p></article>
+      </div>
+    </section>
+
+    <footer><span><strong>状态：</strong> 独立品牌研究，未发送到实现任务，未替换生产资产。</span><span>依据：authoritative Node tree · extensible Resource · first-class Subscription</span></footer>
+  </main>
+</body>
+</html>

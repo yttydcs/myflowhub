@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Flow Loom emblem</title>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M54 40v176M202 40v176" stroke="#3F6F8F" stroke-width="14"/>
+    <path d="M54 68c42 0 39 45 74 45s32-45 74-45" stroke="#86B2C9" stroke-width="14"/>
+    <path d="M54 128c31 0 43 20 74 20s43-20 74-20" stroke="#3F6F8F" stroke-width="14"/>
+    <path d="M54 188c42 0 39-45 74-45s32 45 74 45" stroke="#86B2C9" stroke-width="14"/>
+  </g>
+  <g fill="#3F6F8F">
+    <circle cx="54" cy="40" r="12"/>
+    <rect x="190" y="30" width="24" height="20" rx="4"/>
+    <path d="M42 204h24l-12 20z"/>
+    <circle cx="202" cy="216" r="12"/>
+  </g>
+  <path d="M128 101l27 27-27 27-27-27z" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10" stroke-linejoin="round"/>
+  <circle cx="128" cy="128" r="8" fill="#3F6F8F"/>
+</svg>

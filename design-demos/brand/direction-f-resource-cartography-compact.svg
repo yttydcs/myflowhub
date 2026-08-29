@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64" fill="none">
+  <title>MyFlowHub Resource Cartography compact mark</title>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 24C17 10 35 6 47 16" stroke="#3F6F8F" stroke-width="5"/>
+    <path d="M10 34C8 18 22 10 35 11c16 1 24 14 19 29" stroke="#86B2C9" stroke-width="5"/>
+    <path d="M16 46c-8-12-1-28 12-32 14-4 29 5 30 20 1 13-9 24-22 26" stroke="#3F6F8F" stroke-width="5"/>
+  </g>
+  <rect x="23" y="24" width="19" height="19" rx="7" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="5"/>
+  <path d="M29 33h7" stroke="#86B2C9" stroke-width="4" stroke-linecap="round"/>
+</svg>

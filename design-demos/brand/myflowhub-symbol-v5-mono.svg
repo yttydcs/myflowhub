@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Coupled Seam monochrome symbol V5</title>
+  <defs>
+    <path id="cell" d="M22 8h48c11 0 18 7 18 18v7H77l-9 9v13l9 9h11v6c0 11-7 18-18 18H22C12 88 8 81 8 70V26C8 15 12 8 22 8Z"/>
+    <mask id="seam" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256">
+      <rect width="256" height="256" fill="white"/>
+      <use href="#cell" transform="translate(160 160) rotate(225) scale(1.2) translate(-48 -48)" fill="black" stroke="black" stroke-width="9" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <use href="#cell" transform="translate(96 96) rotate(45) scale(1.2) translate(-48 -48)" fill="#202222" mask="url(#seam)"/>
+  <use href="#cell" transform="translate(160 160) rotate(225) scale(1.2) translate(-48 -48)" fill="#202222"/>
+</svg>

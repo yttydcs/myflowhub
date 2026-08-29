@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Subscription Loop</title>
+  <path d="M128 38c49 0 90 40 90 90s-41 90-90 90-90-40-90-90c0-30 15-57 38-73" stroke="#3F6F8F" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="128" cy="128" r="28" fill="#3F6F8F"/>
+  <g fill="#3F6F8F">
+    <rect x="110" y="22" width="36" height="36" rx="12"/>
+    <rect x="198" y="110" width="36" height="36" rx="12"/>
+    <rect x="22" y="110" width="36" height="36" rx="12"/>
+  </g>
+  <g fill="#F5F5F4">
+    <circle cx="128" cy="40" r="6"/>
+    <circle cx="216" cy="128" r="6"/>
+    <circle cx="40" cy="128" r="6"/>
+  </g>
+</svg>

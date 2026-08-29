@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64" fill="none">
+  <title>MyFlowHub Flow Loom compact mark</title>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 12v40M52 12v40" stroke="#3F6F8F" stroke-width="6"/>
+    <path d="M12 20c11 0 10 10 20 10s9-10 20-10" stroke="#86B2C9" stroke-width="6"/>
+    <path d="M12 44c11 0 10-10 20-10s9 10 20 10" stroke="#3F6F8F" stroke-width="6"/>
+  </g>
+  <path d="M32 25l7 7-7 7-7-7z" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="4" stroke-linejoin="round"/>
+</svg>

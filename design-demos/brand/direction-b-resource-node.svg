@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Resource Node</title>
+  <rect x="34" y="34" width="188" height="188" rx="46" stroke="#3F6F8F" stroke-width="20"/>
+  <g fill="#3F6F8F">
+    <circle cx="82" cy="84" r="11"/>
+    <rect x="70" y="117" width="24" height="24" rx="7"/>
+    <rect x="68" y="166" width="28" height="14" rx="7"/>
+  </g>
+  <g stroke="#3F6F8F" stroke-width="16" stroke-linecap="round">
+    <path d="M116 84h58"/>
+    <path d="M116 129h36c16 0 24 8 24 24v29"/>
+    <path d="M116 173h20"/>
+  </g>
+</svg>

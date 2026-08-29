@@ -12,6 +12,8 @@
 - 受保护 generated 文档的维护说明
 
 ## Current Specs
+- [brand-identity-assets.md](brand-identity-assets.md)
+  - Coupled Seam canonical 几何、色彩、full/compact/tray 资产路由与平台派生边界
 - [resource-platform-v2.md](resource-platform-v2.md)
   - 可扩展 Resource descriptor/capability、通用操作、Topic 与目录的当前契约
 - [resource-sessions-v2.md](resource-sessions-v2.md)

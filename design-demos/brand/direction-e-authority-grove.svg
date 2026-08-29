@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Authority Grove emblem</title>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128 54v40c0 21-18 24-33 36M128 94c0 21 18 24 33 36M128 94v82" stroke="#3F6F8F" stroke-width="14"/>
+    <path d="M52 105c-14 22-15 51-2 74 16 29 49 43 78 43 30 0 62-14 78-43 13-23 12-52-2-74" stroke="#86B2C9" stroke-width="12"/>
+  </g>
+  <path d="M128 24c18 0 30 12 30 28s-12 29-30 29-30-13-30-29 12-28 30-28z" fill="#3F6F8F"/>
+  <path d="M128 37l13 9v14l-13 8-13-8V46z" fill="#F5F5F4"/>
+  <path d="M72 114c19 0 34 15 34 34s-15 38-34 38-34-19-34-38 15-34 34-34z" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10"/>
+  <path d="M184 114c19 0 34 15 34 34s-15 38-34 38-34-19-34-38 15-34 34-34z" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10"/>
+  <path d="M128 168c18 0 31 12 31 27s-13 29-31 29-31-14-31-29 13-27 31-27z" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10"/>
+  <g fill="#86B2C9">
+    <circle cx="62" cy="145" r="8"/><circle cx="82" cy="157" r="8"/>
+    <circle cx="174" cy="157" r="8"/><circle cx="194" cy="145" r="8"/>
+    <circle cx="118" cy="196" r="7"/><circle cx="138" cy="196" r="7"/>
+  </g>
+</svg>

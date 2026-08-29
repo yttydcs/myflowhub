@@ -4,6 +4,7 @@
 
 ## Current Records
 
+- [MyFlowHub 品牌图标 Coupled Seam 定稿](2026-08-29_brand-icon-coupled-seam.md)
 - [Desktop 首次准入引导](2026-08-29_desktop-first-admission-onboarding.md)
 - [Desktop Codex 风格界面生产化](2026-08-29_desktop-codex-interface-production.md)
 - [可扩展资源平台与 Desktop 工作区重构](2026-08-28_extensible-resources-and-desktop-workspace-redesign.md)

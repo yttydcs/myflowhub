@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64" fill="none">
+  <title>MyFlowHub Resource Register compact mark</title>
+  <defs>
+    <mask id="compact-register-cutouts" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="white"/>
+      <path d="M20 20h31M13 32h30M20 44h31" stroke="black" stroke-width="6" stroke-linecap="round"/>
+      <path d="M13 20v24" stroke="black" stroke-width="4" stroke-linecap="round"/>
+    </mask>
+  </defs>
+  <path d="M12 5h33l14 14v33c0 4-3 7-7 7H12c-4 0-7-3-7-7V12c0-4 3-7 7-7Z" fill="#3F6F8F" mask="url(#compact-register-cutouts)"/>
+  <path d="M45 5v8c0 3 2 6 6 6h8z" fill="#86B2C9"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Resource Cartography emblem</title>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M44 94c7-38 42-65 83-65 46 0 82 25 88 65" stroke="#3F6F8F" stroke-width="12"/>
+    <path d="M38 126c0-48 39-82 89-82 53 0 91 36 91 84 0 42-30 72-70 82" stroke="#86B2C9" stroke-width="12"/>
+    <path d="M55 159c-9-37 13-78 51-91 41-14 84 8 94 47 10 36-11 72-46 86-33 13-73 4-92-25" stroke="#3F6F8F" stroke-width="12"/>
+    <path d="M78 150c-6-27 11-54 38-62 29-8 59 10 65 38 6 27-11 55-39 62-27 7-56-9-64-38z" stroke="#86B2C9" stroke-width="12"/>
+  </g>
+  <g fill="#3F6F8F">
+    <circle cx="44" cy="94" r="12"/>
+    <rect x="205" y="83" width="22" height="22" rx="5"/>
+    <path d="M137 201l12-12 12 12-12 12z"/>
+    <circle cx="62" cy="176" r="11"/>
+  </g>
+  <path d="M103 115c0-11 9-20 20-20h10c11 0 20 9 20 20v26c0 11-9 20-20 20h-10c-11 0-20-9-20-20z" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10"/>
+  <path d="M117 128h22M128 117v22" stroke="#86B2C9" stroke-width="8" stroke-linecap="round"/>
+</svg>

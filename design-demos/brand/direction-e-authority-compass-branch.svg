@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Authority Compass with branching links</title>
+  <g stroke="#3F6F8F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128 78v94"/>
+    <path d="M84 128l44-24"/>
+    <path d="M172 128l-44-24"/>
+  </g>
+  <circle cx="128" cy="48" r="30" fill="#3F6F8F"/>
+  <path d="M128 34l12 7v14l-12 7-12-7V41z" fill="#F5F5F4"/>
+  <circle cx="48" cy="128" r="36" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10"/>
+  <circle cx="208" cy="128" r="36" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10"/>
+  <circle cx="128" cy="208" r="36" fill="#F5F5F4" stroke="#3F6F8F" stroke-width="10"/>
+  <g fill="#86B2C9">
+    <circle cx="37" cy="123" r="8"/>
+    <circle cx="59" cy="136" r="8"/>
+    <circle cx="197" cy="136" r="8"/>
+    <circle cx="219" cy="123" r="8"/>
+    <circle cx="117" cy="208" r="8"/>
+    <circle cx="139" cy="208" r="8"/>
+  </g>
+</svg>

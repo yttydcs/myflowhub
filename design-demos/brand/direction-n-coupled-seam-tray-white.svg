@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub inverse tray glyph</title>
+  <defs>
+    <path id="tray-cell-white" d="M22 8h48c11 0 18 7 18 18v6H76l-8 8v16l8 8h12v6c0 11-7 18-18 18H22C12 88 8 81 8 70V26C8 15 12 8 22 8Z"/>
+    <mask id="tray-gap-white" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256">
+      <rect width="256" height="256" fill="white"/>
+      <use href="#tray-cell-white" transform="translate(160 160) rotate(225) scale(1.2) translate(-48 -48)" fill="black" stroke="black" stroke-width="28" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <use href="#tray-cell-white" transform="translate(96 96) rotate(45) scale(1.2) translate(-48 -48)" fill="#F5F5F4" mask="url(#tray-gap-white)"/>
+  <use href="#tray-cell-white" transform="translate(160 160) rotate(225) scale(1.2) translate(-48 -48)" fill="#F5F5F4"/>
+</svg>

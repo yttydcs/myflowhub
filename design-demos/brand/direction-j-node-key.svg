@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <title>MyFlowHub Node Key emblem</title>
+  <defs>
+    <mask id="node-key-cutouts" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256">
+      <rect width="256" height="256" fill="white"/>
+      <path d="M128 14V104M128 104L37 190M128 104L219 190M128 104V238" stroke="black" stroke-width="17" stroke-linecap="butt" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <path d="M128 21c8 0 15 2 22 6l63 37c10 6 16 16 16 28v72c0 12-6 22-16 28l-63 37c-14 8-30 8-44 0l-63-37c-10-6-16-16-16-28V92c0-12 6-22 16-28l63-37c7-4 14-6 22-6Z" fill="#3F6F8F" mask="url(#node-key-cutouts)"/>
+  <path d="M128 86l18 10v20l-18 10-18-10V96z" fill="#86B2C9"/>
+</svg>

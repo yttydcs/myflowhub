@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MyFlowHub Brand Identity Study V4</title>
+  <style>
+    :root {
+      --mineral: #3f6f8f;
+      --mineral-light: #86b2c9;
+      --graphite: #202222;
+      --muted: #69706e;
+      --warm: #f5f5f2;
+      --paper: #fbfbf8;
+      --canvas: #e9ebe8;
+      --line: #d4d8d4;
+      --line-strong: #bcc2be;
+      --night: #191a1a;
+      --success: #36785b;
+      --risk: #9b5d3d;
+      --rail: 248px;
+      color-scheme: light;
+      font-family: "Segoe UI", "Noto Sans SC", Arial, sans-serif;
+      font-synthesis: none;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--graphite);
+      background: var(--canvas);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    button, a { font: inherit; }
+    a { color: inherit; }
+    img { display: block; }
+
+    .rail {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 5;
+      width: var(--rail);
+      padding: 30px 22px 22px;
+      display: flex;
+      flex-direction: column;
+      background: #f0f1ee;
+      border-right: 1px solid var(--line);
+    }
+    .brand-mini {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 36px;
+      font-weight: 660;
+      letter-spacing: -.02em;
+    }
+    .brand-mini img { width: 27px; height: 27px; }
+    .version {
+      margin: 20px 0 7px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .rail h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.15;
+      letter-spacing: -.035em;
+    }
+    .rail nav { margin: 30px 0; }
+    .rail nav a {
+      display: flex;
+      align-items: center;
+      min-height: 37px;
+      padding: 0 10px;
+      color: #515856;
+      text-decoration: none;
+      border-radius: 7px;
+    }
+    .rail nav a:hover { color: var(--graphite); background: #e5e8e4; }
+    .rail nav a::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      margin-right: 10px;
+      border-radius: 50%;
+      background: var(--line-strong);
+    }
+    .rail nav a:first-child::before { background: var(--mineral); }
+    .rail-foot {
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .status-line { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; color: var(--graphite); }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+
+    main {
+      width: min(1280px, calc(100% - var(--rail)));
+      margin-left: var(--rail);
+      padding: 34px clamp(24px, 4vw, 60px) 80px;
+    }
+    .topbar {
+      max-width: 1130px;
+      margin: 0 auto 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .eyebrow {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 680;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .top-note { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .top-note::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--risk); }
+
+    .page { max-width: 1130px; margin: 0 auto; }
+    section { scroll-margin-top: 24px; }
+    .hero {
+      min-height: 620px;
+      display: grid;
+      grid-template-columns: 1.35fr .65fr;
+      color: #f4f5f2;
+      background: var(--night);
+      border: 1px solid #2b2e2d;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .hero-visual {
+      position: relative;
+      min-height: 620px;
+      padding: 44px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-right: 1px solid #303333;
+    }
+    .hero-visual::before,
+    .hero-visual::after {
+      content: "";
+      position: absolute;
+      background: #2d3030;
+    }
+    .hero-visual::before { width: 1px; height: calc(100% - 72px); left: 50%; top: 36px; }
+    .hero-visual::after { height: 1px; width: calc(100% - 72px); top: 50%; left: 36px; }
+    .hero-lockup {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 22px 26px;
+      background: var(--night);
+    }
+    .hero-lockup img { width: clamp(110px, 12vw, 166px); height: clamp(110px, 12vw, 166px); }
+    .hero-word {
+      font-size: clamp(38px, 4.4vw, 66px);
+      font-weight: 640;
+      letter-spacing: -.055em;
+      line-height: .95;
+      white-space: nowrap;
+    }
+    .hero-copy {
+      padding: 46px 38px 36px;
+      display: flex;
+      flex-direction: column;
+    }
+    .hero-copy .index { color: var(--mineral-light); font: 650 11px/1 "Segoe UI", sans-serif; letter-spacing: .12em; }
+    .hero-copy h2 {
+      margin: 84px 0 20px;
+      font-size: 28px;
+      line-height: 1.2;
+      letter-spacing: -.04em;
+    }
+    .hero-copy p { margin: 0; color: #bfc4c1; font-size: 15px; }
+    .hero-copy .decision {
+      margin-top: auto;
+      padding-top: 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      border-top: 1px solid #343737;
+    }
+    .decision b { display: block; margin-bottom: 3px; color: #f1f2ef; font-size: 12px; font-weight: 580; }
+    .decision span { color: #858c89; font-size: 11px; }
+
+    .section-head {
+      margin: 76px 0 22px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: end;
+      gap: 30px;
+    }
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(26px, 3vw, 38px);
+      line-height: 1.05;
+      letter-spacing: -.045em;
+      font-weight: 640;
+    }
+    .section-head p { margin: 0; color: var(--muted); max-width: 510px; }
+
+    .rule-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--paper);
+    }
+    .rule {
+      min-height: 178px;
+      padding: 26px;
+      border-right: 1px solid var(--line);
+    }
+    .rule:last-child { border-right: 0; }
+    .rule strong { display: block; font-size: 20px; line-height: 1.1; letter-spacing: -.03em; }
+    .rule p { margin: 34px 0 0; color: var(--muted); font-size: 13px; }
+    .rule small { display: block; margin-bottom: 14px; color: var(--mineral); font-size: 10px; font-weight: 700; letter-spacing: .13em; }
+
+    .family-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.15fr 1fr;
+      gap: 12px;
+    }
+    .family-card {
+      min-height: 430px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .family-card.primary { border-color: var(--mineral); box-shadow: inset 0 0 0 1px var(--mineral); }
+    .family-label { display: flex; justify-content: space-between; align-items: center; }
+    .family-label b { font-size: 12px; letter-spacing: .02em; }
+    .tag { padding: 3px 7px; color: var(--muted); background: #eceeeb; border-radius: 4px; font-size: 10px; }
+    .primary .tag { color: #f7f8f6; background: var(--mineral); }
+    .mark-stage {
+      min-height: 262px;
+      display: grid;
+      place-items: center;
+    }
+    .mark-stage img { width: 180px; height: 180px; }
+    .primary .mark-stage img { width: 206px; height: 206px; }
+    .family-card h3 { margin: 0 0 7px; font-size: 17px; letter-spacing: -.025em; }
+    .family-card p { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .anatomy {
+      display: grid;
+      grid-template-columns: 1fr .86fr;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .anatomy-stage {
+      min-height: 510px;
+      position: relative;
+      display: grid;
+      place-items: center;
+      background-color: #f1f2ef;
+      background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+    .anatomy-stage::before {
+      content: "48 × 48 keyline";
+      position: absolute;
+      left: 20px;
+      bottom: 18px;
+      padding: 4px 7px;
+      color: var(--muted);
+      background: rgba(245,245,242,.94);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 10px;
+      letter-spacing: .06em;
+    }
+    .anatomy-stage img { width: 304px; height: 304px; }
+    .anatomy-copy { padding: 44px 40px; border-left: 1px solid var(--line); }
+    .anatomy-copy h3 { margin: 0 0 24px; font-size: 22px; letter-spacing: -.035em; }
+    .anatomy-row {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 12px;
+      padding: 17px 0;
+      border-top: 1px solid var(--line);
+    }
+    .anatomy-row span { color: var(--mineral); font-weight: 700; }
+    .anatomy-row b { display: block; margin-bottom: 4px; font-size: 13px; }
+    .anatomy-row p { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .production-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 12px; }
+    .production-card {
+      min-width: 0;
+      min-height: 440px;
+      padding: 26px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .production-card h3 { margin: 0; font-size: 16px; letter-spacing: -.02em; }
+    .production-card > p { margin: 6px 0 24px; color: var(--muted); font-size: 12px; }
+    .surface-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .surface {
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+    .surface img { width: 68%; height: 68%; }
+    .surface.light { background: var(--warm); }
+    .surface.dark { background: var(--night); border-color: #2d3030; }
+    .surface.dark img { filter: brightness(0) invert(1); }
+    .surface.ink { background: #dfe3df; }
+    .surface.ink img { filter: grayscale(1) contrast(2); }
+    .surface-caption { margin-top: 9px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; color: var(--muted); font-size: 10px; text-align: center; }
+
+    .app-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 34px; }
+    .app-demo { text-align: center; color: var(--muted); font-size: 10px; }
+    .app-tile {
+      width: 92px;
+      height: 92px;
+      margin: 0 auto 10px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: var(--warm);
+      box-shadow: 0 7px 16px rgba(25,26,26,.08);
+    }
+    .app-tile img { width: 100%; height: 100%; }
+    .app-tile.windows { border-radius: 11px; }
+    .app-tile.mobile { border-radius: 24px; }
+    .app-tile.circle { border-radius: 50%; }
+
+    .size-bench {
+      min-height: 352px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      background: #dfe2df;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .size-stage {
+      flex: 1;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 36px 8px 42px;
+    }
+    .size-item { min-width: 48px; text-align: center; }
+    .size-item .icon-box { height: 128px; display: flex; justify-content: center; align-items: flex-end; }
+    .size-item img { object-fit: contain; }
+    .size-item b { display: block; margin-top: 10px; font-size: 10px; }
+    .size-item small { color: var(--muted); font-size: 9px; }
+    .tray-sim {
+      min-height: 46px;
+      margin-top: auto;
+      padding: 0 15px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #e9ebe8;
+      background: #242626;
+      border-radius: 7px;
+      font-size: 11px;
+    }
+    .tray-left { display: flex; align-items: center; gap: 9px; }
+    .tray-left img { width: 16px; height: 16px; }
+    .tray-icons { display: flex; gap: 12px; color: #afb5b2; }
+
+    .usage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .usage-card { padding: 28px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
+    .usage-card h3 { margin: 0 0 18px; font-size: 16px; }
+    .usage-list { list-style: none; padding: 0; margin: 0; }
+    .usage-list li { position: relative; padding: 14px 0 14px 30px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    .usage-list li::before { position: absolute; left: 2px; top: 13px; font-size: 14px; font-weight: 700; }
+    .usage-card.do .usage-list li::before { content: "✓"; color: var(--success); }
+    .usage-card.dont .usage-list li::before { content: "×"; color: var(--risk); }
+
+    .assessment {
+      display: grid;
+      grid-template-columns: .72fr 1.28fr;
+      background: var(--night);
+      color: #f1f3ef;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .score {
+      padding: 38px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-right: 1px solid #343737;
+    }
+    .score-number { font-size: 82px; line-height: .9; letter-spacing: -.08em; font-weight: 600; }
+    .score-number span { color: #7f8783; font-size: 20px; letter-spacing: -.02em; }
+    .score p { margin: 26px 0 0; color: #aeb4b1; font-size: 12px; }
+    .verdict { margin-top: 54px; padding-top: 18px; border-top: 1px solid #343737; }
+    .verdict b { display: block; color: var(--mineral-light); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+    .verdict span { display: block; margin-top: 7px; font-size: 15px; }
+    .metrics { padding: 24px 34px; }
+    .metric { display: grid; grid-template-columns: 110px 1fr 36px; align-items: center; gap: 14px; min-height: 54px; border-bottom: 1px solid #303333; }
+    .metric:last-child { border-bottom: 0; }
+    .metric b { font-size: 12px; font-weight: 560; }
+    .bar { height: 4px; background: #383c3a; overflow: hidden; }
+    .bar i { display: block; height: 100%; background: var(--mineral-light); }
+    .metric span { color: #a9afac; font-size: 11px; text-align: right; }
+
+    .sources {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0 24px;
+      padding: 14px 0;
+      border-top: 1px solid var(--line-strong);
+      border-bottom: 1px solid var(--line-strong);
+    }
+    .source {
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid var(--line);
+      text-decoration: none;
+      font-size: 12px;
+    }
+    .source:nth-last-child(-n+2) { border-bottom: 0; }
+    .source span { color: var(--muted); }
+    .source::after { content: "↗"; color: var(--mineral); }
+    .footer { margin-top: 50px; display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
+
+    @media (max-width: 980px) {
+      :root { --rail: 0px; }
+      .rail { display: none; }
+      main { width: 100%; margin-left: 0; }
+      .hero { grid-template-columns: 1fr; }
+      .hero-visual { min-height: 460px; border-right: 0; border-bottom: 1px solid #303333; }
+      .hero-copy { min-height: 360px; }
+      .hero-copy h2 { margin-top: 44px; }
+      .family-grid, .production-grid { grid-template-columns: 1fr; }
+      .anatomy { grid-template-columns: 1fr; }
+      .anatomy-copy { border: 0; border-top: 1px solid var(--line); }
+    }
+    @media (max-width: 640px) {
+      main { padding: 20px 14px 60px; }
+      .section-head, .rule-strip, .usage-grid, .assessment, .sources { grid-template-columns: 1fr; }
+      .section-head { align-items: start; }
+      .rule { border-right: 0; border-bottom: 1px solid var(--line); }
+      .hero-lockup { flex-direction: column; }
+      .hero-word { font-size: 38px; }
+      .score { border: 0; border-bottom: 1px solid #343737; }
+      .source:nth-last-child(2) { border-bottom: 1px solid var(--line); }
+      .production-card { padding: 22px 18px; }
+      .app-row { gap: 7px; }
+      .app-tile { width: 78px; height: 78px; }
+      .size-bench { padding: 20px 14px; }
+      .size-stage {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: end;
+        padding: 26px 0 30px;
+      }
+      .size-item { min-width: 0; }
+      .size-item .icon-box { height: 92px; }
+      .tray-sim { padding: 0 10px; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="rail" aria-label="研究板导航">
+    <div class="brand-mini"><img src="direction-n-coupled-seam-compact.svg" alt="" />MyFlowHub</div>
+    <div class="version">Identity study / V4</div>
+    <h1>Keyed Cell<br />定向节点单元</h1>
+    <nav>
+      <a href="#idea">核心概念</a>
+      <a href="#family">形态系统</a>
+      <a href="#geometry">几何构造</a>
+      <a href="#production">生产适配</a>
+      <a href="#usage">使用边界</a>
+      <a href="#review">设计评审</a>
+      <a href="#sources">研究来源</a>
+    </nav>
+    <div class="rail-foot">
+      <div class="status-line"><i class="status-dot"></i>选型研究进行中</div>
+      V3 完整保留<br />尚未替换正式资产
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <span class="eyebrow">MyFlowHub / Brand laboratory</span>
+      <span class="top-note">Independent study — not production</span>
+    </div>
+
+    <div class="page">
+      <section class="hero" id="idea">
+        <div class="hero-visual">
+          <div class="hero-lockup">
+            <img src="direction-n-coupled-seam.svg" alt="MyFlowHub Coupled Seam 标志" />
+            <div class="hero-word">MyFlowHub</div>
+          </div>
+        </div>
+        <div class="hero-copy">
+          <div class="index">N / COUPLED SEAM</div>
+          <h2>一种能够被<br />定向连接的节点语言</h2>
+          <p>两个同源单元形成一条清晰接缝。它不复述整套架构，只表达 MyFlowHub 最关键的关系：独立节点在可信边界内建立连接。</p>
+          <div class="decision">
+            <div><b>主标</b><span>N · Coupled Seam</span></div>
+            <div><b>母形</b><span>M · Keyed Cell</span></div>
+            <div><b>延展</b><span>O · Recursive Link</span></div>
+            <div><b>色彩</b><span>Mineral system</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>研究没有给出一个<br />流行造型，而是三条边界</h2>
+          <p>Apple、Microsoft、Google、Figma、Atlassian 与 Carbon 的共同建议，被转译成这一版的设计约束。规范决定方法，不替我们决定外观。</p>
+        </div>
+        <div class="rule-strip">
+          <article class="rule"><small>01 / IDEA</small><strong>只讲一个<br />核心隐喻</strong><p>不再同时画树、资源、订阅、指令和链路。主标只讲“可信节点的定向连接”。</p></article>
+          <article class="rule"><small>02 / LANGUAGE</small><strong>一个母形<br />形成系统</strong><p>单元、主标和延展图形共享同一套曲率、键口和构造逻辑，而不是三枚风格相近的图标。</p></article>
+          <article class="rule"><small>03 / PRODUCTION</small><strong>品牌、应用、托盘<br />分别绘制</strong><p>应用图标让平台负责遮罩；16px glyph 主动放大接缝，不把 512px 版本机械缩小。</p></article>
+        </div>
+      </section>
+
+      <section id="family">
+        <div class="section-head">
+          <h2>一个母形，<br />三种表达强度</h2>
+          <p>M 负责解释语法，N 承担识别，O 负责让品牌进入大面积版式。三者属于同一个系统，但角色不能互换。</p>
+        </div>
+        <div class="family-grid">
+          <article class="family-card">
+            <div class="family-label"><b>M / Keyed Cell</b><span class="tag">母形</span></div>
+            <div class="mark-stage"><img src="direction-m-keyed-cell.svg" alt="Keyed Cell 母形" /></div>
+            <h3>定向节点单元</h3>
+            <p>稳定外边界与唯一内凹键口。单独使用容易被读成字母或马蹄，因此只作为系统构件。</p>
+          </article>
+          <article class="family-card primary">
+            <div class="family-label"><b>N / Coupled Seam</b><span class="tag">推荐主标</span></div>
+            <div class="mark-stage"><img src="direction-n-coupled-seam.svg" alt="Coupled Seam 推荐主标" /></div>
+            <h3>耦合缝</h3>
+            <p>两个节点之间的负空间成为记忆点。双色可表达主体差异，单色仍靠轮廓与接缝成立。</p>
+          </article>
+          <article class="family-card">
+            <div class="family-label"><b>O / Recursive Link</b><span class="tag">延展纹样</span></div>
+            <div class="mark-stage"><img src="direction-o-recursive-link.svg" alt="Recursive Link 延展图形" /></div>
+            <h3>递归链</h3>
+            <p>同一单元按尺度生长，可用于封面、加载过渡与活动视觉；不作为应用图标或主标。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="geometry">
+        <div class="section-head">
+          <h2>外部柔和，<br />内部精确</h2>
+          <p>外轮廓的圆角让工具保持舒适；内部键口和耦合缝保持直线，建立节点、权限和连接所需要的结构感。</p>
+        </div>
+        <div class="anatomy">
+          <div class="anatomy-stage"><img src="direction-n-coupled-seam.svg" alt="主标网格构造展示" /></div>
+          <div class="anatomy-copy">
+            <h3>48px 产品网格</h3>
+            <div class="anatomy-row"><span>01</span><div><b>同源单元</b><p>两侧严格来自同一条母形路径，通过 180° 对置形成关系。</p></div></div>
+            <div class="anatomy-row"><span>02</span><div><b>非装饰接缝</b><p>中央负空间既分隔主体，也使单色版本保持两个节点的判断。</p></div></div>
+            <div class="anatomy-row"><span>03</span><div><b>光学校正</b><p>不是数学居中：上方深色单元略重，下方浅色单元补偿视觉重量。</p></div></div>
+            <div class="anatomy-row"><span>04</span><div><b>安全区</b><p>建议四周至少保留标志总高的 25%；锁定后再做最终字标间距校准。</p></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="production">
+        <div class="section-head">
+          <h2>同一种识别，<br />不是同一个文件</h2>
+          <p>品牌 symbol、平台图标与托盘 glyph 共享造型逻辑，但针对观看尺寸、背景和系统遮罩分别生产。</p>
+        </div>
+        <div class="production-grid">
+          <article class="production-card">
+            <h3>品牌与平台表面</h3>
+            <p>彩色、单色、反白必须先于平台效果独立成立。</p>
+            <div class="surface-row">
+              <div class="surface light"><img src="direction-n-coupled-seam.svg" alt="浅色背景彩色标志" /></div>
+              <div class="surface dark"><img src="direction-n-coupled-seam-mono.svg" alt="深色背景反白标志" /></div>
+              <div class="surface ink"><img src="direction-n-coupled-seam-mono.svg" alt="单色标志" /></div>
+            </div>
+            <div class="surface-caption"><span>Brand / color</span><span>Brand / inverse</span><span>Brand / mono</span></div>
+            <div class="app-row">
+              <div class="app-demo"><div class="app-tile windows"><img src="myflowhub-app-icon-source-v4.svg" alt="圆角较小的平台图标模拟" /></div>Desktop mask</div>
+              <div class="app-demo"><div class="app-tile mobile"><img src="myflowhub-app-icon-source-v4.svg" alt="圆角较大的平台图标模拟" /></div>Mobile mask</div>
+              <div class="app-demo"><div class="app-tile circle"><img src="myflowhub-app-icon-source-v4.svg" alt="圆形平台图标模拟" /></div>Circle mask</div>
+            </div>
+          </article>
+
+          <article class="production-card">
+            <h3>实际尺寸工作台</h3>
+            <p>24px 起使用完整标志；20px 与 16px 切换到加宽接缝的 compact drawing。</p>
+            <div class="size-bench">
+              <div class="size-stage">
+                <div class="size-item"><div class="icon-box"><img src="direction-n-coupled-seam-tray.svg" width="16" height="16" alt="16px" /></div><b>16</b><small>tray</small></div>
+                <div class="size-item"><div class="icon-box"><img src="direction-n-coupled-seam-compact-mono.svg" width="20" height="20" alt="20px" /></div><b>20</b><small>compact</small></div>
+                <div class="size-item"><div class="icon-box"><img src="direction-n-coupled-seam-compact.svg" width="24" height="24" alt="24px" /></div><b>24</b><small>compact</small></div>
+                <div class="size-item"><div class="icon-box"><img src="direction-n-coupled-seam.svg" width="32" height="32" alt="32px" /></div><b>32</b><small>full</small></div>
+                <div class="size-item"><div class="icon-box"><img src="direction-n-coupled-seam.svg" width="48" height="48" alt="48px" /></div><b>48</b><small>full</small></div>
+                <div class="size-item"><div class="icon-box"><img src="direction-n-coupled-seam.svg" width="80" height="80" alt="80px" /></div><b>80</b><small>brand</small></div>
+              </div>
+              <div class="tray-sim"><div class="tray-left"><img src="direction-n-coupled-seam-tray-white.svg" alt="" />MyFlowHub connected</div><div class="tray-icons">⌃　12:48</div></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="usage">
+        <div class="section-head">
+          <h2>让系统长期一致，<br />比第一次惊艳更重要</h2>
+          <p>本页不是最终品牌手册，但已经给出下一轮矢量精修和产品接入前必须遵守的边界。</p>
+        </div>
+        <div class="usage-grid">
+          <article class="usage-card do">
+            <h3>应该</h3>
+            <ul class="usage-list">
+              <li>优先使用 Mineral Blue 与 Warm White；绿色继续只表示连接状态。</li>
+              <li>小于 24px 时切换 compact / tray drawing，并保留扩宽后的接缝。</li>
+              <li>平台应用图标提交完整方形源文件，由系统施加圆角、遮罩与阴影。</li>
+              <li>大面积视觉可以使用 O，但必须同时出现一次完整的 N 主标或字标。</li>
+            </ul>
+          </article>
+          <article class="usage-card dont">
+            <h3>不要</h3>
+            <ul class="usage-list">
+              <li>不要再加入六边形、圆点、树枝或箭头来解释资源、订阅和指令。</li>
+              <li>不要旋转、压扁、改变两个单元的相对位置，或把接缝填成第三种颜色。</li>
+              <li>不要为应用图标预制平台圆角，也不要用阴影维持主体分离。</li>
+              <li>不要把品牌 symbol 当作 Variable、Stream、Topic 等资源类型图标。</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="review">
+        <div class="section-head">
+          <h2>不是“选一个最好看”，<br />而是判断它能否成为系统</h2>
+          <p>当前结论：N 已具备进入矢量精修的基础，但仍需通过商标近似检索，并降低它与普通 chain-link 符号的远距离联想。</p>
+        </div>
+        <div class="assessment">
+          <div class="score">
+            <div><div class="score-number">7.8<span>/10</span></div><p>这是设计研究评分，不是品牌价值评分。小尺寸可用性与系统一致性较强；原创性仍需继续校正。</p></div>
+            <div class="verdict"><b>Decision</b><span>进入一轮矢量精修<br />暂不替换正式资产</span></div>
+          </div>
+          <div class="metrics">
+            <div class="metric"><b>Concept</b><div class="bar"><i style="width:86%"></i></div><span>8.6</span></div>
+            <div class="metric"><b>Philosophy</b><div class="bar"><i style="width:82%"></i></div><span>8.2</span></div>
+            <div class="metric"><b>Hierarchy</b><div class="bar"><i style="width:84%"></i></div><span>8.4</span></div>
+            <div class="metric"><b>Craft</b><div class="bar"><i style="width:72%"></i></div><span>7.2</span></div>
+            <div class="metric"><b>Functionality</b><div class="bar"><i style="width:81%"></i></div><span>8.1</span></div>
+            <div class="metric"><b>Originality</b><div class="bar"><i style="width:65%"></i></div><span>6.5</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sources">
+        <div class="section-head">
+          <h2>公开规范来源</h2>
+          <p>只采纳可转化为生产约束的部分；不复制任何一家公司的品牌造型。</p>
+        </div>
+        <div class="sources">
+          <a class="source" href="https://developer.apple.com/design/human-interface-guidelines/app-icons"><b>Apple</b><span>App icons / system masks</span></a>
+          <a class="source" href="https://learn.microsoft.com/windows/apps/design/iconography/app-icon-design"><b>Microsoft</b><span>Windows app icon construction</span></a>
+          <a class="source" href="https://developer.android.com/distribute/google-play/resources/icon-design-specifications"><b>Google</b><span>Play icon specifications</span></a>
+          <a class="source" href="https://www.figma.com/using-the-figma-brand/"><b>Figma</b><span>Brand system and asset use</span></a>
+          <a class="source" href="https://atlassian.design/foundations/iconography"><b>Atlassian</b><span>Iconography foundations</span></a>
+          <a class="source" href="https://carbondesignsystem.com/elements/icons/usage/"><b>IBM Carbon</b><span>Interface icon usage</span></a>
+          <a class="source" href="https://www.pentagram.com/work/slack"><b>Pentagram / Slack</b><span>Identity system case study</span></a>
+          <a class="source" href="https://mozilla.design/"><b>Mozilla</b><span>Open brand system</span></a>
+        </div>
+      </section>
+
+      <footer class="footer"><span>MyFlowHub Identity Study V4</span><span>2026-08-29 · research artifact</span></footer>
+    </div>
+  </main>
+</body>
+</html>

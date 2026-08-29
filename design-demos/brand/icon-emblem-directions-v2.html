@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MyFlowHub Brand Emblem Directions v2</title>
+  <!--
+    新一轮假设：不复用旧方案的外圈、拓扑图或混合形状；每个方向只建立一种几何语法。
+    完整徽记用于 64px 以上，紧凑标记为 16–48px 独立重绘。
+  -->
+  <style>
+    :root { font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif; color: #202222; background: #eceeed; font-synthesis: none; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 1080px; }
+    header { height: 72px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; background: #f8f8f7; border-bottom: 1px solid #d7dad8; }
+    .title { display: flex; align-items: baseline; gap: 12px; }
+    .title strong { font-size: 17px; letter-spacing: -.01em; }
+    .title span, header > span { color: #747977; font-size: 12px; }
+    main { height: calc(100vh - 72px); min-height: 720px; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1px; background: #d7dad8; }
+    article { min-width: 0; display: grid; grid-template-rows: 320px auto 1fr; background: #f8f8f7; }
+    .hero { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #dfe1e0; }
+    .hero > div { position: relative; display: grid; place-items: center; overflow: hidden; }
+    .hero .light { background: #f8f8f7; }
+    .hero .dark { background: #1b1d1d; }
+    .hero .dark::before { content: "DARK"; position: absolute; top: 15px; right: 16px; color: #747a78; font-size: 9px; letter-spacing: .14em; }
+    .hero img { width: 176px; height: 176px; }
+    .hero .dark img { filter: brightness(1.22) saturate(.86); }
+    .note { position: absolute; left: 16px; bottom: 14px; color: #929795; font-size: 9px; letter-spacing: .08em; }
+    .copy { padding: 21px 24px 18px; border-bottom: 1px solid #dfe1e0; }
+    .eyebrow { margin-bottom: 8px; color: #3f6f8f; font-size: 10px; font-weight: 650; letter-spacing: .12em; }
+    h2 { margin: 0 0 9px; font-size: 20px; letter-spacing: -.02em; }
+    p { margin: 0; min-height: 63px; color: #666c69; font-size: 13px; line-height: 1.65; text-wrap: pretty; }
+    .concepts { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+    .concepts span { padding: 3px 7px; border: 1px solid #cfd4d2; border-radius: 999px; color: #505654; font-size: 10px; }
+    .samples { display: grid; grid-template-rows: auto 1fr; padding: 20px 24px 24px; }
+    .sample-title { color: #8a8f8d; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+    .sample-grid { display: grid; grid-template-columns: 118px 1fr; align-items: center; gap: 22px; }
+    .app-tile { width: 112px; height: 112px; display: grid; place-items: center; border: 1px solid #d8dcda; border-radius: 25px; background: #fff; box-shadow: 0 12px 28px rgba(30,42,39,.08); }
+    .app-tile img { width: 72px; height: 72px; }
+    .size-rack { display: flex; align-items: flex-end; gap: 16px; min-width: 0; }
+    .size { display: grid; justify-items: center; gap: 8px; color: #969b99; font-size: 9px; }
+    .size img { display: block; }
+    .s16 img { width: 16px; height: 16px; }.s24 img { width: 24px; height: 24px; }.s32 img { width: 32px; height: 32px; }.s48 img { width: 48px; height: 48px; }
+  </style>
+</head>
+<body>
+  <header><div class="title"><strong>MyFlowHub 品牌徽记探索</strong><span>第三轮 · 几何系统重建</span></div><span>旧方案完整保留 · 本轮不做增量修补</span></header>
+  <main>
+    <article>
+      <section class="hero"><div class="light"><img src="direction-g-node-vault.svg" alt="节点舱完整徽记"><span class="note">G · CONTAINER SYSTEM</span></div><div class="dark"><img src="direction-g-node-vault.svg" alt="节点舱深色预览"></div></section>
+      <section class="copy"><div class="eyebrow">G · NODE VAULT</div><h2>节点舱</h2><p>一条带顶部入口的连续容器定义 Node，六边形表示父级权威，内部三枚等形端口表示节点拥有的资源。所有元素服从同一圆角和线宽。</p><div class="concepts"><span>节点容器</span><span>资源归属</span><span>稳重</span></div></section>
+      <section class="samples"><span class="sample-title">独立小尺寸重绘</span><div class="sample-grid"><div class="app-tile"><img src="direction-g-node-vault-compact.svg" alt="节点舱应用图标"></div><div class="size-rack"><span class="size s16"><img src="direction-g-node-vault-compact.svg" alt=""><span>16</span></span><span class="size s24"><img src="direction-g-node-vault-compact.svg" alt=""><span>24</span></span><span class="size s32"><img src="direction-g-node-vault-compact.svg" alt=""><span>32</span></span><span class="size s48"><img src="direction-g-node-vault-compact.svg" alt=""><span>48</span></span></div></div></section>
+    </article>
+    <article>
+      <section class="hero"><div class="light"><img src="direction-h-authority-rosette.svg" alt="权威花结完整徽记"><span class="note">H · SINGLE PETAL GRAMMAR</span></div><div class="dark"><img src="direction-h-authority-rosette.svg" alt="权威花结深色预览"></div></section>
+      <section class="copy"><div class="eyebrow">H · AUTHORITY ROSETTE</div><h2>权威花结</h2><p>同一个叶片旋转四次形成完整徽记；顶部实心叶片代表父节点，其余三个叶片代表资源域。中心六边形把四个方向收束成一个整体。</p><div class="concepts"><span>单一母形</span><span>父控子</span><span>平衡</span></div></section>
+      <section class="samples"><span class="sample-title">独立小尺寸重绘</span><div class="sample-grid"><div class="app-tile"><img src="direction-h-authority-rosette-compact.svg" alt="权威花结应用图标"></div><div class="size-rack"><span class="size s16"><img src="direction-h-authority-rosette-compact.svg" alt=""><span>16</span></span><span class="size s24"><img src="direction-h-authority-rosette-compact.svg" alt=""><span>24</span></span><span class="size s32"><img src="direction-h-authority-rosette-compact.svg" alt=""><span>32</span></span><span class="size s48"><img src="direction-h-authority-rosette-compact.svg" alt=""><span>48</span></span></div></div></section>
+    </article>
+    <article>
+      <section class="hero"><div class="light"><img src="direction-i-resource-aperture.svg" alt="资源光圈完整徽记"><span class="note">I · THREE-BLADE FLOW</span></div><div class="dark"><img src="direction-i-resource-aperture.svg" alt="资源光圈深色预览"></div></section>
+      <section class="copy"><div class="eyebrow">I · RESOURCE APERTURE</div><h2>资源光圈</h2><p>三片同源几何围绕中央 Hub 旋转，分别承载变量、流与主题；负空间形成持续运动感。它不直接画拓扑，更接近独立品牌符号。</p><div class="concepts"><span>资源类型</span><span>订阅流动</span><span>抽象</span></div></section>
+      <section class="samples"><span class="sample-title">独立小尺寸重绘</span><div class="sample-grid"><div class="app-tile"><img src="direction-i-resource-aperture-compact.svg" alt="资源光圈应用图标"></div><div class="size-rack"><span class="size s16"><img src="direction-i-resource-aperture-compact.svg" alt=""><span>16</span></span><span class="size s24"><img src="direction-i-resource-aperture-compact.svg" alt=""><span>24</span></span><span class="size s32"><img src="direction-i-resource-aperture-compact.svg" alt=""><span>32</span></span><span class="size s48"><img src="direction-i-resource-aperture-compact.svg" alt=""><span>48</span></span></div></div></section>
+    </article>
+  </main>
+</body>
+</html>
