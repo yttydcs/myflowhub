@@ -2,22 +2,19 @@
 
 ## Completed
 
-- [x] 可扩展 Resource descriptor/capability 与 generic wire/runtime
-- [x] Variable、Stream、Topic、Command、File session 统一迁移
-- [x] SDK、bindings、Embedded 与第一方产品迁移
-- [x] React/shadcn-style Desktop 资源工作区、多 Profile 与 View 持久化
-- [x] 全量、race、重复稳定性、性能与 production Wails UI 验收
-- [x] Archive — plan/change/lesson 归档和分类索引更新
-- [x] Closeout — 本地 merge、workflow worktree 清理和 branch 收敛
+- [x] DOC01 — Desktop Codex 风格界面 stable docs 与 workflow 治理
+- [x] UI01 — 浅/深主题、Profile UI preference、minimal login 与完整 Settings
+- [x] UI02 — arbitrary-depth flat Explorer、搜索、聚焦、breadcrumb 与 WAI-ARIA tree
+- [x] UI03 — content tabs、Inspector、Workspace/View drag/add/save 集成
+- [x] VAL01 — Vitest、performance、TypeScript/Vite、Go Desktop、Wails production 与真实页面验证
+- [x] m-continue — 搜索精确性、stale selection、empty layout 与 deep breadcrumb 收敛
 
-## Deferred
+## Deferred / Separate Ownership
 
-- [ ] production Media/WebRTC/codec/QoS/platform capture
-- [ ] View sync 与多 Profile 同时在线
-- [ ] Android/iOS 通用资源工作区
-- [ ] legacy compatibility bridge（拒绝）
-- [ ] push/release/sign/publish/remote archive
-- [ ] 真实蓝牙/QUIC/硬件和缺失 Flutter 工具链验证
+- [ ] TREE02 — server-side topology/catalog pagination 或 lazy loading
+- [ ] SYNC01 — 打开的 content tab session 跨重启持久化
+- [ ] ICON01 — 项目品牌图标设计、替换、生成与归档（由另一任务负责）
+- [ ] PUB01 — remote push、release、publish（未授权且当前无 remote）
 
 ## Gate
 
