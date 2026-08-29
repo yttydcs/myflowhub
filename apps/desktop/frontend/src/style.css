@@ -399,11 +399,12 @@ pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .widget-grid {
   min-width: 0;
   min-height: 0;
+  position: relative;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-auto-rows: 32px;
+  grid-template-rows: repeat(var(--workspace-rows, 24), minmax(0, 1fr));
   gap: 8px;
-  align-content: start;
+  align-content: stretch;
   padding: 12px;
   overflow: auto;
 }
@@ -412,16 +413,27 @@ pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .workspace-empty .drop-glyph { width: 44px; height: 44px; display: inline-grid; place-items: center; border: 1px dashed var(--border-strong); border-radius: 5px; color: var(--accent); font-size: 22px; }
 .workspace-empty h3 { margin: 12px 0 4px; color: var(--text); font-size: 13px; }
 .workspace-empty p { margin: 0; font-size: 11px; line-height: 1.55; }
-.widget { min-width: 0; min-height: 112px; overflow: hidden; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); content-visibility: auto; contain-intrinsic-size: 260px 180px; }
+.widget { min-width: 0; min-height: 0; position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); content-visibility: auto; contain-intrinsic-size: 260px 180px; transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease; }
+.widget.is-dragging { z-index: 6; opacity: 0.72; box-shadow: var(--shadow); }
+.widget.is-drop-target { border-color: var(--accent); box-shadow: inset 3px 0 var(--accent), inset -3px 0 var(--accent); }
 .widget-header { height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 7px 0 10px; border-bottom: 1px solid var(--border); background: var(--surface-subtle); }
-.widget-header > div:first-child { min-width: 0; display: grid; gap: 1px; }
+.widget-title { min-width: 0; flex: 1; display: grid; gap: 1px; }
 .widget-header strong, .widget-header small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .widget-header strong { font-size: 10.5px; }
 .widget-header small { color: var(--text-faint); font-size: 8px; }
+.widget-drag-handle { width: 20px; height: 24px; flex: 0 0 auto; display: grid; place-items: center; padding: 0; border: 0; border-radius: 3px; background: transparent; color: var(--text-faint); cursor: grab; touch-action: none; }
+.widget-drag-handle:hover, .widget-drag-handle:focus-visible { background: var(--surface-hover); color: var(--text); }
+.widget-drag-handle:active { cursor: grabbing; }
 .widget-controls { display: flex; align-items: center; }
 .widget-controls button { width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 3px; background: transparent; color: var(--text-faint); }
 .widget-controls button:hover { background: var(--surface-hover); color: var(--text); }
+.widget-controls button:disabled { opacity: 0.35; pointer-events: none; }
 .widget-body { height: calc(100% - 38px); min-height: 72px; padding: 10px; overflow: auto; }
+.workspace-splitter { width: 12px; position: absolute; z-index: 5; top: 12px; bottom: 12px; display: grid; place-items: center; transform: translateX(-50%); cursor: col-resize; touch-action: none; }
+.workspace-splitter::before { content: ''; width: 1px; height: 100%; background: var(--border-strong); transition: width 120ms ease, background 120ms ease; }
+.workspace-splitter > span { width: 5px; height: 34px; position: absolute; border: 1px solid var(--border-strong); border-radius: 3px; background: var(--surface); box-shadow: 0 0 0 2px var(--canvas); }
+.workspace-splitter:hover::before, .workspace-splitter:focus-visible::before { width: 2px; background: var(--accent); }
+.workspace-splitter:hover > span, .workspace-splitter:focus-visible > span { border-color: var(--accent); }
 .missing-resource { color: var(--text-muted); font-size: 11px; }
 .missing-resource p { margin: 5px 0 0; }
 

@@ -11,10 +11,29 @@ import { Button } from './components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { errorText } from './lib/utils'
 import { defaultUIPreferences, loadUIPreferences, saveUIPreferences, type Theme, type UIPreferences } from './preferences'
-import { addWidget, nextWidgetID } from './store'
+import { addWidget, arrangeWorkspaceWidgets, moveWidget, nextWidgetID, type WidgetPlacement } from './store'
 import type { ConnectionStatus, Profile, ResourceDescriptor, Settings, Topology, ViewDefinition, WorkspaceSelection } from './types'
 
 const emptyTopology: Topology = { version: 1, epoch: 1, nodes: [] }
+
+function sameWidgetLayout(left: ViewDefinition['widgets'], right: ViewDefinition['widgets']): boolean {
+  return left.length === right.length && left.every((widget, index) => {
+    const candidate = right[index]
+    return candidate
+      && widget.id === candidate.id
+      && widget.x === candidate.x
+      && widget.y === candidate.y
+      && widget.w === candidate.w
+      && widget.h === candidate.h
+  })
+}
+
+function dropSide(event: DragEndEvent): 'left' | 'right' {
+  const translated = event.active.rect.current.translated
+  const over = event.over
+  if (!translated || !over) return 'right'
+  return translated.left + translated.width / 2 < over.rect.left + over.rect.width / 2 ? 'left' : 'right'
+}
 
 function newView(index = 1): ViewDefinition {
   return { id: `view-${index}`, name: `工作视图 ${index}`, revision: 0, widgets: [] }
@@ -71,9 +90,16 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
 
   const loadViews = useCallback(async () => {
     const document = await api.views()
-    setViews(document.views)
-    setView(document.views[0] || newView(1))
-    setDirty(false)
+    const nextViews = document.views.map((candidate) => {
+      if (candidate.widgets.length > 2) return candidate
+      const widgets = arrangeWorkspaceWidgets(candidate.widgets)
+      return sameWidgetLayout(candidate.widgets, widgets) ? candidate : { ...candidate, widgets }
+    })
+    const activeView = nextViews[0] || newView(1)
+    setViews(nextViews)
+    setView(activeView)
+    const persistedActiveView = document.views[0]
+    setDirty(Boolean(persistedActiveView && !sameWidgetLayout(persistedActiveView.widgets, activeView.widgets)))
   }, [api])
 
   const refreshPlatform = useCallback(async (profile: Profile, waitForAutoConnect = true) => {
@@ -276,14 +302,31 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setView(next)
     setDirty(true)
   }
-  const addResource = (resource: ResourceDescriptor) => {
+  const addResource = (resource: ResourceDescriptor, placement?: WidgetPlacement) => {
     setActiveContent('workspace')
-    changeView({ ...view, widgets: addWidget(view.widgets, resource, nextWidgetID(resource, view.widgets)) })
+    changeView({ ...view, widgets: addWidget(view.widgets, resource, nextWidgetID(resource, view.widgets), placement) })
   }
   const dragEnd = (event: DragEndEvent) => {
-    if (event.over?.id !== 'workspace-drop') return
-    const resource = event.active.data.current?.resource as ResourceDescriptor | undefined
-    if (resource) addResource(resource)
+    const over = event.over
+    if (!over) return
+    const side = dropSide(event)
+    const overData = over.data.current as { kind?: string; widgetID?: string } | undefined
+    const activeData = event.active.data.current as { kind?: string; widgetID?: string; resource?: ResourceDescriptor } | undefined
+    const targetID = overData?.kind === 'workspace-widget-target' ? overData.widgetID : undefined
+
+    if (activeData?.kind === 'workspace-widget' && activeData.widgetID) {
+      let resolvedTargetID = targetID
+      if (!resolvedTargetID && over.id === 'workspace-drop' && view.widgets.length > 0) {
+        resolvedTargetID = side === 'left' ? view.widgets[0]?.id : view.widgets.at(-1)?.id
+      }
+      if (resolvedTargetID && resolvedTargetID !== activeData.widgetID) {
+        changeView({ ...view, widgets: moveWidget(view.widgets, activeData.widgetID, resolvedTargetID, side) })
+      }
+      return
+    }
+
+    const resource = activeData?.resource
+    if (resource && (over.id === 'workspace-drop' || targetID)) addResource(resource, { targetID, side })
   }
   const saveView = async () => {
     setBusy(true)

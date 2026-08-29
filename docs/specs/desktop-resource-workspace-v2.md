@@ -64,13 +64,27 @@ View 属于 Profile，首版只在本机保存。文档包含 version、id、nam
 布局是响应式可调整网格，不是无限画布；每个 widget 保存 resource ID、renderer ID、grid position
 和非秘密设置。加载时缺失资源显示 detached 状态，损坏或未知版本不会被静默覆盖。
 
+Widget 顺序由 View 的 widget 数组表达，比例继续复用 12 列 `x/w`，不引入第二套布局模型。首个 Widget
+规范化为 `x=0, y=0, w=12, h=24` 并占满可用区；第二个默认插在右侧并形成 `6:6` 分栏。资源拖到某个
+Widget 左/右侧会在对应位置插入，Widget 标题拖动或左右动作会重排数组。双栏分隔条把 12 列按 `2:10`
+到 `10:2` 调整，比例随 View 保存；删除至单 Widget 后重新占满。三个及以上 Widget 按每行最多四个、
+总计 24 行单位的有界分块规则重排，避免固定小卡片堆在画布左上角。
+
+兼容边界：View schema 保持 version 1。加载的单 Widget 旧布局会规范化为满区，加载的非完整双栏会规范化
+为 `6:6` 并标记当前 View 待保存；三个及以上的既有 View 加载时保持原布局，发生新增、删除或重排后才
+进入新的有界分块规则。
+
 ## Interaction and accessibility
 
 拖放必须有等价键盘入口；树、tabs、dialog、resize handle、commands 和表单具有可见 focus、标签与
 语义状态。Node 与 Resource 区各自滚动，Explorer shell 约束 overflow/min-height，使固定的 Profile/Connection
 footer 不随列表滚动。水平 resize handle 使用 `role="separator"`、`aria-orientation="horizontal"`、
 `aria-controls` 和当前/最小/最大值；支持指针捕获、Arrow Up/Down（含大步进）、Home/End 与双击复位。
-拖动中的比例只做本地预览，释放后提交。loading、empty、offline、forbidden、expired、gap、unknown、
+Workspace 双栏使用 `aria-orientation="vertical"` 的 separator，暴露左右列数及边界，支持指针捕获、
+Arrow Left/Right、Home/End、Enter 与双击复位。Widget 标题提供键盘可达的拖动手柄，左右按钮作为稳定的
+等价重排入口。
+Explorer 拖动中的比例只做本地预览，释放后提交；Workspace 比例直接更新当前未保存 View。loading、
+empty、offline、forbidden、expired、gap、unknown、
 detached 和 corrupt 都有明确呈现。
 
 视觉方向是浅色默认的矿物蓝 + 石墨灰工具界面；深色使用独立 token 重配色而不是简单反色。

@@ -5,7 +5,10 @@ import {
   explorerBreadcrumb,
   flattenNodeRows,
   groupResources,
+  moveWidget,
   nodeRowKey,
+  removeWidget,
+  resizeWorkspacePanels,
   updateWidget,
 } from './store'
 import type { ResourceDescriptor, Topology } from './types'
@@ -33,9 +36,32 @@ describe('workspace domain', () => {
     expect(index.resourcesByNodeID.get('3')?.[0]?.id.name).toBe('metrics/cpu')
   })
 
-  it('adds and bounds responsive widgets', () => {
+  it('fills the workspace with the first widget and splits the second widget to the right', () => {
     const widgets = addWidget([], resource, 'cpu')
-    expect(widgets[0]?.renderer).toBe('mfh.variable')
+    expect(widgets[0]).toMatchObject({ renderer: 'mfh.variable', x: 0, y: 0, w: 12, h: 24 })
+    const memory = { ...resource, id: { ...resource.id, name: 'metrics/memory' } }
+    expect(addWidget(widgets, memory, 'memory')).toMatchObject([
+      { id: 'cpu', x: 0, y: 0, w: 6, h: 24 },
+      { id: 'memory', x: 6, y: 0, w: 6, h: 24 },
+    ])
+  })
+
+  it('inserts, reorders, resizes, and removes workspace panels without changing the View schema', () => {
+    const memory = { ...resource, id: { ...resource.id, name: 'metrics/memory' } }
+    const split = addWidget(addWidget([], resource, 'cpu'), memory, 'memory', { targetID: 'cpu', side: 'left' })
+    expect(split.map((widget) => widget.id)).toEqual(['memory', 'cpu'])
+
+    const reordered = moveWidget(split, 'memory', 'cpu', 'right')
+    expect(reordered.map((widget) => widget.id)).toEqual(['cpu', 'memory'])
+    expect(resizeWorkspacePanels(reordered, 8)).toMatchObject([
+      { id: 'cpu', x: 0, w: 8 },
+      { id: 'memory', x: 8, w: 4 },
+    ])
+    expect(removeWidget(reordered, 'cpu')).toMatchObject([{ id: 'memory', x: 0, y: 0, w: 12, h: 24 }])
+  })
+
+  it('keeps the generic widget bounds helper compatible with persisted layouts', () => {
+    const widgets = addWidget([], resource, 'cpu')
     const resized = updateWidget(widgets, 'cpu', { x: 11, w: 8, h: 30 })
     expect(resized[0]).toMatchObject({ x: 4, w: 8, h: 24 })
   })

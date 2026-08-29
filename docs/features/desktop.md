@@ -60,8 +60,10 @@ Wails boundary。主区顶部使用可关闭的内容 Tab；Settings 是其中�
 
 右侧 Inspector 承载临时 Node/Resource preview，不与 View widget 混在同一内容流。点击 Node 显示父节点
 控制关系、generation 和资源类型摘要；点击 Resource 选择 renderer。资源可通过拖放或按钮加入 12 列响应式
-View，widget 可左右移动、调整宽度、移除，View 可重命名并保存。View 只保存资源引用、renderer、布局和
-局部设置；资源暂不可用时保留布局并显示 detached 状态。
+View：首个 widget 默认占满可用区，第二个默认在右侧形成分栏；拖动资源或 widget 可决定左右顺序，标题栏
+左右动作提供键盘等价入口。双栏中间的 vertical separator 可通过指针或键盘调整比例，布局与顺序随 View
+保存；删除至单 widget 后恢复满区。三个及以上 widget 进入有界分块布局。View 只保存资源引用、renderer、
+布局和局部设置；资源暂不可用时保留布局并显示 detached 状态。
 
 ## Renderer
 

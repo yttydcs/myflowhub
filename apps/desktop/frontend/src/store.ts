@@ -232,22 +232,73 @@ export function defaultRenderer(resource: ResourceDescriptor | undefined): strin
   return resource?.presentation?.renderer || resource?.type || 'mfh.unknown'
 }
 
-export function addWidget(widgets: ViewWidget[], resource: ResourceDescriptor, id: string): ViewWidget[] {
+export type WidgetPlacement = {
+  targetID?: string
+  side?: 'left' | 'right'
+}
+
+const WORKSPACE_COLUMNS = 12
+const WORKSPACE_ROWS = 24
+const MAX_WIDGETS_PER_ROW = 4
+
+export function arrangeWorkspaceWidgets(widgets: ViewWidget[], preserveTwoPanelRatio = true): ViewWidget[] {
+  if (widgets.length === 0) return widgets
+  if (widgets.length === 1) {
+    const widget = widgets[0]!
+    return [{ ...widget, x: 0, y: 0, w: WORKSPACE_COLUMNS, h: WORKSPACE_ROWS }]
+  }
+  if (widgets.length === 2 && preserveTwoPanelRatio && isCompleteTwoPanelLayout(widgets)) {
+    return widgets.map((widget) => ({ ...widget, y: 0, h: WORKSPACE_ROWS }))
+  }
+
+  const rowCount = Math.ceil(widgets.length / MAX_WIDGETS_PER_ROW)
+  const rowHeights = distributeUnits(WORKSPACE_ROWS, rowCount)
+  let y = 0
+  return widgets.map((widget, index) => {
+    const rowIndex = Math.floor(index / MAX_WIDGETS_PER_ROW)
+    const rowStart = rowIndex * MAX_WIDGETS_PER_ROW
+    const widgetsInRow = Math.min(MAX_WIDGETS_PER_ROW, widgets.length - rowStart)
+    const columnWidths = distributeUnits(WORKSPACE_COLUMNS, widgetsInRow)
+    const columnIndex = index - rowStart
+    const x = columnWidths.slice(0, columnIndex).reduce((total, width) => total + width, 0)
+    const next = {
+      ...widget,
+      x,
+      y,
+      w: columnWidths[columnIndex]!,
+      h: rowHeights[rowIndex]!,
+    }
+    if (columnIndex === widgetsInRow - 1) y += rowHeights[rowIndex]!
+    return next
+  })
+}
+
+export function addWidget(
+  widgets: ViewWidget[],
+  resource: ResourceDescriptor,
+  id: string,
+  placement: WidgetPlacement = {},
+): ViewWidget[] {
   if (widgets.some((widget) => widget.id === id)) return widgets
-  const index = widgets.length
-  return [
-    ...widgets,
-    {
-      id,
-      owner_node_id: resource.id.owner_node_id,
-      resource_name: resource.id.name,
-      renderer: defaultRenderer(resource),
-      x: (index * 4) % 12,
-      y: Math.floor(index / 3) * 4,
-      w: resource.type === 'mfh.stream' || resource.type === 'mfh.topic' ? 8 : 4,
-      h: 4,
-    },
-  ]
+  const widget: ViewWidget = {
+    id,
+    owner_node_id: resource.id.owner_node_id,
+    resource_name: resource.id.name,
+    renderer: defaultRenderer(resource),
+    x: 0,
+    y: 0,
+    w: WORKSPACE_COLUMNS,
+    h: WORKSPACE_ROWS,
+  }
+  const next = [...widgets]
+  const targetIndex = placement.targetID
+    ? next.findIndex((candidate) => candidate.id === placement.targetID)
+    : -1
+  const insertionIndex = targetIndex < 0
+    ? placement.side === 'left' ? 0 : next.length
+    : targetIndex + (placement.side === 'right' ? 1 : 0)
+  next.splice(insertionIndex, 0, widget)
+  return arrangeWorkspaceWidgets(next, false)
 }
 
 export function updateWidget(
@@ -267,7 +318,41 @@ export function updateWidget(
 }
 
 export function removeWidget(widgets: ViewWidget[], id: string): ViewWidget[] {
-  return widgets.filter((widget) => widget.id !== id)
+  return arrangeWorkspaceWidgets(widgets.filter((widget) => widget.id !== id), false)
+}
+
+export function moveWidget(
+  widgets: ViewWidget[],
+  sourceID: string,
+  targetID: string,
+  side: 'left' | 'right' = 'left',
+): ViewWidget[] {
+  if (sourceID === targetID) return widgets
+  const source = widgets.find((widget) => widget.id === sourceID)
+  if (!source || !widgets.some((widget) => widget.id === targetID)) return widgets
+  const next = widgets.filter((widget) => widget.id !== sourceID)
+  const targetIndex = next.findIndex((widget) => widget.id === targetID)
+  next.splice(targetIndex + (side === 'right' ? 1 : 0), 0, source)
+  if (widgets.length === 2 && isCompleteTwoPanelLayout(widgets)) {
+    return resizeWorkspacePanels(next, widgets[0]!.w)
+  }
+  return arrangeWorkspaceWidgets(next, false)
+}
+
+export function moveWidgetByOffset(widgets: ViewWidget[], id: string, offset: -1 | 1): ViewWidget[] {
+  const sourceIndex = widgets.findIndex((widget) => widget.id === id)
+  const targetIndex = sourceIndex + offset
+  if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= widgets.length) return widgets
+  return moveWidget(widgets, id, widgets[targetIndex]!.id, offset < 0 ? 'left' : 'right')
+}
+
+export function resizeWorkspacePanels(widgets: ViewWidget[], leftWidth: number): ViewWidget[] {
+  if (widgets.length !== 2) return widgets
+  const width = Math.min(10, Math.max(2, Math.round(leftWidth)))
+  return [
+    { ...widgets[0]!, x: 0, y: 0, w: width, h: WORKSPACE_ROWS },
+    { ...widgets[1]!, x: width, y: 0, w: WORKSPACE_COLUMNS - width, h: WORKSPACE_ROWS },
+  ]
 }
 
 export function nextWidgetID(resource: ResourceDescriptor, widgets: ViewWidget[]): string {
@@ -276,4 +361,25 @@ export function nextWidgetID(resource: ResourceDescriptor, widgets: ViewWidget[]
   let candidate = stem
   while (widgets.some((widget) => widget.id === candidate)) candidate = `${stem}-${++suffix}`
   return candidate
+}
+
+function isCompleteTwoPanelLayout(widgets: ViewWidget[]): boolean {
+  const [left, right] = widgets
+  return Boolean(
+    left
+    && right
+    && left.x === 0
+    && left.y === 0
+    && right.y === 0
+    && left.w >= 2
+    && right.w >= 2
+    && left.x + left.w === right.x
+    && right.x + right.w === WORKSPACE_COLUMNS,
+  )
+}
+
+function distributeUnits(total: number, count: number): number[] {
+  const base = Math.floor(total / count)
+  const remainder = total % count
+  return Array.from({ length: count }, (_, index) => base + (index < remainder ? 1 : 0))
 }

@@ -123,7 +123,7 @@ function ResourceRow(props: ResourceRowProps) {
   const key = resourceRowKey(resource)
   const draggable = useDraggable({
     id: key,
-    data: { resource },
+    data: { kind: 'resource', resource },
   })
   const Icon = resourceIcons[resource.type] ?? Layers3
   return (
