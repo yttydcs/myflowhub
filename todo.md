@@ -1,23 +1,21 @@
-# Todo - MyFlowHub canonical local status
+# Todo - Desktop first-admission onboarding
 
-## Completed
+## Will Execute
 
-- [x] DOC01 — Desktop Codex 风格界面 stable docs 与 workflow 治理
-- [x] UI01 — 浅/深主题、Profile UI preference、minimal login 与完整 Settings
-- [x] UI02 — arbitrary-depth flat Explorer、搜索、聚焦、breadcrumb 与 WAI-ARIA tree
-- [x] UI03 — content tabs、Inspector、Workspace/View drag/add/save 集成
-- [x] VAL01 — Vitest、performance、TypeScript/Vite、Go Desktop、Wails production 与真实页面验证
-- [x] m-continue — 搜索精确性、stale selection、empty layout 与 deep breadcrumb 收敛
+- [x] ADM01 — prepare/reuse per-Profile identity without activating or connecting
+- [x] UI01 — staged identity/public-key/Permit login UI with copy feedback
+- [x] DOC01 — intake plus Desktop feature/requirement/spec/lesson clarification
+- [x] VAL01 — automated tests, production build and real local Hub Wails acceptance
+- [x] ARC01 — change/plan archive, Chinese commits, fast-forward merge and worktree cleanup
 
-## Deferred / Separate Ownership
+## Will Not Execute Now
 
-- [ ] TREE02 — server-side topology/catalog pagination 或 lazy loading
-- [ ] SYNC01 — 打开的 content tab session 跨重启持久化
-- [ ] ICON01 — 项目品牌图标设计、替换、生成与归档（由另一任务负责）
-- [ ] PUB01 — remote push、release、publish（未授权且当前无 remote）
+- [ ] ICON01 — project icon work remains in the separate brand task
+- [ ] ADMIN01 — Desktop-embedded Hub/Permit administration is outside the trust boundary
+- [ ] PUB01 — push/release/publish is not authorized and no remote exists
 
 ## Gate
 
 - Blocked: no
-- Active workflow: none
-- Local closeout: complete
+- Approved tasks: ADM01, UI01, DOC01, VAL01, ARC01
+- Active stage: m-archive complete; control-plane closeout in progress

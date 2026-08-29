@@ -25,6 +25,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-08-29_desktop-first-admission-onboarding.md](2026-08-29_desktop-first-admission-onboarding.md)
 - [2026-08-29_desktop-codex-interface-production.md](2026-08-29_desktop-codex-interface-production.md)
 - [2026-08-29_extensible-resource-platform-desktop-workspace.md](2026-08-29_extensible-resource-platform-desktop-workspace.md)
 - [2026-08-28_reproducible-refactor-closeout.md](2026-08-28_reproducible-refactor-closeout.md)
