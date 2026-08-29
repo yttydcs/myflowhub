@@ -87,11 +87,19 @@ export type ViewWidget = {
   settings?: unknown
 }
 
+export type ViewLayoutDirection = 'horizontal' | 'vertical'
+
+export type ViewLayout = {
+  direction: ViewLayoutDirection
+  split_ratio: number
+}
+
 export type ViewDefinition = {
   id: string
   name: string
   revision: number
   widgets: ViewWidget[]
+  layout?: ViewLayout
   created_at_unix_ms?: number
   updated_at_unix_ms?: number
 }

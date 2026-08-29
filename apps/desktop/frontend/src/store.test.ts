@@ -8,7 +8,9 @@ import {
   moveWidget,
   nodeRowKey,
   removeWidget,
+  resolveWorkspaceLayout,
   resizeWorkspacePanels,
+  swapWorkspacePanels,
   updateWidget,
 } from './store'
 import type { ResourceDescriptor, Topology } from './types'
@@ -58,6 +60,21 @@ describe('workspace domain', () => {
       { id: 'memory', x: 8, w: 4 },
     ])
     expect(removeWidget(reordered, 'cpu')).toMatchObject([{ id: 'memory', x: 0, y: 0, w: 12, h: 24 }])
+  })
+
+  it('keeps a precise View split ratio while retaining the legacy grid as a fallback', () => {
+    const widgets = [
+      { id: 'cpu', owner_node_id: '3', resource_name: 'metrics/cpu', renderer: 'mfh.variable', x: 0, y: 0, w: 7, h: 24 },
+      { id: 'memory', owner_node_id: '3', resource_name: 'metrics/memory', renderer: 'mfh.variable', x: 7, y: 0, w: 5, h: 24 },
+    ]
+    expect(resolveWorkspaceLayout({ id: 'view', name: 'View', revision: 1, widgets })).toEqual({
+      direction: 'horizontal',
+      split_ratio: 7 / 12,
+    })
+    expect(resolveWorkspaceLayout({
+      id: 'view', name: 'View', revision: 1, widgets, layout: { direction: 'vertical', split_ratio: 0.637 },
+    })).toEqual({ direction: 'vertical', split_ratio: 0.637 })
+    expect(swapWorkspacePanels(widgets).map((widget) => widget.id)).toEqual(['memory', 'cpu'])
   })
 
   it('keeps the generic widget bounds helper compatible with persisted layouts', () => {

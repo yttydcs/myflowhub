@@ -11,8 +11,8 @@ import { Button } from './components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { errorText } from './lib/utils'
 import { defaultUIPreferences, loadUIPreferences, saveUIPreferences, type Theme, type UIPreferences } from './preferences'
-import { addWidget, arrangeWorkspaceWidgets, moveWidget, nextWidgetID, type WidgetPlacement } from './store'
-import type { ConnectionStatus, Profile, ResourceDescriptor, Settings, Topology, ViewDefinition, WorkspaceSelection } from './types'
+import { addWidget, arrangeWorkspaceWidgets, moveWidget, nextWidgetID, resolveWorkspaceLayout, type WidgetPlacement } from './store'
+import type { ConnectionStatus, Profile, ResourceDescriptor, Settings, Topology, ViewDefinition, ViewLayoutDirection, WorkspaceSelection } from './types'
 
 const emptyTopology: Topology = { version: 1, epoch: 1, nodes: [] }
 
@@ -28,10 +28,13 @@ function sameWidgetLayout(left: ViewDefinition['widgets'], right: ViewDefinition
   })
 }
 
-function dropSide(event: DragEndEvent): 'left' | 'right' {
+function dropSide(event: DragEndEvent, direction: ViewLayoutDirection): 'left' | 'right' {
   const translated = event.active.rect.current.translated
   const over = event.over
   if (!translated || !over) return 'right'
+  if (direction === 'vertical') {
+    return translated.top + translated.height / 2 < over.rect.top + over.rect.height / 2 ? 'left' : 'right'
+  }
   return translated.left + translated.width / 2 < over.rect.left + over.rect.width / 2 ? 'left' : 'right'
 }
 
@@ -309,7 +312,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const dragEnd = (event: DragEndEvent) => {
     const over = event.over
     if (!over) return
-    const side = dropSide(event)
+    const side = dropSide(event, resolveWorkspaceLayout(view).direction)
     const overData = over.data.current as { kind?: string; widgetID?: string } | undefined
     const activeData = event.active.data.current as { kind?: string; widgetID?: string; resource?: ResourceDescriptor } | undefined
     const targetID = overData?.kind === 'workspace-widget-target' ? overData.widgetID : undefined

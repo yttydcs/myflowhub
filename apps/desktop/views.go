@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,7 +12,10 @@ import (
 	"time"
 )
 
-const desktopViewsVersion = 1
+const (
+	desktopViewsVersion       = 2
+	legacyDesktopViewsVersion = 1
+)
 
 type ViewDocument struct {
 	Version int              `json:"version"`
@@ -23,8 +27,14 @@ type ViewDefinition struct {
 	Name            string       `json:"name"`
 	Revision        uint64       `json:"revision"`
 	Widgets         []ViewWidget `json:"widgets"`
+	Layout          *ViewLayout  `json:"layout,omitempty"`
 	CreatedAtUnixMS int64        `json:"created_at_unix_ms"`
 	UpdatedAtUnixMS int64        `json:"updated_at_unix_ms"`
+}
+
+type ViewLayout struct {
+	Direction  string  `json:"direction"`
+	SplitRatio float64 `json:"split_ratio"`
 }
 
 type ViewWidget struct {
@@ -66,6 +76,14 @@ func (s *viewStore) load() (ViewDocument, error) {
 	var document ViewDocument
 	if err := decodeStrictJSON(data, &document); err != nil {
 		return ViewDocument{}, fmt.Errorf("view store is corrupt and was not overwritten: %w", err)
+	}
+	if document.Version == legacyDesktopViewsVersion {
+		for index, view := range document.Views {
+			if view.Layout != nil {
+				return ViewDocument{}, fmt.Errorf("view store is corrupt and was not overwritten: views[%d] uses layout with legacy version", index)
+			}
+		}
+		document.Version = desktopViewsVersion
 	}
 	if err := validateViewDocument(document); err != nil {
 		return ViewDocument{}, fmt.Errorf("view store is corrupt and was not overwritten: %w", err)
@@ -187,6 +205,14 @@ func validateView(view ViewDefinition) error {
 	}
 	if len(view.Widgets) > 64 {
 		return errors.New("view supports at most 64 widgets")
+	}
+	if view.Layout != nil {
+		if view.Layout.Direction != "horizontal" && view.Layout.Direction != "vertical" {
+			return errors.New("view layout direction must be horizontal or vertical")
+		}
+		if math.IsNaN(view.Layout.SplitRatio) || math.IsInf(view.Layout.SplitRatio, 0) || view.Layout.SplitRatio < 0.2 || view.Layout.SplitRatio > 0.8 {
+			return errors.New("view layout split ratio must be between 0.2 and 0.8")
+		}
 	}
 	seen := make(map[string]struct{}, len(view.Widgets))
 	for index, widget := range view.Widgets {

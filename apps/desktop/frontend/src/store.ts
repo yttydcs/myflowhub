@@ -1,4 +1,4 @@
-import type { ResourceDescriptor, Topology, TopologyNode, ViewWidget } from './types'
+import type { ResourceDescriptor, Topology, TopologyNode, ViewDefinition, ViewLayout, ViewWidget } from './types'
 import { resourceKey } from './lib/utils'
 
 export interface ExplorerIndex {
@@ -240,6 +240,23 @@ export type WidgetPlacement = {
 const WORKSPACE_COLUMNS = 12
 const WORKSPACE_ROWS = 24
 const MAX_WIDGETS_PER_ROW = 4
+export const MIN_WORKSPACE_SPLIT_RATIO = 0.2
+export const MAX_WORKSPACE_SPLIT_RATIO = 0.8
+
+export function resolveWorkspaceLayout(view: ViewDefinition): ViewLayout {
+  const persistedRatio = view.layout?.split_ratio
+  const legacyRatio = view.widgets.length === 2 ? (view.widgets[0]?.w || WORKSPACE_COLUMNS / 2) / WORKSPACE_COLUMNS : 0.5
+  const ratio = Number.isFinite(persistedRatio) ? persistedRatio! : legacyRatio
+  return {
+    direction: view.layout?.direction === 'vertical' ? 'vertical' : 'horizontal',
+    split_ratio: clampWorkspaceSplitRatio(ratio),
+  }
+}
+
+export function clampWorkspaceSplitRatio(ratio: number): number {
+  if (!Number.isFinite(ratio)) return 0.5
+  return Math.min(MAX_WORKSPACE_SPLIT_RATIO, Math.max(MIN_WORKSPACE_SPLIT_RATIO, ratio))
+}
 
 export function arrangeWorkspaceWidgets(widgets: ViewWidget[], preserveTwoPanelRatio = true): ViewWidget[] {
   if (widgets.length === 0) return widgets
@@ -344,6 +361,11 @@ export function moveWidgetByOffset(widgets: ViewWidget[], id: string, offset: -1
   const targetIndex = sourceIndex + offset
   if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= widgets.length) return widgets
   return moveWidget(widgets, id, widgets[targetIndex]!.id, offset < 0 ? 'left' : 'right')
+}
+
+export function swapWorkspacePanels(widgets: ViewWidget[]): ViewWidget[] {
+  if (widgets.length !== 2) return widgets
+  return resizeWorkspacePanels([widgets[1]!, widgets[0]!], widgets[0]!.w)
 }
 
 export function resizeWorkspacePanels(widgets: ViewWidget[], leftWidth: number): ViewWidget[] {

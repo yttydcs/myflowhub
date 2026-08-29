@@ -26,7 +26,8 @@
 - 在上方 Node tree 中搜索/展开 Node，在下方当前 Node Resource list 中独立搜索；单击 Node 查看概览，
   单击 Resource 查看预览，并按需要调整两区高度。
 - 通过拖放、按钮或键盘把 Resource 添加到当前 View。
-- 单个 Widget 默认占满工作区；新增 Widget 默认在右侧分栏，也可拖到目标左/右侧，并调整相邻面板比例。
+- 单个 Widget 默认占满工作区；新增 Widget 默认在右侧分栏；双 Widget 可切换左右/上下结构、交换位置，
+  也可按当前方向拖到目标前/后侧，并连续调整相邻面板比例。
 - 调整 Widget 顺序和尺寸，保存、重命名、复制、删除并重新打开 View。
 - Resource 离线、被撤权或类型升级后，View 保留位置并显示可恢复错误状态。
 
@@ -46,9 +47,11 @@
    Inspector，不得被误写入 View。
 9. Renderer Registry 必须按 type/schema/capability 选择 preview、widget 和 editor/action，并为未知类型提供通用 inspector。
 10. Workspace 必须支持添加、移除、重排和调整 Widget；首个 Widget 默认占满可用区，第二个默认在右侧
-    形成分栏，资源和既有 Widget 都可通过拖放控制左右顺序，按钮必须提供等价的重排入口。
-11. 双 Widget 分栏比例必须可用指针和键盘调整、有界，并作为 View layout 保存；删除至单 Widget 后必须
-    恢复满区布局。三个及以上 Widget 使用有界的响应式分块布局，不退化为固定大小的左上角卡片。
+    形成分栏。双 Widget 必须提供明确的左右/上下切换与交换入口，资源和既有 Widget 的拖放按当前方向控制
+    前后顺序，按钮必须提供等价的重排入口。
+11. 双 Widget 分栏比例必须可用指针连续调整并可用键盘细调，限制在 `20%`–`80%`，以精确比例连同方向
+    作为 View layout 保存；拖动期间只预览、释放后提交。删除至单 Widget 后必须恢复满区布局。三个及以上
+    Widget 使用有界的响应式分块布局，不退化为固定大小的左上角卡片。
 12. View 只保存 Resource reference、renderer ID/version、layout 和局部展示设置，不复制 Resource 正文或权限。
 13. View store 必须版本化、原子提交、按 Profile 隔离，并拒绝损坏或不兼容数据的静默覆盖。
 14. Variable、Stream、Topic、Command、File 至少有可用的第一方 renderer；Media 在生产数据面完成前使用明确 capability/session placeholder。
@@ -64,7 +67,8 @@
 - 树浏览、拖放、View 管理和核心操作必须具有键盘等价路径与可读辅助技术标签；Tree 遵循 WAI-ARIA
   tree 的 roving focus 与方向键/Home/End/Enter/Space 交互；分区调整使用 horizontal separator 语义，
   支持方向键、Home/End 和可发现的复位操作。
-- Workspace 双栏调整使用 vertical separator 语义，支持 Left/Right、Home/End、Enter 复位和双击复位。
+- Workspace 左右分栏使用 vertical separator 语义和 Left/Right，上下分栏使用 horizontal separator 语义和
+  Up/Down；两者都支持 Home/End、Enter 复位和双击复位。
 - Explorer 必须使用单一派生树模型和扁平可见行，避免递归组件状态与热点 O(n²)；超过 50 行使用
   `content-visibility` 或等价离屏策略。服务端按需加载或真正 DOM windowing 在现有 topology/catalog API
   不支持时必须作为明确分期边界记录，不能用第二套资源模型伪装。
@@ -87,8 +91,8 @@
 - Resource Explorer 上方仅展示跨子树 Node，下方仅展示当前 Node Resources；两区可独立搜索/滚动，
   通过鼠标与键盘完成切换、预览、添加和有界高度调整，Profile/Connection footer 不随内容滚走。
 - 至少 6 层 Node fixture 可展开、搜索、聚焦并用 breadcrumb 返回；Arrow/Home/End/Enter/Space 键盘门禁通过。
-- 首个 Resource 加入后占满工作区；第二个默认在右侧，资源拖放和 Widget 拖放可改变左右顺序；双栏比例
-  可通过指针或键盘调整，保存 View 并重启后恢复完全一致。
+- 首个 Resource 加入后占满工作区；第二个默认在右侧；双 Widget 可明确切换左右/上下结构并交换位置，
+  资源拖放和 Widget 拖放按当前方向重排；连续拖动和键盘调整后的精确比例保存 View 并重启后恢复一致。
 - 左下 Profile/Connection 入口能打开 Settings Tab；连接、Profile CRUD/切换和浅/深色在真实 API/mock boundary 下可操作，顶栏无重复状态。
 - 未知类型、离线、Forbidden、Expired、Gap 和 Schema mismatch 均有独立可测试状态。
 - Vitest/Testing Library、TypeScript、Vite production build、Wails production build、浏览器交互与真实 Wails GUI smoke 通过。
