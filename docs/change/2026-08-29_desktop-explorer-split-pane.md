@@ -40,7 +40,7 @@
 | EX02 | 完成可访问的有界分隔条、按 Profile 持久化、独立滚动和固定页脚。 |
 | DOC01 | 完成 focused intake 与 feature/requirement/spec 澄清；decision/lesson 均无新增。 |
 | QA01 | 完成 27 个前端测试、全仓 Go 测试、性能预算、生产构建和真实 Wails GUI 验收。 |
-| ARC01 | change、截图、plan 快照、索引和两笔中文提交完成；主检出存在受保护的同路径未提交改动，因此本地合并与 worktree/branch 清理按安全门保留待处理。 |
+| ARC01 | 完成 change、截图、plan 快照、索引、中文提交、基于最新 `master` 的 rebase、快进合并与 worktree/branch 清理。 |
 
 ## 关键设计决策与权衡
 
@@ -84,16 +84,18 @@
 - 现有 Profile、连接、View、Workspace 与 Resource contract 无需迁移；新增偏好字段是可选字段，旧文档保持可读。
 - 未实现有效权限/连接状态的前端推断，未改变 Hub policy、Permit、CredentialStore、wire protocol 或 Resource schema。
 - 服务端 lazy loading/pagination 和真正 DOM virtual scrolling 未在本轮实现，分期边界已写入 canonical spec。
-- 回滚可恢复实现提交 `ca4e54f` 涉及的 Explorer、preference、CSS、测试、dist 与稳定文档；不会回滚用户业务数据。
+- 回滚可恢复 rebase 后实现提交 `1d6feaa` 涉及的 Explorer、preference、CSS、测试、dist 与稳定文档；不会回滚用户业务数据。
 - 本轮未推送、发布、创建 remote 或处理品牌图标。
 
 ## 本地集成与保留状态
 
-- 实现提交：`ca4e54f`（`实现 Desktop 节点资源分区浏览`）。
-- `master@f79f165` 是实现提交的祖先，但主检出在 `apps/desktop/frontend/src/style.css` 和三个旧 `dist` 路径上存在未提交改动，与该提交的写集重叠。
-- 同一主检出还包含用户的 `guide.md`、`论文/**` 与 `design-demos/**` 状态；这些内容均未暂存、覆盖、还原或归档。
-- `git merge --ff-only feat/desktop-explorer-split-pane` 的安全尝试明确拒绝覆盖 `apps/desktop/frontend/dist/index.html` 与 `apps/desktop/frontend/src/style.css`；拒绝前后 `master` 均为 `f79f165`，完整 porcelain status 一致。
-- 依照计划中的安全门，本轮没有 stash/reset/checkout 或强制合并；`feat/desktop-explorer-split-pane` 与专用 worktree 暂时保留，待重叠改动由用户处置或另行授权安全收敛后再合并清理。
+- 用户授权安全收敛后，先把原主检出 Desktop 差异与生成物备份到仓库外 `D:\project\MyFlowHub3\.tmp\desktop-explorer-merge-preservation-2026-08-29`；binary patch 与各文件 SHA-256 均已记录。
+- 对比证明原 `style.css` 的 sidebar/ScrollArea containment 三处修改均被 Explorer 分支完整包含；`dist/**` 由最终源码重新生成，不手工拼接带哈希产物。
+- 收敛期间发现另一任务已将品牌提交 `947d4ae` 合入 `master`。Explorer 两笔提交因此 rebase 到该提交之上，三个索引冲突均同时保留品牌与 Explorer 条目；品牌资产内容未由本任务修改。
+- rebase 后实现提交为 `1d6feaa`（`实现 Desktop 节点资源分区浏览`），归档提交为 `fc47dc6`（`归档 Desktop 节点资源分区工作流`）。
+- `master` 已从 `947d4ae` 快进到 `fc47dc6`；快进前后的完整 porcelain dirty status 一致。`guide.md`、`论文/**`、原型与验证截图均未暂存、覆盖、还原或归档。
+- 合并后再次通过 27/27 前端测试、TypeScript/Vite production build 与 `GOWORK=off go test ./... -count=1`，生成物保持干净。
+- 本记录提交后移除专用 worktree 与本地 feature branch；没有 push、release、remote 或品牌资产派生操作。
 
 ## 子 Agent 执行轨迹
 

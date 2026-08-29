@@ -9,7 +9,7 @@
 - Docs Root: `D:\project\MyFlowHub3\worktrees\desktop-explorer-split-pane\docs`
 - Code Repos: canonical `MyFlowHub` monorepo only
 - Worktree: `D:\project\MyFlowHub3\worktrees\desktop-explorer-split-pane`
-- Current Stage: `$m-archive` documentation/commit complete; safe local integration and cleanup blocked by protected dirty-main overlap
+- Current Stage: `$m-archive` complete; rebased onto the latest local `master`, fast-forward integrated, revalidated, and ready for worktree/branch cleanup
 - Remote / publication: no remote configured; no push, release, or publication is authorized
 
 ## Stage Records
@@ -454,10 +454,13 @@ Current production UI has a mixed Node/Resource tree and a verified but uncommit
 - Change record: `docs/change/2026-08-29_desktop-explorer-split-pane.md`.
 - GUI evidence: `docs/change/verification/2026-08-29_desktop-explorer-split-pane-dark-persisted.jpg` and `2026-08-29_desktop-explorer-split-pane-light-scrolled.jpg`.
 - Plan snapshot: `docs/plan/plan_archive_2026-08-29_desktop-explorer-split-pane.md`.
-- Implementation commit: `ca4e54f` (`实现 Desktop 节点资源分区浏览`).
-- Archive commit: created after the finalized plan snapshot; Chinese commit message, no push or publication.
-- Integration audit: `master@f79f165` is an ancestor of the implementation, but the dirty main checkout overlaps the branch write set at `apps/desktop/frontend/src/style.css`, `dist/index.html`, and two tracked generated assets. Its replacement generated assets are also untracked.
-- Safe merge evidence: `git merge --ff-only feat/desktop-explorer-split-pane` aborted before modification because it would overwrite `dist/index.html` and `src/style.css`; `master` stayed at `f79f165` and the complete porcelain status was identical before/after.
-- Safety result: do not stash, reset, checkout, overwrite, or force-merge. Preserve `guide.md`, `论文/**`, `design-demos/**`, and all existing Desktop edits; retain `feat/desktop-explorer-split-pane` plus its worktree until the overlap is resolved or a separately authorized convergence is performed.
-- ARC01 result: documentation/archive and Chinese commits complete; local merge and worktree/branch cleanup blocked by protected main-checkout overlap.
+- Preservation evidence: the original overlapping Desktop diff, source files, generated assets, and SHA-256 values are retained outside the repository under `D:\project\MyFlowHub3\.tmp\desktop-explorer-merge-preservation-2026-08-29`.
+- Semantic convergence: the prior `style.css` sidebar/ScrollArea containment additions are an exact subset of the Explorer branch result; generated `dist/**` came from the final source instead of manual hash-asset merging.
+- Concurrent-main handling: local `master` advanced independently to brand commit `947d4ae`. The Explorer commits were rebased onto it; `docs/intake`, `docs/change`, and `docs/plan` index conflicts were resolved by retaining both brand and Explorer entries. No brand asset was edited by this workflow.
+- Rebased implementation commit: `1d6feaa` (`实现 Desktop 节点资源分区浏览`).
+- Rebased archive commit: `fc47dc6` (`归档 Desktop 节点资源分区工作流`).
+- Integration result: local `master` fast-forwarded from `947d4ae` to `fc47dc6`; its complete unrelated dirty status was byte-for-byte equivalent as porcelain text before and after.
+- Post-integration validation: `npm test` passed 27/27, `npm run build` passed without generated drift, and `GOWORK=off go test ./... -count=1` passed all packages and integration tests.
+- Safety result: `guide.md`, `论文/**`, the untracked prototype, and verification directory remained unstaged and untouched. No push, release, remote change, or brand derivation occurred.
+- ARC01 result: complete; remove the dedicated worktree and local feature branch after committing this finalized archive state.
 - Brand boundary: no icon asset or brand decision changed or archived.

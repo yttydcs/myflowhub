@@ -6,10 +6,10 @@
 - [x] EX02 — bounded accessible vertical splitter, per-Profile persistence, and sidebar scroll containment
 - [x] DOC01 — focused intake plus Desktop feature/requirement/spec clarification
 - [x] QA01 — automated/performance/build checks and packaged Wails GUI acceptance
-- [ ] ARC01 — change/plan archive and Chinese commits complete; local integration/worktree cleanup blocked by protected dirty-main overlap
+- [x] ARC01 — archive, rebase onto current master, fast-forward integration, post-merge validation, and workflow cleanup
   - [x] change record, plan snapshot, GUI evidence, and indexes
   - [x] implementation and archive commits use Chinese messages
-  - [ ] fast-forward `master` and remove this worktree/branch after overlapping main-checkout edits are safely resolved
+  - [x] fast-forward `master` and remove this worktree/branch after overlapping main-checkout edits are safely resolved
 
 ## Will Not Execute Now
 
@@ -20,9 +20,9 @@
 
 ## Gate
 
-- Blocked: yes — main checkout has protected uncommitted `style.css`/`dist` paths that overlap the branch write set
+- Blocked: no
 - Approved: EX01, EX02, DOC01, QA01, ARC01
 - Completed stage: `$m-execute`
 - Completed stage: `$m-test` (entered from `$m-archive` gate audit)
-- Active stage: `$m-archive`
-- `$m-archive` documentation and commits are complete; ARC01 remains open only for safe local integration and cleanup
+- Completed stage: `$m-archive`
+- ARC01 is complete; the dedicated worktree/branch are removed after this finalized archive commit
