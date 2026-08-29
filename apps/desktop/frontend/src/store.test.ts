@@ -1,17 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  addWidget,
   buildExplorerIndex,
   explorerBreadcrumb,
   flattenNodeRows,
   groupResources,
-  moveWidget,
   nodeRowKey,
-  removeWidget,
-  resolveWorkspaceLayout,
-  resizeWorkspacePanels,
-  swapWorkspacePanels,
-  updateWidget,
 } from './store'
 import type { ResourceDescriptor, Topology } from './types'
 
@@ -36,51 +29,6 @@ describe('workspace domain', () => {
     const index = buildExplorerIndex(topology, [resource])
     expect(index.childrenByID.get('1')).toEqual(['3'])
     expect(index.resourcesByNodeID.get('3')?.[0]?.id.name).toBe('metrics/cpu')
-  })
-
-  it('fills the workspace with the first widget and splits the second widget to the right', () => {
-    const widgets = addWidget([], resource, 'cpu')
-    expect(widgets[0]).toMatchObject({ renderer: 'mfh.variable', x: 0, y: 0, w: 12, h: 24 })
-    const memory = { ...resource, id: { ...resource.id, name: 'metrics/memory' } }
-    expect(addWidget(widgets, memory, 'memory')).toMatchObject([
-      { id: 'cpu', x: 0, y: 0, w: 6, h: 24 },
-      { id: 'memory', x: 6, y: 0, w: 6, h: 24 },
-    ])
-  })
-
-  it('inserts, reorders, resizes, and removes workspace panels without changing the View schema', () => {
-    const memory = { ...resource, id: { ...resource.id, name: 'metrics/memory' } }
-    const split = addWidget(addWidget([], resource, 'cpu'), memory, 'memory', { targetID: 'cpu', side: 'left' })
-    expect(split.map((widget) => widget.id)).toEqual(['memory', 'cpu'])
-
-    const reordered = moveWidget(split, 'memory', 'cpu', 'right')
-    expect(reordered.map((widget) => widget.id)).toEqual(['cpu', 'memory'])
-    expect(resizeWorkspacePanels(reordered, 8)).toMatchObject([
-      { id: 'cpu', x: 0, w: 8 },
-      { id: 'memory', x: 8, w: 4 },
-    ])
-    expect(removeWidget(reordered, 'cpu')).toMatchObject([{ id: 'memory', x: 0, y: 0, w: 12, h: 24 }])
-  })
-
-  it('keeps a precise View split ratio while retaining the legacy grid as a fallback', () => {
-    const widgets = [
-      { id: 'cpu', owner_node_id: '3', resource_name: 'metrics/cpu', renderer: 'mfh.variable', x: 0, y: 0, w: 7, h: 24 },
-      { id: 'memory', owner_node_id: '3', resource_name: 'metrics/memory', renderer: 'mfh.variable', x: 7, y: 0, w: 5, h: 24 },
-    ]
-    expect(resolveWorkspaceLayout({ id: 'view', name: 'View', revision: 1, widgets })).toEqual({
-      direction: 'horizontal',
-      split_ratio: 7 / 12,
-    })
-    expect(resolveWorkspaceLayout({
-      id: 'view', name: 'View', revision: 1, widgets, layout: { direction: 'vertical', split_ratio: 0.637 },
-    })).toEqual({ direction: 'vertical', split_ratio: 0.637 })
-    expect(swapWorkspacePanels(widgets).map((widget) => widget.id)).toEqual(['memory', 'cpu'])
-  })
-
-  it('keeps the generic widget bounds helper compatible with persisted layouts', () => {
-    const widgets = addWidget([], resource, 'cpu')
-    const resized = updateWidget(widgets, 'cpu', { x: 11, w: 8, h: 30 })
-    expect(resized[0]).toMatchObject({ x: 4, w: 8, h: 24 })
   })
 
   it('flattens arbitrary-depth Node trees with Node-only ARIA hierarchy metadata', () => {

@@ -4,6 +4,7 @@
 
 ## Current Records
 
+- [Desktop 多面板嵌套停靠讨论记录](2026-08-30_desktop-nested-docking-layout.md)
 - [MyFlowHub 品牌图标 Coupled Seam 定稿](2026-08-29_brand-icon-coupled-seam.md)
 - [Desktop Explorer Node/Resource 上下分区](2026-08-29_desktop-explorer-split-pane.md)
 - [Desktop 首次准入引导](2026-08-29_desktop-first-admission-onboarding.md)

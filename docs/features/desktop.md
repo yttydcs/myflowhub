@@ -59,12 +59,15 @@ Inspector，包含 Connection、Profile 和 Appearance 三类设置；Profile �
 Wails boundary。主区顶部使用可关闭的内容 Tab；Settings 是其中一种内容，不弹出第二个设置窗口。
 
 右侧 Inspector 承载临时 Node/Resource preview，不与 View widget 混在同一内容流。点击 Node 显示父节点
-控制关系、generation 和资源类型摘要；点击 Resource 选择 renderer。资源可通过拖放或按钮加入 12 列响应式
-View：首个 widget 默认占满可用区，第二个默认在右侧形成分栏；工作区工具栏可在左右、上下布局间切换并
-显式交换两个面板，拖动资源或 widget 也会按当前方向决定前后顺序。两个面板之间的 separator 可通过指针
-连续调整精确比例，也可通过方向键细调；方向、比例与顺序随 View 保存，删除至单 widget 后恢复满区。
-三个及以上 widget 进入有界分块布局。View 只保存资源引用、renderer、
-布局和局部设置；资源暂不可用时保留布局并显示 detached 状态。
+控制关系、generation 和资源类型摘要；点击 Resource 选择 renderer。资源可通过拖放或按钮加入 View：
+首个 widget 默认占满可用区，直接添加后续 widget 默认在整个工作区右侧分栏；拖动 Resource 或 widget
+到目标 pane 的左/右/上/下边缘可局部分割该 pane，拖到相邻 divider 可精确插入同级位置，拖到工作区
+外缘可分割整个 root。中心投放不创建隐藏标签栈，界面不提供“左右 / 上下 / 交换”布局按钮。
+
+View 使用任意深度的 n 元 horizontal/vertical split tree。所有相邻 pane 之间的 separator 都可通过指针
+连续调整或通过键盘细调；拖动期间只预览，释放后提交。拓扑、顺序与权重随 View 保存，删除或移动后自动
+折叠空/单子节点并合并同轴 split。可用空间不足时 Workspace 滚动，不静默重排已保存布局。View 只保存
+资源引用、renderer、布局和局部设置；资源暂不可用时保留 leaf 并显示 detached 状态。
 
 ## Renderer
 
@@ -111,7 +114,7 @@ wails build -clean
 ```
 
 生产产物为 `apps/desktop/build/bin/mfh-desktop.exe`。目标契约见
-[Desktop Resource Workspace v2](../specs/desktop-resource-workspace-v2.md)。
+[Desktop Resource Workspace v3](../specs/desktop-resource-workspace-v3.md)。
 
 ## 明确移除
 

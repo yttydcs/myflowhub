@@ -2,7 +2,8 @@
 
 ## Status
 
-Implemented。由用户进入 `$m-plan` 确认推荐方向，并由本轮 clean-break 实现与 stable feature/spec 门禁收口。
+Implemented。Resource/Renderer/Profile 边界保持有效；其中“响应式网格 Workspace”的布局选择已被
+[Desktop n 元多面板停靠](2026-08-30_desktop-n-ary-docking-layout.md) 部分取代。
 
 ## Context
 
@@ -53,6 +54,9 @@ High：Node tree 和 Resource ownership 边界已经验证；主要风险集中�
 - 部分取代 [统一权威节点树与可插拔链路](2026-08-27_authoritative-node-tree-and-pluggable-links.md) 中“基础资源仅为固定三类型”的封闭解释。
 - 保留该决策关于唯一父节点、父控子、Resource 归属 Node、链路可插拔和权限沿树强制执行的约束。
 - 实现完成时由新的 Resource platform spec 明确取代 [Resource Model vNext](../specs/resource-model-vnext.md)。
+- Desktop 的响应式网格布局部分被
+  [Desktop 使用 n 元分割树实现多面板停靠](2026-08-30_desktop-n-ary-docking-layout.md) 取代；
+  Wails/React/Renderer Registry/local-first View store 选择保持不变。
 
 ## Related Features
 

@@ -13,7 +13,7 @@
 - React + TypeScript + Vite、Radix/shadcn 风格组件 primitives 与统一 design tokens 前端。
 - 登录/首次准入、持久身份、自动重连和多 Profile 管理。
 - 左侧 Resource Explorer 与 View Manager Tabs。
-- 右侧 Node/Resource preview 与响应式可调整 Workspace。
+- 右侧 Node/Resource preview 与可嵌套、可调整的 split Workspace。
 - Resource Renderer Registry、通用 fallback renderer 和基础类型 widgets。
 - View 按 Profile local-first 持久化。
 - Wails Go host、generated bindings、前端状态与错误边界重构。
@@ -26,8 +26,8 @@
 - 在上方 Node tree 中搜索/展开 Node，在下方当前 Node Resource list 中独立搜索；单击 Node 查看概览，
   单击 Resource 查看预览，并按需要调整两区高度。
 - 通过拖放、按钮或键盘把 Resource 添加到当前 View。
-- 单个 Widget 默认占满工作区；新增 Widget 默认在右侧分栏；双 Widget 可切换左右/上下结构、交换位置，
-  也可按当前方向拖到目标前/后侧，并连续调整相邻面板比例。
+- 单个 Widget 默认占满工作区；直接新增 Widget 默认在整个工作区右侧分栏；拖到目标 pane、divider 或
+  工作区外缘可形成任意深度的左右/上下结构、精确插入位置，并连续调整任意相邻面板比例。
 - 调整 Widget 顺序和尺寸，保存、重命名、复制、删除并重新打开 View。
 - Resource 离线、被撤权或类型升级后，View 保留位置并显示可恢复错误状态。
 
@@ -46,12 +46,13 @@
 8. Node preview 至少显示身份、连接/健康状态、父子关系和资源摘要；Node/Resource 临时预览位于右侧
    Inspector，不得被误写入 View。
 9. Renderer Registry 必须按 type/schema/capability 选择 preview、widget 和 editor/action，并为未知类型提供通用 inspector。
-10. Workspace 必须支持添加、移除、重排和调整 Widget；首个 Widget 默认占满可用区，第二个默认在右侧
-    形成分栏。双 Widget 必须提供明确的左右/上下切换与交换入口，资源和既有 Widget 的拖放按当前方向控制
-    前后顺序，按钮必须提供等价的重排入口。
-11. 双 Widget 分栏比例必须可用指针连续调整并可用键盘细调，限制在 `20%`–`80%`，以精确比例连同方向
-    作为 View layout 保存；拖动期间只预览、释放后提交。删除至单 Widget 后必须恢复满区布局。三个及以上
-    Widget 使用有界的响应式分块布局，不退化为固定大小的左上角卡片。
+10. Workspace 必须支持添加、移除、精确插入、嵌套重排和调整 Widget；首个 Widget 默认占满可用区，
+    直接添加后续 Widget 默认在整个 root 右侧。拖动 Resource 或 Widget 到 pane 四边只分割目标 pane，
+    拖到同级 divider 精确插入该 sibling index，拖到工作区外缘分割整个 root。布局不得要求独立的
+    “左右 / 上下 / 交换”按钮；中心投放首期不得隐式创建 tab stack。
+11. 每个 split 的所有相邻 pane 必须可用指针连续调整并可用键盘细调，以有限正的归一化 weights 连同
+    axis、child 顺序和嵌套拓扑保存。拖动期间只预览、释放后提交；取消恢复已保存比例。移除/移动后必须
+    折叠空/单子节点并合并同轴 split。空间小于递归 pane minimum 时允许 Workspace 滚动，不得静默重排。
 12. View 只保存 Resource reference、renderer ID/version、layout 和局部展示设置，不复制 Resource 正文或权限。
 13. View store 必须版本化、原子提交、按 Profile 隔离，并拒绝损坏或不兼容数据的静默覆盖。
 14. Variable、Stream、Topic、Command、File 至少有可用的第一方 renderer；Media 在生产数据面完成前使用明确 capability/session placeholder。
@@ -68,7 +69,10 @@
   tree 的 roving focus 与方向键/Home/End/Enter/Space 交互；分区调整使用 horizontal separator 语义，
   支持方向键、Home/End 和可发现的复位操作。
 - Workspace 左右分栏使用 vertical separator 语义和 Left/Right，上下分栏使用 horizontal separator 语义和
-  Up/Down；两者都支持 Home/End、Enter 复位和双击复位。
+  Up/Down；每一对嵌套相邻 pane 都支持 Home/End、Enter 复位和双击复位。pointer move 必须使用本地平滑
+  preview，避免逐事件持久化或离散网格取整。
+- View layout 操作与递归校验必须保持 O(layout nodes)，最多 64 leaves、32 depth、127 total nodes；
+  drag preview 只在 DockIntent 改变时重算。
 - Explorer 必须使用单一派生树模型和扁平可见行，避免递归组件状态与热点 O(n²)；超过 50 行使用
   `content-visibility` 或等价离屏策略。服务端按需加载或真正 DOM windowing 在现有 topology/catalog API
   不支持时必须作为明确分期边界记录，不能用第二套资源模型伪装。
@@ -91,8 +95,11 @@
 - Resource Explorer 上方仅展示跨子树 Node，下方仅展示当前 Node Resources；两区可独立搜索/滚动，
   通过鼠标与键盘完成切换、预览、添加和有界高度调整，Profile/Connection footer 不随内容滚走。
 - 至少 6 层 Node fixture 可展开、搜索、聚焦并用 breadcrumb 返回；Arrow/Home/End/Enter/Space 键盘门禁通过。
-- 首个 Resource 加入后占满工作区；第二个默认在右侧；双 Widget 可明确切换左右/上下结构并交换位置，
-  资源拖放和 Widget 拖放按当前方向重排；连续拖动和键盘调整后的精确比例保存 View 并重启后恢复一致。
+- 首个 Resource 加入后占满工作区，直接添加后续 Resource 默认在 root 右侧；拖拽可生成
+  `A | C | B`、`A | (B / C)` 和 `(A | B | C) / D`，无布局/交换按钮。任意嵌套 separator
+  连续拖动和键盘调整后的权重保存 View 并在重启后恢复一致。
+- v1/v2 View 保留全部 Widget 迁移为 v3；未知/损坏布局不覆盖原文件，首次 v3 写回前存在可恢复的
+  pre-v3 snapshot。
 - 左下 Profile/Connection 入口能打开 Settings Tab；连接、Profile CRUD/切换和浅/深色在真实 API/mock boundary 下可操作，顶栏无重复状态。
 - 未知类型、离线、Forbidden、Expired、Gap 和 Schema mismatch 均有独立可测试状态。
 - Vitest/Testing Library、TypeScript、Vite production build、Wails production build、浏览器交互与真实 Wails GUI smoke 通过。
@@ -109,6 +116,11 @@
 ## Related Decisions
 
 - [可扩展 Resource type system 与 Desktop workspace](../decisions/2026-08-28_extensible-resource-type-system-and-desktop-workspace.md)
+- [Desktop n 元多面板停靠](../decisions/2026-08-30_desktop-n-ary-docking-layout.md)
+
+## Related Specs
+
+- [Desktop Resource Workspace v3](../specs/desktop-resource-workspace-v3.md)
 
 ## Related Intake
 

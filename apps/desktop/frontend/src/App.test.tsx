@@ -36,7 +36,7 @@ function mockAPI(settings: Settings): DesktopAPI {
     poll: vi.fn(),
     cancel: vi.fn(),
     uploadFile: vi.fn(),
-    views: vi.fn().mockResolvedValue({ version: 1, views: [] }),
+    views: vi.fn().mockResolvedValue({ version: 3, views: [] }),
     saveView: vi.fn().mockImplementation(async (next: ViewDefinition) => ({ ...next, revision: 1 })),
     deleteView: vi.fn(),
   }
@@ -160,7 +160,7 @@ describe('desktop resource workspace', () => {
   it('requires confirmation before deleting a persisted view', async () => {
     const settings: Settings = { version: 2, active_profile_id: profile.id, profiles: [profile], updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
     const api = mockAPI(settings)
-    vi.mocked(api.views).mockResolvedValue({ version: 1, views: [{ id: 'saved', name: 'Saved view', revision: 1, widgets: [] }] })
+    vi.mocked(api.views).mockResolvedValue({ version: 3, views: [{ id: 'saved', name: 'Saved view', revision: 1, widgets: [] }] })
     vi.spyOn(window, 'confirm').mockReturnValue(false)
     render(<App api={api} />)
     fireEvent.mouseDown(await screen.findByRole('tab', { name: '视图' }), { button: 0, ctrlKey: false })

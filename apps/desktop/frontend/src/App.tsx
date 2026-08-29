@@ -1,41 +1,127 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { DndContext, type DragEndEvent } from '@dnd-kit/core'
-import { Boxes, Layers3, Moon, Plus, RefreshCw, Settings2, Sun } from 'lucide-react'
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  pointerWithin,
+  type Announcements,
+  type CollisionDetection,
+  type DragEndEvent,
+  type DragMoveEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import { Boxes, GripVertical, Layers3, Moon, Plus, RefreshCw, Settings2, Sun } from 'lucide-react'
 import { api as productionApi, type DesktopAPI, type PreparedProfile } from './api'
 import { Explorer } from './components/Explorer'
 import { Inspector } from './components/Inspector'
 import { LoginScreen } from './components/LoginScreen'
 import { Settings as DesktopSettings } from './components/Settings'
-import { ViewManager, Workspace } from './components/Workspace'
+import { ViewManager, Workspace, type WorkspaceDockPreview } from './components/Workspace'
 import { Button } from './components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { errorText } from './lib/utils'
 import { defaultUIPreferences, loadUIPreferences, saveUIPreferences, type Theme, type UIPreferences } from './preferences'
-import { addWidget, arrangeWorkspaceWidgets, moveWidget, nextWidgetID, resolveWorkspaceLayout, type WidgetPlacement } from './store'
-import type { ConnectionStatus, Profile, ResourceDescriptor, Settings, Topology, ViewDefinition, ViewLayoutDirection, WorkspaceSelection } from './types'
+import { defaultRenderer, nextWidgetID } from './store'
+import type { ConnectionStatus, Profile, ResourceDescriptor, Settings, Topology, ViewDefinition, ViewWidget, WorkspaceSelection } from './types'
+import {
+  addWorkspaceWidget,
+  dockWorkspaceView,
+  sameWorkspaceDockIntent,
+  validateWorkspaceView,
+  workspaceDropTargetPriority,
+  workspacePanelDockSide,
+  type WorkspaceDockIntent,
+  type WorkspaceDockSide,
+  type WorkspaceDockSource,
+} from './workspace-layout'
 
 const emptyTopology: Topology = { version: 1, epoch: 1, nodes: [] }
 
-function sameWidgetLayout(left: ViewDefinition['widgets'], right: ViewDefinition['widgets']): boolean {
-  return left.length === right.length && left.every((widget, index) => {
-    const candidate = right[index]
-    return candidate
-      && widget.id === candidate.id
-      && widget.x === candidate.x
-      && widget.y === candidate.y
-      && widget.w === candidate.w
-      && widget.h === candidate.h
-  })
+type ActiveWorkspaceDrag = {
+  source: WorkspaceDockSource
+  widgetID: string
+  label: string
 }
 
-function dropSide(event: DragEndEvent, direction: ViewLayoutDirection): 'left' | 'right' {
+type WorkspaceDropData = {
+  kind?: 'workspace-divider' | 'workspace-root-edge' | 'workspace-panel' | 'workspace-background'
+  widgetID?: string
+  side?: WorkspaceDockSide
+  parentPath?: number[]
+  insertionIndex?: number
+  beforeWidgetID?: string
+  afterWidgetID?: string
+}
+
+const workspaceCollisionDetection: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args)
+  if (pointerCollisions.length === 0) return args.pointerCoordinates ? [] : closestCenter(args)
+  return [...pointerCollisions].sort((left, right) => workspaceDropTargetPriority(String(left.id)) - workspaceDropTargetPriority(String(right.id)))
+}
+
+function dragDataLabel(data: Record<string, unknown> | undefined): string {
+  if (typeof data?.label === 'string') return data.label
+  const resource = data?.resource as ResourceDescriptor | undefined
+  if (resource) return resource.presentation?.label || resource.id.name
+  return '面板'
+}
+
+function dropDataLabel(data: Record<string, unknown> | undefined): string {
+  const candidate = data as WorkspaceDropData | undefined
+  if (candidate?.kind === 'workspace-divider') return `分隔线 ${candidate.beforeWidgetID} 与 ${candidate.afterWidgetID} 之间`
+  if (candidate?.kind === 'workspace-root-edge' && candidate.side) return `工作区${dockSideLabel(candidate.side)}`
+  if (candidate?.kind === 'workspace-panel' && candidate.widgetID) return `面板 ${candidate.widgetID}；移动到边缘选择停靠方向`
+  if (candidate?.kind === 'workspace-background') return '空工作区'
+  return '当前区域'
+}
+
+const workspaceAnnouncements: Announcements = {
+  onDragStart: ({ active }) => `已抓取 ${dragDataLabel(active.data.current)}。使用方向键移动，空格放置，Escape 取消。`,
+  onDragOver: ({ over }) => over ? `当前位于${dropDataLabel(over.data.current)}。` : '当前不在有效停靠区域。',
+  onDragEnd: ({ active, over }) => over
+    ? `已在${dropDataLabel(over.data.current)}释放 ${dragDataLabel(active.data.current)}。`
+    : `未移动 ${dragDataLabel(active.data.current)}。`,
+  onDragCancel: ({ active }) => `已取消移动 ${dragDataLabel(active.data.current)}。`,
+}
+
+function dragPoint(event: DragEndEvent | DragMoveEvent): { x: number; y: number } | undefined {
   const translated = event.active.rect.current.translated
-  const over = event.over
-  if (!translated || !over) return 'right'
-  if (direction === 'vertical') {
-    return translated.top + translated.height / 2 < over.rect.top + over.rect.height / 2 ? 'left' : 'right'
+  if (!translated) return undefined
+  const activator = event.activatorEvent
+  if ('clientX' in activator && 'clientY' in activator
+    && typeof activator.clientX === 'number' && typeof activator.clientY === 'number') {
+    return { x: activator.clientX + event.delta.x, y: activator.clientY + event.delta.y }
   }
-  return translated.left + translated.width / 2 < over.rect.left + over.rect.width / 2 ? 'left' : 'right'
+  return { x: translated.left + translated.width / 2, y: translated.top + translated.height / 2 }
+}
+
+function panelDockSide(event: DragEndEvent | DragMoveEvent): WorkspaceDockSide | undefined {
+  const over = event.over
+  const point = dragPoint(event)
+  if (!over || !point) return undefined
+  const x = (point.x - over.rect.left) / Math.max(over.rect.width, 1)
+  const y = (point.y - over.rect.top) / Math.max(over.rect.height, 1)
+  return workspacePanelDockSide(x, y)
+}
+
+function resourceWidget(resource: ResourceDescriptor, widgets: ViewWidget[]): ViewWidget {
+  return {
+    id: nextWidgetID(resource, widgets),
+    owner_node_id: resource.id.owner_node_id,
+    resource_name: resource.id.name,
+    renderer: defaultRenderer(resource),
+  }
+}
+
+function dockSideLabel(value: WorkspaceDockSide): string {
+  return ({ left: '左侧', right: '右侧', top: '上方', bottom: '下方' })[value]
+}
+
+function dockDescription(intent: WorkspaceDockIntent): string {
+  if (intent.kind === 'panel-edge') return `停靠预览：置于 ${intent.targetWidgetID} ${dockSideLabel(intent.side)}`
+  if (intent.kind === 'root-edge') return `停靠预览：置于整个工作区${dockSideLabel(intent.side)}`
+  if (intent.kind === 'split-gap') return `停靠预览：插入 ${intent.beforeWidgetID} 与 ${intent.afterWidgetID} 之间`
+  return '停靠预览：填满空工作区'
 }
 
 function newView(index = 1): ViewDefinition {
@@ -55,6 +141,8 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [savingView, setSavingView] = useState(false)
+  const [activeWorkspaceDrag, setActiveWorkspaceDrag] = useState<ActiveWorkspaceDrag | null>(null)
+  const [dockIntent, setDockIntent] = useState<WorkspaceDockIntent | null>(null)
   const [error, setError] = useState('')
 
   const activeProfile = useMemo(
@@ -93,16 +181,12 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
 
   const loadViews = useCallback(async () => {
     const document = await api.views()
-    const nextViews = document.views.map((candidate) => {
-      if (candidate.widgets.length > 2) return candidate
-      const widgets = arrangeWorkspaceWidgets(candidate.widgets)
-      return sameWidgetLayout(candidate.widgets, widgets) ? candidate : { ...candidate, widgets }
-    })
-    const activeView = nextViews[0] || newView(1)
-    setViews(nextViews)
+    if (document.version !== 3) throw new Error(`不支持的视图文档版本：${document.version}`)
+    document.views.forEach(validateWorkspaceView)
+    const activeView = document.views[0] || newView(1)
+    setViews(document.views)
     setView(activeView)
-    const persistedActiveView = document.views[0]
-    setDirty(Boolean(persistedActiveView && !sameWidgetLayout(persistedActiveView.widgets, activeView.widgets)))
+    setDirty(false)
   }, [api])
 
   const refreshPlatform = useCallback(async (profile: Profile, waitForAutoConnect = true) => {
@@ -302,35 +386,108 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   }
 
   const changeView = (next: ViewDefinition) => {
-    setView(next)
-    setDirty(true)
+    try {
+      validateWorkspaceView(next)
+      setView(next)
+      setDirty(true)
+    } catch (current) {
+      setError(errorText(current))
+    }
   }
-  const addResource = (resource: ResourceDescriptor, placement?: WidgetPlacement) => {
+  const addResource = (resource: ResourceDescriptor) => {
     setActiveContent('workspace')
-    changeView({ ...view, widgets: addWidget(view.widgets, resource, nextWidgetID(resource, view.widgets), placement) })
+    try {
+      changeView(addWorkspaceWidget(view, resourceWidget(resource, view.widgets)))
+    } catch (current) {
+      setError(errorText(current))
+    }
+  }
+  const activeDrag = (event: DragStartEvent | DragMoveEvent | DragEndEvent): ActiveWorkspaceDrag | null => {
+    const data = event.active.data.current as {
+      kind?: string
+      widgetID?: string
+      label?: string
+      resource?: ResourceDescriptor
+    } | undefined
+    if (data?.kind === 'workspace-widget' && data.widgetID) {
+      const widget = view.widgets.find((candidate) => candidate.id === data.widgetID)
+      return widget ? { source: { kind: 'existing', widgetID: widget.id }, widgetID: widget.id, label: data.label || widget.resource_name } : null
+    }
+    if (data?.kind === 'resource' && data.resource) {
+      const widget = resourceWidget(data.resource, view.widgets)
+      return {
+        source: { kind: 'new', widget },
+        widgetID: widget.id,
+        label: data.resource.presentation?.label || data.resource.id.name,
+      }
+    }
+    return null
+  }
+  const resolveDockIntent = (event: DragMoveEvent | DragEndEvent): WorkspaceDockIntent | null => {
+    const over = event.over
+    if (!over) return null
+    const data = over.data.current as WorkspaceDropData | undefined
+    if (data?.kind === 'workspace-divider'
+      && Array.isArray(data.parentPath)
+      && typeof data.insertionIndex === 'number'
+      && data.beforeWidgetID
+      && data.afterWidgetID) {
+      return {
+        kind: 'split-gap',
+        parentPath: data.parentPath,
+        insertionIndex: data.insertionIndex,
+        beforeWidgetID: data.beforeWidgetID,
+        afterWidgetID: data.afterWidgetID,
+      }
+    }
+    if (data?.kind === 'workspace-root-edge' && data.side) return { kind: 'root-edge', side: data.side }
+    if (data?.kind === 'workspace-panel' && data.widgetID) {
+      const side = panelDockSide(event)
+      return side ? { kind: 'panel-edge', targetWidgetID: data.widgetID, side } : null
+    }
+    if (data?.kind === 'workspace-background') {
+      return view.layout_root ? null : { kind: 'empty-workspace' }
+    }
+    return null
+  }
+  const dragStart = (event: DragStartEvent) => {
+    setActiveWorkspaceDrag(activeDrag(event))
+    setDockIntent(null)
+  }
+  const dragMove = (event: DragMoveEvent) => {
+    const next = resolveDockIntent(event)
+    setDockIntent((current) => sameWorkspaceDockIntent(current, next) ? current : next)
   }
   const dragEnd = (event: DragEndEvent) => {
-    const over = event.over
-    if (!over) return
-    const side = dropSide(event, resolveWorkspaceLayout(view).direction)
-    const overData = over.data.current as { kind?: string; widgetID?: string } | undefined
-    const activeData = event.active.data.current as { kind?: string; widgetID?: string; resource?: ResourceDescriptor } | undefined
-    const targetID = overData?.kind === 'workspace-widget-target' ? overData.widgetID : undefined
-
-    if (activeData?.kind === 'workspace-widget' && activeData.widgetID) {
-      let resolvedTargetID = targetID
-      if (!resolvedTargetID && over.id === 'workspace-drop' && view.widgets.length > 0) {
-        resolvedTargetID = side === 'left' ? view.widgets[0]?.id : view.widgets.at(-1)?.id
+    const currentDrag = activeWorkspaceDrag || activeDrag(event)
+    const intent = resolveDockIntent(event) || dockIntent
+    setActiveWorkspaceDrag(null)
+    setDockIntent(null)
+    if (!currentDrag || !intent) return
+    try {
+      const next = dockWorkspaceView(view, currentDrag.source, intent)
+      if (next !== view) {
+        setActiveContent('workspace')
+        changeView(next)
       }
-      if (resolvedTargetID && resolvedTargetID !== activeData.widgetID) {
-        changeView({ ...view, widgets: moveWidget(view.widgets, activeData.widgetID, resolvedTargetID, side) })
-      }
-      return
+    } catch (current) {
+      setError(errorText(current))
     }
-
-    const resource = activeData?.resource
-    if (resource && (over.id === 'workspace-drop' || targetID)) addResource(resource, { targetID, side })
   }
+  const dragCancel = () => {
+    setActiveWorkspaceDrag(null)
+    setDockIntent(null)
+  }
+  const dockPreview = useMemo<WorkspaceDockPreview | null>(() => {
+    if (!activeWorkspaceDrag || !dockIntent) return null
+    try {
+      const next = dockWorkspaceView(view, activeWorkspaceDrag.source, dockIntent)
+      if (next === view) return null
+      return { view: next, widgetID: activeWorkspaceDrag.widgetID, description: dockDescription(dockIntent) }
+    } catch {
+      return null
+    }
+  }, [activeWorkspaceDrag, dockIntent, view])
   const saveView = async () => {
     setBusy(true)
     setSavingView(true)
@@ -393,7 +550,17 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
 
   const inspectorVisible = activeContent === 'workspace' && selection !== null
   return (
-    <DndContext onDragEnd={dragEnd}>
+    <DndContext
+      accessibility={{
+        announcements: workspaceAnnouncements,
+        screenReaderInstructions: { draggable: '按空格抓取面板或资源，使用方向键移动，按空格放置，按 Escape 取消。' },
+      }}
+      collisionDetection={workspaceCollisionDetection}
+      onDragStart={dragStart}
+      onDragMove={dragMove}
+      onDragEnd={dragEnd}
+      onDragCancel={dragCancel}
+    >
       <main className="app-shell">
         <a className="skip-link" href="#resource-workspace">跳到资源工作区</a>
         <header className="topbar">
@@ -479,8 +646,10 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                   view={view}
                   dirty={dirty}
                   saving={savingView}
+                  dockPreview={dockPreview}
                   onChange={changeView}
                   onSave={() => void saveView()}
+                  onError={setError}
                 />
               )}
           </div>
@@ -500,6 +669,14 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
           )}
         </div>
       </main>
+      <DragOverlay dropAnimation={null}>
+        {activeWorkspaceDrag && (
+          <div className="workspace-drag-overlay" aria-hidden="true">
+            <GripVertical size={14} />
+            <span>{activeWorkspaceDrag.label}</span>
+          </div>
+        )}
+      </DragOverlay>
     </DndContext>
   )
 }

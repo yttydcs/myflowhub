@@ -1,32 +1,42 @@
 import { DndContext } from '@dnd-kit/core'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { DesktopAPI } from '../api'
-import type { ViewDefinition, ViewWidget } from '../types'
+import type { ViewDefinition, ViewLayoutNode, ViewWidget } from '../types'
 import { Workspace } from './Workspace'
 
-const widget = (id: string, x: number, w: number): ViewWidget => ({
+const widget = (id: string): ViewWidget => ({
   id,
   owner_node_id: '2',
   resource_name: `system/${id}`,
   renderer: 'mfh.variable',
-  x,
-  y: 0,
-  w,
-  h: 24,
 })
 
-function renderWorkspace(view: ViewDefinition, onChange = vi.fn()) {
+const leaf = (widgetID: string): ViewLayoutNode => ({ kind: 'leaf', widget_id: widgetID })
+
+function view(layoutRoot: ViewLayoutNode, ids = ['a', 'b']): ViewDefinition {
+  return {
+    id: 'view',
+    name: 'View',
+    revision: 0,
+    widgets: ids.map(widget),
+    layout_root: layoutRoot,
+  }
+}
+
+function renderWorkspace(candidate: ViewDefinition, onChange = vi.fn(), dockPreview?: ViewDefinition) {
   render(
     <DndContext>
       <Workspace
         api={{} as DesktopAPI}
         resources={[]}
-        view={view}
+        view={candidate}
         dirty
         saving={false}
+        dockPreview={dockPreview ? { view: dockPreview, widgetID: 'c', description: '停靠预览' } : undefined}
         onChange={onChange}
         onSave={vi.fn()}
+        onError={vi.fn()}
       />
     </DndContext>,
   )
@@ -34,59 +44,42 @@ function renderWorkspace(view: ViewDefinition, onChange = vi.fn()) {
 }
 
 describe('workspace panels', () => {
-  it('renders a single widget across the full persisted workspace grid', () => {
-    renderWorkspace({ id: 'view', name: 'View', revision: 0, widgets: [widget('catalog', 0, 12)] })
-    expect(screen.getByRole('article', { name: '组件 catalog' })).toHaveStyle({
-      gridColumn: '1 / span 12',
-      gridRow: '1 / span 24',
-    })
+  it('renders one widget as the only full layout leaf', () => {
+    renderWorkspace(view(leaf('a'), ['a']))
+    expect(screen.getByRole('article', { name: '组件 a' })).toBeInTheDocument()
+    expect(document.querySelectorAll('.workspace-layout-leaf')).toHaveLength(1)
+    expect(screen.queryByRole('separator')).not.toBeInTheDocument()
   })
 
-  it('resizes a two-panel View through an accessible separator', () => {
-    const onChange = renderWorkspace({
-      id: 'view',
-      name: 'View',
-      revision: 0,
-      widgets: [widget('catalog', 0, 6), widget('health', 6, 6)],
-    })
-    const separator = screen.getByRole('separator', { name: '调整左右面板比例' })
-    expect(separator).toHaveAttribute('aria-valuetext', '左侧 50%，右侧 50%')
+  it('recursively renders mixed horizontal and vertical n-ary splits', () => {
+    renderWorkspace(view({
+      kind: 'split',
+      axis: 'horizontal',
+      weights: [0.4, 0.6],
+      children: [
+        leaf('a'),
+        { kind: 'split', axis: 'vertical', weights: [0.5, 0.5], children: [leaf('b'), leaf('c')] },
+      ],
+    }, ['a', 'b', 'c']))
+    expect(screen.getAllByRole('article')).toHaveLength(3)
+    expect(screen.getByRole('separator', { name: '调整 a 与 b 的左右比例' })).toHaveAttribute('aria-orientation', 'vertical')
+    expect(screen.getByRole('separator', { name: '调整 b 与 c 的上下比例' })).toHaveAttribute('aria-orientation', 'horizontal')
+    expect(screen.queryByRole('button', { name: /左右|上下|交换/ })).not.toBeInTheDocument()
+  })
+
+  it('resizes an exact divider with the keyboard and persists normalized weights', () => {
+    const onChange = renderWorkspace(view({
+      kind: 'split', axis: 'horizontal', weights: [0.5, 0.5], children: [leaf('a'), leaf('b')],
+    }))
+    const separator = screen.getByRole('separator', { name: '调整 a 与 b 的左右比例' })
+    expect(separator).toHaveAttribute('aria-valuetext', '前一面板 50%，后一面板 50%')
     fireEvent.keyDown(separator, { key: 'ArrowRight' })
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
-      layout: { direction: 'horizontal', split_ratio: 0.52 },
+      layout_root: expect.objectContaining({ weights: [0.52, 0.48] }),
     }))
   })
 
-  it('switches to a top-bottom layout and exposes direction-aware panel controls', () => {
-    const onChange = renderWorkspace({
-      id: 'view',
-      name: 'View',
-      revision: 0,
-      widgets: [widget('catalog', 0, 6), widget('health', 6, 6)],
-    })
-    fireEvent.click(screen.getByRole('button', { name: '上下' }))
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
-      layout: { direction: 'vertical', split_ratio: 0.5 },
-    }))
-  })
-
-  it('renders and swaps vertical panels without changing their physical split ratio', () => {
-    const onChange = renderWorkspace({
-      id: 'view',
-      name: 'View',
-      revision: 0,
-      layout: { direction: 'vertical', split_ratio: 0.625 },
-      widgets: [widget('catalog', 0, 8), widget('health', 8, 4)],
-    })
-    expect(screen.getByRole('article', { name: '组件 catalog' })).toHaveStyle({ gridColumn: '1', gridRow: '1' })
-    expect(screen.getByRole('separator', { name: '调整上下区域比例' })).toHaveAttribute('aria-valuetext', '上方 63%，下方 37%')
-    fireEvent.click(screen.getByRole('button', { name: '交换' }))
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
-      widgets: [expect.objectContaining({ id: 'health' }), expect.objectContaining({ id: 'catalog' })],
-    }))
-  })
-
-  it('previews pointer resizing continuously and persists only when the drag ends', () => {
+  it('previews pointer resizing through animation frames and persists only on release', () => {
     class TestPointerEvent extends MouseEvent {
       readonly pointerId: number
 
@@ -96,30 +89,49 @@ describe('workspace panels', () => {
       }
     }
     Object.defineProperty(window, 'PointerEvent', { configurable: true, value: TestPointerEvent })
-
-    const onChange = renderWorkspace({
-      id: 'view',
-      name: 'View',
-      revision: 0,
-      widgets: [widget('catalog', 0, 6), widget('health', 6, 6)],
+    const frames: FrameRequestCallback[] = []
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.push(callback)
+      return frames.length
     })
-    const separator = screen.getByRole('separator', { name: '调整左右面板比例' })
+
+    const onChange = renderWorkspace(view({
+      kind: 'split', axis: 'horizontal', weights: [0.5, 0.5], children: [leaf('a'), leaf('b')],
+    }))
+    const separator = screen.getByRole('separator', { name: '调整 a 与 b 的左右比例' })
     const grid = separator.parentElement as HTMLDivElement
-    vi.spyOn(grid, 'getBoundingClientRect').mockReturnValue({
-      x: 0, y: 0, left: 0, top: 0, right: 1000, bottom: 700, width: 1000, height: 700, toJSON: () => ({}),
+    const [leading, , trailing] = Array.from(grid.children) as HTMLElement[]
+    vi.spyOn(leading!, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, left: 0, top: 0, right: 496, bottom: 700, width: 496, height: 700, toJSON: () => ({}),
+    })
+    vi.spyOn(trailing!, 'getBoundingClientRect').mockReturnValue({
+      x: 504, y: 0, left: 504, top: 0, right: 1000, bottom: 700, width: 496, height: 700, toJSON: () => ({}),
     })
     let captured = false
     separator.setPointerCapture = vi.fn(() => { captured = true })
     separator.hasPointerCapture = vi.fn(() => captured)
     separator.releasePointerCapture = vi.fn(() => { captured = false })
 
-    fireEvent.pointerDown(separator, { pointerId: 1, clientX: 300, clientY: 350 })
+    fireEvent.pointerDown(separator, { pointerId: 1, clientX: 500, clientY: 350 })
+    act(() => frames.shift()?.(0))
     fireEvent.pointerMove(separator, { pointerId: 1, clientX: 400, clientY: 350 })
+    act(() => frames.shift()?.(16))
     expect(onChange).not.toHaveBeenCalled()
-    expect(grid.style.gridTemplateColumns).not.toContain('0.5fr')
+    expect(grid.style.gridTemplateColumns).toContain('0.39919354838709675fr')
     fireEvent.pointerUp(separator, { pointerId: 1, clientX: 400, clientY: 350 })
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
-      layout: expect.objectContaining({ direction: 'horizontal', split_ratio: expect.closeTo(384 / 968, 5) }),
+      layout_root: expect.objectContaining({ weights: [expect.closeTo(396 / 992, 5), expect.closeTo(596 / 992, 5)] }),
     }))
+  })
+
+  it('renders the hypothetical layout preview without replacing live panels', () => {
+    const current = view({ kind: 'split', axis: 'horizontal', weights: [0.5, 0.5], children: [leaf('a'), leaf('b')] })
+    const preview = view({
+      kind: 'split', axis: 'horizontal', weights: [1 / 3, 1 / 3, 1 / 3], children: [leaf('a'), leaf('c'), leaf('b')],
+    }, ['a', 'b', 'c'])
+    renderWorkspace(current, vi.fn(), preview)
+    expect(screen.getAllByRole('article')).toHaveLength(2)
+    expect(document.querySelectorAll('.workspace-preview-leaf')).toHaveLength(3)
+    expect(document.querySelector('.workspace-preview-leaf.is-highlighted')).toBeInTheDocument()
   })
 })

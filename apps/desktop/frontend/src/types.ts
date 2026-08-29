@@ -80,26 +80,21 @@ export type ViewWidget = {
   owner_node_id: string
   resource_name: string
   renderer: string
-  x: number
-  y: number
-  w: number
-  h: number
   settings?: unknown
 }
 
-export type ViewLayoutDirection = 'horizontal' | 'vertical'
+export type ViewLayoutAxis = 'horizontal' | 'vertical'
 
-export type ViewLayout = {
-  direction: ViewLayoutDirection
-  split_ratio: number
-}
+export type ViewLayoutNode =
+  | { kind: 'leaf'; widget_id: string }
+  | { kind: 'split'; axis: ViewLayoutAxis; children: ViewLayoutNode[]; weights: number[] }
 
 export type ViewDefinition = {
   id: string
   name: string
   revision: number
   widgets: ViewWidget[]
-  layout?: ViewLayout
+  layout_root?: ViewLayoutNode
   created_at_unix_ms?: number
   updated_at_unix_ms?: number
 }

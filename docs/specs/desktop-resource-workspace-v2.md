@@ -2,7 +2,8 @@
 
 ## Status
 
-这是已实现的 Desktop Profile、资源浏览器、renderer 和本地 View canonical contract。
+Superseded。Profile、登录、Explorer 与 Renderer 内容仍是历史实现依据；View v2 双面板/三面板网格布局
+已由 [Desktop Resource Workspace v3](desktop-resource-workspace-v3.md) 取代，不再是当前布局契约。
 
 ## Product boundary
 
