@@ -9,6 +9,7 @@ Desktop 的 binding client 是单次启动生命周期对象。一次连接或�
 - 症状：第一次连接失败后，再次点击连接立即出现 `parent trust cannot change after the binding client starts`。
 - 症状：界面只显示“连接超时”，但运行时此前已经得到更具体的准入拒绝或父节点身份错误。
 - 症状：用户修正地址或 permit 后仍无法重试，必须重启 Desktop 才恢复。
+- 症状：全新 Desktop 被要求粘贴绑定本机公钥的 Permit，但登录页没有先生成或读取该公钥的入口，形成首次准入循环依赖。
 - 触发：复用已经 `Start` 过的 binding client，或在失败登录后立即清空一次性 permit。
 - 关键词：`parent trust cannot change`、`context deadline exceeded`、`admission rejected`、`last_error`、`permit`。
 
@@ -23,12 +24,14 @@ Desktop 的 binding client 是单次启动生命周期对象。一次连接或�
 3. 超时时优先返回监督循环记录的最后一个具体错误，并用 deadline 作为外层上下文，而不是覆盖根因。
 4. 只在成功登录后清空 UI 中的一次性 permit；失败时保留，允许用户修正其他字段后重试。
 5. Profile、node identity 与 view store 必须按 profile ID 隔离；切换前先清理旧 subscription/session。
+6. 首次准入必须把 identity preparation 与 login activation 分开：准备阶段只生成或复用 CredentialStore identity、返回公钥并保存非 active Profile；连接成功后才激活。
 
 ## Quick Checks
 
 - 查看 `StatusJSON` 的 `last_error`，确认超时前是否已有更具体的链路或准入错误。
 - 检查重试路径是否重新调用 client factory，而不是对已有实例再次 `Start`。
 - 核对输入的 parent public key 与测试 Hub 实际 identity 完全一致。
+- 在签发首次 Permit 前，确认 UI 显示的 Desktop 公钥来自生产 CredentialStore identity，而不是浏览器临时密钥或另一个 CLI state directory。
 - 检查失败路径是否提前清空 permit，成功路径是否确实清空。
 - 在隔离配置目录连续执行“失败连接 → 修正输入 → 成功连接 → 重启自动连接”，不要只验证冷启动成功。
 
@@ -37,6 +40,7 @@ Desktop 的 binding client 是单次启动生命周期对象。一次连接或�
 - 将 binding client 视为 disposable session object，不设计成可无限重启的全局单例。
 - UI 错误必须保留 runtime 的最后一个可操作诊断；不得用通用 timeout 静默降级。
 - 涉及一次性凭据的测试必须覆盖失败后重试和成功后清理两个方向。
+- 覆盖“准备身份后仍未登录、active_profile_id 不变、重复准备公钥稳定、输出不含私钥”的首次引导门禁。
 - 重连、切换 Profile 与 shutdown 必须进入 race gate，并使用真实 production Wails 路径做至少一次验收。
 
 ## Related Docs

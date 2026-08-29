@@ -11,14 +11,17 @@ import type {
 
 export type OperationResult = { schema?: string; payload: unknown }
 export type PollResult = { kind: 'event' | 'error' | 'closed' | 'timeout'; payload?: unknown }
+export type PublicIdentity = { node_id: string; public_key: string }
+export type PreparedProfile = { profile: Profile; identity: PublicIdentity }
 
 export interface DesktopAPI {
   settings(): Promise<Settings>
+  prepareProfile(profile: Profile): Promise<PreparedProfile>
   saveProfile(profile: Profile): Promise<Profile>
   login(profile: Profile, permitJSON: string): Promise<Profile>
   switchProfile(profileID: string): Promise<void>
   deleteProfile(profileID: string, confirmation: string): Promise<void>
-  identity(): Promise<{ node_id: string; public_key: string }>
+  identity(): Promise<PublicIdentity>
   connect(): Promise<void>
   disconnect(): Promise<void>
   status(): Promise<ConnectionStatus>
@@ -42,6 +45,7 @@ function parseOperation(raw: string): OperationResult {
 
 export const api: DesktopAPI = {
   settings: async () => JSON.parse(await App.SettingsJSON()),
+  prepareProfile: async (profile) => JSON.parse(await App.PrepareProfileJSON(JSON.stringify(profile))),
   saveProfile: async (profile) => JSON.parse(await App.SaveProfileJSON(JSON.stringify(profile))),
   login: async (profile, permitJSON) => JSON.parse(await App.LoginJSON(JSON.stringify({ profile, permit_json: permitJSON }))),
   switchProfile: App.SwitchProfile,

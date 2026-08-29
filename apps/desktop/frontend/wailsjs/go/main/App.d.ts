@@ -27,6 +27,8 @@ export function OperateJSON(arg1:string,arg2:string,arg3:string,arg4:string,arg5
 
 export function PollSubscription(arg1:number,arg2:number):Promise<string>;
 
+export function PrepareProfileJSON(arg1:string):Promise<string>;
+
 export function ResetStorage(arg1:string):Promise<string>;
 
 export function SaveProfileJSON(arg1:string):Promise<string>;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DndContext, type DragEndEvent } from '@dnd-kit/core'
 import { Boxes, Layers3, Moon, Plus, RefreshCw, Settings2, Sun } from 'lucide-react'
-import { api as productionApi, type DesktopAPI } from './api'
+import { api as productionApi, type DesktopAPI, type PreparedProfile } from './api'
 import { Explorer } from './components/Explorer'
 import { Inspector } from './components/Inspector'
 import { LoginScreen } from './components/LoginScreen'
@@ -149,6 +149,21 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     } catch (current) {
       setError(errorText(current))
       return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const prepareProfile = async (profile: Profile): Promise<PreparedProfile | undefined> => {
+    setBusy(true)
+    setError('')
+    try {
+      const prepared = await api.prepareProfile(profile)
+      setSettings(await api.settings())
+      return prepared
+    } catch (current) {
+      setError(errorText(current))
+      return undefined
     } finally {
       setBusy(false)
     }
@@ -323,6 +338,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
         error={error}
         theme={preferences.theme}
         onThemeChange={(theme) => updatePreferences({ theme })}
+        onPrepare={prepareProfile}
         onLogin={login}
         onDelete={deleteProfile}
       />

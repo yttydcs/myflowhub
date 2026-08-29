@@ -29,6 +29,16 @@ type logEntry struct {
 	Message    string `json:"message"`
 }
 
+type publicIdentity struct {
+	NodeID    string `json:"node_id"`
+	PublicKey string `json:"public_key"`
+}
+
+type preparedProfile struct {
+	Profile  Profile        `json:"profile"`
+	Identity publicIdentity `json:"identity"`
+}
+
 type CredentialStore interface {
 	Open(Profile) (*desktopbinding.Client, error)
 	Remove(string) error
@@ -192,6 +202,50 @@ func (a *App) SaveProfileJSON(raw string) (string, error) {
 		return "", err
 	}
 	return marshalJSON(profile)
+}
+
+func (a *App) PrepareProfileJSON(raw string) (string, error) {
+	a.lifecycleMu.Lock()
+	defer a.lifecycleMu.Unlock()
+	var profile Profile
+	if err := decodeBoundedJSON(raw, &profile); err != nil {
+		return "", err
+	}
+	if err := validateProfile(profile); err != nil {
+		return "", err
+	}
+
+	a.mu.Lock()
+	activeProfileID := a.settings.ActiveProfileID
+	a.mu.Unlock()
+	if activeProfileID == profile.ID {
+		return "", errors.New("active profile identity cannot be prepared; save it from Settings instead")
+	}
+
+	candidate, err := a.credentials.Open(profile)
+	if err != nil {
+		return "", err
+	}
+	defer candidate.Close()
+	identityJSON, err := candidate.IdentityJSON()
+	if err != nil {
+		return "", fmt.Errorf("read prepared profile identity: %w", err)
+	}
+	var identity publicIdentity
+	if err := decodeStrictJSON([]byte(identityJSON), &identity); err != nil {
+		return "", fmt.Errorf("decode prepared profile identity: %w", err)
+	}
+
+	a.mu.Lock()
+	next := upsertInactiveProfile(a.settings, profile)
+	if err := a.store.save(next); err != nil {
+		a.mu.Unlock()
+		return "", err
+	}
+	a.settings = next
+	a.mu.Unlock()
+	a.appendLog("info", "profile identity prepared: "+profile.Name)
+	return marshalJSON(preparedProfile{Profile: profile, Identity: identity})
 }
 
 func (a *App) LoginJSON(raw string) (string, error) {

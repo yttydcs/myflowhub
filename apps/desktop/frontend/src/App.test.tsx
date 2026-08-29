@@ -19,6 +19,7 @@ const resource: ResourceDescriptor = {
 function mockAPI(settings: Settings): DesktopAPI {
   return {
     settings: vi.fn().mockResolvedValue(settings),
+    prepareProfile: vi.fn().mockImplementation(async (next: Profile) => ({ profile: next, identity: { node_id: next.node_id, public_key: 'desktop-public-key' } })),
     saveProfile: vi.fn().mockImplementation(async (next: Profile) => next),
     login: vi.fn().mockImplementation(async (next: Profile) => next),
     switchProfile: vi.fn(),
@@ -111,6 +112,35 @@ describe('desktop resource workspace', () => {
     expect(alert).toHaveTextContent('一次性准入 Permit')
     expect(alert).toHaveFocus()
     expect(permit).toHaveValue('{"version":1}')
+  })
+
+  it('prepares a public identity without activating or leaving the login screen', async () => {
+    const initial: Settings = { version: 2, profiles: [], updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
+    const preparedSettings: Settings = { ...initial, profiles: [profile], updated_at_unix_ms: 2 }
+    const api = mockAPI(initial)
+    vi.mocked(api.settings).mockResolvedValueOnce(initial).mockResolvedValueOnce(preparedSettings)
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+
+    render(<App api={api} />)
+    fireEvent.change(await screen.findByLabelText('Profile 名称'), { target: { value: profile.name } })
+    fireEvent.change(screen.getByLabelText('Profile ID'), { target: { value: profile.id } })
+    fireEvent.change(screen.getByLabelText('本机 Node ID'), { target: { value: profile.node_id } })
+    fireEvent.change(screen.getByLabelText('父 Node ID'), { target: { value: profile.parent_node_id } })
+    fireEvent.change(screen.getByLabelText('连接端点'), { target: { value: profile.endpoint } })
+    fireEvent.change(screen.getByLabelText('父节点公钥'), { target: { value: profile.parent_public_key } })
+    fireEvent.click(screen.getByRole('button', { name: '准备身份' }))
+
+    expect(await screen.findByDisplayValue('desktop-public-key')).toBeInTheDocument()
+    expect(screen.getByText(/Profile 已保存，但尚未登录或连接/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '登录 MyFlowHub' })).toBeInTheDocument()
+    expect(api.login).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '复制本机公钥' }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('desktop-public-key'))
+    expect(screen.getByText('公钥已复制')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('连接端点'), { target: { value: '127.0.0.1:7331' } })
+    expect(screen.queryByDisplayValue('desktop-public-key')).not.toBeInTheDocument()
   })
 
   it('does not switch profiles while unsaved workspace changes are rejected', async () => {

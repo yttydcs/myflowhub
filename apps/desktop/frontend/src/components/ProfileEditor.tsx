@@ -51,7 +51,7 @@ export function ProfileEditor({ profile, onChange, lockID = false }: {
       </div>
       <label>
         连接端点
-        <Input required name="endpoint" autoComplete="off" spellCheck={false} value={profile.endpoint} onChange={(event) => update('endpoint', event.target.value)} placeholder="例如：127.0.0.1:9540" />
+        <Input required name="endpoint" autoComplete="off" spellCheck={false} value={profile.endpoint} onChange={(event) => update('endpoint', event.target.value)} placeholder="例如：127.0.0.1:7331" />
       </label>
       <label>
         父节点公钥

@@ -33,6 +33,7 @@ authoritative Node tree ── node-owned Resources
 client，其 subscription、session 和 connection 随之清理，再打开新身份。
 
 - 登录页支持新建、选择、编辑和显式确认删除 Profile；
+- 全新 Profile 可先准备受保护的本机 identity 并复制 raw-base64 Ed25519 公钥；准备动作只保存非 active Profile，不连接、不登录，也不返回私钥；
 - admission permit 只传给本次连接，不写入 settings 或日志；
 - Windows 使用当前用户作用域 DPAPI 保存 Ed25519 identity；密文位于 Profile 目录的
   `identity.dpapi`；

@@ -54,6 +54,10 @@ export function PollSubscription(arg1, arg2) {
   return window['go']['main']['App']['PollSubscription'](arg1, arg2);
 }
 
+export function PrepareProfileJSON(arg1) {
+  return window['go']['main']['App']['PrepareProfileJSON'](arg1);
+}
+
 export function ResetStorage(arg1) {
   return window['go']['main']['App']['ResetStorage'](arg1);
 }

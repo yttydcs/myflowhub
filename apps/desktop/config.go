@@ -184,6 +184,14 @@ func validateProfile(value Profile) error {
 }
 
 func upsertProfile(settings Settings, profile Profile) Settings {
+	return upsertProfileWithActivation(settings, profile, true)
+}
+
+func upsertInactiveProfile(settings Settings, profile Profile) Settings {
+	return upsertProfileWithActivation(settings, profile, false)
+}
+
+func upsertProfileWithActivation(settings Settings, profile Profile, activate bool) Settings {
 	now := time.Now().UTC().UnixMilli()
 	profile.UpdatedAtUnixMS = now
 	updated := false
@@ -200,7 +208,9 @@ func upsertProfile(settings Settings, profile Profile) Settings {
 		profile.CreatedAtUnixMS = now
 		settings.Profiles = append(settings.Profiles, profile)
 	}
-	settings.ActiveProfileID = profile.ID
+	if activate {
+		settings.ActiveProfileID = profile.ID
+	}
 	return settings
 }
 

@@ -30,10 +30,10 @@
 
 ## Functional Requirements
 
-1. Login shell 必须支持 Profile chooser、create/edit/delete、首次 admission 和明确错误恢复。
+1. Login shell 必须支持 Profile chooser、create/edit/delete、首次 admission 和明确错误恢复；全新 Profile 必须能在连接前生成或复用 CredentialStore identity，并只展示用于父节点签发 Permit 的公开身份。
 2. 每个 Profile 隔离 Hub/Transport 设置、本地 Node identity、受信任父节点、View、最近项和 UI preferences。
 3. 首版每个应用实例只能激活一个 Profile；切换必须先关闭旧连接、subscription 和 session。
-4. 一次性 permit 在成功 admission 后不得继续作为长期明文配置保存；私钥或 refresh secret 必须通过 CredentialStore abstraction 保护。
+4. 身份准备不得激活 Profile、启动连接或导出私钥；一次性 permit 在成功 admission 后不得继续作为长期明文配置保存，私钥或 refresh secret 必须通过 CredentialStore abstraction 保护。
 5. Resource Explorer 必须按 authoritative Node tree 展示 Node，并在 owner 下展示 Resource；Resource path 分组只影响显示，不建立第二棵 authority tree。
 6. Explorer 必须支持搜索、展开/折叠、选择、加载、空状态、断线状态和键盘导航。
 7. Explorer 必须支持任意深度的 Node 关系、独立资源类型图标、深层 Node 聚焦、路径面包屑和返回完整树；

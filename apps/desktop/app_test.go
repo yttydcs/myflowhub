@@ -103,6 +103,75 @@ func testProfile(id, nodeID string) Profile {
 	}
 }
 
+func TestPrepareProfileCreatesStableInactivePublicIdentity(t *testing.T) {
+	root := t.TempDir()
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Close()
+
+	profile := testProfile("first-admission", "2")
+	profileJSON, _ := json.Marshal(profile)
+	firstJSON, err := app.PrepareProfileJSON(string(profileJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var first preparedProfile
+	if err := json.Unmarshal([]byte(firstJSON), &first); err != nil {
+		t.Fatal(err)
+	}
+	if first.Profile.ID != profile.ID || first.Identity.NodeID != profile.NodeID || first.Identity.PublicKey == "" {
+		t.Fatalf("unexpected prepared profile: %+v", first)
+	}
+	if strings.Contains(firstJSON, "private") {
+		t.Fatalf("prepared profile exposed private identity material: %s", firstJSON)
+	}
+
+	settingsJSON, err := app.SettingsJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var settings struct{ Settings }
+	if err := json.Unmarshal([]byte(settingsJSON), &settings); err != nil {
+		t.Fatal(err)
+	}
+	if settings.ActiveProfileID != "" || len(settings.Profiles) != 1 || settings.Profiles[0].ID != profile.ID {
+		t.Fatalf("prepared profile was activated or not persisted: %s", settingsJSON)
+	}
+	if _, err := app.IdentityJSON(); err == nil {
+		t.Fatal("prepared profile unexpectedly installed an active client")
+	}
+
+	secondJSON, err := app.PrepareProfileJSON(string(profileJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var second preparedProfile
+	if err := json.Unmarshal([]byte(secondJSON), &second); err != nil {
+		t.Fatal(err)
+	}
+	if second.Identity != first.Identity {
+		t.Fatalf("prepared identity changed: first=%+v second=%+v", first.Identity, second.Identity)
+	}
+}
+
+func TestPrepareProfileRejectsActiveProfile(t *testing.T) {
+	app, err := NewApp(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Close()
+	profile := testProfile("active", "2")
+	profileJSON, _ := json.Marshal(profile)
+	if _, err := app.SaveProfileJSON(string(profileJSON)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.PrepareProfileJSON(string(profileJSON)); err == nil || !strings.Contains(err.Error(), "active profile") {
+		t.Fatalf("expected active profile preparation rejection, got %v", err)
+	}
+}
+
 func TestAppSupportsIsolatedPersistentProfiles(t *testing.T) {
 	root := t.TempDir()
 	app, err := NewApp(root)

@@ -14,6 +14,12 @@ Desktop 是通用 Node/Resource 工作台。它使用 SDK 和 generated Wails bo
 Profile 隔离一个 Hub endpoint、节点 identity/trust、非秘密偏好和 Views。每个应用实例最多一个
 active Profile。启动时若 credential store 中存在有效凭据则自动连接；否则显示登录页。
 
+首次 admission 分为两个明确阶段：`PrepareProfileJSON` 严格校验 Profile，在该 Profile 的 CredentialStore
+中生成或复用 identity，返回 Node ID 与 raw-base64 Ed25519 公钥，并把 Profile 原子保存为非 active 记录；
+该阶段不设置 parent trust、不启动连接、不接受 Permit，也不返回私钥。父节点签发一次性 Permit 后，
+`LoginJSON` 才尝试连接，并且仅在成功后把 Profile 设为 active。失败时 Permit 留在当前 UI 会话供修正重试，
+但不写入 settings、日志或 UI preference。
+
 secret 只能通过 `CredentialStore` 保存，首选系统安全存储；不可用时必须明确报告并允许仅会话使用，
 不得退化为 settings JSON 明文。Profile switch 先关闭 subscription/session/connection，再原子激活新配置；
 失败保持可恢复的未连接状态。
