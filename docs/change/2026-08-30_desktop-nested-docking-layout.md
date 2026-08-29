@@ -77,6 +77,8 @@
   986 px 窄窗口、八面板横向滚动、v3/pre-v3 文件、保存/重开/重启和真实 Forbidden Inspector/Widget 均通过。
 - 证据索引：[m-test evidence](../../artifacts/m-test/desktop-nested-docking/README.md)。
 - `git diff --check` 与归档后回归通过。
+- 本地 `master` fast-forward 到 `377df89` 后，将独立品牌源码叠加到新布局并重新生成 dist；9 个前端测试文件、45 个测试和 `go test ./...` 再次通过。
+- 合并前后核对 35 个非冲突用户文件的长度与 SHA-256，均保持不变；worktree、feature branch、隔离测试配置和 workflow-owned 进程已清理。
 
 ## 经验 / 教训摘要与可复用排查线索
 

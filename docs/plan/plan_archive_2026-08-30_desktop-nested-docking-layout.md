@@ -525,4 +525,6 @@ Committed production supports exact direction/ratio only for two widgets and a f
 - Plan archive: `docs/plan/plan_archive_2026-08-30_desktop-nested-docking-layout.md`.
 - No brand/icon asset or brand ADR was created, changed or archived by this workflow.
 - No remote exists and no push, release or publication was performed.
-- The final integration and cleanup results are recorded in the root closeout plan after the control-plane merge.
+- Control-plane integration completed by fast-forwarding `master` to `377df89` after path-scoped shelving of 15 overlapping dirty paths.
+- Independent brand, Agent Gateway, Metrics, `guide.md` and design-demo changes were restored/preserved as unstaged main-checkout work; 35 non-conflicting files remained byte-identical by SHA-256.
+- Post-merge combined frontend passed 9 files / 45 tests and `go test ./...`; the dedicated worktree, merged feature branch, isolated test config and workflow-owned processes were removed.
