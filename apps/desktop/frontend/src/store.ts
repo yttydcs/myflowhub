@@ -18,18 +18,8 @@ export interface NodeExplorerRow {
   node: TopologyNode
 }
 
-export interface ResourceGroup {
-  key: string
-  label: string
-  resources: ResourceDescriptor[]
-}
-
 export function nodeRowKey(nodeID: string): string {
   return `node:${nodeID}`
-}
-
-export function resourceRowKey(resource: ResourceDescriptor): string {
-  return `resource:${resourceKey(resource.id.owner_node_id, resource.id.name)}`
 }
 
 export function buildExplorerIndex(topology: Topology, resources: ResourceDescriptor[]): ExplorerIndex {
@@ -167,33 +157,6 @@ function buildVisibleNodeIDs(index: ExplorerIndex, query: string): Set<string> {
 
 function nodeSearchValues(node: TopologyNode): string[] {
   return [node.node_id, node.display_name || '', node.role].map((value) => value.toLocaleLowerCase())
-}
-
-function resourceSearchValues(resource: ResourceDescriptor): string[] {
-  return [resource.id.name, resource.presentation?.label || '', resource.type].map((value) => value.toLocaleLowerCase())
-}
-
-export function groupResources(resources: ResourceDescriptor[], rawQuery = ''): ResourceGroup[] {
-  const query = rawQuery.trim().toLocaleLowerCase()
-  const groups = new Map<string, ResourceGroup>()
-  for (const resource of resources) {
-    if (query && !resourceSearchValues(resource).some((value) => value.includes(query))) continue
-    const separator = resource.id.name.indexOf('/')
-    const segment = separator > 0 ? resource.id.name.slice(0, separator) : undefined
-    const key = segment ? `segment:${segment}` : 'ungrouped'
-    let group = groups.get(key)
-    if (!group) {
-      group = { key, label: segment || '其他', resources: [] }
-      groups.set(key, group)
-    }
-    group.resources.push(resource)
-  }
-  return [...groups.values()]
-    .sort((left, right) => {
-      if (left.key === 'ungrouped') return 1
-      if (right.key === 'ungrouped') return -1
-      return left.label.localeCompare(right.label, undefined, { numeric: true })
-    })
 }
 
 export function defaultExpandedNodeIDs(index: ExplorerIndex): string[] {

@@ -1,4 +1,4 @@
-# Plan - Desktop Explorer 可折叠分区与 Resource path tree
+# Plan Archive - Desktop Explorer 可折叠分区与 Resource path tree
 
 ## Workflow Information
 

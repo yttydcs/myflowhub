@@ -18,10 +18,18 @@ describe('profile UI preferences', () => {
       version: 1,
       theme: 'dark',
       expanded_node_ids: ['1', '2'],
+      expanded_resource_paths: ['resource-path:["2","system"]'],
       focused_node_id: '2',
       explorer_split_ratio: 0.62,
+      collapsed_explorer_pane: 'node',
     })).toBeUndefined()
-    expect(loadUIPreferences('personal').value).toMatchObject({ theme: 'dark', focused_node_id: '2', explorer_split_ratio: 0.62 })
+    expect(loadUIPreferences('personal').value).toMatchObject({
+      theme: 'dark',
+      focused_node_id: '2',
+      explorer_split_ratio: 0.62,
+      collapsed_explorer_pane: 'node',
+      expanded_resource_paths: ['resource-path:["2","system"]'],
+    })
     expect(loadUIPreferences('work').value.theme).toBe('light')
     expect(loadUIPreferences('work').value.explorer_split_ratio).toBe(DEFAULT_EXPLORER_SPLIT_RATIO)
   })
@@ -55,6 +63,22 @@ describe('profile UI preferences', () => {
       version: 1,
       theme: 'dark',
       explorer_split_ratio: 0.95,
+    }))
+    expect(loadUIPreferences('personal').warning).toContain('无法读取')
+  })
+
+  it('rejects invalid collapse state or oversized Resource tree state', () => {
+    window.localStorage.setItem('mfh.desktop.ui.v1:personal', JSON.stringify({
+      version: 1,
+      theme: 'dark',
+      collapsed_explorer_pane: 'both',
+    }))
+    expect(loadUIPreferences('personal').warning).toContain('无法读取')
+
+    window.localStorage.setItem('mfh.desktop.ui.v1:personal', JSON.stringify({
+      version: 1,
+      theme: 'dark',
+      expanded_resource_paths: Array.from({ length: 10_001 }, (_, index) => `resource:${index}`),
     }))
     expect(loadUIPreferences('personal').warning).toContain('无法读取')
   })

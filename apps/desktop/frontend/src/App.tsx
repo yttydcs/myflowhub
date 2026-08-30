@@ -585,11 +585,15 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                   resources={resources}
                   selection={selection}
                   expandedNodeIDs={preferences.expanded_node_ids}
+                  expandedResourcePaths={preferences.expanded_resource_paths}
                   focusedNodeID={preferences.focused_node_id}
                   splitRatio={preferences.explorer_split_ratio}
+                  collapsedPane={preferences.collapsed_explorer_pane}
                   onExpandedNodeIDsChange={(expandedNodeIDs) => updatePreferences({ expanded_node_ids: expandedNodeIDs })}
+                  onExpandedResourcePathsChange={(expandedResourcePaths) => updatePreferences({ expanded_resource_paths: expandedResourcePaths })}
                   onFocusedNodeIDChange={(focusedNodeID) => updatePreferences({ focused_node_id: focusedNodeID })}
                   onSplitRatioChange={(splitRatio) => updatePreferences({ explorer_split_ratio: splitRatio })}
+                  onCollapsedPaneChange={(collapsedPane) => updatePreferences({ collapsed_explorer_pane: collapsedPane })}
                   onSelect={setSelection}
                   onAdd={addResource}
                 />

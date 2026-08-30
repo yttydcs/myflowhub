@@ -55,4 +55,32 @@ describe('ExplorerSplitPane', () => {
     expect(onRatioChange).toHaveBeenCalledTimes(1)
     expect(separator.releasePointerCapture).toHaveBeenCalledTimes(2)
   })
+
+  it('removes the separator while one pane is collapsed without changing the stored ratio', () => {
+    const { container, rerender } = render(
+      <ExplorerSplitPane
+        ratio={0.62}
+        onRatioChange={vi.fn()}
+        topID="top-pane"
+        bottomID="bottom-pane"
+        top={<span>Nodes</span>}
+        bottom={<span>Resources</span>}
+        collapsedPane="node"
+      />,
+    )
+    expect(screen.queryByRole('separator')).not.toBeInTheDocument()
+    expect(container.firstElementChild).toHaveStyle({ gridTemplateRows: 'auto 0 minmax(0, 1fr)' })
+
+    rerender(
+      <ExplorerSplitPane
+        ratio={0.62}
+        onRatioChange={vi.fn()}
+        topID="top-pane"
+        bottomID="bottom-pane"
+        top={<span>Nodes</span>}
+        bottom={<span>Resources</span>}
+      />,
+    )
+    expect(screen.getByRole('separator')).toHaveAttribute('aria-valuenow', '62')
+  })
 })

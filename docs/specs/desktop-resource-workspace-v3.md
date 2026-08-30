@@ -3,13 +3,51 @@
 ## Status
 
 Current。取代 [Desktop Resource Workspace v2](desktop-resource-workspace-v2.md) 中 View v2
-双面板/三面板网格布局契约；Profile、登录、Explorer、Renderer 与安全边界未改变。
+双面板/三面板网格布局契约，并补充当前 Explorer 的可折叠分区与 Resource path tree 契约。Profile、登录、
+Renderer 与安全边界未改变；本文的 v3 仍指 View document version，不要求 UI preference 升级 major。
 
 ## Scope
 
-本规格定义 Desktop 本地 View v3 的递归布局、迁移、校验、拖拽、调整比例和可访问性。Desktop 仍通过
-SDK/Wails JSON boundary 使用 Node-owned Resources，不解析 wire、不自行裁决权限，也不把 Resource 正文
-复制进 View。
+本规格定义 Desktop Explorer 的路径树派生/折叠状态，以及本地 View v3 的递归布局、迁移、校验、拖拽、
+调整比例和可访问性。Desktop 仍通过 SDK/Wails JSON boundary 使用 Node-owned Resources，不解析 wire、
+不自行裁决权限，也不把 Resource 正文复制进 View。
+
+## Explorer disclosures and Resource path tree
+
+Explorer 保持 master/detail：上区是 authoritative Node tree，下区只消费当前 Node 直接拥有的
+`ResourceDescriptor[]`。Resource path tree 是 presentation-only 派生结构，不是 authority、ownership、
+permission 或 routing tree。
+
+每个 Resource name 按协议已验证的非空 `/` segment 构建 trie。path node 至少包含 owner、完整 path、当前
+segment、可选 `resource` 与有序 `children`；key 必须包含 owner 和完整 path。一个 node 可以同时拥有
+`resource` 和 children，例如 `system/config` 与 `system/config/update` 同时存在时只渲染一个 `config`
+treeitem，但它同时可选择、拖动、添加和展开。纯 namespace 不声明选择状态，也不暴露 Resource 操作。
+
+树使用一次派生索引和扁平可见行。稳定排序使用 segment 的 numeric-aware locale compare；每行显式包含
+depth、parent key、position 和 sibling size。查询匹配完整 name、presentation label、type 与 segment，
+匹配结果包含全部祖先并临时视为展开；清空查询恢复持久展开集合，不把搜索产生的展开写回 preference。
+默认只展开第一层 path。
+
+Resource tree 使用单选 WAI-ARIA tree 与 roving DOM focus：
+
+- parent treeitem 只有在确有 children 时声明 `aria-expanded`；
+- Right 打开 closed parent 或进入首个 child，Left 关闭 open parent 或返回 parent；
+- Up/Down、Home/End 在当前可见行移动；`*` 可展开同级 parent；
+- Enter/Space 对真实 Resource 执行选择，对纯 namespace 切换展开；
+- 焦点与 `aria-selected` 分离，拖动手柄和添加按钮保留独立可访问名称与焦点路径。
+
+Node 与 Resource heading 各是原生 disclosure button，使用 `aria-expanded` 和 `aria-controls`。状态表示为
+可选 `collapsed_explorer_pane = node | resource`，因此最多收起一块；另一块填满剩余区域，separator 隐藏。
+重新展开后恢复 `explorer_split_ratio`，收起动作不得覆盖比例。受控内容隐藏时不得留在 accessibility tree
+或 Tab 顺序中，但组件状态保留。
+
+现有 per-Profile `UIPreferences.version=1` 增加可选 `collapsed_explorer_pane` 与
+`expanded_resource_paths`；旧文档无需迁移。字段必须校验 union、非空字符串、单项长度和集合上限，未知或
+非法 preference 继续走现有显式默认值与警告路径。无匹配的陈旧 path key 只在派生时忽略，不修改 catalog。
+
+Resource tree 构建必须保持 O(total path segments)，扁平化保持 O(visible rows)，搜索不得在每行重复扫描
+整棵树。超过 50 行继续使用现有离屏绘制策略。现有 topology/catalog API 不支持服务端分页，因此真正
+lazy loading 与 DOM windowing 仍为独立后续工作，不得引入第二套资源模型伪装。
 
 ## View v3 document
 
@@ -146,6 +184,10 @@ conflict、每 Profile 隔离、32 View 上限、原子 temp/sync/backup/rename 
 
 ## Acceptance
 
+- Node/Resource heading 可通过指针、Enter/Space 收起和恢复，最多一个收起；另一块满高且原比例可恢复；
+- Resource name 任意深度、纯 namespace、普通 leaf 和 Resource/parent 混合项均有正确树语义；
+- Resource 搜索保留祖先、临时展开且清空后恢复；选择、preview、拖拽、添加与类型图标无回归；
+- Resource path 展开与 Explorer 收起状态按 Profile 保存，旧 preference 保持可读；
 - 拖拽生成 `A | C | B`、`A | (B / C)`、`(A | B | C) / D`；
 - 三个以上 pane 可任意插入、移动、删除和调整相邻比例；
 - divider、workspace edge、panel edge preview 与实际 drop 结果一致；
@@ -160,4 +202,6 @@ conflict、每 Profile 隔离、32 View 上限、原子 temp/sync/backup/rename 
 - [Desktop feature](../features/desktop.md)
 - [Desktop requirements](../requirements/desktop-resource-workspace.md)
 - [n-ary docking decision](../decisions/2026-08-30_desktop-n-ary-docking-layout.md)
+- [Explorer Resource tree request](../intake/2026-08-30_desktop-explorer-collapsible-resource-tree.md)
 - [request and research](../intake/2026-08-30_desktop-nested-docking-layout.md)
+- [Explorer Resource tree change](../change/2026-08-30_desktop-explorer-collapsible-resource-tree.md)
