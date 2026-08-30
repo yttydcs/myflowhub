@@ -4,6 +4,7 @@
 
 ## Current Records
 
+- [Desktop Profile 入口生产化](2026-08-31_desktop-profile-entry-production.md)
 - [Metrics 对齐 Desktop 视觉语言的独立界面](2026-08-30_metrics-desktop-aligned-interface.md)
 - [Desktop schema-driven Resource widgets](2026-08-30_desktop-schema-driven-resource-widgets.md)
 - [Node Enrollment 与集中式准入 Authority](2026-08-30_node-enrollment-central-authority.md)

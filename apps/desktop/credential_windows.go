@@ -37,9 +37,6 @@ func newPlatformIdentityStore(directory string) (platformCredentialBackend, erro
 	if directory == "" {
 		return nil, errors.New("profile identity directory is required")
 	}
-	if err := os.MkdirAll(directory, 0o700); err != nil {
-		return nil, fmt.Errorf("create profile identity directory: %w", err)
-	}
 	return &dpapiIdentityStore{
 		directory: directory, path: filepath.Join(directory, "identity.dpapi"),
 		enrollmentPath: filepath.Join(directory, "enrollment.dpapi"),
@@ -74,6 +71,9 @@ func (s *dpapiIdentityStore) LoadEnrollmentCredential() (auth.EnrollmentCredenti
 }
 
 func (s *dpapiIdentityStore) SaveEnrollmentCredential(credential auth.EnrollmentCredential) error {
+	if err := s.ensureDirectory(); err != nil {
+		return err
+	}
 	plain, err := json.Marshal(protectedEnrollmentRecord{Version: protectedEnrollmentVersion, Credential: credential})
 	if err != nil {
 		return fmt.Errorf("encode DPAPI Enrollment credential: %w", err)
@@ -113,6 +113,9 @@ func (s *dpapiIdentityStore) SaveIdentity(identity auth.Identity) error {
 	if err := identity.Validate(); err != nil {
 		return err
 	}
+	if err := s.ensureDirectory(); err != nil {
+		return err
+	}
 	plain, err := json.Marshal(protectedIdentityRecord{
 		Version: protectedIdentityVersion, NodeID: uint64(identity.NodeID),
 		PublicKey: identity.PublicKey, PrivateKey: identity.PrivateKey,
@@ -125,6 +128,13 @@ func (s *dpapiIdentityStore) SaveIdentity(identity auth.Identity) error {
 		return fmt.Errorf("protect DPAPI identity: %w", err)
 	}
 	return writeAtomicDesktop(s.directory, s.path, protected)
+}
+
+func (s *dpapiIdentityStore) ensureDirectory() error {
+	if err := os.MkdirAll(s.directory, 0o700); err != nil {
+		return fmt.Errorf("create profile identity directory: %w", err)
+	}
+	return nil
 }
 
 func protectDPAPI(data []byte) ([]byte, error) {

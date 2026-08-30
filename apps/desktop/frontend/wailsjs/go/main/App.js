@@ -18,6 +18,10 @@ export function Connect() {
   return window['go']['main']['App']['Connect']();
 }
 
+export function DeactivateProfile() {
+  return window['go']['main']['App']['DeactivateProfile']();
+}
+
 export function DeleteProfile(arg1, arg2) {
   return window['go']['main']['App']['DeleteProfile'](arg1, arg2);
 }
@@ -56,6 +60,10 @@ export function PollSubscription(arg1, arg2) {
 
 export function PrepareProfileJSON(arg1) {
   return window['go']['main']['App']['PrepareProfileJSON'](arg1);
+}
+
+export function ProfileStatesJSON() {
+  return window['go']['main']['App']['ProfileStatesJSON']();
 }
 
 export function ResetStorage(arg1) {

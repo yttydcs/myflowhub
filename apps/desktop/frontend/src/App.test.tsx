@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DesktopAPI } from './api'
 import { App } from './App'
-import type { Profile, ResourceDescriptor, Settings, ViewDefinition } from './types'
+import type { Profile, ProfileState, ResourceDescriptor, Settings, ViewDefinition } from './types'
 
 const profile: Profile = {
   id: 'personal', name: 'Personal', node_id: '2', endpoint: 'localhost:9540', parent_node_id: '1', parent_public_key: 'key', auto_connect: true,
@@ -17,12 +17,17 @@ const resource: ResourceDescriptor = {
 }
 
 function mockAPI(settings: Settings): DesktopAPI {
+  const profileStates: ProfileState[] = settings.profiles.map((item) => item.enrollment_mode === 'authority'
+    ? { profile_id: item.id, state: item.node_id ? 'enrolled' : 'missing', node_id: item.node_id || undefined }
+    : { profile_id: item.id, state: 'legacy', node_id: item.node_id })
   return {
     settings: vi.fn().mockResolvedValue(settings),
+    profileStates: vi.fn().mockResolvedValue(profileStates),
     prepareProfile: vi.fn().mockImplementation(async (next: Profile) => ({ profile: next, identity: { node_id: next.node_id, public_key: 'desktop-public-key' } })),
     saveProfile: vi.fn().mockImplementation(async (next: Profile) => next),
     login: vi.fn().mockImplementation(async (next: Profile) => next),
     switchProfile: vi.fn(),
+    deactivateProfile: vi.fn(),
     deleteProfile: vi.fn(),
     identity: vi.fn().mockResolvedValue({ node_id: '2', public_key: 'key' }),
     connect: vi.fn(),
@@ -50,13 +55,17 @@ describe('desktop resource workspace', () => {
     document.documentElement.removeAttribute('data-theme')
   })
 
-  it('shows connection, device identity, and explicit admission choices when no profile is active', async () => {
+  it('separates existing Profiles from a minimal first connection form', async () => {
     const settings: Settings = { version: 2, profiles: [], updated_at_unix_ms: 1, credential_mode: 'session-only' }
     render(<App api={mockAPI(settings)} />)
     expect(await screen.findByRole('heading', { name: '登录 MyFlowHub' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '连接到父节点' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '准备这台设备' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '选择准入方式' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '首次连接' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: '使用现有 Profile' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.queryByText('01')).not.toBeInTheDocument()
+    expect(screen.queryByText('02')).not.toBeInTheDocument()
+    expect(screen.queryByText('03')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Profile ID')).not.toBeVisible()
+    expect(screen.queryByLabelText('本机 Node ID')).not.toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /申请管理员审批/ })).toBeChecked()
     expect(screen.queryByLabelText('Enrollment Permit')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: /已有 Permit/ }))
@@ -108,7 +117,6 @@ describe('desktop resource workspace', () => {
     vi.mocked(api.login).mockRejectedValue(new Error('首次接入需要一次性准入 Permit'))
     render(<App api={api} />)
     fireEvent.change(await screen.findByLabelText('Profile 名称'), { target: { value: 'Personal' } })
-    fireEvent.change(screen.getByLabelText('Profile ID'), { target: { value: 'personal' } })
     fireEvent.change(screen.getByLabelText('父节点地址'), { target: { value: '127.0.0.1:7441' } })
     fireEvent.click(screen.getByRole('radio', { name: /已有 Permit/ }))
     const permit = screen.getByLabelText(/Enrollment Permit/)
@@ -130,12 +138,11 @@ describe('desktop resource workspace', () => {
 
     render(<App api={api} />)
     fireEvent.change(await screen.findByLabelText('Profile 名称'), { target: { value: profile.name } })
-    fireEvent.change(screen.getByLabelText('Profile ID'), { target: { value: profile.id } })
     fireEvent.change(screen.getByLabelText('父节点地址'), { target: { value: profile.endpoint } })
-    fireEvent.click(screen.getByRole('button', { name: '提前生成公钥' }))
+    fireEvent.click(screen.getByRole('radio', { name: /已有 Permit/ }))
+    fireEvent.click(screen.getByRole('button', { name: '生成本机公钥' }))
 
     expect(await screen.findByDisplayValue('desktop-public-key')).toBeInTheDocument()
-    expect(screen.getByText(/Profile 已保存，但尚未登录或连接/)).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '登录 MyFlowHub' })).toBeInTheDocument()
     expect(api.login).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: '复制本机公钥' }))
@@ -151,19 +158,22 @@ describe('desktop resource workspace', () => {
     const api = mockAPI(settings)
     render(<App api={api} />)
     fireEvent.change(await screen.findByLabelText('Profile 名称'), { target: { value: 'Device' } })
-    fireEvent.change(screen.getByLabelText('Profile ID'), { target: { value: 'device' } })
     fireEvent.change(screen.getByLabelText('父节点地址'), { target: { value: '127.0.0.1:7441' } })
 
     expect(screen.queryByLabelText('本机 Node ID')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('父 Node ID')).not.toBeInTheDocument()
+    const generatedID = (screen.getByLabelText('Profile ID') as HTMLInputElement).value
+    expect(generatedID).toMatch(/^profile-[0-9a-f]{16}$/)
+    fireEvent.change(screen.getByLabelText('Profile 名称'), { target: { value: 'Renamed Device' } })
+    expect(screen.getByLabelText('Profile ID')).toHaveValue(generatedID)
     fireEvent.click(screen.getByRole('button', { name: '提交注册申请' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('确认信任当前父节点端点')
+    expect(await screen.findByRole('alert')).toHaveTextContent('请确认首次连接时信任')
     expect(api.login).not.toHaveBeenCalled()
     fireEvent.click(screen.getByLabelText(/首次连接时信任该端点返回/))
     fireEvent.click(screen.getByRole('button', { name: '提交注册申请' }))
 
     await waitFor(() => expect(api.login).toHaveBeenCalledWith(
-      expect.objectContaining({ enrollment_mode: 'authority', node_id: '' }),
+      expect.objectContaining({ id: generatedID, enrollment_mode: 'authority', node_id: '' }),
       '',
       true,
     ))
@@ -174,10 +184,50 @@ describe('desktop resource workspace', () => {
     const settings: Settings = { version: 2, profiles: [enrolledProfile], updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
     render(<App api={mockAPI(settings)} />)
 
-    expect(await screen.findByText(`已注册为 Node ${enrolledProfile.node_id}`)).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: '选择准入方式' })).not.toBeInTheDocument()
+    expect(await screen.findByText(/Node 2 · localhost:9540/)).toBeInTheDocument()
     expect(screen.queryByLabelText('Enrollment Permit')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '连接父节点' })).toBeInTheDocument()
+  })
+
+  it('retries a pending Profile without Permit or TOFU', async () => {
+    const pendingProfile: Profile = { ...profile, id: 'pending', name: 'Pending', enrollment_mode: 'authority', node_id: '' }
+    const settings: Settings = { version: 2, profiles: [pendingProfile], updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
+    const api = mockAPI(settings)
+    vi.mocked(api.profileStates).mockResolvedValue([{ profile_id: pendingProfile.id, state: 'pending', request_id: '00112233445566778899aabbccddeeff' }])
+    render(<App api={api} />)
+    fireEvent.click(await screen.findByRole('button', { name: '检查审批并连接' }))
+    await waitFor(() => expect(api.login).toHaveBeenCalledWith(pendingProfile, '', false))
+  })
+
+  it('renders protected credential states without guessing from Profile Node ID', async () => {
+    const items: Profile[] = [
+      { ...profile, id: 'missing', name: 'Missing', enrollment_mode: 'authority', node_id: '' },
+      { ...profile, id: 'device', name: 'Device', enrollment_mode: 'authority', node_id: '' },
+      { ...profile, id: 'pending-state', name: 'Pending state', enrollment_mode: 'authority', node_id: '' },
+      { ...profile, id: 'enrolled', name: 'Enrolled', enrollment_mode: 'authority', node_id: '' },
+      { ...profile, id: 'broken', name: 'Broken', enrollment_mode: 'authority', node_id: '' },
+      { ...profile, id: 'legacy', name: 'Legacy' },
+    ]
+    const settings: Settings = { version: 2, profiles: items, updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
+    const api = mockAPI(settings)
+    vi.mocked(api.profileStates).mockResolvedValue([
+      { profile_id: 'missing', state: 'missing' },
+      { profile_id: 'device', state: 'device' },
+      { profile_id: 'pending-state', state: 'pending', request_id: '0011' },
+      { profile_id: 'enrolled', state: 'enrolled', node_id: '7' },
+      { profile_id: 'broken', state: 'error', message: '凭据无法读取' },
+      { profile_id: 'legacy', state: 'legacy', node_id: '2' },
+    ])
+    render(<App api={api} />)
+    expect(await screen.findByText(/尚未准备 · localhost:9540/)).toBeInTheDocument()
+    expect(screen.getByText(/设备已准备 · localhost:9540/)).toBeInTheDocument()
+    expect(screen.getByText(/等待审批 · localhost:9540/)).toBeInTheDocument()
+    expect(screen.getByText(/Node 7 · localhost:9540/)).toBeInTheDocument()
+    expect(screen.getByText(/凭据异常 · localhost:9540/)).toBeInTheDocument()
+    expect(screen.getByText(/Legacy · Node 2 · localhost:9540/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Broken 凭据异常/ }))
+    expect(screen.getByText('凭据无法读取')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '需要恢复' })).toBeDisabled()
   })
 
   it('does not switch profiles while unsaved workspace changes are rejected', async () => {
@@ -192,6 +242,20 @@ describe('desktop resource workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '启用' }))
     await waitFor(() => expect(window.confirm).toHaveBeenCalled())
     expect(api.switchProfile).not.toHaveBeenCalled()
+  })
+
+  it('returns to Profile selection without deleting the active Profile', async () => {
+    const activeSettings: Settings = { version: 2, active_profile_id: profile.id, profiles: [profile], updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
+    const inactiveSettings: Settings = { ...activeSettings, active_profile_id: undefined, updated_at_unix_ms: 2 }
+    const api = mockAPI(activeSettings)
+    vi.mocked(api.settings).mockResolvedValueOnce(activeSettings).mockResolvedValueOnce(inactiveSettings)
+    render(<App api={api} />)
+    fireEvent.click(await screen.findByRole('button', { name: `打开 ${profile.name} 的设置` }))
+    fireEvent.click(screen.getByRole('button', { name: '返回 Profile 选择' }))
+    await waitFor(() => expect(api.deactivateProfile).toHaveBeenCalled())
+    expect(await screen.findByRole('tab', { name: '使用现有 Profile' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getAllByText(profile.name)).not.toHaveLength(0)
+    expect(api.deleteProfile).not.toHaveBeenCalled()
   })
 
   it('requires confirmation before deleting a persisted view', async () => {

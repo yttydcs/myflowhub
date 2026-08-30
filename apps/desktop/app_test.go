@@ -158,6 +158,122 @@ func TestPrepareProfileCreatesStableInactivePublicIdentity(t *testing.T) {
 	}
 }
 
+func TestProfileStatesAreExactSanitizedAndReadOnly(t *testing.T) {
+	root := t.TempDir()
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Close()
+
+	authority := Profile{ID: "authority-missing", Name: "Authority Missing", EnrollmentMode: "authority", Endpoint: "127.0.0.1:7331"}
+	legacy := testProfile("legacy-ready", "52")
+	app.mu.Lock()
+	next := upsertInactiveProfile(app.settings, authority)
+	next = upsertInactiveProfile(next, legacy)
+	if err := app.store.save(next); err != nil {
+		app.mu.Unlock()
+		t.Fatal(err)
+	}
+	app.settings = next
+	app.mu.Unlock()
+
+	raw, err := app.ProfileStatesJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var states []profileState
+	if err := json.Unmarshal([]byte(raw), &states); err != nil {
+		t.Fatal(err)
+	}
+	if len(states) != 2 || states[0].ProfileID != authority.ID || states[0].State != "missing" || states[1].State != "legacy" {
+		t.Fatalf("unexpected initial profile states: %s", raw)
+	}
+	if strings.Contains(raw, "public_key") || strings.Contains(raw, "private") || strings.Contains(raw, "grant") || strings.Contains(raw, "permit") {
+		t.Fatalf("profile states exposed protected material: %s", raw)
+	}
+	if _, err := os.Stat(filepath.Join(root, "profiles", authority.ID)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("read-only inspection created a Profile directory: %v", err)
+	}
+
+	encoded, _ := json.Marshal(authority)
+	preparedRaw, err := app.PrepareProfileJSON(string(encoded))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var prepared preparedProfile
+	if err := json.Unmarshal([]byte(preparedRaw), &prepared); err != nil {
+		t.Fatal(err)
+	}
+	raw, err = app.ProfileStatesJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(raw), &states); err != nil {
+		t.Fatal(err)
+	}
+	if states[0].State != "device" || states[0].RequestID == "" {
+		t.Fatalf("prepared authority state was not projected exactly: %s", raw)
+	}
+	if strings.Contains(raw, prepared.Identity.PublicKey) {
+		t.Fatalf("profile state projection exposed the device public key: %s", raw)
+	}
+}
+
+func TestDeactivateProfilePreservesProfileStateAndSurvivesRestart(t *testing.T) {
+	root := t.TempDir()
+	app, err := NewApp(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile := testProfile("deactivate", "61")
+	encoded, _ := json.Marshal(profile)
+	if _, err := app.SaveProfileJSON(string(encoded)); err != nil {
+		t.Fatal(err)
+	}
+	profileDirectory, err := app.store.stateDirectory(profile.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(profileDirectory, "preserved-view-marker")
+	if err := os.WriteFile(marker, []byte("preserve"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.DeactivateProfile(); err != nil {
+		t.Fatal(err)
+	}
+	settingsRaw, err := app.SettingsJSON()
+	if err != nil || strings.Contains(settingsRaw, `"active_profile_id"`) || !strings.Contains(settingsRaw, profile.ID) {
+		t.Fatalf("deactivation did not preserve the inactive Profile: %v (%s)", err, settingsRaw)
+	}
+	statusRaw, err := app.StatusJSON()
+	if err != nil || !strings.Contains(statusRaw, `"state":"signed_out"`) {
+		t.Fatalf("deactivation did not sign out: %v (%s)", err, statusRaw)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("deactivation removed Profile state: %v", err)
+	}
+	if err := app.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := NewApp(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	if _, err := reopened.currentClient(); err == nil {
+		t.Fatal("deactivated Profile was reopened across restart")
+	}
+	settingsRaw, _ = reopened.SettingsJSON()
+	if !strings.Contains(settingsRaw, profile.ID) || strings.Contains(settingsRaw, `"active_profile_id"`) {
+		t.Fatalf("restarted settings lost deactivation truth: %s", settingsRaw)
+	}
+	if err := reopened.SwitchProfile(profile.ID); err != nil {
+		t.Fatalf("preserved Profile could not be selected again: %v", err)
+	}
+}
+
 func TestAuthorityProfileEnrollsWithoutClientAssignedNodeOrParentKey(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -222,6 +338,24 @@ func TestAuthorityProfileEnrollsWithoutClientAssignedNodeOrParentKey(t *testing.
 	if status, err := app.StatusJSON(); err != nil || !strings.Contains(status, `"state":"connected"`) {
 		t.Fatalf("Authority-enrolled Profile did not enter ordinary Join: %v (%s)", err, status)
 	}
+	statesJSON, err := app.ProfileStatesJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var states []profileState
+	if err := json.Unmarshal([]byte(statesJSON), &states); err != nil || len(states) != 1 || states[0].State != "enrolled" || states[0].NodeID != saved.NodeID {
+		t.Fatalf("enrolled credential was not projected independently of Profile hydration: %v (%s)", err, statesJSON)
+	}
+	app.mu.Lock()
+	app.settings.Profiles[0].NodeID = "999"
+	app.mu.Unlock()
+	statesJSON, err = app.ProfileStatesJSON()
+	if err != nil || !strings.Contains(statesJSON, `"state":"error"`) || !strings.Contains(statesJSON, "不一致") {
+		t.Fatalf("Profile/Grant identity conflict was not explicit: %v (%s)", err, statesJSON)
+	}
+	app.mu.Lock()
+	app.settings.Profiles[0].NodeID = saved.NodeID
+	app.mu.Unlock()
 	settingsData, err := os.ReadFile(filepath.Join(desktopRoot, "settings.json"))
 	if err != nil {
 		t.Fatal(err)

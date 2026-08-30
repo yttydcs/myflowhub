@@ -12,6 +12,8 @@
 - 受保护 generated 文档的维护说明
 
 ## Current Specs
+- [desktop-profile-entry.md](desktop-profile-entry.md)
+  - Existing Profile / 首次连接入口、受保护 Enrollment 状态投影、Profile ID 与非破坏性返回选择器契约
 - [node-enrollment-and-admission-authority.md](node-enrollment-and-admission-authority.md)
   - 首次 Enrollment、Permit/Pending、Authority、Node ID 分配、撤销和兼容 Join 的当前契约
 - [brand-identity-assets.md](brand-identity-assets.md)

@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { errorText } from './lib/utils'
 import { defaultUIPreferences, loadUIPreferences, saveUIPreferences, type Theme, type UIPreferences } from './preferences'
 import { defaultRenderer, nextWidgetID } from './store'
-import type { ConnectionStatus, Profile, ResourceDescriptor, Settings, Topology, ViewDefinition, ViewWidget, WorkspaceSelection } from './types'
+import type { ConnectionStatus, Profile, ProfileState, ResourceDescriptor, Settings, Topology, ViewDefinition, ViewWidget, WorkspaceSelection } from './types'
 import {
   addWorkspaceWidget,
   dockWorkspaceView,
@@ -131,6 +131,7 @@ function newView(index = 1): ViewDefinition {
 
 export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const [settings, setSettings] = useState<Settings>()
+  const [profileStates, setProfileStates] = useState<ProfileState[]>([])
   const [status, setStatus] = useState<ConnectionStatus>({ state: 'signed_out' })
   const [topology, setTopology] = useState<Topology>(emptyTopology)
   const [resources, setResources] = useState<ResourceDescriptor[]>([])
@@ -190,6 +191,13 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setDirty(false)
   }, [api])
 
+  const refreshEntryState = useCallback(async () => {
+    const [nextSettings, nextProfileStates] = await Promise.all([api.settings(), api.profileStates()])
+    setSettings(nextSettings)
+    setProfileStates(nextProfileStates)
+    return nextSettings
+  }, [api])
+
   const refreshPlatform = useCallback(async (profile: Profile, waitForAutoConnect = true) => {
     setError('')
     let nextStatus = await api.status()
@@ -229,15 +237,14 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   useEffect(() => {
     void (async () => {
       try {
-        const nextSettings = await api.settings()
-        setSettings(nextSettings)
+        const nextSettings = await refreshEntryState()
         const profile = nextSettings.profiles.find((item) => item.id === nextSettings.active_profile_id)
         if (profile) await Promise.all([refreshPlatform(profile), loadViews()])
       } catch (current) {
         setError(errorText(current))
       }
     })()
-  }, [api, loadViews, refreshPlatform])
+  }, [loadViews, refreshEntryState, refreshPlatform])
 
   function updatePreferences(patch: Partial<Omit<UIPreferences, 'version'>>) {
     const next: UIPreferences = { ...preferences, ...patch, version: 1 }
@@ -253,15 +260,20 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setError('')
     try {
       const saved = await api.login(profile, permit, allowTOFU)
-      const next = await api.settings()
-      setSettings(next)
+      const next = await refreshEntryState()
       const nextProfile = next.profiles.find((item) => item.id === next.active_profile_id) || saved
       await Promise.all([refreshPlatform(nextProfile), loadViews()])
       setActiveContent('workspace')
       setSelection(null)
       return true
     } catch (current) {
-      setError(errorText(current))
+      const operationError = errorText(current)
+      try {
+        await refreshEntryState()
+        setError(operationError)
+      } catch (refreshError) {
+        setError(`${operationError}；刷新 Profile 状态失败：${errorText(refreshError)}`)
+      }
       return false
     } finally {
       setBusy(false)
@@ -273,7 +285,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setError('')
     try {
       const prepared = await api.prepareProfile(profile)
-      setSettings(await api.settings())
+      await refreshEntryState()
       return prepared
     } catch (current) {
       setError(errorText(current))
@@ -289,8 +301,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setError('')
     try {
       const saved = await api.saveProfile(profile)
-      const next = await api.settings()
-      setSettings(next)
+      await refreshEntryState()
       setSelection(null)
       await Promise.all([refreshPlatform(saved, false), loadViews()])
       return true
@@ -309,8 +320,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setError('')
     try {
       await api.switchProfile(profileID)
-      const next = await api.settings()
-      setSettings(next)
+      const next = await refreshEntryState()
       const profile = next.profiles.find((item) => item.id === profileID)
       if (profile) await Promise.all([refreshPlatform(profile), loadViews()])
       setSelection(null)
@@ -327,8 +337,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setError('')
     try {
       await api.deleteProfile(profileID, `DELETE ${profileID}`)
-      const next = await api.settings()
-      setSettings(next)
+      await refreshEntryState()
       if (profileID === activeProfile?.id) {
         setStatus({ state: 'signed_out' })
         setTopology(emptyTopology)
@@ -369,6 +378,36 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
       setSelection(null)
     } catch (current) {
       setError(errorText(current))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const deactivateProfile = async () => {
+    if (!confirmDiscard()) return
+    setBusy(true)
+    setError('')
+    let operationError = ''
+    try {
+      await api.deactivateProfile()
+    } catch (current) {
+      operationError = errorText(current)
+    }
+    try {
+      const next = await refreshEntryState()
+      if (!next.active_profile_id) {
+        setStatus({ state: 'signed_out' })
+        setTopology(emptyTopology)
+        setResources([])
+        setSelection(null)
+        setViews([])
+        setView(newView())
+        setDirty(false)
+        setActiveContent('workspace')
+      }
+      if (operationError) setError(operationError)
+    } catch (current) {
+      setError(operationError ? `${operationError}；刷新 Profile 状态失败：${errorText(current)}` : errorText(current))
     } finally {
       setBusy(false)
     }
@@ -538,6 +577,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     return (
       <LoginScreen
         settings={settings}
+        profileStates={profileStates}
         busy={busy}
         error={error}
         theme={preferences.theme}
@@ -638,6 +678,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                   busy={busy}
                   onConnect={connect}
                   onDisconnect={disconnect}
+                  onDeactivateProfile={deactivateProfile}
                   onSwitchProfile={switchProfile}
                   onSaveProfile={saveProfile}
                   onDeleteProfile={deleteProfile}

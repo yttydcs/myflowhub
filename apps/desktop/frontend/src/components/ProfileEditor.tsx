@@ -14,10 +14,11 @@ export function createEmptyProfile(): Profile {
   }
 }
 
-export function ProfileEditor({ profile, onChange, lockID = false, layout = 'settings' }: {
+export function ProfileEditor({ profile, onChange, lockID = false, hideID = false, layout = 'settings' }: {
   profile: Profile
   onChange(profile: Profile): void
   lockID?: boolean
+  hideID?: boolean
   layout?: 'settings' | 'login'
 }) {
   // Profiles created before enrollment support have no mode and remain legacy.
@@ -95,20 +96,22 @@ export function ProfileEditor({ profile, onChange, lockID = false, layout = 'set
           Profile 名称
           <Input required name="profile-name" autoComplete="off" value={profile.name} onChange={(event) => update('name', event.target.value)} placeholder="例如：个人工作区" />
         </label>
-        <label>
-          Profile ID
-          <Input
-            required
-            name="profile-id"
-            autoComplete="off"
-            spellCheck={false}
-            pattern="[a-z0-9][a-z0-9._-]{0,63}"
-            value={profile.id}
-            onChange={(event) => update('id', event.target.value)}
-            placeholder="例如：personal"
-            readOnly={lockID}
-          />
-        </label>
+        {!hideID && (
+          <label>
+            Profile ID
+            <Input
+              required
+              name="profile-id"
+              autoComplete="off"
+              spellCheck={false}
+              pattern="[a-z0-9][a-z0-9._-]{0,63}"
+              value={profile.id}
+              onChange={(event) => update('id', event.target.value)}
+              placeholder="例如：personal"
+              readOnly={lockID}
+            />
+          </label>
+        )}
       </div>
       {layout === 'settings' && modeSelector}
       <label>
@@ -123,6 +126,12 @@ export function ProfileEditor({ profile, onChange, lockID = false, layout = 'set
           <details className="advanced-enrollment login-advanced-enrollment">
             <summary>高级与兼容连接设置</summary>
             <div className="login-advanced-body">
+              {hideID && (
+                <label>
+                  Profile ID
+                  <Input readOnly name="profile-id" spellCheck={false} value={profile.id} />
+                </label>
+              )}
               {modeSelector}
               {modeFields}
             </div>

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -51,8 +52,19 @@ type preparedProfile struct {
 	Identity publicIdentity `json:"identity"`
 }
 
+type profileState struct {
+	ProfileID       string `json:"profile_id"`
+	State           string `json:"state"`
+	RequestID       string `json:"request_id,omitempty"`
+	NodeID          string `json:"node_id,omitempty"`
+	ParentNodeID    string `json:"parent_node_id,omitempty"`
+	AuthorityNodeID string `json:"authority_node_id,omitempty"`
+	Message         string `json:"message,omitempty"`
+}
+
 type CredentialStore interface {
 	Open(Profile) (*desktopbinding.Client, error)
+	InspectEnrollment(string) (auth.EnrollmentClientSnapshot, bool, error)
 	Remove(string) error
 	Mode() string
 }
@@ -80,15 +92,7 @@ func (s *profileCredentialStore) Open(profile Profile) (*desktopbinding.Client, 
 	if err != nil {
 		return nil, err
 	}
-	s.mu.Lock()
-	identityStore := s.stores[profile.ID]
-	if identityStore == nil {
-		identityStore, err = newPlatformIdentityStore(directory)
-		if err == nil {
-			s.stores[profile.ID] = identityStore
-		}
-	}
-	s.mu.Unlock()
+	identityStore, err := s.backend(profile.ID, directory)
 	if err != nil {
 		return nil, err
 	}
@@ -107,6 +111,39 @@ func (s *profileCredentialStore) Open(profile Profile) (*desktopbinding.Client, 
 		}
 	}
 	return client, nil
+}
+
+func (s *profileCredentialStore) InspectEnrollment(profileID string) (auth.EnrollmentClientSnapshot, bool, error) {
+	if s == nil || s.settings == nil {
+		return auth.EnrollmentClientSnapshot{}, false, errors.New("desktop credential store is unavailable")
+	}
+	directory, err := s.settings.stateDirectory(profileID)
+	if err != nil {
+		return auth.EnrollmentClientSnapshot{}, false, err
+	}
+	store, err := s.backend(profileID, directory)
+	if err != nil {
+		return auth.EnrollmentClientSnapshot{}, false, err
+	}
+	return auth.InspectEnrollmentClientState(store)
+}
+
+func (s *profileCredentialStore) backend(profileID, directory string) (platformCredentialBackend, error) {
+	s.mu.Lock()
+	store := s.stores[profileID]
+	if store == nil {
+		var err error
+		store, err = newPlatformIdentityStore(directory)
+		if err == nil {
+			s.stores[profileID] = store
+		}
+		if err != nil {
+			s.mu.Unlock()
+			return nil, err
+		}
+	}
+	s.mu.Unlock()
+	return store, nil
 }
 
 func (s *profileCredentialStore) Remove(profileID string) error {
@@ -195,6 +232,58 @@ func (a *App) SettingsJSON() (string, error) {
 		Settings
 		CredentialMode string `json:"credential_mode"`
 	}{Settings: a.settings, CredentialMode: a.credentials.Mode()})
+}
+
+func (a *App) ProfileStatesJSON() (string, error) {
+	a.lifecycleMu.Lock()
+	defer a.lifecycleMu.Unlock()
+	a.mu.Lock()
+	profiles := append([]Profile(nil), a.settings.Profiles...)
+	a.mu.Unlock()
+
+	states := make([]profileState, 0, len(profiles))
+	for _, profile := range profiles {
+		state := profileState{ProfileID: profile.ID}
+		if profile.EnrollmentMode != "authority" {
+			state.State = "legacy"
+			state.NodeID = profile.NodeID
+			state.ParentNodeID = profile.ParentNodeID
+			states = append(states, state)
+			continue
+		}
+		snapshot, found, err := a.credentials.InspectEnrollment(profile.ID)
+		if err != nil {
+			state.State = "error"
+			state.Message = "受保护的 Enrollment 凭据不可用；请确认当前系统用户，或删除此 Profile 后重新连接。"
+			states = append(states, state)
+			continue
+		}
+		if !found {
+			state.State = "missing"
+			states = append(states, state)
+			continue
+		}
+		state.State = snapshot.Status
+		state.RequestID = snapshot.RequestID
+		state.ParentNodeID = optionalNodeID(snapshot.ParentNodeID)
+		state.AuthorityNodeID = optionalNodeID(snapshot.AuthorityNodeID)
+		if snapshot.Grant != nil {
+			state.NodeID = snapshot.Grant.NodeID
+		}
+		if profile.NodeID != "" && state.NodeID != "" && profile.NodeID != state.NodeID {
+			state.State = "error"
+			state.Message = "Profile Node ID 与受保护的 Enrollment Grant 不一致；请勿继续连接。"
+		}
+		states = append(states, state)
+	}
+	return marshalJSON(states)
+}
+
+func optionalNodeID(value protocol.NodeID) string {
+	if value == 0 {
+		return ""
+	}
+	return strconv.FormatUint(uint64(value), 10)
 }
 
 func (a *App) SaveProfileJSON(raw string) (string, error) {
@@ -381,6 +470,40 @@ func (a *App) SwitchProfile(profileID string) error {
 				a.fail("profile auto-connect", err)
 			}
 		}()
+	}
+	return nil
+}
+
+func (a *App) DeactivateProfile() error {
+	a.lifecycleMu.Lock()
+	defer a.lifecycleMu.Unlock()
+
+	a.mu.Lock()
+	if a.settings.ActiveProfileID == "" {
+		old := a.client
+		a.client = nil
+		a.mu.Unlock()
+		if old != nil {
+			return old.Close()
+		}
+		return nil
+	}
+	next := a.settings
+	next.ActiveProfileID = ""
+	if err := a.store.save(next); err != nil {
+		a.mu.Unlock()
+		return fmt.Errorf("persist Profile deactivation: %w", err)
+	}
+	old := a.client
+	a.client = nil
+	a.settings = next
+	a.mu.Unlock()
+
+	a.appendLog("info", "returned to Profile selection")
+	if old != nil {
+		if err := old.Close(); err != nil {
+			return fmt.Errorf("Profile was deactivated but the previous client did not close cleanly: %w", err)
+		}
 	}
 	return nil
 }

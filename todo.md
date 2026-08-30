@@ -1,62 +1,51 @@
-# Todo - Desktop Schema-driven Resource Widgets
+# Todo - Desktop Profile Entry Production
 
 ## Approval
 
-- [x] `$m-discuss` completed with provider/display/user ownership confirmed.
-- [x] Dedicated branch/worktree and canonical docs root confirmed.
+- [x] `$m-discuss` completed with the two-entry direction and credential-state source confirmed.
+- [x] Dedicated `feat/desktop-profile-entry` branch/worktree created from committed `master@5c17648`.
 - [x] `$m-docs` routing and stable-doc impact recorded.
 - [x] `$m-plan` drafted.
-- [x] User explicitly approves execution Task IDs through `$m-execute`.
-- [x] `$m-execute` entry gate passes.
+- [x] User explicitly approves execution Task IDs through `$m-execute` or `$m-go`.
+- [x] Execution entry gate passes.
 
 ## Will Execute After Approval
 
-- [x] DOC01 — stabilize feature, requirement, spec, decision, intake/index links.
-- [x] SCHEMA01 — add bounded provider-owned first-party schema definitions, deterministic Desktop artifact, coverage/parity/freshness gates.
-- [x] RENDER01 — add `SchemaResolver`, bounded validation, versioned `RendererRegistry`, compatibility/ranking, legacy aliases, settings validation.
-- [x] VALUE01 — add generic scalar/object/array displays and controls; implement staged, revision-safe Variable UX.
-- [x] OP01 — add generated Command/Topic/generic operation forms, explicit Execute, typed results, and Advanced JSON fallback.
-- [x] LIVE01 — add bounded event views, native File selection/in-flight status, and schema-ID-selected first-party structured adapters; per-transfer cancel remains behind a future transfer-handle binding.
-- [x] VIEW01 — integrate renderer selection, View persistence, responsive pane density, legacy/incompatible fallback, and accessibility.
-- [x] QA01 — full Go, generated post-commit check, frontend regression/build, production Wails, real packaged GUI, persistence, theme, security, and screenshot gates pass.
+- [x] DOC01 — clarify the Desktop requirement and add/index the focused Profile entry spec.
+- [x] STATE01 — add non-mutating Enrollment inspection and sanitized per-Profile lifecycle projection.
+- [x] SESSION01 — add non-destructive Profile deactivation and frontend state cleanup.
+- [x] UI01 — implement Existing Profile / First Connection production React UI, valid stable Profile IDs, state-aware actions, and current feature truth.
+- [x] QA01 — run focused/full Go, vet, generated, frontend, cross-platform compile, Wails package, security, and GUI gates.
 
 ## Will Not Execute In The Next Phase
 
-- [ ] REMOTE01 — owner-served schema discovery protocol; deferred for separate trust/cache/version/migration design.
-- [ ] PLUGIN01 — executable third-party renderer plugins; out of scope and requires a separate sandbox/trust model.
-- [ ] DASH01 — full dashboard query/history/chart engine; deferred because this workflow has no query/history contract.
-- [x] ARC01 — plan/change/evidence archive is prepared; local merge and worktree cleanup are the remaining control-plane closeout steps.
-- [ ] PUB01 — push/release/publication; not authorized and no remote is assumed.
+- [ ] STARTUP01 — force Profile selection on every launch; deferred to preserve persisted active Profile and auto-connect behavior.
+- [ ] MOBILE01 — Android/Embedded native Enrollment chooser; separate product approval required.
+- [ ] PUB01 — push/release/deployment/publication; not authorized.
 
 ## Acceptance Checklist
 
-- [x] Provider schema controls type/constraints; Desktop controls compatible components; user selection changes presentation only.
-- [x] Bounded integer `0..100`, step `1` exposes native pointer/keyboard range semantics with exact min/max/step and numeric fallback.
-- [x] String supports compatible single-line/multiline/code/text modes.
-- [x] Read-only data never exposes mutating controls.
-- [x] Writable drafts use Reset/Apply; failed/conflicting writes preserve the draft.
-- [x] Renderer selection persists per View and legacy IDs still open safely.
-- [x] Commands use generated forms with explicit Execute and Advanced JSON fallback.
-- [x] Streams/Topics have a 100-event bounded, frame-batched buffer with live controls and visible gap/expired/error state.
-- [x] File uses native selection and exposes in-flight/errors; independent first-party transfer resources expose owner progress within current capabilities.
-- [x] First-party catalog/topology/health/config/flow/audit/notification/file schemas have useful structured views.
-- [x] Unknown/unsupported schema and incompatible saved renderer produce explicit safe fallback.
-- [x] Light/dark, nested compact/normal/expanded panes, Explorer, View layout, Profile, and offline/Forbidden behavior have no regression.
-- [x] Generated artifact is deterministic, LF-stable, covered, and fresh in focused regeneration/freshness tests.
-- [x] `npm test`, `npm run build`, focused/full `GOWORK=off go test`, generated check, Wails production build, interaction, and packaged GUI smoke pass.
+- [x] Profile summaries are read-only, validated, bounded, and contain no private key, Permit, or Grant signature.
+- [x] Legacy, missing, Device, Pending, Enrolled, and error states render distinct labels and actions.
+- [x] Pending retry reuses its stable request/trust state without another TOFU confirmation.
+- [x] Ordinary first connection has no editable Profile ID, Node ID, parent ID, or public-key pin fields.
+- [x] Generated Profile IDs are valid, stable across name edits, and collision-safe.
+- [x] Permit identity preparation/copy and approval/TOFU paths work; Permit clears only on success.
+- [x] Returning to Profile selection clears the active Profile/client but preserves Profile, credential, preference, and View data.
+- [x] Existing active startup, auto-connect, Settings, Legacy, headless, protocol, Resource, Renderer, and View behavior do not regress.
+- [x] Light/dark, keyboard, focus, error, reduced-motion, and 1024×768 UI gates pass.
+- [x] Go/frontend/generated/Wails package and real GUI validation pass.
 
 ## Rollback Checkpoints
 
 - [x] R0 — DOC01 contract-only checkpoint.
-- [x] R1 — SCHEMA01 generated schema checkpoint.
-- [x] R2 — RENDER01 pure domain checkpoint.
-- [x] R3 — VALUE01/OP01/LIVE01 renderer-family checkpoints.
-- [x] R4 — VIEW01 integration checkpoint.
-- [x] R5 — QA01 verified archive-ready checkpoint.
+- [x] R1 — STATE01 additive read-only API checkpoint.
+- [x] R2 — SESSION01 deactivation checkpoint.
+- [x] R3 — UI01 production interaction checkpoint.
+- [x] R4 — QA01 verified archive-ready checkpoint.
 
 ## Current Gate
 
-- Blocked: no.
-- `DOC01`–`QA01` and archive documentation are complete.
-- Next gate: commit archive records, safely merge into local `master`, and clean up the dedicated worktree/branch.
-- Do not dispatch implementation sub-agents because the approved implementation write sets overlap.
+- Blocked: no — `DOC01`, `STATE01`, `SESSION01`, `UI01`, and `QA01` were explicitly approved via `$m-execute`.
+- `$m-test` heavy validation passed; QA01 is complete and the workflow is ready for `$m-archive`.
+- No implementation sub-agents were dispatched because the write sets overlapped and no delegation was requested.

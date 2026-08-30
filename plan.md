@@ -1,570 +1,535 @@
-# Plan - Desktop Schema-driven Resource Widgets
+# Plan - Desktop Profile Entry Production
 
 ## Workflow Information
 
 - Repo: `D:\project\MyFlowHub3\repo\MyFlowHub`
-- Branch: `feat/desktop-schema-driven-widgets`
-- Base: `master` @ `54b46e6bc0c1bbea5b265a875e7c8132ae28e004`
+- Branch: `feat/desktop-profile-entry`
+- Base: `master` @ `5c1764858fe5b706567a21c186566cc3775a955a`
 - Project Root: `D:\project\MyFlowHub3`
-- Docs Root: `D:\project\MyFlowHub3\worktrees\desktop-schema-driven-widgets\docs`
+- Docs Root: `D:\project\MyFlowHub3\worktrees\desktop-profile-entry\docs`
 - Code Repos: canonical monorepo `MyFlowHub` only
-- Worktree: `D:\project\MyFlowHub3\worktrees\desktop-schema-driven-widgets`
-- Participating Modules: `protocol`、`sdk/bindings`、`apps/desktop`、`apps/desktop/frontend`、canonical `docs/`
-- Current Stage: `$m-test` passed for `DOC01`–`QA01`; `$m-archive` documentation and closeout in progress
-- Publication: local-only; no remote, push, release, or publication is authorized
+- Worktree: `D:\project\MyFlowHub3\worktrees\desktop-profile-entry`
+- Participating Modules: `runtime/auth`、`apps/desktop`、`apps/desktop/frontend`、Wails generated bindings、canonical `docs/`
+- Current Stage: `$m-test` heavy validation passed; QA01 is archive-ready
+- Publication: local-only; no remote, push, release, or deployment is authorized
 
 ## Stage Records
 
 ### Initialization
 
-- `guide.md`: read; Chinese commit messages, canonical docs, `GOWORK=off`, and sibling-worktree rules apply.
-- Project/docs/code repo confirmation: the canonical monorepo is both the owning code repo and governed docs root.
-- Base/worktree confirmation: the dedicated semantic branch and worktree already exist under the project `worktrees\` directory.
-- Main checkout protection: unrelated main-checkout changes such as `guide.md`, thesis files, design demos, and other task docs remain outside this worktree and must not be staged, overwritten, reverted, or archived by this workflow.
-- Root control files: the previously completed Explorer control files are retained in `docs/plan`; root `plan.md` and `todo.md` now become this workflow's active control plane.
+- `guide.md`: read; Chinese commit messages, canonical repository docs, `GOWORK=off`, sibling-worktree, and generated-binding rules apply.
+- Project/docs/code repo confirmation: `D:\project\MyFlowHub3` is the umbrella project; the canonical monorepo is both the code repo and the explicitly governed docs root.
+- Base/worktree confirmation: created `feat/desktop-profile-entry` at committed `master@5c17648` under the required sibling `worktrees\` directory.
+- Main checkout protection: the main checkout contains unrelated modified Desktop renderer/workspace output, docs, demos, and `guide.md`; none is copied, reverted, staged, or reformatted by this workflow.
+- Root control files: the completed schema-widget workflow is already retained in `docs/plan`; root `plan.md` and `todo.md` are replaced only inside this dedicated worktree as the new active control plane.
 
 ### Discuss - Discovery And Requirements Shaping
 
 #### Goal
 
-Replace raw-JSON-first Desktop widgets with schema-driven operational displays and controls while preserving generic Resource discovery, provider authority, permissions, revision safety, and View persistence.
+Apply the confirmed two-entry login/Profile prototype to production React while using real protected credential state, preserving Authority Enrollment, Legacy compatibility, headless behavior, and the existing active-Profile/auto-connect contract.
 
 #### Scope
 
-- Provider-owned data type, constraints, semantics, and capability declarations.
-- Desktop-owned compatible renderer set, default ranking, responsive presentation, and safe fallback.
-- User-selectable renderer and non-secret display settings persisted per View widget.
-- Rich first-party Variable, operation, event, File, and structured resource experiences.
-- Generated first-party schema metadata for the current canonical protocol schemas without changing the wire descriptor in this phase.
+- Replace the always-expanded 01/02/03 login form with “使用现有 Profile” and “首次连接” entry modes.
+- Expose a sanitized, read-only per-Profile Enrollment lifecycle projection from protected credential state.
+- Add an explicit “返回 Profile 选择” action that deactivates without deleting a Profile.
+- Generate valid local Profile IDs automatically in the ordinary first-connection path.
+- Preserve Permit, approval/TOFU, Pending retry, Enrolled reconnect, Legacy, error focus, theme, and accessibility behavior.
 
 #### Assumptions
 
-- Invocation of `$m-plan` after the staged explanation confirms the phase-1 delivery boundary: built-in first-party schema provider now, owner-served schema discovery later.
-- Current Go payload structs and `Validate` methods remain runtime enforcement authority.
-- Existing `ViewWidget.renderer` and bounded `settings` fields are sufficient; View document version stays at v3.
-- Presentation choices never grant permission or relax provider constraints.
+- `EnrollmentCredential` remains the single local truth for `device/pending/enrolled`, request ID, trust observation, and Grant; `settings.json` does not duplicate this lifecycle.
+- `active_profile_id` continues to mean the locally active Profile. An active Profile may enter the workspace on restart and may auto-connect according to its existing flag.
+- “返回 Profile 选择” is local Profile deactivation, not human-account logout and not credential deletion.
+- Existing HTML prototype is interaction evidence only; production continues to use React, Wails, BrandMark, real API data, and current design tokens.
+
+#### Open Questions
+
+- Blocking: none.
+- Deferred: forcing Profile selection on every application launch. This would redefine persisted activation and is excluded to preserve compatibility.
+- Deferred: native Android/Embedded Enrollment UI and multi-Authority availability.
 
 #### Options Considered
 
-1. Restyle JSON textareas: rejected because it does not add semantic controls.
-2. Resource-name-specific screens: rejected because paths are not stable type contracts.
-3. Full remote schema/plugin protocol now: deferred because trust, caching, compatibility, and migration require a separate protocol workflow.
-4. Staged schema resolver with generated first-party metadata, generic primitives, and explicit specialized adapters: selected.
+1. **Visual-only React rearrangement**: small diff, but still guesses Pending from `node_id` and leaves the normal Profile-selection boundary incomplete.
+2. **Two-entry React plus credential status projection**: accurate lifecycle and no persisted schema migration, but without deactivation the chooser remains difficult to reach after activation.
+3. **Two-entry React plus read-only status projection plus explicit deactivation**: selected; gives the UI an accurate state model and a real return path while preserving auto-connect and protocol behavior.
+4. **Persist lifecycle fields in Profile/settings**: rejected because it creates a second truth source that can drift from the protected credential.
+5. **Copy prototype HTML/JS into production**: rejected because it contains hard-coded Profiles, command-style DOM, simulated Toast results, and invalid Unicode-derived Profile IDs.
 
 #### Recommended Direction
 
-Implement a provider/display/user separation. A generated built-in schema provider adapts today's first-party schema IDs to a bounded JSON-Schema-compatible vocabulary. Desktop filters and ranks compatible renderers; the user may select any compatible renderer, and the selection is stored in the View without copying resource values.
+Add a non-mutating runtime inspection seam and a narrow Desktop `ProfileStatesJSON` projection. Render saved Profiles from that projection, not from `node_id` heuristics. Add `DeactivateProfile` as an additive Wails lifecycle action. Rebuild `LoginScreen` around production state transitions, generate a stable valid Profile ID once, and keep trust pins/Legacy fields behind advanced settings.
 
 #### Research Summary
 
-- JSON Schema annotation and validation separation supports reusable data contracts.
-- JSON Forms demonstrates separate data/UI schemas and a ranked renderer registry.
-- Grafana demonstrates reusable unit/range/value mappings across display types.
-- These patterns inform the architecture only; the project will not import a competing theme or full dashboard framework.
+No external research was required. The decision is based on current repository implementation, canonical docs, archived packaged validation, and the existing prototype/tests.
 
 #### Worktree / Branch / Docs Root Status
 
-- Dedicated worktree: ready.
-- Discussion intake and index: drafted in this worktree.
-- Runtime implementation: not started.
-- Issue list: none blocking planning.
+- Dedicated branch/worktree: ready and clean before planning writes.
+- Docs root: confirmed at the worktree `docs/` tree; no separate private docs repository exists.
+- Discussion intake: added and indexed as `docs/intake/2026-08-31_desktop-profile-entry-production.md`.
+- Runtime implementation/tests: not started.
 
-## Plan - Requirements And Architecture
+#### Issue List
 
-### Discussion Summary
+- None blocking planning.
 
-The provider defines what the data means and what values are valid. Desktop defines how valid data can be displayed. The user chooses among compatible displays. For example, a writable integer with `minimum=0`, `maximum=100`, and `multipleOf=1` may be edited through a slider, number stepper, or numeric input; a read-only rendering may be a number, gauge, progress bar, or bounded trend. A string may use a single-line, multiline, code, or read-only text renderer when its provider constraints allow it.
+### Plan - Requirements And Architecture
 
-### Accepted / Rejected Requirements
+#### Discussion Summary
+
+The Enrollment runtime already persists the exact local lifecycle and stable request ID, but the React login screen receives only Profile settings. As a result it displays every authority Profile without a Node ID as “等待注册” and cannot distinguish identity-only, Pending, Enrolled-but-not-yet-hydrated, missing credentials, or corrupt credentials. The production change should expose a sanitized projection from the existing truth source, then organize actions around that state.
+
+#### Accepted / Rejected Requirements
 
 Accepted:
 
-- Controls are driven by schema ID, data shape, constraints, capabilities, and allowlisted presentation hints.
-- Renderer changes are presentation-only and must never mutate a resource.
-- Writable edits are staged; Apply performs the existing authoritative operation and preserves drafts on error or revision conflict.
-- Unknown, unsupported, malformed, or incompatible schemas retain structured/raw access with an explicit explanation.
-- All current first-party resource families gain useful non-JSON-first behavior in proportion to their contracts.
-- Existing design tokens, light/dark themes, flat pane composition, nested split layout, and accessibility conventions remain.
+- Existing Profiles and first connection are separate top-level entry modes.
+- Existing Profile rows use exact lifecycle state and state-specific primary actions.
+- Pending retry reuses the persisted request/trust observation and does not repeat TOFU.
+- First connection hides Node ID and normal public-key pins, generates a local Profile ID, and keeps Permit/approval explicit.
+- Deactivation preserves Profile, credentials, Views, and next-use recovery.
+- Existing active startup, auto-connect, headless, protocol, Authority, and Legacy behavior remain compatible.
 
 Rejected or deferred:
 
-- Resource-path matching, remotely supplied executable UI, automatic destructive inference, and controls that cannot enforce provider constraints.
-- Full owner-served schema discovery, third-party executable renderer plugins, query-language dashboards, and production Media visualization in this phase.
+- Inferring Pending from an empty Node ID.
+- Duplicating credential lifecycle in settings or UI preference.
+- Regenerating Profile ID whenever the display name changes.
+- Generating keys as a side effect of merely listing Profiles.
+- Replacing Profile identity with a human account/password concept.
+- Always showing the chooser on startup, mobile/embedded UI migration, multi-Authority, publication, and deployment.
 
-### Requirements Analysis
+#### Requirements Analysis
 
-#### Goal
+##### Goal
 
-Deliver a maintainable renderer platform that makes first-party resources directly usable and establishes the stable extension seam for future provider-served schemas.
+Deliver a production Profile entry experience that is simpler for ordinary users and more correct for Device/Pending/Enrolled recovery, without altering network admission semantics or secret-storage boundaries.
 
-#### Scope
+##### Scope
 
-- First-party schemas referenced by the current canonical binding contract and resource catalog.
-- Generic scalar/object/array display and form generation.
-- Variable, Command/generic operation, Stream/Topic, File, and selected structured first-party renderers.
-- Renderer selection, persistence, responsive density, raw fallback, accessibility, and tests.
+- Go read-only Enrollment inspection and Desktop Profile-state facade.
+- Local Profile deactivation lifecycle.
+- React state/types/API integration.
+- Two-entry LoginScreen, Profile-row actions, automatic Profile ID, advanced compatibility settings, styling, accessibility, tests, generated bindings, and stable docs.
 
-#### Use Cases
+##### Use Cases
 
-1. A user opens a numeric Variable and sees a meaningful value rather than JSON; writable bounded values offer safe controls.
-2. The user switches a numeric widget between compatible presentations and sees the choice restored after saving/reopening the View.
-3. A user invokes a Command through generated labeled fields and inspects structured output or raw JSON when necessary.
-4. A user monitors Stream/Topic data as a table, timeline, or log and can pause, filter, clear, and recognize gaps.
-5. A user selects a local file through the Desktop host, starts a transfer, and sees progress and actionable errors.
-6. A first-party catalog, topology, health, configuration, flow, notification, audit, or transfer payload receives a structured display selected by stable schema ID.
-7. An unknown third-party schema remains discoverable and usable through a safe raw fallback.
+1. A new installation with no Profiles opens directly to minimal first connection.
+2. A signed-out installation with saved Profiles opens the existing Profile chooser and defaults to the previously relevant/first Profile.
+3. A Device Profile continues first connection without receiving a fake Pending label.
+4. A Pending Profile checks the same request and, once approved, stores the Authority-assigned Node ID and connects.
+5. An Enrolled Profile reconnects without Permit or repeated TOFU.
+6. A user prepares/copies the local public key for a Permit, pastes the one-time Permit, and completes registration without exposing the private key.
+7. A user returns from the workspace to Profile selection without deleting identity or Views, then selects another Profile.
+8. Legacy Profiles continue through their explicit compatible fields.
 
-#### Functional Requirements
+##### Functional Requirements
 
-- Resolve input/output/event schemas through a typed provider interface.
-- Support a bounded declarative schema vocabulary: `null`, `boolean`, `integer`, `number`, `string`, `object`, homogeneous `array`, properties, required, enum, numeric bounds/step, string length/pattern/format, item limits, labels/descriptions, units, precision, read/write sensitivity, and stable field order.
-- Reject or fall back for unsupported keywords, recursive definitions, invalid references, excessive depth/fields, or invalid schema documents.
-- Register renderers with stable versioned IDs, modes, compatibility predicates, ranking, minimum size, and allowed settings.
-- Treat legacy `mfh.variable`, `mfh.stream`, `mfh.topic`, `mfh.command`, and `mfh.file` renderer IDs as automatic compatibility aliases.
-- Offer only renderers compatible with both schema and resource capability.
-- Keep a keyboard-accessible presentation selector in the widget chrome when more than one compatible renderer exists.
-- Preserve resource payloads, drafts, credentials, and secrets outside `ViewWidget.settings`.
-- Keep Advanced JSON/descriptor access available for all resources.
+1. Read-only credential inspection must distinguish `not found`, `device`, `pending`, and `enrolled`, validate found state, and never create/save a key, Grant, request, or directory solely because the chooser was rendered.
+2. `ProfileStatesJSON` must return one bounded summary per saved Profile with Profile ID, lifecycle, optional request/Node/parent/Authority IDs, and a sanitized actionable error; it must never include private keys, Permit bodies/signatures, Grant signatures, or full protected credential records.
+3. Legacy Profiles are projected as `legacy` without opening Enrollment credentials.
+4. Missing or invalid protected credentials are explicit `missing`/`error` states; corrupt state never silently becomes a new Device identity.
+5. An Enrolled credential with an empty Profile `node_id` is still shown as Enrolled and is allowed to reconnect/hydrate; a non-empty Profile identity that conflicts with the Grant fails explicitly.
+6. `DeactivateProfile` serializes with login/connect/switch/delete, clears `active_profile_id`, closes the active client and subscriptions, persists the cleared selection, and preserves Profile records, protected identity, runtime state directories, preferences, and Views.
+7. Deactivation failure or partial cleanup must produce an actionable error and the frontend must reload authoritative settings instead of guessing the final state.
+8. Existing Profiles default to `enrolled -> 连接父节点`, `pending -> 检查审批并连接`, `device/missing -> 继续首次连接`, `legacy -> 兼容连接`, and `error -> disabled recovery guidance`.
+9. Pending retry calls the existing login path with the same Profile, no Permit, and no repeated TOFU; the binding uses the persisted trust observation.
+10. First connection defaults to approval and shows only Profile name, endpoint, admission choice, auto-connect, and relevant actions. Node ID is never user-assigned in the authority path.
+11. Permit mode exposes explicit identity preparation/copy and Permit input. Permit content remains component/session state and is cleared only after successful login.
+12. Approval without configured pins requires explicit TOFU once. Existing Pending with stored observation does not.
+13. Profile ID is generated once as a valid ASCII ID with bounded collision retry, remains stable while name/endpoint are edited, is locked after the Profile has saved identity/state, and is only exposed in advanced or diagnostic UI.
+14. Existing Profile edit uses a locked ID and state-aware fields; changes are committed by the existing prepare/login boundary, preserving current inactive/activation semantics.
+15. Existing active Profile startup and `auto_connect` behavior are unchanged. Disconnect remains distinct from returning to Profile selection.
+16. Tabs, Profile selection, menus, forms, validation, errors, busy states, clipboard feedback, and theme controls remain keyboard- and screen-reader-accessible.
 
-#### Non-functional Requirements
+##### Non-functional Requirements
 
-- No unnecessary visual-system or docking dependency; prefer project primitives and small internal modules.
-- Schema resolution and renderer selection are deterministic, pure, and covered by unit tests.
-- Schema/render trees have explicit depth, property, array, event-buffer, and payload bounds.
-- Resize observation is batched; pane-size changes update responsive density without resaving the View or causing per-pixel request traffic.
-- High-rate events use bounded buffers and batched UI updates.
-- WAI-ARIA names, keyboard equivalents, focus behavior, non-color status, and error associations are required.
-- Runtime owner validation, authority, permission, size, path, session, and revision enforcement remain final.
+- No persisted settings version upgrade and no lifecycle duplication in localStorage/settings.
+- Read-only state loading is bounded by the existing 64-Profile limit and occurs on boot/explicit mutation refresh, not high-frequency polling.
+- Sensitive material stays in CredentialStore/DPAPI; frontend summaries and logs are allowlisted.
+- Runtime and Wails boundaries validate IDs/status values and fail explicitly on corrupt or conflicting state.
+- Existing React/design tokens/BrandMark are reused; no UI framework or dependency is added.
+- Light/dark, 1024×768 minimum target, reduced motion, focus visibility, non-color status labels, and clear errors are required.
+- Headless Enrollment, Authority management, MFHE/MFH4, Resource, View, and Renderer behavior remain unchanged.
 
-#### Inputs / Outputs
+##### Inputs / Outputs
 
 Inputs:
 
-- `ResourceDescriptor`, capabilities, schema IDs, content types, presentation hints, current values/events/results, View widget renderer/settings, pane dimensions, and user actions.
+- persisted `Settings.Profiles` and `active_profile_id`;
+- protected per-Profile Enrollment credential or Legacy identity;
+- current connection status, Permit text, explicit TOFU, user-selected Profile/admission mode, and generated local Profile ID.
 
 Outputs:
 
-- resolved bounded data schema, compatible renderer list, selected renderer, staged draft/validation state, structured display/control tree, operation payload, and display-only View settings.
+- sanitized `ProfileState[]` for presentation;
+- state-specific login/continue/retry actions;
+- updated active Profile after successful login or empty active Profile after deactivation;
+- ordinary production React UI state and actionable errors.
 
-No resource value, operation payload, event body, secret, file content, or permission result is persisted as renderer settings.
+No private key, Permit, Grant signature, resource value, or credential record is output or persisted by the chooser.
 
-#### Edge Cases
+##### Edge Cases
 
-- Missing or unknown schema ID/content type.
-- Known schema whose generated definition is stale or invalid.
-- Saved renderer removed or made incompatible after schema change.
-- Read-only Variable viewed through a previously writable renderer choice.
-- Nullable values, empty arrays/objects, very large arrays, deeply nested objects, unsupported unions, and opaque JSON fields.
-- Revision conflict, Forbidden, Expired, Gap, disconnect/reconnect, resource disappearance, and schema mismatch while editing.
-- Pane too small for a renderer, light/dark theme changes, reduced motion, keyboard-only operation, and multiple simultaneous widgets.
-- File picker cancellation and upload/session failure.
+- Profile JSON exists but credential is missing, corrupt, wrong DPAPI user, unsupported version, or session-only state vanished after restart.
+- Credential is Enrolled but Profile hydration was interrupted before `node_id` was written.
+- Profile `node_id` conflicts with the protected Grant.
+- Pending request expired/rejected, parent endpoint changed, Authority unavailable, or parent/Authority observation conflicts.
+- Profile name is Chinese/empty/very long; generated ID collision; browser random source unavailable.
+- User switches tabs after preparing identity, edits endpoint after preparation, or retries after Permit/login failure.
+- Clipboard access is denied; public key remains selectable.
+- Deactivation while connected, disconnected, connecting, or while the workspace has unsaved View changes.
+- Last/selected Profile is deleted; active Profile is absent; Legacy Profile remains the only saved entry.
+- Generated Wails TypeScript binding is stale or a new worktree lacks generated files/dependencies.
 
-#### Acceptance Criteria
+##### Acceptance Criteria
 
-- A bounded integer fixture (`0..100`, step `1`) offers compatible numeric displays/controls; keyboard and pointer edits honor bounds and step.
-- A string fixture offers compatible one-line/multiline/code/text choices as allowed by its constraints; switching does not call the resource API.
-- Read-only data never exposes mutating controls; writable drafts use Reset/Apply and remain intact after failed writes or revision conflicts.
-- Saving and reopening a View restores explicit renderer choice and valid display settings; legacy renderer IDs still open safely.
-- Commands render a generated form for supported fields, validate locally, submit only on explicit Execute, and show typed output; Advanced JSON remains available.
-- Streams/Topics expose live state, pause/resume, clear, filter, count/rate, autoscroll, and visible gap/expired state using bounded storage.
-- File upload uses a native picker boundary and shows destination/progress/cancel/error state where the current session contract supports it.
-- Catalog/topology/health/config/flow/audit/notification/file payloads receive table, definition-list, status, timeline, or progress adapters keyed by schema ID, never by resource path.
-- Unknown or unsupported schemas show an actionable fallback rather than a blank or misleading control.
-- Light/dark, compact/normal/expanded panes, nested splits, offline/Forbidden states, and existing Explorer/View behavior do not regress.
+- With no Profile, “首次连接” is selected and the ordinary form has no editable Profile ID, Node ID, parent Node ID, parent public key, or Authority public key.
+- With saved Profiles, “使用现有 Profile” is selected and Device, Pending, Enrolled, Legacy, missing, and error fixtures render distinct labels/actions.
+- Merely loading Profile summaries leaves credential files and key material unchanged; the JSON response contains no private/Permit/Grant signature fields.
+- Pending retry uses `permit=''` and `allowTOFU=false`; Enrolled reconnect uses no admission choice; Device continues first connection.
+- Approval first attempt requires explicit TOFU only when no configured/stored trust exists; Permit preparation returns the same public key on repeated reads.
+- Generated Profile IDs always match the backend pattern, remain fixed while the name changes, and do not collide with 64 existing IDs.
+- “返回 Profile 选择” closes the current client, clears active selection across restart, preserves Profile/credential/View data, and is guarded by unsaved-work confirmation.
+- Active Profile restart and auto-connect still enter the workspace as before unless the user explicitly deactivated it.
+- Legacy login and Settings Profile editing remain functional.
+- Focused Go/frontend tests, full Go tests/vet, Wails binding generation/freshness, TypeScript/Vite, Windows Wails package, and representative real UI smoke pass.
 
-#### Risks
+##### Risks
 
-- Handwritten Go validators and declarative schemas can drift; generation coverage and representative parity fixtures must fail closed.
-- A complete JSON Schema engine would enlarge scope; this phase supports a documented bounded vocabulary and visibly falls back outside it.
-- Generic nested forms can become unwieldy; opaque/conditional fields keep an Advanced JSON path rather than pretending full fidelity.
-- Renderer settings can accidentally retain data; settings are allowlisted display metadata only and tested for serialization boundaries.
-- Wails native dialog testing needs an injectable boundary because the real dialog cannot run in jsdom.
+- A status query that reuses `LoadOrCreate` would mutate state and hide missing credentials; the inspection path must be read-only by construction.
+- DPAPI/session-only behavior differs by build tag; Windows runtime tests and Linux compile-only coverage are both required.
+- `active_profile_id` currently gates the entire workspace; deactivation must reset frontend resource/View state without deleting it from disk.
+- Reusing `node_id` heuristics anywhere in Login/Settings can reintroduce ambiguous Pending labels.
+- Generated ID randomness can make tests flaky; generation must accept a deterministic test seam and bounded collision handling.
+- LoginScreen, App state, Settings, generated bindings, and CSS overlap heavily, so parallel editing is likely to cause conflicts.
 
-### Architecture Design
+#### Architecture Design
 
-#### Overall Solution
+##### Overall Solution
 
 ```text
-provider schema ID + capability + value/event/result
-                         |
-                         v
-SchemaResolver -> built-in generated provider (phase 1)
-                         |
-                         v
-bounded ResolvedDataSchema + validation result
-                         |
-                         v
-RendererRegistry compatibility filter + rank
-                         |
-              +----------+-----------+
-              |                      |
-              v                      v
-automatic safe default       user-selected compatible renderer
-              |                      |
-              +----------+-----------+
-                         v
-resource controller + display/control primitive
-                         |
-                         v
-authoritative Desktop API operation/subscription/session
+protected Enrollment credential
+        │ read-only inspect; never LoadOrCreate
+        ▼
+runtime/auth sanitized snapshot
+        ▼
+Desktop CredentialStore projection
+        ▼
+ProfileStatesJSON ────────────────┐
+                                  ▼
+Settings + ProfileState[] -> React entry state machine
+                                  │
+             ┌────────────────────┼─────────────────────┐
+             ▼                    ▼                     ▼
+         Existing             First connection      Credential error
+ enrolled/pending/device      approval/permit        explicit recovery
+             │                    │
+             └────────── LoginJSON/PrepareProfileJSON ──> active workspace
+
+workspace --DeactivateProfile--> saved Profiles remain, active selection cleared
 ```
 
-The resource controller owns transport lifecycle; value renderers never call Wails directly. This prevents every slider/table from duplicating subscription, revision, cancellation, and error behavior.
-
-#### Canonical Schema Source And Generation
-
-- Add a protocol-owned, bounded declarative schema model and first-party definitions keyed by existing schema constants.
-- Existing Go payload structs and `Validate` methods remain enforcement authority; declarative definitions describe UI-visible shape and constraints.
-- Extend the existing `go generate ./sdk/bindings` path to emit a deterministic Desktop schema artifact from the protocol definitions.
-- Add freshness tests, schema-ID coverage against the canonical binding manifest, duplicate/sort/limit validation, and representative valid/invalid fixture parity.
-- Add LF rules and generated-check tracking for the new artifact.
-- Do not add schema documents to `SchemaDescriptorV2` or alter catalog/wire encoding in phase 1.
-
-#### Module Responsibilities
+##### Module Responsibilities
 
 | Module | Responsibility |
 | --- | --- |
-| `protocol` | First-party declarative schema definitions, IDs, limits, and validation of definitions |
-| `sdk/bindings` generator | Deterministic cross-language schema artifact and freshness/coverage gates |
-| `frontend/src/rendering/schema` | Typed resolver/provider interface, bounded runtime validation, defaults, and safe fallback reasons |
-| `frontend/src/rendering/registry` | Versioned renderer definitions, compatibility, ranking, aliases, and settings validation |
-| resource controllers | Snapshot/subscription/operation/session lifecycle, revisions, staged drafts, retry/cancel/error state |
-| display/control primitives | Pure schema-aware value display and editing controls |
-| specialized adapters | Schema-ID-selected tables/status/timelines/forms that compose generic primitives |
-| Workspace/View integration | Renderer selector, pane density, settings persistence, dirty state, and detached/incompatible handling |
-| Wails host | Native file picker and existing validated Desktop API boundary |
+| `runtime/auth/enrollment_client_store.go` | Validate and inspect existing Enrollment credential without creating or saving state; return a snapshot with no private key |
+| Desktop platform credential backends | Provide non-creating access to an existing backend/credential; preserve DPAPI and session-only semantics |
+| `apps/desktop/app.go` | Project per-Profile states, detect conflicts, expose `ProfileStatesJSON`, serialize and persist `DeactivateProfile` |
+| `frontend/src/types.ts` / `api.ts` | Define the allowlisted Profile-state union and new Wails methods |
+| `App.tsx` | Refresh settings/state together after mutations, own deactivation cleanup, and preserve active startup/auto-connect behavior |
+| `LoginScreen.tsx` / `ProfileEditor.tsx` | Implement two-entry state machine, state actions, minimal first connection, locked/editable advanced fields, errors and accessibility |
+| Profile ID helper | Generate/test valid stable collision-free local IDs independently of display names |
+| `Settings.tsx` | Expose “返回 Profile 选择” while keeping Disconnect separate |
+| `style.css` / BrandMark/UI primitives | Apply the confirmed compact production presentation in both themes |
+| Tests/generated/docs | Protect credential safety, state transitions, Wails contract, UI behavior, and stable truth |
 
-#### Data / Call Flow
+##### Data / Call Flow
 
-1. Workspace resolves the current resource and View widget.
-2. `SchemaResolver` resolves each capability's relevant schema ID through provider order.
-3. The bounded validator accepts the schema or returns a reasoned unsupported/invalid result.
-4. `RendererRegistry` filters by resource mode, capability, schema features, pane density, and minimum size.
-5. A saved compatible renderer wins; an automatic/legacy alias uses deterministic ranking; an incompatible saved choice visibly falls back without erasing the stored preference.
-6. The resource controller fetches or subscribes once and passes typed state to the selected presentation component.
-7. Editors produce staged drafts and local errors; Apply/Execute converts the draft to the existing API payload.
-8. Runtime errors are displayed in-widget. A successful write refreshes authoritative value/revision; a failed write preserves the draft.
-9. Presentation choice/settings update the View and mark it dirty but never call a resource operation.
+1. App loads settings. If no Profile is active, it also loads `ProfileStatesJSON`; state refresh repeats after prepare, pending retry, successful login, delete, or deactivation.
+2. `ProfileStatesJSON` snapshots the Profile list, maps Legacy directly, and asks the credential store to inspect authority state without creating it.
+3. Found credentials are validated through `runtime/auth`; Desktop emits only allowlisted state/request/identity IDs. Missing/corrupt/conflicting states become explicit summaries instead of aborting the entire chooser.
+4. LoginScreen selects Existing when Profiles exist, otherwise First Connection. A Device/missing row transfers its locked/generated Profile draft into First Connection; Pending/Enrolled/Legacy submit the existing login boundary directly.
+5. First approval uses explicit TOFU only before any observation exists. First Permit preparation calls the existing protected `PrepareProfileJSON`, displays the public key, then submits Permit through `LoginJSON`.
+6. Pending `LoginJSON` persists the inactive Profile and returns its current error/status; approval on a later retry hydrates the Grant into Profile settings and activates it.
+7. `DeactivateProfile` clears the durable active ID and closes the current client under the lifecycle lock. React reloads settings, clears in-memory topology/resources/views/selection, and shows Existing Profiles.
 
-#### Interface Drafts
+##### Interface Drafts
+
+Go runtime seam:
+
+```go
+func InspectEnrollmentClientState(store EnrollmentCredentialStore) (EnrollmentClientSnapshot, bool, error)
+```
+
+- `found=false` performs no save/create.
+- found state is validated with the same invariants as normal load.
+- snapshot contains no device private key.
+
+Desktop DTO and facade:
+
+```go
+type profileState struct {
+    ProfileID       string `json:"profile_id"`
+    State           string `json:"state"` // legacy|missing|device|pending|enrolled|error
+    RequestID       string `json:"request_id,omitempty"`
+    NodeID          string `json:"node_id,omitempty"`
+    ParentNodeID    string `json:"parent_node_id,omitempty"`
+    AuthorityNodeID string `json:"authority_node_id,omitempty"`
+    Message         string `json:"message,omitempty"`
+}
+
+func (a *App) ProfileStatesJSON() (string, error)
+func (a *App) DeactivateProfile() error
+```
+
+Frontend contract:
 
 ```ts
-type SchemaResolution =
-  | { status: 'resolved'; schema: ResolvedDataSchema; source: string }
-  | { status: 'missing' | 'unsupported' | 'invalid'; schemaID?: string; reason: string }
-
-interface SchemaProvider {
-  id: string
-  resolve(schemaID: string): SchemaResolution | undefined
-}
-
-interface RendererDefinition {
-  id: string
-  mode: 'value' | 'operation' | 'event' | 'file' | 'structured'
-  supports(context: RendererContext): Compatibility
-  rank(context: RendererContext): number
-  validateSettings(value: unknown): RendererSettings
+type ProfileState = {
+  profile_id: string
+  state: 'legacy' | 'missing' | 'device' | 'pending' | 'enrolled' | 'error'
+  request_id?: string
+  node_id?: string
+  parent_node_id?: string
+  authority_node_id?: string
+  message?: string
 }
 ```
 
-Renderer IDs are versioned and resource-mode specific, for example `mfh.variable.slider.v1`, `mfh.variable.number.v1`, `mfh.value.table.v1`, `mfh.event.timeline.v1`, and `mfh.operation.form.v1`. Exact names are finalized in the spec before code use.
+Exact public names may be tightened during implementation, but the state set, sensitive-field allowlist, no-create rule, and additive Wails boundary are fixed acceptance requirements.
 
-#### Initial Schema / Renderer Matrix
+##### Error Handling And Safety
 
-| Shape / mode | Compatible presentations |
-| --- | --- |
-| Boolean read/write | text/status; switch or checkbox for staged writable drafts |
-| Enum read/write | badge/text; select or segmented choice within bounded option count |
-| Bounded numeric | number/stat/progress/gauge/trend; numeric input/stepper/slider when writable |
-| Unbounded numeric | number/stat/trend; numeric input/stepper when writable |
-| String | text/code; one-line, multiline, or code textarea when constraints/format allow |
-| Date/time/duration | localized display; matching bounded input when writable |
-| Object | definition list, grouped display, generated form, or JSON tree/raw fallback |
-| Homogeneous array | list/table, repeatable form rows within limits, or JSON fallback |
-| Command/operation | generated input form + explicit Execute + structured output + Advanced JSON |
-| Stream/Topic | log/table/timeline with bounded buffer, filter, pause, clear, rate, autoscroll, gap |
-| File | native source selection, destination, progress/status, cancel/error |
-| Unknown/unsupported | descriptor + JSON tree/raw viewer; no invented editing control |
+- An unreadable credential produces a disabled Profile row with an actionable local-credential message; it never generates a replacement identity.
+- A state/Profile identity conflict fails closed. The recovery path is explicit edit/delete/re-enroll, not silent overwrite.
+- Pending/rejected/expired/Authority-unavailable errors preserve the selected Profile, Permit where applicable, and focused alert.
+- Clipboard failure leaves the public key visible/selectable and reports manual-copy guidance.
+- Deactivation reloads authoritative settings on every outcome so a storage/close error cannot leave React claiming the wrong active state.
+- Delete remains separately confirmed and destructive; deactivation never calls credential/View removal.
+- The status response is allowlisted and tested against forbidden sensitive field names/content.
 
-#### First-party Structured Coverage
+##### Performance And Testing Strategy
 
-- `mfh.catalog.v2`: searchable resource table and details.
-- management topology/health/config: hierarchy/table, status checks, and grouped key/value display.
-- management audit and notification events: timeline/log with stable metadata columns.
-- file transfers/progress: transfer table and progress/status presentation.
-- flow definitions/runs/events: definition/run tables and event timeline; deeply conditional flow-editing fields may retain Advanced JSON where the bounded dialect cannot express them faithfully.
-- management and flow Commands: generated forms where supported, with schema-driven raw fallback for opaque fields.
+- Inspect at most 64 Profiles only on boot or explicit lifecycle refresh. No background polling of DPAPI/profile summaries.
+- Unit-test pure status/action mapping and ID generation separately from React rendering.
+- Go tests cover non-mutating inspection, corrupt/missing/found credentials, state conflicts, deactivation persistence, and reconnect recovery.
+- Frontend tests cover tab defaults, keyboard semantics, all state rows/actions, Permit/approval behavior, error focus, deletion/edit, deactivation, unsaved View guard, and compatibility.
+- Regenerate Wails bindings from this worktree; never copy another worktree's `wailsjs`.
+- Run focused and full Go checks, frontend tests/build, deterministic generated check, Linux compile-only for non-Windows credential code, Windows Wails production build, and representative packaged GUI smoke.
 
-#### Error Handling And Safety
+##### Extensibility Design Points
 
-- Missing/invalid schema, unsupported vocabulary, incompatible saved renderer, and malformed settings have distinct messages and safe fallbacks.
-- Unknown schema never receives an inferred mutating control.
-- Local validation is advisory UX; owner/runtime errors remain authoritative and are not swallowed.
-- Revision conflicts preserve the user's draft and offer authoritative reload/reset.
-- `readOnly`, `writeOnly`, and sensitive annotations suppress unsafe echo/persistence.
-- Renderer settings are bounded, versioned, allowlisted, and contain presentation only.
-- Remote HTML, JS, arbitrary CSS, component names outside the registry, and side-effecting URLs are never evaluated.
-- Subscription and session effects are cleaned up on unmount, resource change, profile switch, and connection loss.
+- The Profile-state union can later add an explicit `revoked`/`expired` recovery state when the local credential contract exposes it; unknown states must still fail closed.
+- The chooser can later be shared with Android/Embedded without changing Authority semantics, but no cross-platform UI abstraction is introduced now.
+- A future “always choose Profile on startup” preference can sit above `active_profile_id`; it is not encoded into the current credential/status API.
 
-#### Performance And Testing Strategy
+#### Issue List
 
-- Pure unit tests cover definition validation, resolver precedence, compatibility/ranking, schema validation, aliases, settings, and fallback.
-- Component tests cover keyboard/pointer controls, staged edits, switch-without-mutation, errors/conflicts, operation forms, event buffering, and responsive variants.
-- Go tests cover schema-definition validity, generator freshness/coverage, View settings bounds, native dialog boundary, and app regressions.
-- Synthetic deep/wide object and high-rate event fixtures verify depth/field/buffer limits and batching.
-- Production validation uses `GOWORK=off`, Vitest, TypeScript/Vite, generated-contract check, full Go tests, Wails production build, browser interaction, and real packaged GUI smoke.
+- No blocking architecture question remains.
 
-#### Extensibility Design Points
+### Stage 3.1 - Planning
 
-- `SchemaResolver` accepts ordered providers; a future owner-served provider can be inserted without replacing renderers.
-- Renderer registry remains local and allowlisted; future third-party data schemas do not imply third-party executable UI.
-- Schema/version mismatch falls back without losing View topology or resource reference.
-- Specialized adapters compose the same generic primitives and are selected by schema or explicit renderer ID, not path.
+#### Project Goal And Current State
 
-## Stage 3.1 - Planning
+The production Enrollment/Authority path is implemented and previously validated, while the shipped React login remains the three-stage form. The design prototype and Playwright evidence exist, but lifecycle status is not exposed to React and the active Profile has no non-destructive return-to-chooser operation.
 
-### Project Goal And Current State
+#### Docs Governance Routing Decision
 
-The current renderer layer is a single `Renderer.tsx` with JSON textareas/pre blocks and broad type dispatch. View v3 already stores renderer/settings and supports arbitrary nested panes. The plan retains that layout/store contract while creating the missing schema and renderer domains.
+- Docs root: `D:\project\MyFlowHub3\worktrees\desktop-profile-entry\docs` (same canonical monorepo; local-only).
+- Original request evidence: new `docs/intake/2026-08-31_desktop-profile-entry-production.md` plus intake index.
+- Current user-visible truth after implementation: clarify `docs/features/desktop.md`.
+- Durable intent after approval: clarify `docs/requirements/desktop-resource-workspace.md`; `auth-controlled-admission.md` remains the existing admission source.
+- Technical contract after approval: add `docs/specs/desktop-profile-entry.md` and index it; link existing Enrollment/workspace specs.
+- Architecture decisions: no new/superseding decision; centralized Authority and protected-credential truth remain unchanged.
+- Lessons: reuse existing admission/binding/generated/frontend lessons; decide at test/archive whether a new reusable lesson emerged.
 
-### Docs Governance Routing Decision
+#### Related Intake / Features / Requirements / Specs / Decisions / Lessons
 
-Using `$m-docs`:
-
-- Docs root: `D:\project\MyFlowHub3\worktrees\desktop-schema-driven-widgets\docs`
-- Intake impact: clarify; discussion brief and intake index already updated.
-- Feature impact: clarify `docs/features/desktop.md` with current schema-driven widget behavior.
-- Requirements impact: clarify `docs/requirements/desktop-resource-workspace.md` with provider/display/user ownership and renderer-switch acceptance.
-- Specs impact: add `docs/specs/desktop-schema-rendering.md`; link it from the spec index and Desktop workspace v3.
-- Decision impact: add an ADR for provider-owned data schemas and Desktop-owned renderer selection; update the decision index.
-- Lessons known at planning time: reference generated-contract drift and observable-side-effect lessons; no new lesson is justified before implementation evidence.
-- Archive/change impact: `$m-archive` will later retain the approved plan, test evidence, stable-doc impact, and change record.
-- Root docs index impact: none; category topology and reading order do not change.
-
-### Related Intake / Features / Requirements / Specs / Decisions / Lessons
-
-- Intake: `docs/intake/2026-08-30_desktop-schema-driven-resource-widgets.md`
+- Intake:
+  - `docs/intake/2026-08-31_desktop-profile-entry-production.md`
+  - `docs/intake/2026-08-30_node-enrollment-central-authority.md`
+  - `docs/intake/2026-08-29_desktop-first-admission-onboarding.md`
 - Feature: `docs/features/desktop.md`
-- Requirements: `docs/requirements/desktop-resource-workspace.md`, `docs/requirements/extensible-resource-platform.md`
-- Specs: `docs/specs/desktop-resource-workspace-v3.md`, `docs/specs/resource-platform-v2.md`, `docs/specs/build-and-ci.md`
-- Decisions: `docs/decisions/2026-08-28_extensible-resource-type-system-and-desktop-workspace.md`, `docs/decisions/2026-08-30_desktop-n-ary-docking-layout.md`
-- Lessons: `docs/lessons/observable-side-effects-and-generated-contracts.md`, `docs/lessons/wails-binding-proto-drift.md`, `docs/lessons/frontend-and-powershell-preflight.md`
+- Requirements:
+  - `docs/requirements/desktop-resource-workspace.md`
+  - `docs/requirements/auth-controlled-admission.md`
+- Specs:
+  - planned `docs/specs/desktop-profile-entry.md`
+  - `docs/specs/node-enrollment-and-admission-authority.md`
+  - `docs/specs/desktop-resource-workspace-v3.md`
+- Decision: `docs/decisions/2026-08-30_centralized-admission-authority.md`
+- Lessons:
+  - `docs/lessons/desktop-binding-reconnect-and-admission-diagnostics.md`
+  - `docs/lessons/frontend-and-powershell-preflight.md`
+  - `docs/lessons/frontend-worktree-wailsjs-missing.md`
+  - `docs/lessons/wails-binding-proto-drift.md`
 
-### Stable Docs Impact
+#### Stable Docs Impact
 
-- Intake impact: clarify
-- Feature impact: clarify
-- Requirements impact: clarify
-- Specs impact: add
-- Decision impact: add
-- Lessons impact: none planned; reassess after test/debug evidence
+- Intake impact: add — completed during planning and indexed.
+- Feature impact: clarify — Profile chooser/first connection/state/deactivation behavior after implementation.
+- Requirements impact: clarify — exact chooser lifecycle, generated local ID, deactivation, compatibility acceptance.
+- Specs impact: add — focused Desktop Profile entry/status projection contract and specs index.
+- Decision impact: none — no Authority or persisted-state ownership decision changes.
+- Lessons known at planning time: existing lessons cover credential preparation, reconnect, Wails generation, and Windows frontend preflight; new lesson deferred until evidence warrants it.
 
-### Executable Task List
+#### Executable Task List
 
-| Task ID | Title | Scope | Primary files / modules | Acceptance cue |
-| --- | --- | --- | --- | --- |
-| DOC01 | Stabilize schema-rendering contracts | Will execute | governed docs | Stable ownership, behavior, spec, ADR, and indexes agree |
-| SCHEMA01 | Add provider-owned built-in schema metadata and generation | Will execute | `protocol`, `sdk/bindings`, generated artifact | Deterministic coverage/freshness/parity gates pass |
-| RENDER01 | Create schema resolver and renderer registry domains | Will execute | frontend `rendering/*`, types/settings | Pure compatibility/ranking/fallback tests pass |
-| VALUE01 | Implement generic value controls and Variable UX | Will execute | value primitives, Variable controller/renderer | Numeric/string/bool/object/array choices and staged writes work |
-| OP01 | Implement structured operation and result UX | Will execute | operation form/result renderers | Supported forms validate and submit explicitly; raw fallback remains |
-| LIVE01 | Implement event, File, and first-party structured views | Will execute | event/file/specialized renderers, Wails file boundary | Bounded live UX, picker/progress, schema-ID adapters work |
-| VIEW01 | Integrate selection, persistence, responsiveness, and accessibility | Will execute | Workspace/App/View/settings/styles | Choices persist; aliases/fallback/density/keyboard behavior pass |
-| QA01 | Run proportional full validation and GUI evidence | Will execute | tests/build/generated/Wails | Unit, full Go, generated, frontend, production, GUI gates pass |
-| REMOTE01 | Owner-served schema discovery protocol | Will not execute now | future protocol/catalog/cache work | Deferred: separate trust/version/cache migration decision |
-| PLUGIN01 | Executable third-party renderer plugins | Will not execute now | future plugin platform | Out of scope and unsafe without sandbox/trust model |
-| DASH01 | Full dashboard query/chart engine | Will not execute now | future analytics layer | Deferred: no query/history contract and unnecessary dependency scope |
-| ARC01 | Archive, merge, and cleanup | Will not execute now | `docs/plan`, `docs/change`, Git/worktree | Owned by later `$m-archive` after test gate |
-| PUB01 | Push, release, or publication | Will not execute now | remote/release infrastructure | Not authorized; repository may have no remote |
+| Task ID | Title | Scope | Dependencies |
+| --- | --- | --- | --- |
+| DOC01 | Stabilize Desktop Profile entry docs | Will execute | none |
+| STATE01 | Add read-only Enrollment/Profile state projection | Will execute | DOC01 |
+| SESSION01 | Add non-destructive Profile deactivation | Will execute | STATE01 |
+| UI01 | Map the two-entry prototype to production React | Will execute | STATE01, SESSION01 |
+| QA01 | Run regression, generated, package, and UI gates | Will execute | UI01 |
+| STARTUP01 | Force chooser on every application launch | Will not execute now | deferred; preserves current active/auto-connect semantics |
+| MOBILE01 | Add Android/Embedded native Enrollment chooser | Will not execute now | out of scope; separate product approval |
+| PUB01 | Push, release, deploy, or publish | Will not execute now | not authorized |
 
-### Execution Scope After Approval
+#### Execution Scope After Approval
 
-#### Will Execute
+##### Will Execute
 
-- `DOC01`, `SCHEMA01`, `RENDER01`, `VALUE01`, `OP01`, `LIVE01`, `VIEW01`, `QA01`
+- `DOC01`, `STATE01`, `SESSION01`, `UI01`, `QA01`.
 
-#### Will Not Execute Now
+##### Will Not Execute Now
 
-- `REMOTE01`: deferred to a protocol workflow because owner-served definitions need wire discovery, trust, cache, compatibility, and invalidation rules.
-- `PLUGIN01`: remotely executable UI remains out of scope and is not implied by declarative schemas.
-- `DASH01`: no full Grafana-like query/history platform in this widget usability phase.
-- `ARC01`: only after implementation and tests pass, through an explicit `$m-archive` invocation.
-- `PUB01`: no remote/push/release authorization.
+- `STARTUP01` — deferred because it would redefine persisted activation and automatic startup behavior.
+- `MOBILE01` — out of scope; current Android/Embedded clients remain on their documented compatibility paths.
+- `PUB01` — no remote, push, release, deployment, or publication authorization.
 
-### Task Details
+#### Task Details
 
-#### DOC01 - Stabilize Schema-rendering Contracts
+##### DOC01 - Stabilize Desktop Profile Entry Docs
 
 - Owner: primary agent
-- Worktree: current dedicated worktree
-- Plan Path: root `plan.md`
-- Goal: make the provider/display/user ownership model and phase boundary canonical before runtime changes.
-- Files / Modules: `docs/intake`, `docs/features/desktop.md`, `docs/requirements/desktop-resource-workspace.md`, new `docs/specs/desktop-schema-rendering.md`, related category indexes, new decision record.
+- Worktree: `D:\project\MyFlowHub3\worktrees\desktop-profile-entry`
+- Plan Path: `plan.md`
+- Goal: make the confirmed UI/lifecycle contract discoverable before code changes.
+- Files / Modules: `docs/requirements/desktop-resource-workspace.md`, new `docs/specs/desktop-profile-entry.md`, `docs/specs/README.md`, links from the new intake where necessary.
 - Write Set: governed documentation only.
-- Acceptance: no competing truth; phase-1 wire non-change and future remote provider seam are explicit; all new leaves are indexed and cross-linked.
-- Test Points: Markdown link/path inspection and `git diff --check`.
-- Rollback: revert DOC01 files without affecting runtime.
+- Acceptance: requirement/spec record exact states, trust/deactivation/no-secret boundaries; indexes and cross-links are correct; current feature truth is not changed before the UI lands.
+- Test Points: link/path review, `git diff --check`, stable-doc impact recheck.
+- Rollback: revert DOC01 files without touching the intake evidence or code.
 
-#### SCHEMA01 - Add Provider-owned Built-in Schema Metadata And Generation
-
-- Owner: primary agent
-- Worktree: current dedicated worktree
-- Plan Path: root `plan.md`
-- Goal: provide deterministic first-party data schemas keyed by existing protocol schema constants.
-- Files / Modules: `protocol/data_schema*.go`, protocol tests, `sdk/bindings/contract`, `sdk/bindings/cmd/mfh-bindgen`, generated Desktop schema artifact, `.gitattributes`, `scripts/mfh.ps1` generated tracking.
-- Write Set: declarative definitions, generator, generated artifact, and focused tests; no `SchemaDescriptorV2` wire change.
-- Acceptance: all schemas used by the canonical first-party binding manifest resolve or are explicitly classified as opaque/session-only; definitions are sorted, bounded, unique, and deterministic.
-- Test Points: protocol definition tests, representative valid/invalid fixtures, generator freshness, `check/generated`.
-- Rollback: remove the new definitions/output/generator extension; existing catalog and runtime remain unchanged.
-
-#### RENDER01 - Create Schema Resolver And Renderer Registry Domains
+##### STATE01 - Add Read-only Enrollment/Profile State Projection
 
 - Owner: primary agent
-- Worktree: current dedicated worktree
-- Plan Path: root `plan.md`
-- Goal: separate schema resolution, validation, compatibility/ranking, and renderer settings from React transport components.
-- Files / Modules: `apps/desktop/frontend/src/rendering/schema/*`, `rendering/registry/*`, generated-schema loader, `types.ts`, focused unit tests.
-- Write Set: pure domain modules and tests.
-- Acceptance: deterministic provider lookup; bounded schema validation; stable renderer IDs/aliases; safe missing/invalid/incompatible results; settings reject unknown or unsafe state.
-- Test Points: resolver precedence, schema limits, compatibility matrix, default ranking, alias migration, settings round-trip/fallback.
-- Rollback: remove rendering domain and retain old `Renderer.tsx` dispatch until integration tasks land.
+- Worktree: `D:\project\MyFlowHub3\worktrees\desktop-profile-entry`
+- Plan Path: `plan.md`
+- Goal: expose accurate Profile lifecycle without key creation or secret leakage.
+- Files / Modules: `runtime/auth/enrollment_client_store.go` and tests; `apps/desktop/app.go`, platform credential backends and tests; `apps/desktop/frontend/src/types.ts`, `api.ts`; generated `apps/desktop/frontend/wailsjs`.
+- Write Set: runtime read-only inspect helper, Desktop state DTO/facade, frontend type/API boundary, focused tests and generated bindings.
+- Acceptance: legacy/missing/device/pending/enrolled/error map correctly; found state is validated; list read performs no save/create; conflicts fail closed; no private/Permit/signature fields leave Go.
+- Test Points: runtime/auth table tests; Desktop missing/corrupt/session/DPAPI/state-conflict tests; JSON secret-field assertions; Wails generation/freshness.
+- Rollback: remove additive inspect/ProfileStates surfaces and generated exports; existing credential format/settings remain unchanged.
 
-#### VALUE01 - Implement Generic Value Controls And Variable UX
-
-- Owner: primary agent
-- Worktree: current dedicated worktree
-- Plan Path: root `plan.md`
-- Goal: make scalar and common structured Variables useful while preserving revision and permission safety.
-- Files / Modules: resource controllers, value display/control primitives, Variable renderers, UI primitives/styles, component tests.
-- Write Set: React components/styles/tests; no server permission change.
-- Acceptance: bool/enum/number/string/date/object/array matrix works; bounded slider/stepper honors provider constraints; read-only is distinct; Reset/Apply and conflict draft preservation work; raw mode remains.
-- Test Points: pointer/keyboard bounds/step, invalid draft, read-only, successful write, Forbidden/conflict, unmount cleanup, renderer switch without API mutation.
-- Rollback: registry can route Variables to the legacy JSON renderer alias.
-
-#### OP01 - Implement Structured Operation And Result UX
+##### SESSION01 - Add Non-destructive Profile Deactivation
 
 - Owner: primary agent
-- Worktree: current dedicated worktree
-- Plan Path: root `plan.md`
-- Goal: replace JSON-only Command/Topic publish/generic operation entry with generated forms and structured output.
-- Files / Modules: operation controller, form generator, result display, Advanced JSON mode, tests.
-- Write Set: frontend only.
-- Acceptance: labels/descriptions/required/enums/bounds/formats render; local errors associate with fields; Execute is explicit; server errors remain visible; opaque/unsupported fields use raw mode.
-- Test Points: form payload conversion, no submit-on-change, output schema rendering, error handling, size/unsupported fallback.
-- Rollback: route operations to the Advanced JSON renderer without changing API contracts.
+- Worktree: `D:\project\MyFlowHub3\worktrees\desktop-profile-entry`
+- Plan Path: `plan.md`
+- Goal: provide a real path from active workspace back to saved Profile selection.
+- Files / Modules: `apps/desktop/app.go`, `app_test.go`, Wails generated bindings, `frontend/src/api.ts`, `App.tsx`, `components/Settings.tsx`, `App.test.tsx`.
+- Write Set: additive `DeactivateProfile`, frontend orchestration/reset, Settings action, focused lifecycle tests.
+- Acceptance: active ID is durably cleared; client/subscriptions close; Profile/credential/View files remain; restart stays signed out; unsaved View guard and authoritative reload work; Disconnect remains separate.
+- Test Points: Go connected/disconnected/save-failure/restart cases; frontend confirmation/state reset/API error cases.
+- Rollback: remove the additive action/UI; no data migration or credential rollback required.
 
-#### LIVE01 - Implement Event, File, And First-party Structured Views
-
-- Owner: primary agent
-- Worktree: current dedicated worktree
-- Plan Path: root `plan.md`
-- Goal: provide bounded operational monitoring and useful schema-ID-specific views across existing first-party resources.
-- Files / Modules: event controller/renderers, specialized adapters, `apps/desktop/app.go`, frontend API facade/types, File renderer, tests/styles.
-- Write Set: frontend plus a narrow Wails native file-picker method and its generated binding output if public API changes.
-- Acceptance: event pause/resume/filter/clear/rate/autoscroll/gap states; native file selection/cancel; transfer progress/errors; catalog/topology/health/config/flow/audit/notification/file adapters selected only by schema/renderer ID.
-- Test Points: bounded event buffer/batching, gap/expired, subscription cleanup, picker cancellation/mock, schema-ID dispatch, detached/Forbidden/session failure.
-- Rollback: keep generic event/raw and typed-path File fallback while removing optional specialized registrations; no protocol rollback required.
-
-#### VIEW01 - Integrate Selection, Persistence, Responsiveness, And Accessibility
+##### UI01 - Map The Two-entry Prototype To Production React
 
 - Owner: primary agent
-- Worktree: current dedicated worktree
-- Plan Path: root `plan.md`
-- Goal: make renderer choice a first-class View behavior without changing layout version.
-- Files / Modules: `Workspace.tsx`, `App.tsx`, `store.ts`, `types.ts`, `views.go`, renderer settings integration, CSS, Workspace/App/Go tests.
-- Write Set: View/widget integration and validation; View document remains v3.
-- Acceptance: accessible selector appears only for multiple compatible choices; selection marks View dirty, persists, restores, and does not mutate data; legacy IDs auto-resolve; incompatible saved choice visibly falls back; compact/normal/expanded modes behave inside nested panes.
-- Test Points: save/reopen, legacy fixture, malformed settings, no resource API on switch, ResizeObserver batching, focus/keyboard labels, light/dark and narrow pane.
-- Rollback: retain stored values but map them through legacy aliases/raw fallback; no layout migration rollback.
+- Worktree: `D:\project\MyFlowHub3\worktrees\desktop-profile-entry`
+- Plan Path: `plan.md`
+- Goal: implement the approved compact Existing Profile / First Connection experience with real state and existing admission APIs.
+- Files / Modules: `frontend/src/components/LoginScreen.tsx`, `ProfileEditor.tsx`, optional focused Profile ID/state helper and tests, `App.tsx`, `App.test.tsx`, `style.css`, existing UI primitives/BrandMark, `docs/features/desktop.md`.
+- Write Set: React composition/state mapping, stable ID generator, state-aware edit/submit actions, CSS and focused frontend tests.
+- Acceptance: correct default tab; exact lifecycle labels/actions; minimal first form; Permit/public-key and approval/TOFU paths; pending retry; locked identity; Legacy advanced path; no 01/02/03 or routine subtitles; 1024×768/light/dark/accessibility behavior; Desktop feature doc describes the implemented current behavior.
+- Test Points: Vitest/Testing Library state/action matrix, keyboard/focus/error/clipboard tests, prototype-equivalent interaction smoke, TypeScript/Vite build.
+- Rollback: restore previous LoginScreen/ProfileEditor/styles while retaining additive backend APIs if desired; no profile data conversion occurred.
 
-#### QA01 - Run Proportional Full Validation And GUI Evidence
+##### QA01 - Run Regression, Generated, Package, And UI Gates
 
 - Owner: primary agent
-- Worktree: current dedicated worktree
-- Plan Path: root `plan.md`
-- Goal: prove renderer correctness, generated-contract freshness, regression safety, and packaged Desktop usability.
-- Files / Modules: focused tests, generated output, production `dist`; temporary visual evidence later routed by `$m-archive`.
-- Write Set: tests and deterministic build/generated outputs only.
-- Acceptance: all planned checks pass; no unreviewed generated diff; representative light/dark and multi-pane GUI scenarios are visually verified.
+- Worktree: `D:\project\MyFlowHub3\worktrees\desktop-profile-entry`
+- Plan Path: `plan.md`
+- Goal: prove security, compatibility, generation freshness, UI behavior, and production packaging.
+- Files / Modules: focused tests, generated Wails bindings, tracked frontend `dist`; temporary visual evidence routed during archive if retained.
+- Write Set: tests/fixes necessary for planned behavior and deterministic generated/build output only.
+- Acceptance: all planned checks pass; no sensitive material in summaries/settings/logs; no unrelated main-checkout files; packaged UI proves Device -> Pending -> Enrolled and deactivation -> chooser recovery.
 - Test Points:
-  - `GOWORK=off go test ./protocol ./sdk/bindings ./apps/desktop/... -count=1`
-  - `GOWORK=off go test ./... -count=1`
-  - `npm ci`, `npm test`, `npm run build` in Desktop frontend
-  - `./scripts/mfh.ps1 -Action check -Target generated`
+  - `$env:GOWORK='off'; go test ./runtime/auth ./apps/desktop/... -count=1`
+  - `$env:GOWORK='off'; go test ./... -count=1`
+  - `$env:GOWORK='off'; go vet ./...`
+  - `./scripts/mfh.ps1 -Action generate -Target generated` followed by generated freshness/diff check
+  - Linux `apps/desktop` compile-only gate for `credential_other.go`; do not execute cross-target binaries on Windows
+  - `npm ci`, `npm test`, `npm run build` in `apps/desktop/frontend`
   - `wails build -clean -trimpath -platform windows/amd64 -o mfh-desktop.exe`
-  - browser interaction for forms/renderer switching and real packaged Wails GUI smoke
-- Rollback: stop before merge/archive, revert failing task group to its prior passing checkpoint, and preserve evidence/error signature.
+  - real packaged Wails smoke for existing/device/pending/enrolled/Legacy/deactivate and representative light/dark 1024×768 UI
+- Rollback: stop before archive/merge, revert to the latest passing task checkpoint, retain failure evidence without modifying persisted user credentials.
 
-### Dependencies
+#### Dependencies
 
 ```text
-DOC01 -> SCHEMA01 -> RENDER01 -> VALUE01 --+
-                              -> OP01 -----+-> VIEW01 -> QA01
-                              -> LIVE01 ---+
+DOC01 -> STATE01 -> SESSION01 -> UI01 -> QA01
 ```
 
-- `DOC01` fixes terminology and contracts used by all code tasks.
-- `SCHEMA01` provides the generated inputs for `RENDER01`.
-- `VALUE01`, `OP01`, and `LIVE01` may proceed independently after the registry contract is stable.
-- `VIEW01` integrates all renderer families before the full validation gate.
+- Documentation fixes state/interface vocabulary before public code names are generated.
+- UI depends on the exact state DTO and deactivation contract.
+- `App.tsx`, `app.go`, generated bindings, tests, and styles overlap; execute sequentially in one worktree.
 
-### Risks And Notes
+#### Risks And Notes
 
-- The largest risk is semantic drift between Go validation and declarative schemas; freshness, coverage, and parity tests are mandatory.
-- The second risk is scope explosion in nested/conditional forms; unsupported constructs must fall back rather than grow an incomplete schema engine.
-- The third risk is lifecycle duplication; transport stays in resource controllers, not presentation primitives.
-- No dependency should be added unless a focused comparison proves it smaller and safer than the bounded internal implementation. A full component/theme/dashboard package is disallowed.
-- Brand/icon work is not touched by this workflow.
-- Main-checkout unrelated changes remain protected.
+- The main checkout is dirty with unrelated work; all edits and validation remain in this worktree until a later archive/integration phase.
+- Status inspection must not call a create-on-missing path. This is the highest-priority security/correctness invariant.
+- No settings schema migration is planned. If implementation appears to require one, stop and return to `$m-discuss`/`$m-plan` rather than improvising.
+- No external dependency is expected.
+- Production `dist` and Wails bindings are tracked generated artifacts and must be regenerated from this worktree only.
+- A completed implementation is not authorization to merge, push, publish, or clean the worktree; `$m-archive` owns closeout.
 
-### Parallelism Assessment
+#### Parallelism Assessment
 
-- Planning and initialization are performed by the primary agent only.
-- No implementation sub-agent is dispatched before approval.
-- After approval, `VALUE01`, `OP01`, and `LIVE01` are conceptually parallel after `RENDER01`, but their shared registry/styles make sequential primary-agent execution the safer default unless the execution skill explicitly establishes non-overlapping write sets.
+- Initialization and planning were performed by the primary agent.
+- No sub-agent was requested, and the implementation write sets overlap across `app.go`, Wails exports, `App.tsx`, LoginScreen, shared tests, and styles. Sequential primary-agent execution is the safe default.
+- Do not dispatch implementation sub-agents before approval.
 
-### Issue List
+#### Issue List
 
-- No blocking prerequisite remains.
-- The user invoked `$m-execute`, approving `DOC01`–`QA01`; deferred tasks remain outside the write set.
+- No technical blocker remains.
+- No implementation blocker remains; heavy validation is intentionally routed to `$m-test`.
 
-## Execute - Implementation Result
+### Execute - Implementation
 
-- Completed: `DOC01`, `SCHEMA01`, `RENDER01`, `VALUE01`, `OP01`, `LIVE01`, `VIEW01`.
-- Completed before heavy validation: focused Go tests, 81 frontend tests, TypeScript/Vite production frontend build, deterministic regeneration, Wails binding generation, and `git diff --check`.
-- Mainline integration: merged `master` @ `67bf3c3` before closeout and extended the canonical generated schema set for its centralized admission/enrollment payloads; provider-owned constraints and sensitive input annotations remain enforced by the same generation/freshness gates.
-- File boundary: native picker and blocking upload state are implemented. The current upload binding exposes no transfer handle, so per-transfer cancel and byte progress are not fabricated; owner-reported `file/progress` and `file/transfers` remain available as independent Widgets.
-- Security boundary: remotely executable renderers remain excluded; phase-1 renderer settings allowlist is empty; sensitive write-only fields render as password inputs and are never displayed as output.
-- Parallelism result: no implementation sub-agent was used because schema, registry, renderer, Workspace, styles, and generated artifacts formed overlapping write sets and the user invoked `$m-execute`, not delegated `$m-go`.
+- Approval: the user explicitly invoked `$m-execute`, approving `DOC01`, `STATE01`, `SESSION01`, `UI01`, and `QA01`.
+- Parallelism: skipped because the approved write sets overlap across Go lifecycle/state, generated Wails bindings, React orchestration, LoginScreen, shared tests, styles, and tracked `dist`; no delegation was requested.
+- `DOC01`: completed — focused spec added/indexed, requirements clarified, intake linked, and feature truth updated after implementation.
+- `STATE01`: completed — added validated non-creating Enrollment inspection, sanitized per-Profile state projection, DPAPI zero-write construction, frontend types/API, generated bindings, and conflict/secret/read-only tests.
+- `SESSION01`: completed — added durable non-destructive deactivation, authoritative frontend reload/reset, Settings action, restart/preservation tests, and generated binding.
+- `UI01`: completed — replaced numbered steps with Existing Profile / First Connection Tabs, exact lifecycle actions, hidden generated Profile ID, compact approval/Permit paths, pending retry, error recovery, keyboard semantics, styling, and tests.
+- `QA01`: completed — full repository Go tests/vet, generated freshness, clean frontend install/test/build, Linux compile-only, Windows production package, security boundary review, and real packaged GUI smoke pass.
+- Scope protection: `STARTUP01`, `MOBILE01`, `PUB01`, merge, push, release, deployment, archive, and worktree cleanup were not executed.
 
-## Test - Heavy Validation Result
+### Test - Heavy Validation
 
-- `GOWORK=off go test ./... -count=1`: all repository packages and integration tests passed.
-- `GOWORK=off .\scripts\mfh.ps1 -Action check -Target generated`: deterministic protocol/Desktop bindings remained fresh and the worktree stayed clean.
-- `npm test`: 13 files / 81 tests passed, including numeric bounds/step, renderer registry/fallback, command form, centralized admission UI, 10k Resource-tree budget, View persistence, nested layout, and WAI-ARIA navigation.
-- `npm run build`: TypeScript and Vite production build passed.
-- `wails build -clean -trimpath -platform windows/amd64 -o mfh-desktop.exe`: Windows production executable built successfully.
-- Real packaged Wails acceptance used an isolated default-deny Hub at `127.0.0.1:7443` and isolated Desktop config. The Profile completed one-use admission, loaded 2 Nodes / 24 root resources, and showed persistent `已连接` state.
-- After merging current `master`, a second packaged smoke used a fresh centralized Admission Authority state: the prepared device completed Enrollment Permit registration, received its Authority-assigned Node ID, restored the saved two-pane View, showed persistent `已连接`, and surfaced the intentionally ungranted topology read as explicit `Forbidden`.
-- Actual UI operations passed: `system/health` specialized display, switch to Raw JSON and back, `flow/create` schema-generated numeric/text/object/array controls, dynamic array rows, explicit invoke, actionable provider validation error, horizontal ratio drag, View save, restart restore, and light/dark themes.
-- Persisted View v3 retained renderer IDs and the dragged split weights `0.6484375 / 0.3515625`; operation draft and error state were not persisted.
-- Security inspection found no Permit, signature, or private key in settings/View JSON. The DPAPI identity remained protected, renderer settings stayed empty, and remotely executable UI remained excluded.
-- Evidence: `docs/change/verification/2026-08-30_desktop-schema-widgets-light.png` and `docs/change/verification/2026-08-30_desktop-schema-widgets-dark.png`.
-- Review result: passed. No severity-threshold issue or regression remains; `QA01` and rollback checkpoint `R5` are complete.
-
-## Archive - Documentation And Closeout
-
-- `$m-docs` impact review: intake/feature/requirements/spec/decision are already canonical and indexed; no new reusable lesson is justified beyond existing generated-contract, Wails-binding, and frontend preflight lessons.
-- Change record: `docs/change/2026-08-30_desktop-schema-driven-resource-widgets.md`.
-- Plan snapshot: `docs/plan/plan_archive_2026-08-30_desktop-schema-driven-resource-widgets.md`.
-- Test evidence: two governed screenshots under `docs/change/verification/`.
-- Closeout policy: commit archive records, safely fast-forward local `master` while preserving unrelated main-checkout changes, remove this worktree/branch, and do not push or publish.
-- Brand boundary: no icon asset, brand decision, or platform icon was changed by this workflow.
+- Full regression: `$env:GOWORK='off'; go test ./... -count=1` and `$env:GOWORK='off'; go vet ./...` passed.
+- Generated/build gates: `scripts/mfh.ps1 -Action generate -Target generated`, clean `npm ci`, 87/87 Vitest tests, TypeScript/Vite production build, Linux `apps/desktop` compile-only, and Windows Wails production packaging passed.
+- Security boundary: protected-state inspection is non-creating and validated; the frontend projection remains allowlisted and excludes private keys, public-key bodies, Permit content, Grants, and signatures. Corrupt/conflicting credentials fail closed.
+- Production GUI: the packaged Windows executable was exercised with isolated DPAPI state for missing/new, Device, Pending, Enrolled, and Legacy Profiles. Permit identity preparation, approval resume, Pending retry, Enrolled reconnect action, keyboard tab navigation, light/dark theme, and non-destructive deactivation all behaved as specified.
+- Deactivation evidence: `active_profile_id` was durably cleared while both Profile records and both protected credential directories remained present.
+- Minimum layout: the packaged window was resized to 1024×768; chooser controls, state labels, row actions, and the primary action remained visible without overlap or clipping.
+- Visual evidence: `artifacts/m-test/desktop-first-connection.png` and `artifacts/m-test/desktop-profile-selection-1024x768-dark.png`.
+- Sub-agent governance: no sub-agent was dispatched because neither the user nor repository/skill instructions authorized delegation for this phase; the primary agent performed the mandatory real-app validation.
+- Cleanup: the temporary lifecycle seeding test source was removed before the final diff; no temporary test helper is part of the change set.
 
 ## Approval Gate
 
-- Plan status: confirmed.
-- Approval status: `DOC01`–`QA01` approved by explicit `$m-execute` invocation.
+- Plan status: approved and implemented through `UI01`.
+- Approval status: `DOC01`, `STATE01`, `SESSION01`, `UI01`, and `QA01` explicitly approved via `$m-execute`.
 - Blocked: no.
-- `QA01` and rollback checkpoint `R5` passed; `$m-archive` is authorized and in progress.
-- Implementation sub-agents: not dispatched because the shared schema/registry/styles create overlapping write sets and `$m-go` delegation was not requested.
+- Next stage: `$m-archive`; do not merge, push, publish, or clean this worktree from `$m-test`.
