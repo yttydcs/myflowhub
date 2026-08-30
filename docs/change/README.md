@@ -394,6 +394,7 @@
 - [2026-05-31_clipboard-node-mvp.md](2026-05-31_clipboard-node-mvp.md)
 
 ## MetricsNode
+- [2026-08-30_metrics-desktop-aligned-interface.md](2026-08-30_metrics-desktop-aligned-interface.md)
 - [2026-05-26_lightweight-notify-node.md](2026-05-26_lightweight-notify-node.md)
 - [2026-03-26_metricsnode-wails-bindings-sync.md](2026-03-26_metricsnode-wails-bindings-sync.md)
 - [2026-03-07_metricsnode-ci-fix.md](2026-03-07_metricsnode-ci-fix.md)

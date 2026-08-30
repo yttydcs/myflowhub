@@ -221,6 +221,7 @@
 - [plan_archive_2026-05-31_clipboard-node.md](plan_archive_2026-05-31_clipboard-node.md)
 
 ## MetricsNode
+- [plan_archive_2026-08-30_metrics-desktop-aligned-interface.md](plan_archive_2026-08-30_metrics-desktop-aligned-interface.md)
 - [plan_archive_2026-05-26_lightweight-notify-node.md](plan_archive_2026-05-26_lightweight-notify-node.md)
 - [plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md](plan_archive_2026-03-26_metricsnode-wails-bindings-sync.md)
 - [plan_archive_2026-03-07_metricsnode-ci-fix.md](plan_archive_2026-03-07_metricsnode-ci-fix.md)
