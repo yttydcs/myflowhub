@@ -3,7 +3,6 @@ import {
   buildExplorerIndex,
   explorerBreadcrumb,
   flattenNodeRows,
-  groupResources,
   nodeRowKey,
 } from './store'
 import type { ResourceDescriptor, Topology } from './types'
@@ -79,24 +78,6 @@ describe('workspace domain', () => {
     expect(flattenNodeRows(index, new Set(), 'metrics/cpu')).toHaveLength(0)
   })
 
-  it('groups direct Resources by presentation prefix and filters without changing descriptors', () => {
-    const resources: ResourceDescriptor[] = [
-      resource,
-      { ...resource, id: { owner_node_id: '3', name: 'system/health' }, presentation: { label: 'Health' } },
-      { ...resource, id: { owner_node_id: '3', name: 'metrics/memory' } },
-      { ...resource, id: { owner_node_id: '3', name: 'other/value' } },
-      { ...resource, id: { owner_node_id: '3', name: 'ungrouped' } },
-    ]
-    const groups = groupResources(resources)
-    expect(groups.map((group) => [group.label, group.resources.length])).toEqual([
-      ['metrics', 2],
-      ['other', 1],
-      ['system', 1],
-      ['其他', 1],
-    ])
-    expect(groupResources(resources, 'health')[0]?.resources[0]).toBe(resources[1])
-  })
-
   it('indexes, flattens, and filters a representative large catalog within the desktop budget', () => {
     const nodes = Array.from({ length: 2_000 }, (_, index) => ({
       node_id: String(index + 1),
@@ -112,10 +93,8 @@ describe('workspace domain', () => {
     const started = performance.now()
     const explorerIndex = buildExplorerIndex({ version: 1, epoch: 1, nodes }, resources)
     const rows = flattenNodeRows(explorerIndex, new Set(), 'target leaf')
-    const groups = groupResources(explorerIndex.resourcesByNodeID.get('1') || [], 'value-9999')
     const elapsed = performance.now() - started
     expect(rows.map((row) => row.node.node_id)).toEqual(['1', '2000'])
-    expect(groups[0]?.resources[0]?.id.name).toBe('metrics/value-9999')
     expect(elapsed).toBeLessThan(750)
   })
 })

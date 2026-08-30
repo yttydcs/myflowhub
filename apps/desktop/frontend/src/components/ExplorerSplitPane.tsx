@@ -6,6 +6,7 @@ import {
   MAX_EXPLORER_SPLIT_RATIO,
   MIN_EXPLORER_SPLIT_RATIO,
 } from '../lib/explorer-split'
+import type { ExplorerCollapsedPane } from '../preferences'
 
 type Props = {
   ratio?: number
@@ -14,6 +15,7 @@ type Props = {
   bottomID: string
   top: ReactNode
   bottom: ReactNode
+  collapsedPane?: ExplorerCollapsedPane
 }
 
 export function ExplorerSplitPane({
@@ -23,6 +25,7 @@ export function ExplorerSplitPane({
   bottomID,
   top,
   bottom,
+  collapsedPane,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const pointerID = useRef<number>()
@@ -104,33 +107,43 @@ export function ExplorerSplitPane({
     commitRatio(DEFAULT_EXPLORER_SPLIT_RATIO)
   }
 
+  const gridTemplateRows = collapsedPane === 'node'
+    ? 'auto 0 minmax(0, 1fr)'
+    : collapsedPane === 'resource'
+      ? 'minmax(0, 1fr) 0 auto'
+      : `minmax(0, ${liveRatio}fr) ${EXPLORER_SPLITTER_SIZE}px minmax(0, ${1 - liveRatio}fr)`
+
   return (
     <div
       ref={rootRef}
-      className="explorer-split-pane"
-      style={{ gridTemplateRows: `minmax(0, ${liveRatio}fr) ${EXPLORER_SPLITTER_SIZE}px minmax(0, ${1 - liveRatio}fr)` }}
+      className={`explorer-split-pane ${collapsedPane ? `has-collapsed-${collapsedPane}` : ''}`}
+      style={{ gridTemplateRows }}
     >
       <div id={topID} className="explorer-split-section">{top}</div>
-      <div
-        className="explorer-splitter"
-        role="separator"
-        aria-label="调整节点列表和资源列表高度"
-        aria-orientation="horizontal"
-        aria-controls={`${topID} ${bottomID}`}
-        aria-valuemin={Math.round(MIN_EXPLORER_SPLIT_RATIO * 100)}
-        aria-valuemax={Math.round(MAX_EXPLORER_SPLIT_RATIO * 100)}
-        aria-valuenow={Math.round(liveRatio * 100)}
-        aria-valuetext={`节点列表 ${Math.round(liveRatio * 100)}%，资源列表 ${Math.round((1 - liveRatio) * 100)}%`}
-        tabIndex={0}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerCancel}
-        onKeyDown={handleKeyDown}
-        onDoubleClick={resetRatio}
-      >
-        <span aria-hidden="true" />
-      </div>
+      {collapsedPane
+        ? <div aria-hidden="true" />
+        : (
+            <div
+              className="explorer-splitter"
+              role="separator"
+              aria-label="调整节点列表和资源列表高度"
+              aria-orientation="horizontal"
+              aria-controls={`${topID} ${bottomID}`}
+              aria-valuemin={Math.round(MIN_EXPLORER_SPLIT_RATIO * 100)}
+              aria-valuemax={Math.round(MAX_EXPLORER_SPLIT_RATIO * 100)}
+              aria-valuenow={Math.round(liveRatio * 100)}
+              aria-valuetext={`节点列表 ${Math.round(liveRatio * 100)}%，资源列表 ${Math.round((1 - liveRatio) * 100)}%`}
+              tabIndex={0}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerCancel}
+              onKeyDown={handleKeyDown}
+              onDoubleClick={resetRatio}
+            >
+              <span aria-hidden="true" />
+            </div>
+          )}
       <div id={bottomID} className="explorer-split-section">{bottom}</div>
     </div>
   )

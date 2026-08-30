@@ -654,3 +654,11 @@ The first Linux cross-platform attempt used `go test`, which compiled and then t
 - Plan archive: `docs/plan/plan_archive_2026-08-30_node-enrollment-admission-authority.md`.
 - Sub-agent trace: none; no delegation occurred.
 - Publication: local-only; no remote/push/release authorization was inferred.
+
+### Archive - Latest Master Integration
+
+- Synchronized the archive candidate with `master` commits `501805e`, `96ff6c2`, and `54b46e6`.
+- Conflict policy: preserve the upstream Explorer/BrandMark work and the Enrollment behavior; regenerate Vite `dist` from the merged source instead of selecting either hashed artifact set.
+- Docs indexes retain both the Explorer and Enrollment records.
+- Post-integration validation: `GOWORK=off go test -count=1 ./...`, targeted `-race`, `go vet ./...`, 60 frontend Vitest tests, TypeScript/Vite production build, idempotent binding generation, and Wails clean Windows production package all passed.
+- The remaining control-plane operation is a fast-forward of `master` while preserving its unrelated working-tree changes, followed by removal of this worktree and local feature branch.

@@ -1,13 +1,16 @@
 import { DEFAULT_EXPLORER_SPLIT_RATIO, isExplorerSplitRatio } from './lib/explorer-split'
 
 export type Theme = 'light' | 'dark'
+export type ExplorerCollapsedPane = 'node' | 'resource'
 
 export interface UIPreferences {
   version: 1
   theme: Theme
   expanded_node_ids?: string[]
+  expanded_resource_paths?: string[]
   focused_node_id?: string
   explorer_split_ratio?: number
+  collapsed_explorer_pane?: ExplorerCollapsedPane
 }
 
 export interface LoadedUIPreferences {
@@ -33,7 +36,7 @@ export function loadUIPreferences(profileID: string): LoadedUIPreferences {
   } catch {
     return {
       value: defaultUIPreferences(),
-      warning: '界面偏好无法读取，已恢复浅色主题和默认树状态。',
+      warning: '界面偏好无法读取，已恢复浅色主题和默认浏览状态。',
     }
   }
 }
@@ -58,10 +61,18 @@ function isUIPreferences(value: unknown): value is UIPreferences {
   if (candidate.version !== 1 || (candidate.theme !== 'light' && candidate.theme !== 'dark')) return false
   if (candidate.focused_node_id !== undefined && !isTreeID(candidate.focused_node_id)) return false
   if (candidate.explorer_split_ratio !== undefined && !isExplorerSplitRatio(candidate.explorer_split_ratio)) return false
-  if (candidate.expanded_node_ids === undefined) return true
-  return Array.isArray(candidate.expanded_node_ids)
-    && candidate.expanded_node_ids.length <= MAX_TREE_STATE_SIZE
-    && candidate.expanded_node_ids.every(isTreeID)
+  if (candidate.collapsed_explorer_pane !== undefined
+    && candidate.collapsed_explorer_pane !== 'node'
+    && candidate.collapsed_explorer_pane !== 'resource') return false
+  if (candidate.expanded_node_ids !== undefined && !isTreeState(candidate.expanded_node_ids)) return false
+  if (candidate.expanded_resource_paths !== undefined && !isTreeState(candidate.expanded_resource_paths)) return false
+  return true
+}
+
+function isTreeState(value: unknown): value is string[] {
+  return Array.isArray(value)
+    && value.length <= MAX_TREE_STATE_SIZE
+    && value.every(isTreeID)
 }
 
 function isTreeID(value: unknown): value is string {

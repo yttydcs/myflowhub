@@ -21,7 +21,7 @@
 - [resource-sessions-v2.md](resource-sessions-v2.md)
   - 有界 control/data lane、session grant 与 File 数据面的当前契约
 - [desktop-resource-workspace-v3.md](desktop-resource-workspace-v3.md)
-  - Profile、资源浏览器、renderer registry、n 元 split Workspace 与本地 View v3 的当前契约
+  - Profile、可折叠 Node/Resource path tree、renderer registry、n 元 split Workspace 与本地 View v3 的当前契约
 - [desktop-resource-workspace-v2.md](desktop-resource-workspace-v2.md)
   - 已被 v3 取代的双面板/三面板网格历史契约
 - [command-vnext.md](command-vnext.md)

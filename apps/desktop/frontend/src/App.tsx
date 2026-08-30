@@ -12,6 +12,7 @@ import {
 } from '@dnd-kit/core'
 import { Boxes, GripVertical, Layers3, Moon, Plus, RefreshCw, Settings2, Sun } from 'lucide-react'
 import { api as productionApi, type DesktopAPI, type PreparedProfile } from './api'
+import { BrandMark } from './components/BrandMark'
 import { Explorer } from './components/Explorer'
 import { Inspector } from './components/Inspector'
 import { LoginScreen } from './components/LoginScreen'
@@ -531,7 +532,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   }
 
   if (!settings) {
-    return <main className="boot-screen"><span className="brand-mark" aria-hidden="true">M</span><p>正在打开资源工作区…</p>{error && <p className="form-error" role="alert">{error}</p>}</main>
+    return <main className="boot-screen"><BrandMark /><p>正在打开资源工作区…</p>{error && <p className="form-error" role="alert">{error}</p>}</main>
   }
   if (!activeProfile) {
     return (
@@ -565,7 +566,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
         <a className="skip-link" href="#resource-workspace">跳到资源工作区</a>
         <header className="topbar">
           <h1 className="sr-only">MyFlowHub 资源工作区</h1>
-          <div className="brand-lockup"><span className="brand-mark small" aria-hidden="true">M</span><strong>MyFlowHub</strong></div>
+          <div className="brand-lockup"><BrandMark size="compact" /><strong>MyFlowHub</strong></div>
           <div className="topbar-actions">
             <Button variant="ghost" size="icon" aria-label="刷新节点树" disabled={busy} onClick={() => void refresh()}><RefreshCw aria-hidden="true" size={15} /></Button>
             <Button variant="ghost" size="icon" aria-label={preferences.theme === 'light' ? '切换到深色主题' : '切换到浅色主题'} onClick={() => updatePreferences({ theme: preferences.theme === 'light' ? 'dark' : 'light' })}>
@@ -585,11 +586,15 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                   resources={resources}
                   selection={selection}
                   expandedNodeIDs={preferences.expanded_node_ids}
+                  expandedResourcePaths={preferences.expanded_resource_paths}
                   focusedNodeID={preferences.focused_node_id}
                   splitRatio={preferences.explorer_split_ratio}
+                  collapsedPane={preferences.collapsed_explorer_pane}
                   onExpandedNodeIDsChange={(expandedNodeIDs) => updatePreferences({ expanded_node_ids: expandedNodeIDs })}
+                  onExpandedResourcePathsChange={(expandedResourcePaths) => updatePreferences({ expanded_resource_paths: expandedResourcePaths })}
                   onFocusedNodeIDChange={(focusedNodeID) => updatePreferences({ focused_node_id: focusedNodeID })}
                   onSplitRatioChange={(splitRatio) => updatePreferences({ explorer_split_ratio: splitRatio })}
+                  onCollapsedPaneChange={(collapsedPane) => updatePreferences({ collapsed_explorer_pane: collapsedPane })}
                   onSelect={setSelection}
                   onAdd={addResource}
                 />

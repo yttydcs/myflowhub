@@ -127,12 +127,13 @@ updated
 - `GOWORK=off go vet ./...`：Passed。
 - Authority、Enrollment、Management、Protocol 安全状态测试使用 shuffle/repeat 多轮运行：Passed。
 - `go generate ./sdk/bindings`：幂等，contract SHA-256 为 `0D5931116EC8A0CED71A9DF30482242EA1F3D0F05C4A24D50BEE5E2E256FC1A5`。
-- Desktop：最终 50 个 Vitest 测试、TypeScript 与 Vite production build：Passed。
+- Desktop：Enrollment 候选分支 50 个 Vitest 测试通过；同步最新 Explorer/BrandMark 主线后共 60 个 Vitest 测试、TypeScript 与 Vite production build：Passed。
 - Linux `amd64` Desktop credential path compile-only、Windows `amd64` Wails clean production package 与可执行文件启动 smoke：Passed。
 - 实际 packaged UI：完成无 Node ID 设备准备、显式 TOFU、Permit Enrollment、Authority 分配 ID、DPAPI 恢复、重启重连，以及 Admission Console list/issue：Passed。
 - Permit ID/签名未出现在 settings、Profile、日志、credential 外文件、管理列表或 audit event：Passed。
 - 双入口登录 HTML 原型：3 个 Playwright 测试通过，覆盖 registered/pending Profile、approval/Permit 切换、无常规 Node ID 输入和 1024×768 布局；仅作设计证据。
 - `git diff --check`：Passed，仅有仓库既有 Windows EOL 提示。
+- 最新 `master` 的 Explorer resource tree、Coupled Seam BrandMark 与本分支完成冲突合并；合并后重新运行全仓 Go、targeted race、`go vet`、frontend tests/build、binding generation 和 Wails clean package，全部 Passed。
 
 ## 潜在影响
 

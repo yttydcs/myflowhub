@@ -2,6 +2,7 @@ import { DndContext } from '@dnd-kit/core'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import type { ExplorerCollapsedPane } from '../preferences'
 import type { ResourceDescriptor, Topology, WorkspaceSelection } from '../types'
 import { Explorer } from './Explorer'
 
@@ -14,49 +15,67 @@ const topology: Topology = {
     { node_id: '3', parent_id: '2', display_name: 'Leaf', role: 'leaf', generation: 1 },
   ],
 }
-const resources: ResourceDescriptor[] = [
-  {
-    id: { owner_node_id: '3', name: 'sensors/temperature' },
+
+function resource(name: string, label: string): ResourceDescriptor {
+  return {
+    id: { owner_node_id: '3', name },
     type: 'mfh.variable',
     type_version: 1,
     capabilities: [],
     limits: { max_payload_bytes: 1024 },
-    presentation: { label: 'Temperature' },
-  },
-  {
-    id: { owner_node_id: '3', name: 'system/health' },
-    type: 'mfh.variable',
-    type_version: 1,
-    capabilities: [],
-    limits: { max_payload_bytes: 1024 },
-    presentation: { label: 'Health' },
-  },
+    presentation: { label },
+  }
+}
+
+const resources = [
+  resource('sensors/temperature', 'Temperature'),
+  resource('system/config', 'Config'),
+  resource('system/config/update', 'Update'),
+  resource('system/health', 'Health'),
+  resource('system/regions/eu/rack/temperature', 'Rack temperature'),
 ]
 
 function Harness({ onAdd = vi.fn() }: { onAdd?: (resource: ResourceDescriptor) => void }) {
   const [selection, setSelection] = useState<WorkspaceSelection>(null)
-  const [expanded, setExpanded] = useState<string[] | undefined>()
+  const [expandedNodes, setExpandedNodes] = useState<string[] | undefined>()
+  const [expandedResources, setExpandedResources] = useState<string[] | undefined>()
   const [focused, setFocused] = useState<string>()
   const [ratio, setRatio] = useState(0.35)
+  const [collapsedPane, setCollapsedPane] = useState<ExplorerCollapsedPane>()
   return (
     <DndContext>
-      <button onClick={() => { setFocused('3'); setExpanded(['3']) }}>聚焦叶节点</button>
+      <button onClick={() => { setFocused('3'); setExpandedNodes(['3']) }}>聚焦叶节点</button>
       <output aria-label="当前分隔比例">{ratio}</output>
       <Explorer
         topology={topology}
         resources={resources}
         selection={selection}
-        expandedNodeIDs={expanded}
+        expandedNodeIDs={expandedNodes}
+        expandedResourcePaths={expandedResources}
         focusedNodeID={focused}
         splitRatio={ratio}
-        onExpandedNodeIDsChange={setExpanded}
+        collapsedPane={collapsedPane}
+        onExpandedNodeIDsChange={setExpandedNodes}
+        onExpandedResourcePathsChange={setExpandedResources}
         onFocusedNodeIDChange={setFocused}
         onSplitRatioChange={setRatio}
+        onCollapsedPaneChange={setCollapsedPane}
         onSelect={setSelection}
         onAdd={onAdd}
       />
     </DndContext>
   )
+}
+
+async function selectLeaf() {
+  fireEvent.click(screen.getByRole('treeitem', { name: /Leaf/ }))
+  return screen.findByRole('tree', { name: '资源' })
+}
+
+function treeItemByPath(tree: HTMLElement, path: string): HTMLElement {
+  const item = within(tree).getAllByRole('treeitem').find((candidate) => candidate.querySelector('small')?.textContent === path)
+  if (!item) throw new Error(`missing Resource tree item: ${path}`)
+  return item
 }
 
 describe('split Node and Resource explorer', () => {
@@ -77,18 +96,72 @@ describe('split Node and Resource explorer', () => {
     await waitFor(() => expect(root).toHaveFocus())
   })
 
-  it('shows only the current Node Resources in presentation groups and preserves add actions', async () => {
+  it('renders path-derived namespace, Resource, and hybrid rows while preserving add actions', async () => {
     const onAdd = vi.fn()
     render(<Harness onAdd={onAdd} />)
     expect(screen.getByText('此节点没有资源')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('treeitem', { name: /Leaf/ }))
-    expect(await screen.findByRole('region', { name: 'sensors 资源' })).toHaveTextContent('Temperature')
-    expect(screen.getByRole('region', { name: 'system 资源' })).toHaveTextContent('Health')
-    fireEvent.change(screen.getByLabelText('搜索当前节点资源'), { target: { value: 'health' } })
-    expect(await screen.findByRole('button', { name: /Health/, pressed: false })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Temperature/, pressed: false })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '添加 system/health 到工作区' }))
+    const tree = await selectLeaf()
+    expect(treeItemByPath(tree, 'system')).toHaveAttribute('aria-level', '1')
+    const config = within(tree).getByRole('treeitem', { name: /Config/ })
+    expect(config).toHaveAttribute('aria-level', '2')
+    expect(config).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(screen.getByRole('button', { name: '展开资源路径 system/config' }))
+    expect(await within(tree).findByRole('treeitem', { name: /Update/ })).toHaveAttribute('aria-level', '3')
+    fireEvent.click(screen.getByRole('button', { name: '添加 system/config 到工作区' }))
     expect(onAdd).toHaveBeenCalledWith(resources[1])
+  })
+
+  it('implements WAI-ARIA Resource tree navigation without conflating focus and selection', async () => {
+    render(<Harness />)
+    const tree = await selectLeaf()
+    const system = treeItemByPath(tree, 'system')
+    system.focus()
+    fireEvent.keyDown(system, { key: 'ArrowRight' })
+    const config = within(tree).getByRole('treeitem', { name: /Config/ })
+    await waitFor(() => expect(config).toHaveFocus())
+    expect(config).toHaveAttribute('aria-selected', 'false')
+    fireEvent.keyDown(config, { key: 'ArrowRight' })
+    expect(config).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.keyDown(config, { key: 'ArrowRight' })
+    const update = within(tree).getByRole('treeitem', { name: /Update/ })
+    await waitFor(() => expect(update).toHaveFocus())
+    fireEvent.keyDown(update, { key: 'ArrowLeft' })
+    await waitFor(() => expect(config).toHaveFocus())
+    fireEvent.keyDown(config, { key: 'Enter' })
+    expect(config).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('shows matching Resource ancestors during search and restores saved expansion when cleared', async () => {
+    render(<Harness />)
+    const tree = await selectLeaf()
+    const system = treeItemByPath(tree, 'system')
+    fireEvent.keyDown(system, { key: 'ArrowLeft' })
+    expect(within(tree).queryByRole('treeitem', { name: /Config/ })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('搜索当前节点资源'), { target: { value: 'update' } })
+    await within(tree).findByRole('treeitem', { name: /Update/ })
+    expect(treeItemByPath(tree, 'system')).toHaveAttribute('aria-expanded', 'true')
+    expect(within(tree).getByRole('treeitem', { name: /Config/ })).toHaveAttribute('aria-expanded', 'true')
+    expect(within(tree).getByRole('treeitem', { name: /Update/ })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('搜索当前节点资源'), { target: { value: '' } })
+    await waitFor(() => expect(within(tree).queryByRole('treeitem', { name: /Config/ })).not.toBeInTheDocument())
+  })
+
+  it('collapses either Explorer section, keeps one section available, and restores the split ratio', () => {
+    render(<Harness />)
+    const nodeHeading = screen.getByRole('button', { name: /^节点 3$/ })
+    fireEvent.click(nodeHeading)
+    expect(nodeHeading).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('tree', { name: '节点' })).not.toBeInTheDocument()
+    expect(screen.getByRole('tree', { name: '资源' })).toBeInTheDocument()
+    expect(screen.queryByRole('separator')).not.toBeInTheDocument()
+
+    const resourceHeading = screen.getByRole('button', { name: /^资源 Root · 0$/ })
+    fireEvent.click(resourceHeading)
+    expect(screen.getByRole('tree', { name: '节点' })).toBeInTheDocument()
+    expect(screen.queryByRole('tree', { name: '资源' })).not.toBeInTheDocument()
+    fireEvent.click(resourceHeading)
+    expect(screen.getByRole('tree', { name: '资源' })).toBeInTheDocument()
+    expect(screen.getByRole('separator')).toHaveAttribute('aria-valuenow', '35')
   })
 
   it('searches deep Nodes with ancestors and retains focused-subtree breadcrumbs', async () => {

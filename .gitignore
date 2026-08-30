@@ -39,6 +39,12 @@ coverage*.out
 **/build/
 !/build/
 !/build/toolchain.json
+!/apps/desktop/build/
+/apps/desktop/build/*
+!/apps/desktop/build/appicon.png
+!/apps/desktop/build/windows/
+/apps/desktop/build/windows/*
+!/apps/desktop/build/windows/icon.ico
 **/.gradle/
 **/node_modules/
 **/local.properties

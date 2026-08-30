@@ -1,42 +1,40 @@
-# Todo - Desktop 多面板嵌套停靠
+# Todo - Desktop Explorer 可折叠分区与 Resource path tree
 
-## Executed
+## Will Execute After Approval
 
-- [x] DOC01 — View v3 稳定文档、v2 supersession 与 n 元停靠 ADR
-- [x] VIEW01 — Go View v3 持久化、v1/v2 迁移、递归校验与回滚快照
-- [x] LAYOUT01 — TypeScript 分割树领域模型、停靠/移动/删除/调整与测试
-- [x] RENDER01 — 递归满区面板、嵌套 separator、RAF 平滑预览与键盘可访问性
-- [x] DOCK01 — 无专用按钮的面板/分隔线/工作区外缘拖拽和真实结果预览
-- [x] QA01 — 自动化测试、TypeScript/Vite、Go、生成漂移与生产 `dist`
+- [x] DOC01 — 稳定文档与控制面收敛
+- [x] TREE01 — Resource path-tree trie/index、搜索祖先与扁平可见行
+- [x] UI01 — Resource WAI-ARIA tree、hybrid item、预览/拖拽/添加与 section disclosure
+- [x] PREF01 — collapse/resource expansion per-Profile preference 与 split layout
+- [x] QA01 — frontend/Go/build/Wails/真实 GUI 验证与 production dist
 
-## Completed Closeout
+## Will Not Execute In The Next Phase
 
-- [x] TEST01 — packaged Wails、v2/v3 迁移、6–8 面板、窄窗口滚动、主题、Forbidden、保存/重启与平滑度验收通过
-- [x] ARC01 — `$m-docs` 影响复核、change/plan 归档、中文提交、安全本地合并与清理完成
-
-## Will Not Execute
-
-- [ ] STACK01 — 中心标签栈；首期中心为无效区
-- [ ] FLOAT01 — 浮动/跨窗口停靠与布局预设
-- [ ] LIB01 — 完整第三方 Docking 框架
-- [ ] BRAND01 — 图标/品牌资产，由独立任务负责
-- [ ] PUB01 — push/release/publication，未授权且无 remote
+- [ ] LAZY01 — 服务端分页、lazy loading 与真正 DOM windowing；现有 API 不支持，独立阶段
+- [ ] BRAND01 — 品牌图标与平台资产；独立任务拥有
+- [x] ARC01 — change/plan/evidence 归档、本地 merge、恢复验证与 worktree/branch cleanup 完成
+- [ ] PUB01 — push/release/publication；未授权且无 remote
 
 ## Acceptance Checklist
 
-- [x] 拖拽领域操作生成 `A | C | B`
-- [x] 拖拽领域操作生成 `A | (B / C)`
-- [x] 拖拽领域操作生成 `(A | B | C) / D`
-- [x] 任意嵌套相邻面板可 RAF 预览、键盘调整且只在释放时提交
-- [x] 无“左右 / 上下 / 交换”按钮，中心不生成隐式标签
-- [x] v1/v2 保留全部 widgets 迁移到 v3；损坏输入不覆盖原文件
-- [x] 保存、重开和重启恢复拓扑、顺序与权重
-- [x] themes、窄窗口、detached/forbidden 与 Profile/View 行为无回归
+- [x] Node/Resource heading 可通过 pointer、Enter、Space 收起/展开并暴露正确 ARIA 状态
+- [x] 最多一个 pane 收起；另一 pane 满高；separator 隐藏且重新展开恢复比例
+- [x] Resource path 任意深度、纯 namespace、leaf 和 Resource/parent hybrid 正确
+- [x] Resource tree roving focus、方向键、Home/End、Enter/Space 与选择状态正确
+- [x] 搜索保留祖先并临时展开，清空后恢复持久 expanded paths
+- [x] Inspector preview、type icon、拖拽和添加工作区无回归
+- [x] collapse/expanded paths 按 Profile 保存，旧/损坏 preference 行为明确
+- [x] 独立滚动、固定 Profile footer、浅/深色和窄窗口通过
+- [x] 10,000 Resource synthetic test 保持线性有界
+- [x] `npm test`、`npm run build`、`GOWORK=off go test ./...`、Wails production build 通过
+- [x] packaged Desktop 连接真实 Hub 后的手动/自动 GUI smoke 通过
 
 ## Gate
 
+- Technical blockers: none
 - Blocked: no
-- Approved Task IDs: `DOC01, VIEW01, LAYOUT01, RENDER01, DOCK01, QA01`
-- Active phase: `$m-archive` closeout
-- Terminal reason: tests passed; archive authorized and completed locally
+- Approved Task IDs: `DOC01, TREE01, UI01, PREF01, QA01`
+- Planned Task IDs: `DOC01, TREE01, UI01, PREF01, QA01`
+- Active phase: `$m-archive` complete
+- Implementation started: yes
 - Do not dispatch implementation subagents

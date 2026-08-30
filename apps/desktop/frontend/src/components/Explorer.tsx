@@ -7,6 +7,7 @@ import {
   CircleDot,
   Command,
   FileUp,
+  FolderTree,
   Gauge,
   GripVertical,
   Layers3,
@@ -21,10 +22,15 @@ import {
   defaultExpandedNodeIDs,
   explorerBreadcrumb,
   flattenNodeRows,
-  groupResources,
-  resourceRowKey,
   type NodeExplorerRow,
 } from '../store'
+import {
+  buildResourceTree,
+  defaultExpandedResourcePaths,
+  flattenResourceRows,
+  type ResourceTreeRow,
+} from '../lib/resource-tree'
+import type { ExplorerCollapsedPane } from '../preferences'
 import type { ResourceDescriptor, Topology, TopologyNode, WorkspaceSelection } from '../types'
 import { ExplorerSplitPane } from './ExplorerSplitPane'
 import { Input } from './ui/input'
@@ -35,11 +41,15 @@ type Props = {
   resources: ResourceDescriptor[]
   selection: WorkspaceSelection
   expandedNodeIDs?: string[]
+  expandedResourcePaths?: string[]
   focusedNodeID?: string
   splitRatio?: number
+  collapsedPane?: ExplorerCollapsedPane
   onExpandedNodeIDsChange(nodeIDs: string[]): void
+  onExpandedResourcePathsChange(paths: string[]): void
   onFocusedNodeIDChange(nodeID?: string): void
   onSplitRatioChange(ratio: number): void
+  onCollapsedPaneChange(pane?: ExplorerCollapsedPane): void
   onSelect(selection: WorkspaceSelection): void
   onAdd(resource: ResourceDescriptor): void
 }
@@ -108,61 +118,94 @@ function NodeRow(props: NodeRowProps) {
 }
 
 type ResourceRowProps = {
-  resource: ResourceDescriptor
+  row: ResourceTreeRow
   active: boolean
   selected: boolean
+  expanded: boolean
+  expandable: boolean
   setRef(key: string, element: HTMLButtonElement | null): void
   onFocus(key: string): void
-  onKeyDown(event: KeyboardEvent<HTMLButtonElement>, resource: ResourceDescriptor): void
+  onKeyDown(event: KeyboardEvent<HTMLButtonElement>, row: ResourceTreeRow): void
+  onToggle(key: string): void
   onSelect(resource: ResourceDescriptor): void
   onAdd(resource: ResourceDescriptor): void
 }
 
 function ResourceRow(props: ResourceRowProps) {
-  const { resource } = props
-  const key = resourceRowKey(resource)
+  const { node } = props.row
+  const resource = node.resource
   const draggable = useDraggable({
-    id: key,
+    id: node.key,
     data: { kind: 'resource', resource },
+    disabled: !resource,
   })
-  const Icon = resourceIcons[resource.type] ?? Layers3
+  const Icon = resource ? resourceIcons[resource.type] ?? Layers3 : FolderTree
+  const style = {
+    ...rowIndent(props.row.depth),
+    ...(draggable.transform
+      ? { transform: `translate3d(${draggable.transform.x}px, ${draggable.transform.y}px, 0)` }
+      : {}),
+  }
   return (
     <div
       ref={draggable.setNodeRef}
       className={`tree-row-shell resource-row ${props.selected ? 'is-selected' : ''} ${draggable.isDragging ? 'is-dragging' : ''}`}
-      role="listitem"
-      style={draggable.transform
-        ? { transform: `translate3d(${draggable.transform.x}px, ${draggable.transform.y}px, 0)` }
-        : undefined}
+      role="none"
+      style={style}
     >
       <button
-        ref={draggable.setActivatorNodeRef}
-        className="drag-handle"
-        {...draggable.listeners}
-        {...draggable.attributes}
-        aria-label={`拖动 ${resource.presentation?.label || resource.id.name} 到工作区`}
+        className="disclosure"
+        onClick={() => props.onToggle(node.key)}
+        disabled={!props.expandable}
+        aria-label={`${props.expanded ? '折叠' : '展开'}资源路径 ${node.path}`}
         tabIndex={-1}
       >
-        <GripVertical aria-hidden="true" size={12} />
+        {props.expandable
+          ? props.expanded ? <ChevronDown aria-hidden="true" size={13} /> : <ChevronRight aria-hidden="true" size={13} />
+          : <span className="disclosure-placeholder" />}
       </button>
+      {resource
+        ? (
+            <button
+              ref={draggable.setActivatorNodeRef}
+              className="drag-handle"
+              {...draggable.listeners}
+              {...draggable.attributes}
+              aria-label={`拖动 ${resource.presentation?.label || resource.id.name} 到工作区`}
+              tabIndex={-1}
+            >
+              <GripVertical aria-hidden="true" size={12} />
+            </button>
+          )
+        : <span className="drag-placeholder" aria-hidden="true" />}
       <button
-        ref={(element) => props.setRef(key, element)}
+        ref={(element) => props.setRef(node.key, element)}
         className="tree-main"
-        aria-pressed={props.selected}
+        role="treeitem"
+        aria-level={props.row.depth}
+        aria-posinset={props.row.posInSet}
+        aria-setsize={props.row.setSize}
+        aria-expanded={props.expandable ? props.expanded : undefined}
+        aria-selected={resource ? props.selected : undefined}
         tabIndex={props.active ? 0 : -1}
-        onFocus={() => props.onFocus(key)}
-        onClick={() => props.onSelect(resource)}
-        onKeyDown={(event) => props.onKeyDown(event, resource)}
+        onFocus={() => props.onFocus(node.key)}
+        onClick={() => resource ? props.onSelect(resource) : props.onToggle(node.key)}
+        onDoubleClick={() => props.expandable && props.onToggle(node.key)}
+        onKeyDown={(event) => props.onKeyDown(event, props.row)}
       >
         <Icon aria-hidden="true" size={14} />
         <span className="tree-label">
-          <strong>{resource.presentation?.label || resource.id.name.split('/').at(-1)}</strong>
-          <small>{resource.id.name}</small>
+          <strong>{resource?.presentation?.label || node.segment}</strong>
+          <small>{node.path}</small>
         </span>
       </button>
-      <button className="row-action" onClick={() => props.onAdd(resource)} aria-label={`添加 ${resource.id.name} 到工作区`}>
-        <Plus aria-hidden="true" size={13} />
-      </button>
+      {resource
+        ? (
+            <button className="row-action" onClick={() => props.onAdd(resource)} aria-label={`添加 ${resource.id.name} 到工作区`}>
+              <Plus aria-hidden="true" size={13} />
+            </button>
+          )
+        : <span aria-hidden="true" />}
     </div>
   )
 }
@@ -196,13 +239,13 @@ export function Explorer(props: Props) {
         : index.roots[0] || ''
   const currentNode = index.nodesByID.get(resolvedNodeID)
   const currentResources = index.resourcesByNodeID.get(resolvedNodeID) || []
-  const resourceGroups = useMemo(
-    () => groupResources(currentResources, deferredResourceQuery),
-    [currentResources, deferredResourceQuery],
-  )
+  const resourceTree = useMemo(() => buildResourceTree(currentResources), [currentResources])
+  const defaultResourceExpansion = useMemo(() => defaultExpandedResourcePaths(resourceTree), [resourceTree])
+  const expandedResourcePaths = props.expandedResourcePaths ?? defaultResourceExpansion
+  const expandedResources = useMemo(() => new Set(expandedResourcePaths), [expandedResourcePaths])
   const resourceRows = useMemo(
-    () => resourceGroups.flatMap((group) => group.resources),
-    [resourceGroups],
+    () => flattenResourceRows(resourceTree, expandedResources, deferredResourceQuery),
+    [deferredResourceQuery, expandedResources, resourceTree],
   )
 
   useEffect(() => {
@@ -223,8 +266,8 @@ export function Explorer(props: Props) {
       if (activeResourceKey) setActiveResourceKey('')
       return
     }
-    const firstKey = resourceRowKey(resourceRows[0]!)
-    if (!resourceRows.some((resource) => resourceRowKey(resource) === activeResourceKey)) setActiveResourceKey(firstKey)
+    const firstKey = resourceRows[0]!.key
+    if (!resourceRows.some((row) => row.key === activeResourceKey)) setActiveResourceKey(firstKey)
   }, [activeResourceKey, resourceRows])
 
   function setNodeRowRef(key: string, element: HTMLButtonElement | null) {
@@ -243,11 +286,10 @@ export function Explorer(props: Props) {
   }
 
   function focusResourceRow(rowIndex: number) {
-    const resource = resourceRows[rowIndex]
-    if (!resource) return
-    const key = resourceRowKey(resource)
-    setActiveResourceKey(key)
-    requestAnimationFrame(() => resourceRowRefs.current.get(key)?.focus())
+    const row = resourceRows[rowIndex]
+    if (!row) return
+    setActiveResourceKey(row.key)
+    requestAnimationFrame(() => resourceRowRefs.current.get(row.key)?.focus())
   }
 
   function setExpanded(nodeID: string, shouldExpand: boolean) {
@@ -259,6 +301,21 @@ export function Explorer(props: Props) {
 
   function toggleNode(nodeID: string) {
     setExpanded(nodeID, !expanded.has(nodeID))
+  }
+
+  function setResourceExpanded(key: string, shouldExpand: boolean) {
+    const next = new Set(expandedResources)
+    if (shouldExpand) next.add(key)
+    else next.delete(key)
+    props.onExpandedResourcePathsChange([...next])
+  }
+
+  function toggleResource(key: string) {
+    setResourceExpanded(key, !expandedResources.has(key))
+  }
+
+  function togglePane(pane: ExplorerCollapsedPane) {
+    props.onCollapsedPaneChange(props.collapsedPane === pane ? undefined : pane)
   }
 
   function selectNode(node: TopologyNode) {
@@ -299,125 +356,165 @@ export function Explorer(props: Props) {
     event.preventDefault()
   }
 
-  function handleResourceKeyDown(event: KeyboardEvent<HTMLButtonElement>, resource: ResourceDescriptor) {
-    const key = resourceRowKey(resource)
-    const rowIndex = resourceRows.findIndex((candidate) => resourceRowKey(candidate) === key)
+  function handleResourceKeyDown(event: KeyboardEvent<HTMLButtonElement>, row: ResourceTreeRow) {
+    const rowIndex = resourceRows.findIndex((candidate) => candidate.key === row.key)
     if (rowIndex < 0) return
     if (event.key === 'ArrowDown') focusResourceRow(Math.min(resourceRows.length - 1, rowIndex + 1))
     else if (event.key === 'ArrowUp') focusResourceRow(Math.max(0, rowIndex - 1))
     else if (event.key === 'Home') focusResourceRow(0)
     else if (event.key === 'End') focusResourceRow(resourceRows.length - 1)
-    else if (event.key === 'Enter' || event.key === ' ') props.onSelect({ kind: 'resource', resource })
+    else if (event.key === 'ArrowRight') {
+      if (row.node.children.length > 0 && !expandedResources.has(row.key)) setResourceExpanded(row.key, true)
+      else {
+        const childIndex = resourceRows.findIndex((candidate, indexInRows) => indexInRows > rowIndex && candidate.parentKey === row.key)
+        if (childIndex >= 0) focusResourceRow(childIndex)
+      }
+    } else if (event.key === 'ArrowLeft') {
+      if (row.node.children.length > 0 && expandedResources.has(row.key)) setResourceExpanded(row.key, false)
+      else if (row.parentKey) {
+        const parentIndex = resourceRows.findIndex((candidate) => candidate.key === row.parentKey)
+        if (parentIndex >= 0) focusResourceRow(parentIndex)
+      }
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      if (row.node.resource) props.onSelect({ kind: 'resource', resource: row.node.resource })
+      else if (row.node.children.length > 0) toggleResource(row.key)
+    } else if (event.key === '*') {
+      const next = new Set(expandedResources)
+      for (const sibling of resourceRows) {
+        if (sibling.parentKey === row.parentKey && sibling.node.children.length > 0) next.add(sibling.key)
+      }
+      props.onExpandedResourcePathsChange([...next])
+    }
     else return
     event.preventDefault()
   }
 
+  const nodePaneExpanded = props.collapsedPane !== 'node'
+  const resourcePaneExpanded = props.collapsedPane !== 'resource'
   const nodePane = (
-    <section className="explorer-pane node-explorer-pane" aria-label="节点列表">
+    <section className={`explorer-pane node-explorer-pane ${nodePaneExpanded ? '' : 'is-collapsed'}`} aria-label="节点列表">
       <header className="explorer-pane-heading">
-        <span><Network aria-hidden="true" size={13} /><strong>节点</strong></span>
-        <small>{index.nodesByID.size}</small>
+        <button
+          className="explorer-heading-disclosure"
+          aria-expanded={nodePaneExpanded}
+          aria-controls="explorer-node-content"
+          onClick={() => togglePane('node')}
+        >
+          {nodePaneExpanded ? <ChevronDown aria-hidden="true" size={13} /> : <ChevronRight aria-hidden="true" size={13} />}
+          <Network aria-hidden="true" size={13} />
+          <strong>节点</strong>
+          <small>{index.nodesByID.size}</small>
+        </button>
       </header>
-      <div className="search-box">
-        <Search aria-hidden="true" size={14} />
-        <Input
-          aria-label="搜索节点"
-          name="node-search"
-          autoComplete="off"
-          spellCheck={false}
-          value={nodeQuery}
-          onChange={(event) => setNodeQuery(event.target.value)}
-          placeholder="搜索节点"
-        />
-      </div>
-      {breadcrumb.length > 0 && (
-        <div className="tree-focus-bar">
-          <button onClick={() => props.onFocusedNodeIDChange(undefined)} aria-label="返回完整节点树">
-            <ChevronLeft aria-hidden="true" size={13} /> 返回
-          </button>
-          <div className="tree-breadcrumb" aria-label="当前节点路径">
-            {breadcrumb.map((node, indexInPath) => (
-              <span key={node.node_id}>
-                {indexInPath > 0 && <ChevronRight aria-hidden="true" size={10} />}
-                <button onClick={() => props.onFocusedNodeIDChange(node.node_id)}>{node.display_name || node.node_id}</button>
-              </span>
-            ))}
+      <div id="explorer-node-content" className="explorer-pane-content" hidden={!nodePaneExpanded}>
+        <div className="search-box">
+          <Search aria-hidden="true" size={14} />
+          <Input
+            aria-label="搜索节点"
+            name="node-search"
+            autoComplete="off"
+            spellCheck={false}
+            value={nodeQuery}
+            onChange={(event) => setNodeQuery(event.target.value)}
+            placeholder="搜索节点"
+          />
+        </div>
+        {breadcrumb.length > 0 && (
+          <div className="tree-focus-bar">
+            <button onClick={() => props.onFocusedNodeIDChange(undefined)} aria-label="返回完整节点树">
+              <ChevronLeft aria-hidden="true" size={13} /> 返回
+            </button>
+            <div className="tree-breadcrumb" aria-label="当前节点路径">
+              {breadcrumb.map((node, indexInPath) => (
+                <span key={node.node_id}>
+                  {indexInPath > 0 && <ChevronRight aria-hidden="true" size={10} />}
+                  <button onClick={() => props.onFocusedNodeIDChange(node.node_id)}>{node.display_name || node.node_id}</button>
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-      <ScrollArea className="explorer-scroll">
-        <div className="tree" role="tree" aria-label="节点" aria-busy={nodeQuery !== deferredNodeQuery}>
-          {nodeRows.length === 0 && <p className="empty-copy">没有匹配的节点</p>}
-          {nodeRows.map((row) => {
-            const nodeID = row.node.node_id
-            return (
-              <NodeRow
-                key={row.key}
-                row={row}
-                active={activeNodeKey === row.key}
-                current={resolvedNodeID === nodeID}
-                expanded={expanded.has(nodeID) || deferredNodeQuery.trim().length > 0}
-                expandable={hasChildNodes(index, nodeID)}
-                resourceCount={(index.resourcesByNodeID.get(nodeID) || []).length}
-                setRef={setNodeRowRef}
-                onFocus={setActiveNodeKey}
-                onKeyDown={handleNodeKeyDown}
-                onSelect={selectNode}
-                onToggle={toggleNode}
-              />
-            )
-          })}
-        </div>
-      </ScrollArea>
+        )}
+        <ScrollArea className="explorer-scroll">
+          <div className="tree" role="tree" aria-label="节点" aria-busy={nodeQuery !== deferredNodeQuery}>
+            {nodeRows.length === 0 && <p className="empty-copy">没有匹配的节点</p>}
+            {nodeRows.map((row) => {
+              const nodeID = row.node.node_id
+              return (
+                <NodeRow
+                  key={row.key}
+                  row={row}
+                  active={activeNodeKey === row.key}
+                  current={resolvedNodeID === nodeID}
+                  expanded={expanded.has(nodeID) || deferredNodeQuery.trim().length > 0}
+                  expandable={hasChildNodes(index, nodeID)}
+                  resourceCount={(index.resourcesByNodeID.get(nodeID) || []).length}
+                  setRef={setNodeRowRef}
+                  onFocus={setActiveNodeKey}
+                  onKeyDown={handleNodeKeyDown}
+                  onSelect={selectNode}
+                  onToggle={toggleNode}
+                />
+              )
+            })}
+          </div>
+        </ScrollArea>
+      </div>
     </section>
   )
 
   const resourcePane = (
-    <section className="explorer-pane resource-explorer-pane" aria-label="资源列表">
+    <section className={`explorer-pane resource-explorer-pane ${resourcePaneExpanded ? '' : 'is-collapsed'}`} aria-label="资源列表">
       <header className="explorer-pane-heading">
-        <span><Layers3 aria-hidden="true" size={13} /><strong>资源</strong></span>
-        <small title={currentNode?.display_name || currentNode?.node_id}>{currentNode ? currentNode.display_name || `Node ${currentNode.node_id}` : '未选择节点'} · {currentResources.length}</small>
+        <button
+          className="explorer-heading-disclosure"
+          aria-expanded={resourcePaneExpanded}
+          aria-controls="explorer-resource-content"
+          onClick={() => togglePane('resource')}
+        >
+          {resourcePaneExpanded ? <ChevronDown aria-hidden="true" size={13} /> : <ChevronRight aria-hidden="true" size={13} />}
+          <Layers3 aria-hidden="true" size={13} />
+          <strong>资源</strong>
+          <small title={currentNode?.display_name || currentNode?.node_id}>{currentNode ? currentNode.display_name || `Node ${currentNode.node_id}` : '未选择节点'} · {currentResources.length}</small>
+        </button>
       </header>
-      <div className="search-box">
-        <Search aria-hidden="true" size={14} />
-        <Input
-          aria-label="搜索当前节点资源"
-          name="resource-search"
-          autoComplete="off"
-          spellCheck={false}
-          value={resourceQuery}
-          onChange={(event) => setResourceQuery(event.target.value)}
-          placeholder="搜索当前节点资源"
-          disabled={!currentNode}
-        />
-      </div>
-      <ScrollArea className="explorer-scroll resource-scroll">
-        <div className="resource-groups" aria-busy={resourceQuery !== deferredResourceQuery}>
-          {!currentNode && <p className="empty-copy">选择一个节点以查看资源</p>}
-          {currentNode && currentResources.length === 0 && <p className="empty-copy">此节点没有资源</p>}
-          {currentNode && currentResources.length > 0 && resourceGroups.length === 0 && <p className="empty-copy">没有匹配的资源</p>}
-          {resourceGroups.map((group) => (
-            <section className="resource-group" key={group.key} aria-label={`${group.label} 资源`}>
-              <header className="resource-group-heading"><strong>{group.label}</strong><span>{group.resources.length}</span></header>
-              <div role="list">
-                {group.resources.map((resource) => (
-                  <ResourceRow
-                    key={resourceRowKey(resource)}
-                    resource={resource}
-                    active={activeResourceKey === resourceRowKey(resource)}
-                    selected={isResourceSelected(resource, props.selection)}
-                    setRef={setResourceRowRef}
-                    onFocus={setActiveResourceKey}
-                    onKeyDown={handleResourceKeyDown}
-                    onSelect={(selected) => props.onSelect({ kind: 'resource', resource: selected })}
-                    onAdd={props.onAdd}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
+      <div id="explorer-resource-content" className="explorer-pane-content" hidden={!resourcePaneExpanded}>
+        <div className="search-box">
+          <Search aria-hidden="true" size={14} />
+          <Input
+            aria-label="搜索当前节点资源"
+            name="resource-search"
+            autoComplete="off"
+            spellCheck={false}
+            value={resourceQuery}
+            onChange={(event) => setResourceQuery(event.target.value)}
+            placeholder="搜索当前节点资源"
+            disabled={!currentNode}
+          />
         </div>
-      </ScrollArea>
+        <ScrollArea className="explorer-scroll resource-scroll">
+          <div className="tree resource-tree" role="tree" aria-label="资源" aria-busy={resourceQuery !== deferredResourceQuery}>
+            {!currentNode && <p className="empty-copy">选择一个节点以查看资源</p>}
+            {currentNode && currentResources.length === 0 && <p className="empty-copy">此节点没有资源</p>}
+            {currentNode && currentResources.length > 0 && resourceRows.length === 0 && <p className="empty-copy">没有匹配的资源</p>}
+            {resourceRows.map((row) => (
+              <ResourceRow
+                key={row.key}
+                row={row}
+                active={activeResourceKey === row.key}
+                selected={row.node.resource ? isResourceSelected(row.node.resource, props.selection) : false}
+                expanded={expandedResources.has(row.key) || deferredResourceQuery.trim().length > 0}
+                expandable={row.node.children.length > 0}
+                setRef={setResourceRowRef}
+                onFocus={setActiveResourceKey}
+                onKeyDown={handleResourceKeyDown}
+                onToggle={toggleResource}
+                onSelect={(selected) => props.onSelect({ kind: 'resource', resource: selected })}
+                onAdd={props.onAdd}
+              />
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
     </section>
   )
 
@@ -426,6 +523,7 @@ export function Explorer(props: Props) {
       <ExplorerSplitPane
         ratio={props.splitRatio}
         onRatioChange={props.onSplitRatioChange}
+        collapsedPane={props.collapsedPane}
         topID="explorer-node-pane"
         bottomID="explorer-resource-pane"
         top={nodePane}
