@@ -460,3 +460,24 @@ func TestDesktopInputBoundaries(t *testing.T) {
 		t.Fatal("unknown JSON field should be rejected")
 	}
 }
+
+func TestValidateSelectedUploadFile(t *testing.T) {
+	directory := t.TempDir()
+	path := filepath.Join(directory, "upload.txt")
+	if err := os.WriteFile(path, []byte("payload"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	selected, err := validateSelectedUploadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selected != filepath.Clean(path) {
+		t.Fatalf("selected path = %q, want %q", selected, filepath.Clean(path))
+	}
+	if _, err := validateSelectedUploadFile(" " + path); err == nil {
+		t.Fatal("path with surrounding whitespace accepted")
+	}
+	if _, err := validateSelectedUploadFile(directory); err == nil {
+		t.Fatal("directory accepted as upload file")
+	}
+}

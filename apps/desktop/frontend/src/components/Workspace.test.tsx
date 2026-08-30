@@ -1,8 +1,8 @@
 import { DndContext } from '@dnd-kit/core'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { DesktopAPI } from '../api'
-import type { ViewDefinition, ViewLayoutNode, ViewWidget } from '../types'
+import type { ResourceDescriptor, ViewDefinition, ViewLayoutNode, ViewWidget } from '../types'
 import { Workspace } from './Workspace'
 
 const widget = (id: string): ViewWidget => ({
@@ -133,5 +133,62 @@ describe('workspace panels', () => {
     expect(screen.getAllByRole('article')).toHaveLength(2)
     expect(document.querySelectorAll('.workspace-preview-leaf')).toHaveLength(3)
     expect(document.querySelector('.workspace-preview-leaf.is-highlighted')).toBeInTheDocument()
+  })
+
+  it('persists renderer selection on the matching View widget', async () => {
+    const onChange = vi.fn()
+    const candidate = view(leaf('health'), ['health'])
+    candidate.widgets[0] = { ...candidate.widgets[0]!, resource_name: 'system/health', renderer: 'mfh.structured.health.v1' }
+    const descriptor: ResourceDescriptor = {
+      id: { owner_node_id: '2', name: 'system/health' },
+      type: 'mfh.variable',
+      type_version: 1,
+      capabilities: [{ name: 'read', permission: 'system.health.read', output_schema: 'mfh.management.health.v1', max_payload_bytes: 4096 }],
+      limits: { max_payload_bytes: 4096 },
+    }
+    render(
+      <DndContext>
+        <Workspace
+          api={{ snapshot: vi.fn().mockResolvedValue({ version: 1, state: 'running' }) } as unknown as DesktopAPI}
+          resources={[descriptor]}
+          view={candidate}
+          dirty
+          saving={false}
+          onChange={onChange}
+          onSave={vi.fn()}
+          onError={vi.fn()}
+        />
+      </DndContext>,
+    )
+
+    const selector = await screen.findByRole('combobox', { name: /显示方式/ })
+    fireEvent.change(selector, { target: { value: 'mfh.variable.raw.v1' } })
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+      widgets: [expect.objectContaining({ id: 'health', renderer: 'mfh.variable.raw.v1' })],
+    })))
+  })
+
+  it('derives compact pane density from ResizeObserver without changing the View', async () => {
+    const onChange = vi.fn()
+    class TestResizeObserver {
+      constructor(private readonly callback: ResizeObserverCallback) {}
+      observe(target: Element) {
+        this.callback([{ target, contentRect: { width: 320, height: 220 } } as ResizeObserverEntry], this as unknown as ResizeObserver)
+      }
+      disconnect() {}
+      unobserve() {}
+    }
+    vi.stubGlobal('ResizeObserver', TestResizeObserver)
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0)
+      return 1
+    })
+    try {
+      renderWorkspace(view(leaf('a'), ['a']), onChange)
+      await waitFor(() => expect(screen.getByRole('article', { name: '组件 a' })).toHaveClass('density-compact'))
+      expect(onChange).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

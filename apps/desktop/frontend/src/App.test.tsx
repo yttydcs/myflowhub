@@ -35,6 +35,7 @@ function mockAPI(settings: Settings): DesktopAPI {
     subscribe: vi.fn(),
     poll: vi.fn(),
     cancel: vi.fn(),
+    pickFile: vi.fn().mockResolvedValue(''),
     uploadFile: vi.fn(),
     views: vi.fn().mockResolvedValue({ version: 3, views: [] }),
     saveView: vi.fn().mockImplementation(async (next: ViewDefinition) => ({ ...next, revision: 1 })),

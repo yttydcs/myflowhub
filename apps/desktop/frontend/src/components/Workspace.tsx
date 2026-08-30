@@ -13,6 +13,7 @@ import { GripVertical, Grid2X2, Plus, Save, Trash2 } from 'lucide-react'
 import type { DesktopAPI } from '../api'
 import { resourceKey } from '../lib/utils'
 import type { ResourceDescriptor, ViewDefinition, ViewLayoutNode, ViewWidget } from '../types'
+import type { PaneDensity } from '../rendering/registry'
 import {
   WORKSPACE_SEPARATOR_SIZE,
   firstWorkspaceLeafID,
@@ -53,6 +54,7 @@ type LayoutRenderProps = {
   view: ViewDefinition
   resourceIndex: Map<string, ResourceDescriptor>
   onRemove(widgetID: string): void
+  onRendererChange(widgetID: string, rendererID: string): void
   onResize(path: number[], dividerIndex: number, ratio: number, minimum: number, maximum: number): void
 }
 
@@ -61,6 +63,7 @@ type WorkspaceWidgetProps = {
   resource?: ResourceDescriptor
   widget: ViewWidget
   onRemove(): void
+  onRendererChange(rendererID: string): void
 }
 
 function paneDOMID(widgetID: string): string {
@@ -71,7 +74,7 @@ function widgetLabel(widget: ViewWidget, resource?: ResourceDescriptor): string 
   return resource?.presentation?.label || widget.resource_name.split('/').at(-1) || widget.resource_name
 }
 
-function WorkspaceWidgetPane({ api, resource, widget, onRemove }: WorkspaceWidgetProps) {
+function WorkspaceWidgetPane({ api, resource, widget, onRemove, onRendererChange }: WorkspaceWidgetProps) {
   const draggable = useDraggable({
     id: `workspace-drag:${widget.id}`,
     data: { kind: 'workspace-widget', widgetID: widget.id, label: widgetLabel(widget, resource) },
@@ -80,16 +83,39 @@ function WorkspaceWidgetPane({ api, resource, widget, onRemove }: WorkspaceWidge
     id: `workspace-panel:${widget.id}`,
     data: { kind: 'workspace-panel', widgetID: widget.id },
   })
+  const paneRef = useRef<HTMLElement | null>(null)
+  const [density, setDensity] = useState<PaneDensity>('normal')
   const setNodeRef = (node: HTMLElement | null) => {
+    paneRef.current = node
     draggable.setNodeRef(node)
     droppable.setNodeRef(node)
   }
+  useEffect(() => {
+    const pane = paneRef.current
+    if (!pane || typeof ResizeObserver === 'undefined') return
+    let frame: number | undefined
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return
+      if (frame !== undefined) window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(() => {
+        frame = undefined
+        const { width, height } = entry.contentRect
+        const next: PaneDensity = width < 360 || height < 260 ? 'compact' : width >= 680 && height >= 440 ? 'expanded' : 'normal'
+        setDensity((current) => current === next ? current : next)
+      })
+    })
+    observer.observe(pane)
+    return () => {
+      observer.disconnect()
+      if (frame !== undefined) window.cancelAnimationFrame(frame)
+    }
+  }, [])
   const label = widgetLabel(widget, resource)
   return (
     <article
       id={paneDOMID(widget.id)}
       ref={setNodeRef}
-      className={`widget ${draggable.isDragging ? 'is-dragging' : ''} ${droppable.isOver ? 'is-drop-target' : ''}`}
+      className={`widget density-${density} ${draggable.isDragging ? 'is-dragging' : ''} ${droppable.isOver ? 'is-drop-target' : ''}`}
       aria-label={`组件 ${label}`}
     >
       <header className="widget-header">
@@ -112,7 +138,7 @@ function WorkspaceWidgetPane({ api, resource, widget, onRemove }: WorkspaceWidge
       </header>
       <div className="widget-body">
         {resource
-          ? <ResourceRenderer api={api} resource={resource} />
+          ? <ResourceRenderer api={api} resource={resource} rendererID={widget.renderer} density={density} onRendererChange={onRendererChange} />
           : (
             <div className="missing-resource">
               <strong>资源暂不可用</strong>
@@ -124,15 +150,16 @@ function WorkspaceWidgetPane({ api, resource, widget, onRemove }: WorkspaceWidge
   )
 }
 
-function LayoutLeaf({ api, widget, resource, onRemove }: {
+function LayoutLeaf({ api, widget, resource, onRemove, onRendererChange }: {
   api: DesktopAPI
   widget: ViewWidget
   resource?: ResourceDescriptor
   onRemove(): void
+  onRendererChange(rendererID: string): void
 }) {
   return (
     <div className="workspace-layout-leaf">
-      <WorkspaceWidgetPane api={api} widget={widget} resource={resource} onRemove={onRemove} />
+      <WorkspaceWidgetPane api={api} widget={widget} resource={resource} onRemove={onRemove} onRendererChange={onRendererChange} />
     </div>
   )
 }
@@ -315,6 +342,7 @@ function LayoutSplit({
   view,
   resourceIndex,
   onRemove,
+  onRendererChange,
   onResize,
 }: LayoutRenderProps & { node: Extract<ViewLayoutNode, { kind: 'split' }> }) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -337,6 +365,7 @@ function LayoutSplit({
               view={view}
               resourceIndex={resourceIndex}
               onRemove={onRemove}
+              onRendererChange={onRendererChange}
               onResize={onResize}
             />
           </div>,
@@ -371,7 +400,7 @@ function LayoutNode(props: LayoutRenderProps) {
   const widget = props.view.widgets.find((candidate) => candidate.id === widgetID)
   if (!widget) return <div className="missing-resource" role="alert">布局引用了不存在的组件 {widgetID}</div>
   const resource = props.resourceIndex.get(resourceKey(widget.owner_node_id, widget.resource_name))
-  return <LayoutLeaf api={props.api} widget={widget} resource={resource} onRemove={() => props.onRemove(widget.id)} />
+  return <LayoutLeaf api={props.api} widget={widget} resource={resource} onRemove={() => props.onRemove(widget.id)} onRendererChange={(rendererID) => props.onRendererChange(widget.id, rendererID)} />
 }
 
 function LayoutPreviewNode({ node, highlightWidgetID }: { node: ViewLayoutNode; highlightWidgetID: string }) {
@@ -455,6 +484,10 @@ export function Workspace({ id, api, resources, view, dirty, saving, dockPreview
                 view={view}
                 resourceIndex={resourceIndex}
                 onRemove={(widgetID) => apply(() => removeWorkspaceWidget(view, widgetID))}
+                onRendererChange={(widgetID, rendererID) => apply(() => ({
+                  ...view,
+                  widgets: view.widgets.map((widget) => widget.id === widgetID ? { ...widget, renderer: rendererID, settings: undefined } : widget),
+                }))}
                 onResize={onResize}
               />
               <RootEdgeTarget side="left" />

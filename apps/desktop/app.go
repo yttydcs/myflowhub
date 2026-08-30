@@ -622,6 +622,46 @@ func (a *App) UploadFile(ownerNodeID, sourcePath, destination, contentType strin
 	return client.UploadFile(ownerID, sourcePath, destination, contentType, 10*60*1000)
 }
 
+// SelectUploadFile opens the platform-native picker and returns a validated
+// regular file. Cancellation is represented by an empty path, not an error.
+func (a *App) SelectUploadFile() (string, error) {
+	a.mu.Lock()
+	ctx := a.ctx
+	a.mu.Unlock()
+	if ctx == nil {
+		return "", errors.New("desktop application is not started")
+	}
+	selected, err := runtime.OpenFileDialog(ctx, runtime.OpenDialogOptions{
+		Title:   "选择要上传的文件",
+		Filters: []runtime.FileFilter{{DisplayName: "所有文件", Pattern: "*"}},
+	})
+	if err != nil {
+		return "", fmt.Errorf("select upload file: %w", err)
+	}
+	if selected == "" {
+		return "", nil
+	}
+	return validateSelectedUploadFile(selected)
+}
+
+func validateSelectedUploadFile(path string) (string, error) {
+	if strings.TrimSpace(path) == "" || strings.TrimSpace(path) != path {
+		return "", errors.New("selected upload path is invalid")
+	}
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve selected upload file: %w", err)
+	}
+	info, err := os.Stat(absolute)
+	if err != nil {
+		return "", fmt.Errorf("inspect selected upload file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", errors.New("selected upload path must be a regular file")
+	}
+	return filepath.Clean(absolute), nil
+}
+
 func (a *App) ViewsJSON() (string, error) {
 	store, err := a.activeViewStore()
 	if err != nil {

@@ -32,6 +32,7 @@ export interface DesktopAPI {
   subscribe(ownerNodeID: string, name: string, capability: string, leaseMS?: number): Promise<number>
   poll(subscriptionID: number, timeoutMS: number): Promise<PollResult>
   cancel(subscriptionID: number): Promise<void>
+  pickFile(): Promise<string>
   uploadFile(ownerNodeID: string, source: string, destination: string, contentType: string): Promise<unknown>
   views(): Promise<ViewDocument>
   saveView(view: ViewDefinition): Promise<ViewDefinition>
@@ -63,6 +64,7 @@ export const api: DesktopAPI = {
     App.SubscribeCapability(ownerNodeID, name, capability, leaseMS),
   poll: async (subscriptionID, timeoutMS) => JSON.parse(await App.PollSubscription(subscriptionID, timeoutMS)),
   cancel: async (subscriptionID) => App.CancelSubscription(subscriptionID),
+  pickFile: App.SelectUploadFile,
   uploadFile: async (ownerNodeID, source, destination, contentType) =>
     JSON.parse(await App.UploadFile(ownerNodeID, source, destination, contentType)),
   views: async () => JSON.parse(await App.ViewsJSON()),

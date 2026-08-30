@@ -70,6 +70,10 @@ export function SaveViewJSON(arg1) {
   return window['go']['main']['App']['SaveViewJSON'](arg1);
 }
 
+export function SelectUploadFile() {
+  return window['go']['main']['App']['SelectUploadFile']();
+}
+
 export function SettingsJSON() {
   return window['go']['main']['App']['SettingsJSON']();
 }
