@@ -14,8 +14,10 @@ internal object NodeStateStore {
     val state = MutableStateFlow(UiNodeState())
 
     fun status(raw: String) {
-        val connection = runCatching { org.json.JSONObject(raw).optString("state", "unknown") }.getOrDefault("unknown")
-        state.value = state.value.copy(running = true, connection = connection, statusJSON = raw, error = "")
+        val value = runCatching { org.json.JSONObject(raw) }.getOrNull()
+        val connection = value?.optString("state", "unknown") ?: "unknown"
+        val running = value?.optBoolean("running", false) ?: false
+        state.value = state.value.copy(running = running, connection = connection, statusJSON = raw, error = "")
     }
 
     fun stopped() { state.value = UiNodeState() }

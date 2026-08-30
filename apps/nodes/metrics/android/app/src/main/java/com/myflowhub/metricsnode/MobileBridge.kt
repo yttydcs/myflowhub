@@ -1,36 +1,23 @@
 package com.myflowhub.metricsnode
 
-import java.lang.reflect.InvocationTargetException
+import com.myflowhub.metrics.metricsmobile.Client
+import com.myflowhub.metrics.metricsmobile.Metricsmobile
 
+/** Typed Kotlin facade over the generated gomobile ABI. */
 internal class MobileBridge {
-    private val client: Any
-    private val type: Class<*>
-
-    init {
-        val entry = Class.forName("metricsmobile.Metricsmobile")
-        client = requireNotNull(entry.getMethod("newClient").invoke(null)) { "metricsmobile.newClient returned null" }
-        type = client.javaClass
+    private val client: Client = requireNotNull(Metricsmobile.newClient()) {
+        "metricsmobile.newClient returned null"
     }
 
-    fun identity(request: String): String = call("identity", request) as String
-    fun start(request: String): String = call("start", request) as String
-    fun stop() { call("stop") }
-    fun status(): String = call("status") as String
-    fun configuration(): String = call("configuration") as String
-    fun updateConfiguration(request: String): String = call("updateConfiguration", request) as String
-    fun updateMetric(metric: String, value: String, error: String) { call("updateMetric", metric, value, error) }
-    fun nextAction(): String = call("nextAction") as String
-    fun nextNotification(): String = call("nextNotification") as String
-    fun completeAction(actionID: String, actualValue: String, error: String) {
-        call("completeAction", actionID, actualValue, error)
-    }
-
-    private fun call(name: String, vararg arguments: String): Any? {
-        try {
-            val types = Array(arguments.size) { String::class.java }
-            return type.getMethod(name, *types).invoke(client, *arguments)
-        } catch (error: InvocationTargetException) {
-            throw (error.targetException ?: error)
-        }
-    }
+    fun identity(request: String): String = client.identity(request)
+    fun start(request: String): String = client.start(request)
+    fun stop() = client.stop()
+    fun status(): String = client.status()
+    fun configuration(): String = client.configuration()
+    fun updateConfiguration(request: String): String = client.updateConfiguration(request)
+    fun updateMetric(metric: String, value: String, error: String) = client.updateMetric(metric, value, error)
+    fun nextAction(): String = client.nextAction()
+    fun nextNotification(): String = client.nextNotification()
+    fun completeAction(actionID: String, actualValue: String, error: String) =
+        client.completeAction(actionID, actualValue, error)
 }

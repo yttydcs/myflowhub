@@ -2,7 +2,7 @@
 
 ## Purpose
 
-MetricsNode 采集设备指标，并在平台允许时执行亮度等有界控制。
+MetricsNode 是独立 Node 产品，采集设备指标，并在平台允许时执行亮度等有界控制。它不依赖 Desktop 的进程、安装包、身份或 UI；共享 NodeHost 只表示复用运行时组合，不合并 Resource ownership。
 
 ## Observable behavior
 
@@ -37,6 +37,7 @@ MetricsNode 采集设备指标，并在平台允许时执行亮度等有界控�
 - 配置：`metrics/config` Variable 加 `metrics/config/update` Command，revision 冲突、平台能力、采样间隔、可写性与通知频道都经过严格校验并原子持久化。
 - 通知：旧 TopicBus 订阅被 durable Stream subscription 取代；频道切换会重建订阅，断线恢复由 SDK 管理，宿主只处理已经通过 schema 校验的事件。
 - 链路：产品 runtime 只依赖可替换 `link.Driver`；当前命令行和 UI 使用 TCP，Android 与未来链路可在不改变资源模型的情况下替换 driver。
+- Host：MetricsNode 拥有自己的 Parent-only NodeHost，在网络启动前注册指标、配置、控制与通知资源；采样更新走 Variable/Registry，远端访问继续走 attached SDK Client 所绑定的同一 Node。
 - 身份与权限：持久 Ed25519 身份、父节点 trust 与一次性 provisioning permit 由共享 runtime 管理；父控子仍由权威树执行，平台 adapter 继续执行本地范围和权限检查。
 
 ## Canonical source
@@ -52,3 +53,5 @@ MetricsNode 采集设备指标，并在平台允许时执行亮度等有界控�
 ## Acceptance
 
 collector/actuator 可用 fake 测试；Windows collector 有平台 smoke；Windows UI 与 Android binding 均来自 canonical 契约并可重建。Wails production build、gomobile AAR、Gradle unit/assemble/lint 和真实 TCP 进程 e2e 均是 FM09 门禁。
+
+运行时 ownership、四种拓扑组合与非 owning SDK Client 的稳定约束见 [NodeHost Runtime](../specs/node-host-runtime.md)。

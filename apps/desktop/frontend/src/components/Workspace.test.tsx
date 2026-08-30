@@ -162,6 +162,9 @@ describe('workspace panels', () => {
     )
 
     const selector = await screen.findByRole('combobox', { name: /显示方式/ })
+    expect(selector.closest('.widget-header')).not.toBeNull()
+    expect(document.querySelector('.widget-body .widget-renderer-selector')).not.toBeInTheDocument()
+    expect(screen.queryByText('突出运行状态与组件检查')).not.toBeInTheDocument()
     fireEvent.change(selector, { target: { value: 'mfh.variable.raw.v1' } })
     await waitFor(() => expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
       widgets: [expect.objectContaining({ id: 'health', renderer: 'mfh.variable.raw.v1' })],

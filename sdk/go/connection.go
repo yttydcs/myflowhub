@@ -32,6 +32,14 @@ type ConnectionSnapshot struct {
 	Generation     uint64
 }
 
+// ConnectionStatus is a read-only view of a supervised parent connection.
+// Implementations may be owned by NodeHost or by the legacy managed connection
+// compatibility API.
+type ConnectionStatus interface {
+	Snapshot() ConnectionSnapshot
+	WaitChange(context.Context, uint64) (ConnectionSnapshot, error)
+}
+
 type Connection struct {
 	supervisor *node.ParentSupervisor
 	cancel     context.CancelFunc
@@ -44,7 +52,7 @@ func (c *Client) ConnectManaged(ctx context.Context, driver link.Driver, endpoin
 	if ctx == nil {
 		return nil, errors.New("SDK managed connection context is required")
 	}
-	runtime, err := c.runtimeNode()
+	runtime, err := c.connectionRuntime()
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +71,21 @@ func (c *Connection) Snapshot() ConnectionSnapshot {
 		return ConnectionSnapshot{State: ConnectionStopped}
 	}
 	return convertConnection(c.supervisor.Snapshot())
+}
+
+// WaitChange waits until the parent connection generation advances.
+func (c *Connection) WaitChange(ctx context.Context, after uint64) (ConnectionSnapshot, error) {
+	if ctx == nil {
+		return ConnectionSnapshot{}, errors.New("SDK connection wait context is required")
+	}
+	if c == nil || c.supervisor == nil {
+		return ConnectionSnapshot{}, errors.New("SDK connection is stopped")
+	}
+	value, err := c.supervisor.WaitChange(ctx, after)
+	if err != nil {
+		return ConnectionSnapshot{}, err
+	}
+	return convertConnection(value), nil
 }
 
 func (c *Connection) Changes() <-chan ConnectionSnapshot {
@@ -125,6 +148,12 @@ func (c *Connection) publish(snapshot ConnectionSnapshot) {
 		default:
 		}
 	}
+}
+
+// ConnectionSnapshotFromRuntime converts runtime connection state into the
+// stable SDK view used by bindings and Host status adapters.
+func ConnectionSnapshotFromRuntime(value node.ConnectionSnapshot) ConnectionSnapshot {
+	return convertConnection(value)
 }
 
 func convertConnection(value node.ConnectionSnapshot) ConnectionSnapshot {

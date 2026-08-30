@@ -45,6 +45,12 @@ renderer；不得要求修改 Core type switch。
 每个 Node 的 `system/catalog` 是一个 Variable，内容按资源名稳定排序并携带非零 revision。
 注册、注销或 descriptor 变化必须原子更新目录。目录自身也必须被目录描述。
 
+## Owner-bound declaration
+
+Host 可以提供绑定本 NodeID 的 Registry facade，减少 Variable descriptor boilerplate。声明者仍必须显式提供 local name、content type、schema、read permission、payload limit 和 initial payload；默认只允许 owner 本地更新，远端写必须显式提供 write permission。
+
+该 helper 只是构造并注册标准 Resource：不得接受 foreign owner，不得绕过 descriptor/payload validation、重名检查或 `system/catalog` 原子更新。返回的 Variable 继续使用既有 `Set`、revision、watcher 与 snapshot-first subscription 语义。固定资源可以在 Host `Start` 前注册，动态资源可以在运行期按相同 Registry 契约注册或注销。
+
 ## Topic contract
 
 Topic 的 owner 负责 broker、policy check、速率限制和 fan-out。发布事件包含 publisher、
@@ -57,3 +63,8 @@ publisher-local sequence、timestamp、schema 与 payload。subscriber 慢消费
 - owner 仍必须验证 schema、尺寸和类型约束，authority 许可不是业务输入验证。
 - permission key 不从 presentation hint、物理 transport 或 UI 控件推导。
 - reparent、policy generation 变化或资源注销会撤销相关 subscription/session。
+
+## Related
+
+- [NodeHost Runtime](node-host-runtime.md)
+- [统一节点运行时 requirement](../requirements/unified-node-runtime.md)

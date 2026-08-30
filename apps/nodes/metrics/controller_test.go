@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"errors"
+	"reflect"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -43,6 +44,21 @@ func TestControllerPublishesFreshStaleAndTypedCatalog(t *testing.T) {
 	if !catalogContains(catalog, ResourceName(CPUPercent), protocol.ResourceTypeVariable, SchemaSampleV1) ||
 		!catalogContains(catalog, CommandName(BrightnessPercent), protocol.ResourceTypeCommand, SchemaControlV1) {
 		t.Fatalf("metrics catalog is incomplete: %+v", catalog.Resources)
+	}
+	assertVariableDescriptor(t, runtime, ResourceConfig, SchemaConfigV1, "metrics.config.read")
+	assertVariableDescriptor(t, runtime, ResourceName(CPUPercent), SchemaSampleV1, "metrics.read")
+}
+
+func assertVariableDescriptor(t *testing.T, runtime *node.Node, name, schema, permission string) {
+	t.Helper()
+	id := protocol.ResourceID{Owner: runtime.ID(), Name: name}
+	got, ok := runtime.Registry().Descriptor(id)
+	if !ok {
+		t.Fatalf("variable %q was not registered", name)
+	}
+	want := resource.VariableDescriptor(id, "application/json", schema, permission, protocol.DefaultMaxPayload)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("variable %q descriptor changed:\n got: %+v\nwant: %+v", name, got, want)
 	}
 }
 
@@ -140,6 +156,22 @@ func TestDefaultConfigIsCompleteSortedAndPlatformScoped(t *testing.T) {
 	}
 	if setting, ok := settingFor(android, FlashlightEnabled); !ok || !setting.Writable {
 		t.Fatal("Android config omitted controllable flashlight")
+	}
+}
+
+func TestControllerRejectsRegistryFromAnotherNode(t *testing.T) {
+	local := newMetricsNode(t)
+	defer local.Close()
+	foreign := newMetricsNode(t)
+	defer foreign.Close()
+	store, err := keystore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Register(ControllerConfig{
+		Node: local, Resources: foreign.Registry(), Store: store, Platform: "windows",
+	}); err == nil {
+		t.Fatal("controller accepted a Registry owned by another Node")
 	}
 }
 

@@ -2,9 +2,11 @@
 
 ## 定位
 
-Desktop 是 Node/Resource 平台的通用工作台，不是另一套 Hub 或业务 runtime。它通过 canonical SDK
-连接一个父节点，从 authoritative Node tree 和每个 Node 的 `system/catalog` 发现资源；前端不解析 wire、
+Desktop 是 Node/Resource 平台的通用工作台，不是另一套 Hub 或业务 runtime。它拥有独立的 NodeHost，
+默认以 Parent-only leaf 连接一个父节点，从 authoritative Node tree 和每个 Node 的 `system/catalog` 发现资源；前端不解析 wire、
 不推断路由，也不把按钮可见性当作权限边界。
+
+Desktop 与 MetricsNode 完全独立：二者使用不同 Node identity、state、进程、Resource owner 和安装包。共享 NodeHost/SDK package 不会让 Desktop 拥有 Metrics 资源，也不会赋予 Desktop 默认 Listener、中继或网络特权。
 
 源码边界：
 
@@ -19,7 +21,7 @@ React workspace
 Desktop binding: catalog · operate · subscribe · session
           │
           ▼
-canonical Go SDK + ParentSupervisor
+NodeHost + attached canonical Go SDK
           │
           ▼
 authoritative Node tree ── node-owned Resources
@@ -29,11 +31,11 @@ authoritative Node tree ── node-owned Resources
 
 登录页把“使用现有 Profile”和“首次连接”分成两个顶层入口。有保存记录时先显示 Profile 选择，没有记录时直接显示首次连接；不再用编号步骤解释填写顺序。现有 Authority Profile 的 `missing/device/pending/enrolled/error` 状态由受保护 Enrollment credential 的只读投影提供，而不是根据 Profile 的 `node_id` 猜测；Legacy Profile 保持独立兼容状态。Pending 重试复用原 request 与已固定的首次观察，Enrolled 直接连接，凭据损坏或 Profile/Grant Node ID 冲突会阻止连接并显示恢复提示。
 
-新建 Profile 使用 Enrollment：客户端自动生成稳定、合法的本地 Profile ID，先准备仅含密钥的 Device identity，连接父 endpoint 后通过 Permit 直接注册或等待审批；Node ID 与签名 Grant 由 Admission Authority 下发并原子保存。普通表单不要求用户输入 Profile ID、Node ID 或公钥 pin；父节点公钥不再是常规必填项，无预置锚时采用显式 TOFU 并在首次成功后固定。已有 version 2 Profile 仍按原 Node ID、父节点 ID、公钥和 Join Permit 路径连接。
+新建 Profile 使用 Enrollment：客户端自动生成稳定、合法的本地 Profile ID，先准备仅含密钥的 Device identity，连接父 endpoint 后通过 Permit 直接注册或等待审批；Node ID 与签名 Grant 由 Admission Authority 下发并原子保存。普通表单不要求用户输入 Profile ID、Node ID 或公钥 pin；父节点公钥不再是常规必填项，无预置锚时采用显式 TOFU 并在首次成功后固定。由于注册前没有 Node ID，authority Enrollment Profile 当前通过明确的 owning binding 兼容路径完成 bootstrap 和后续重连；该路径不提供 Listener、MCP 或额外权限，待 NodeHost 可直接消费持久 Grant 后移除。已有 version 2 Profile 仍按原 Node ID、父节点 ID、公钥和 Join Permit 路径连接，并由 Parent-only NodeHost 持有运行时。
 
 设置格式为 version 2。每个 Profile 隔离 endpoint、本机 Node identity、受信任父节点和 Views；单个应用
 实例只激活一个 Profile。登录成功后保存 Profile 与身份，下次启动可自动连接。切换 Profile 会先关闭旧
-client，其 subscription、session 和 connection 随之清理，再打开新身份。
+Host，其 subscription、session 和 connection 随之清理，再打开新身份。连接失败后的重试创建新的候选 Host，只有成功后才替换活动实例。
 
 - 登录页支持新建、选择、编辑和显式确认删除 Profile；
 - 全新 Profile 可先准备受保护的本机 identity 并复制 raw-base64 Ed25519 公钥；准备动作只保存非 active Profile，不连接、不登录，也不返回私钥；
@@ -146,6 +148,7 @@ wails build -clean
 - [Desktop 资源工作区 requirements](../requirements/desktop-resource-workspace.md)
 - [Desktop Resource Workspace v3](../specs/desktop-resource-workspace-v3.md)
 - [Desktop Profile 入口](../specs/desktop-profile-entry.md)
+- [NodeHost Runtime](../specs/node-host-runtime.md)
 - [Explorer Resource tree 变更归档](../change/2026-08-30_desktop-explorer-collapsible-resource-tree.md)
 
 ## 明确移除

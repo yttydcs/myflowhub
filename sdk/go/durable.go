@@ -31,11 +31,26 @@ func (c *Client) SubscribeDurable(ctx context.Context, supervisor *node.ParentSu
 }
 
 func (c *Client) SubscribeDurableCapability(ctx context.Context, supervisor *node.ParentSupervisor, resource protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int) (*DurableSubscription, error) {
+	if supervisor == nil {
+		return nil, errors.New("durable subscription requires a parent supervisor")
+	}
+	return c.SubscribeDurableStatusCapability(ctx, runtimeConnectionStatus{supervisor: supervisor}, resource, capability, lease, queue)
+}
+
+// SubscribeDurableStatus keeps a subscription active across changes reported
+// by a read-only Host-owned connection status.
+func (c *Client) SubscribeDurableStatus(ctx context.Context, status ConnectionStatus, resource protocol.ResourceID, lease time.Duration, queue int) (*DurableSubscription, error) {
+	return c.SubscribeDurableStatusCapability(ctx, status, resource, protocol.CapabilitySubscribe, lease, queue)
+}
+
+// SubscribeDurableStatusCapability is the non-owning connection-status form of
+// durable subscription used by attached bindings.
+func (c *Client) SubscribeDurableStatusCapability(ctx context.Context, status ConnectionStatus, resource protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int) (*DurableSubscription, error) {
 	if ctx == nil {
 		return nil, errors.New("durable subscription context is required")
 	}
-	if supervisor == nil {
-		return nil, errors.New("durable subscription requires a parent supervisor")
+	if status == nil {
+		return nil, errors.New("durable subscription requires parent connection status")
 	}
 	if _, err := c.runtimeNode(); err != nil {
 		return nil, err
@@ -54,7 +69,7 @@ func (c *Client) SubscribeDurableCapability(ctx context.Context, supervisor *nod
 	errorsOut := make(chan error, 1)
 	ready := make(chan struct{})
 	result := &DurableSubscription{Resource: resource, Events: events, Errors: errorsOut, Ready: ready, cancel: cancel}
-	go c.runDurableSubscription(runCtx, supervisor, resource, capability, lease, queue, events, errorsOut, ready)
+	go c.runDurableSubscription(runCtx, status, resource, capability, lease, queue, events, errorsOut, ready)
 	return result, nil
 }
 
@@ -66,10 +81,10 @@ func (c *Client) SubscribeDurableConnectionCapability(ctx context.Context, conne
 	if connection == nil || connection.supervisor == nil {
 		return nil, errors.New("durable subscription requires a managed connection")
 	}
-	return c.SubscribeDurableCapability(ctx, connection.supervisor, resource, capability, lease, queue)
+	return c.SubscribeDurableStatusCapability(ctx, connection, resource, capability, lease, queue)
 }
 
-func (c *Client) runDurableSubscription(ctx context.Context, supervisor *node.ParentSupervisor, resource protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int, events chan<- Event, errorsOut chan<- error, ready chan struct{}) {
+func (c *Client) runDurableSubscription(ctx context.Context, status ConnectionStatus, resource protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int, events chan<- Event, errorsOut chan<- error, ready chan struct{}) {
 	defer close(events)
 	defer close(errorsOut)
 	var readyOnce sync.Once
@@ -77,7 +92,7 @@ func (c *Client) runDurableSubscription(ctx context.Context, supervisor *node.Pa
 	sawStream := false
 	recovering := false
 	for {
-		snapshot, err := waitConnected(ctx, supervisor)
+		snapshot, err := waitConnected(ctx, status)
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
 				sendTerminalError(errorsOut, wrapError(err))
@@ -104,7 +119,7 @@ func (c *Client) runDurableSubscription(ctx context.Context, supervisor *node.Pa
 				return
 			}
 			recovering = true
-			if _, waitErr := supervisor.WaitChange(ctx, snapshot.Generation); waitErr != nil && !errors.Is(waitErr, context.Canceled) {
+			if _, waitErr := status.WaitChange(ctx, snapshot.Generation); waitErr != nil && !errors.Is(waitErr, context.Canceled) {
 				sendTerminalError(errorsOut, waitErr)
 				return
 			}
@@ -171,29 +186,45 @@ func (c *Client) runDurableSubscription(ctx context.Context, supervisor *node.Pa
 			}
 		}
 		remote.Cancel()
-		recovering = sawStream || supervisor.Snapshot().State != node.ConnectionConnected
+		recovering = sawStream || status.Snapshot().State != ConnectionConnected
 	}
 }
 
-func waitConnected(ctx context.Context, supervisor *node.ParentSupervisor) (node.ConnectionSnapshot, error) {
+func waitConnected(ctx context.Context, status ConnectionStatus) (ConnectionSnapshot, error) {
 	for {
-		current := supervisor.Snapshot()
+		current := status.Snapshot()
 		switch current.State {
-		case node.ConnectionConnected:
+		case ConnectionConnected:
 			return current, nil
-		case node.ConnectionFailed:
-			return node.ConnectionSnapshot{}, fmt.Errorf("parent connection failed: %s", current.LastError)
-		case node.ConnectionStopped:
-			return node.ConnectionSnapshot{}, errors.New("parent connection supervisor stopped")
+		case ConnectionFailed:
+			return ConnectionSnapshot{}, fmt.Errorf("parent connection failed: %s", current.LastError)
+		case ConnectionStopped:
+			return ConnectionSnapshot{}, errors.New("parent connection supervisor stopped")
 		}
-		next, err := supervisor.WaitChange(ctx, current.Generation)
+		next, err := status.WaitChange(ctx, current.Generation)
 		if err != nil {
-			return node.ConnectionSnapshot{}, err
+			return ConnectionSnapshot{}, err
 		}
 		if next.Generation <= current.Generation {
-			return node.ConnectionSnapshot{}, errors.New("parent supervisor generation did not advance")
+			return ConnectionSnapshot{}, errors.New("parent supervisor generation did not advance")
 		}
 	}
+}
+
+type runtimeConnectionStatus struct {
+	supervisor *node.ParentSupervisor
+}
+
+func (s runtimeConnectionStatus) Snapshot() ConnectionSnapshot {
+	return convertConnection(s.supervisor.Snapshot())
+}
+
+func (s runtimeConnectionStatus) WaitChange(ctx context.Context, after uint64) (ConnectionSnapshot, error) {
+	value, err := s.supervisor.WaitChange(ctx, after)
+	if err != nil {
+		return ConnectionSnapshot{}, err
+	}
+	return convertConnection(value), nil
 }
 
 func permanentSubscriptionError(err error) bool {

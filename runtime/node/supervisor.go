@@ -46,6 +46,13 @@ type SupervisorConfig struct {
 	Sleep      func(context.Context, time.Duration) error
 }
 
+// ValidateSupervisorConfig validates the effective parent reconnection policy
+// without starting a supervisor or creating external work.
+func ValidateSupervisorConfig(config SupervisorConfig) error {
+	_, err := config.normalized()
+	return err
+}
+
 func (c SupervisorConfig) normalized() (SupervisorConfig, error) {
 	if c.MinBackoff <= 0 {
 		c.MinBackoff = 100 * time.Millisecond

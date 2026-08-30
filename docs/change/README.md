@@ -25,6 +25,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-08-31_desktop-renderer-selector-titlebar-refinement.md](2026-08-31_desktop-renderer-selector-titlebar-refinement.md)
 - [2026-08-30_desktop-schema-driven-resource-widgets.md](2026-08-30_desktop-schema-driven-resource-widgets.md)
 - [2026-08-30_node-enrollment-admission-authority.md](2026-08-30_node-enrollment-admission-authority.md)
 - [2026-08-30_desktop-explorer-collapsible-resource-tree.md](2026-08-30_desktop-explorer-collapsible-resource-tree.md)
@@ -82,6 +83,7 @@
 - [2026-02-18_docs-consistency.md](2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+- [2026-08-31_nodehost-runtime-and-product-boundaries.md](2026-08-31_nodehost-runtime-and-product-boundaries.md)
 - [2026-04-05_embedded-sdk-c-ws2812.md](2026-04-05_embedded-sdk-c-ws2812.md)
 - [2026-04-02_core-flow-permission-defaults.md](2026-04-02_core-flow-permission-defaults.md)
 - [2026-04-02_embedded-auth-persistence-profile.md](2026-04-02_embedded-auth-persistence-profile.md)

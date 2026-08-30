@@ -97,23 +97,72 @@ func (s *Subscription) Cancel() {
 }
 
 type Client struct {
-	mu      sync.RWMutex
-	runtime *node.Node
+	mu          sync.RWMutex
+	runtime     *node.Node
+	ownsRuntime bool
 }
 
+// ErrAttachedClientClose reports an attempt to close a client whose runtime is
+// owned by a Host. The client remains usable after this error.
+var (
+	ErrAttachedClientClose      = errors.New("attached SDK client cannot close its host runtime")
+	ErrAttachedClientConnection = errors.New("attached SDK client cannot create or replace its host connection")
+)
+
+// NewClient creates a compatibility client that owns runtime. Closing the
+// client closes the node.
+//
+// Deprecated: new products should obtain an attached client from NodeHost.
+// This constructor remains available for runtime-owning compatibility paths.
 func NewClient(runtime *node.Node) (*Client, error) {
+	return newClient(runtime, true)
+}
+
+// NewAttachedClient creates an operation client for a node owned by another
+// lifecycle. Closing an attached client is rejected and never closes the node.
+func NewAttachedClient(runtime *node.Node) (*Client, error) {
+	return newClient(runtime, false)
+}
+
+func newClient(runtime *node.Node, ownsRuntime bool) (*Client, error) {
 	if runtime == nil {
 		return nil, errors.New("SDK client requires a node runtime")
 	}
-	return &Client{runtime: runtime}, nil
+	return &Client{runtime: runtime, ownsRuntime: ownsRuntime}, nil
+}
+
+// NodeID returns the identity of the node used by this operation client.
+func (c *Client) NodeID() (protocol.NodeID, error) {
+	runtime, err := c.runtimeNode()
+	if err != nil {
+		return 0, err
+	}
+	return runtime.ID(), nil
 }
 
 func (c *Client) Connect(ctx context.Context, driver link.Driver, endpoint link.Endpoint, parent protocol.NodeID) error {
-	runtime, err := c.runtimeNode()
+	runtime, err := c.connectionRuntime()
 	if err != nil {
 		return err
 	}
 	return wrapError(runtime.ConnectParent(ctx, driver, endpoint, parent))
+}
+
+func (c *Client) connectionRuntime() (*node.Node, error) {
+	if c == nil {
+		return nil, errors.New("SDK client is closed")
+	}
+	c.mu.RLock()
+	runtime := c.runtime
+	ownsRuntime := c.ownsRuntime
+	c.mu.RUnlock()
+	if runtime == nil {
+		return nil, errors.New("SDK client is closed")
+	}
+	if !ownsRuntime {
+		return nil, ErrAttachedClientConnection
+	}
+	return runtime, nil
 }
 
 func (c *Client) Subscribe(ctx context.Context, resourceID protocol.ResourceID, lease time.Duration, queue int) (*Subscription, error) {
@@ -258,6 +307,10 @@ func (c *Client) Close() error {
 		return nil
 	}
 	c.mu.Lock()
+	if c.runtime != nil && !c.ownsRuntime {
+		c.mu.Unlock()
+		return ErrAttachedClientClose
+	}
 	runtime := c.runtime
 	c.runtime = nil
 	c.mu.Unlock()

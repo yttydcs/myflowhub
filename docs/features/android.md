@@ -11,9 +11,13 @@ Android 产品有两个明确模式：
 
 两种模式使用同一 `runtime/node`、authority tree、ParentSupervisor 与资源模型。Android 不是一套独立协议实现。
 
+普通 Client 和 MetricsNode 等移动节点复用纯 Go NodeHost；gomobile 只提供 Kotlin-friendly facade。Kotlin Foreground Service/Activity 继续拥有进程、通知、权限、Doze/network callback 和 Start/Stop，Go Host 拥有 Node、Parent、Listeners 与 SDK Client。目标边界是通过 `IdentityStore`、RFCOMM provider 和产品 collector/actuator adapter 注入平台能力，而不让 Android API 进入 NodeHost；Keystore-backed `IdentityStore` 仍是后续 seam，不是本轮已实现能力。
+
 ## 源码边界
 
-- `sdk/bindings/android`：gomobile-friendly Client、Host、Listener 与 RFCOMM provider contract；
+- `sdk/bindings/android/client.go`：保留 ABI 的 gomobile leaf lifecycle wrapper；不直接 import `host/`，通过 `host.go` factory 间接启动/关闭唯一 leaf Host；
+- `sdk/bindings/android/host.go`：唯一 gomobile platform composition root，可组合通用 leaf NodeHost 与延期迁移的 in-process Hub；
+- `sdk/bindings/android` 其他文件：Listener、JSON/callback 转换与 RFCOMM provider contract，不得扩散 `host/` 依赖；
 - `apps/android`：Compose UI、前台服务、Bluetooth Classic adapter 和 versioned settings；
 - `transport/rfcomm`：跨平台 Driver、endpoint parser、MTU chunking 与 Android provider adapter。
 
@@ -21,18 +25,21 @@ Android 产品有两个明确模式：
 Compose / foreground service
           │
           ▼
-generated gomobile Client / Host
-          │
-          ├── TCP Driver
-          └── RFCOMM Driver ── generated provider interface ── BluetoothSocket
-          │
-          ▼
+generated gomobile lifecycle wrapper
+          ├── host.go factory → NodeHost / in-process Hub
+          │     ├── TCP Driver
+          │     └── RFCOMM Driver ── generated provider interface ── BluetoothSocket
+          └── attached bindings.Client（non-owning operation facade）
+                        │
+                        ▼
 authority tree + catalog + Variable / Stream / Command
 ```
 
 ## Client contract
 
-Client 暴露 persistent identity、parent trust、TCP/RFCOMM start、managed reconnect state、catalog、snapshot、callback subscription、Command、File upload 和 close。订阅由 Go durable subscription 负责重新建立，Kotlin 不重放 wire frame。
+导出的 gomobile `android.Client` 保留 persistent identity、parent trust、TCP/RFCOMM start、managed reconnect state、catalog、snapshot、callback subscription、Command、File upload 和 `Close` ABI。它是平台 lifecycle wrapper：通过 `newAndroidLeafRuntime`（定义在 `host.go`）间接创建自己的唯一 leaf Host，`Close` 负责关闭该 Host；`client.go` 本身不 import `host/`。
+
+wrapper 内部持有的通用 `bindings.Client` 才是 non-owning operation facade。它绑定 Host 的同一 Node，只清理自己的 subscription/facade 状态，不创建或关闭 Host。Go durable subscription 负责重新建立订阅，Kotlin 不重放 wire frame。
 
 File 页面先通过 Android content resolver 把用户选定文档复制到随机 cache 文件，再由 SDK 执行 64 KiB 分块、逐块/最终 SHA-256、complete 和失败 cancel。临时文件在成功或失败后删除。
 
@@ -41,6 +48,8 @@ Flow 页面读取 `flow/definitions`、`flow/runs`，并调用 create/update/run
 ## Local Hub Host
 
 Host 使用 `host/hub.StartPersistent`，因此本地 identity、trust、policy、admission、settings、File 和 Flow state 都保存在应用私有目录。可同时开启 TCP 与 RFCOMM listener；至少一个 listener 必须有效。父公钥与一次性 permit 必须在启动/连接边界设置，运行后不能静默更换 trust。
+
+这是首批 NodeHost 迁移期间的明确过渡例外：Android in-process Hub 与 `host/hub` 本轮不迁移。后续只在通用 Host 上组合 Hub feature，不为 Android 定义第二套 Node、权限或资源模型。
 
 Host status 包含实际 listener endpoints 与 parent connection state。Android 前台服务每两秒刷新状态，通知只显示 runtime 生命周期，不记录资源 payload。
 
@@ -79,9 +88,12 @@ Gradle 缺少 AAR 时立即失败，不生成“可编译但运行时不可用�
 ## 验证边界
 
 - Go：Client/Host lifecycle、persistent identity、真实 TCP Hub permit/join、race、Android cross-compile；
+- identity 限制：generic Android Client 与 Metrics RuntimeConfig 当前仍使用默认持久化 identity；Keystore adapter 与 `IdentityStore` 注入路径尚未实现，不能把 state persistence 验收当作 Keystore 保护证据；
 - JVM/Gradle：settings version/reset tests、Compose compile、assemble、lint；
 - artifact：双 ABI AAR/APK 原生库检查；
 - device：只有实际连接设备时才记录 install/TCP/RFCOMM socket smoke。没有设备时明确标为 unavailable，不用 host-side provider test 冒充设备证据。
+
+通用 Host 与移动平台 ownership 见 [NodeHost Runtime](../specs/node-host-runtime.md)。
 
 ## 明确移除
 

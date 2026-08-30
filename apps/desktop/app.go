@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,9 +15,14 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/yttydcs/myflowhub/host/nodehost"
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/auth"
+	"github.com/yttydcs/myflowhub/runtime/link"
+	"github.com/yttydcs/myflowhub/runtime/node"
+	"github.com/yttydcs/myflowhub/sdk/bindings"
 	desktopbinding "github.com/yttydcs/myflowhub/sdk/bindings/desktop"
+	"github.com/yttydcs/myflowhub/transport/tcp"
 )
 
 const (
@@ -63,7 +70,7 @@ type profileState struct {
 }
 
 type CredentialStore interface {
-	Open(Profile) (*desktopbinding.Client, error)
+	Open(Profile, string) (*profileRuntime, error)
 	InspectEnrollment(string) (auth.EnrollmentClientSnapshot, bool, error)
 	Remove(string) error
 	Mode() string
@@ -72,6 +79,53 @@ type CredentialStore interface {
 type platformCredentialBackend interface {
 	auth.IdentityStore
 	auth.EnrollmentCredentialStore
+}
+
+// profileRuntime is the Desktop product's explicit ownership boundary. Static
+// profiles use a non-owning binding over Host.Client; authority profiles keep
+// the owning Enrollment binding as a compatibility bootstrap/reconnect path.
+type profileRuntime struct {
+	profile Profile
+	host    *nodehost.Host
+	client  *desktopbinding.Client
+}
+
+func (r *profileRuntime) Close() error {
+	if r == nil {
+		return nil
+	}
+	var facadeErr, hostErr error
+	if r.client != nil {
+		facadeErr = r.client.Close()
+	}
+	if r.host != nil {
+		hostErr = r.host.Close()
+	}
+	return errors.Join(facadeErr, hostErr)
+}
+
+func (r *profileRuntime) connect(permitJSON string, allowTOFU bool) error {
+	if r == nil || r.client == nil {
+		return errors.New("desktop profile runtime is unavailable")
+	}
+	if r.profile.EnrollmentMode == "authority" {
+		return connectEnrollmentClient(r.client, r.profile, permitJSON, allowTOFU)
+	}
+	if r.host == nil {
+		return errors.New("desktop profile node host is unavailable")
+	}
+	switch r.host.Status().Lifecycle {
+	case nodehost.LifecycleNew:
+		if err := r.host.Start(); err != nil {
+			return err
+		}
+	case nodehost.LifecycleRunning:
+		// The Host-owned supervisor already reconnects; another Connect only
+		// waits for that same path instead of creating a second runtime.
+	default:
+		return fmt.Errorf("desktop profile runtime cannot connect from lifecycle %q", r.host.Status().Lifecycle)
+	}
+	return r.client.WaitConnected(defaultRequestTimeoutMS)
 }
 
 type profileCredentialStore struct {
@@ -84,9 +138,12 @@ func newProfileCredentialStore(settings *settingsStore) *profileCredentialStore 
 	return &profileCredentialStore{settings: settings, stores: make(map[string]platformCredentialBackend)}
 }
 
-func (s *profileCredentialStore) Open(profile Profile) (*desktopbinding.Client, error) {
+func (s *profileCredentialStore) Open(profile Profile, permitJSON string) (*profileRuntime, error) {
 	if s == nil || s.settings == nil {
 		return nil, errors.New("desktop credential store is unavailable")
+	}
+	if err := validateProfile(profile); err != nil {
+		return nil, err
 	}
 	directory, err := s.settings.stateDirectory(profile.ID)
 	if err != nil {
@@ -96,21 +153,64 @@ func (s *profileCredentialStore) Open(profile Profile) (*desktopbinding.Client, 
 	if err != nil {
 		return nil, err
 	}
-	client := &desktopbinding.Client{}
 	if profile.EnrollmentMode == "authority" {
+		client := &desktopbinding.Client{}
 		if err := client.OpenEnrollmentWithCredentialStore(directory, identityStore); err != nil {
 			return nil, fmt.Errorf("open profile Enrollment credential: %w", err)
 		}
-	} else {
-		nodeID, err := parsePositiveInt64(profile.NodeID, "node_id")
-		if err != nil {
-			return nil, err
-		}
-		if err := client.OpenWithIdentityStore(directory, nodeID, identityStore); err != nil {
-			return nil, fmt.Errorf("open profile identity: %w", err)
-		}
+		return &profileRuntime{profile: profile, client: client}, nil
 	}
-	return client, nil
+	nodeID, err := parsePositiveInt64(profile.NodeID, "node_id")
+	if err != nil {
+		return nil, err
+	}
+	parentID, err := parsePositiveInt64(profile.ParentNodeID, "parent_node_id")
+	if err != nil {
+		return nil, err
+	}
+	parentKey, err := base64.RawStdEncoding.DecodeString(strings.TrimSpace(profile.ParentPublicKey))
+	if err != nil || len(parentKey) != ed25519.PublicKeySize {
+		return nil, errors.New("parent_public_key must be a raw-base64 Ed25519 key")
+	}
+	var permit *protocol.ProvisioningPermitV1
+	if strings.TrimSpace(permitJSON) != "" {
+		var value protocol.ProvisioningPermitV1
+		if err := protocol.DecodeJSONPayload([]byte(permitJSON), protocol.DefaultMaxPayload, &value); err != nil {
+			return nil, fmt.Errorf("decode provisioning permit: %w", err)
+		}
+		permit = &value
+	}
+	host, err := nodehost.New(context.Background(), nodehost.Config{
+		StateDirectory: directory,
+		NodeID:         protocol.NodeID(nodeID),
+		IdentityStore:  identityStore,
+		Parent: &nodehost.ParentConfig{
+			NodeID: protocol.NodeID(parentID), PublicKey: ed25519.PublicKey(parentKey), Permit: permit,
+			Driver: tcp.Driver{}, Endpoint: link.Endpoint(strings.TrimSpace(profile.Endpoint)),
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("open profile node host: %w", err)
+	}
+	status, ok := host.ParentStatus()
+	if !ok {
+		_ = host.Close()
+		return nil, errors.New("desktop profile node host has no parent")
+	}
+	core, err := bindings.NewAttachedClient(host.Client(), bindings.PublicIdentity{
+		NodeID: host.ID(), PublicKey: host.PublicKey(),
+	}, status)
+	if err != nil {
+		_ = host.Close()
+		return nil, fmt.Errorf("attach desktop binding: %w", err)
+	}
+	client, err := desktopbinding.NewAttachedClient(core)
+	if err != nil {
+		_ = core.Close()
+		_ = host.Close()
+		return nil, err
+	}
+	return &profileRuntime{profile: profile, host: host, client: client}, nil
 }
 
 func (s *profileCredentialStore) InspectEnrollment(profileID string) (auth.EnrollmentClientSnapshot, bool, error) {
@@ -182,7 +282,7 @@ type App struct {
 	store       *settingsStore
 	credentials CredentialStore
 	settings    Settings
-	client      *desktopbinding.Client
+	active      *profileRuntime
 	logs        []logEntry
 }
 
@@ -297,21 +397,35 @@ func (a *App) SaveProfileJSON(raw string) (string, error) {
 		return "", err
 	}
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	previous := a.settings
-	next := upsertProfile(a.settings, profile)
+	old := a.active
+	a.mu.Unlock()
+	next := upsertProfile(previous, profile)
+	candidate, oldClosed, err := a.openCandidate(profile, "", old)
+	if err != nil {
+		return "", err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = candidate.Close()
+		}
+	}()
 	if err := a.store.save(next); err != nil {
+		_ = candidate.Close()
+		candidate = nil
+		if restoreErr := a.restoreClosedRuntime(previous, old, oldClosed); restoreErr != nil {
+			return "", errors.Join(err, restoreErr)
+		}
 		return "", err
 	}
-	if a.client != nil {
-		_ = a.client.Close()
-		a.client = nil
-	}
+	a.mu.Lock()
+	a.active = candidate
 	a.settings = next
-	if err := a.openProfileLocked(profile); err != nil {
-		a.settings = previous
-		_ = a.store.save(previous)
-		return "", err
+	a.mu.Unlock()
+	committed = true
+	if old != nil && !oldClosed {
+		_ = old.Close()
 	}
 	return marshalJSON(profile)
 }
@@ -334,16 +448,16 @@ func (a *App) PrepareProfileJSON(raw string) (string, error) {
 		return "", errors.New("active profile identity cannot be prepared; save it from Settings instead")
 	}
 
-	candidate, err := a.credentials.Open(profile)
+	candidate, err := a.credentials.Open(profile, "")
 	if err != nil {
 		return "", err
 	}
 	defer candidate.Close()
 	identityJSON := ""
 	if profile.EnrollmentMode == "authority" {
-		identityJSON, err = candidate.EnrollmentStatusJSON()
+		identityJSON, err = candidate.client.EnrollmentStatusJSON()
 	} else {
-		identityJSON, err = candidate.IdentityJSON()
+		identityJSON, err = candidate.client.IdentityJSON()
 	}
 	if err != nil {
 		return "", fmt.Errorf("read prepared profile identity: %w", err)
@@ -384,7 +498,11 @@ func (a *App) LoginJSON(raw string) (string, error) {
 	if request.PermitJSON != "" && (!json.Valid([]byte(request.PermitJSON)) || len(request.PermitJSON) > protocol.DefaultMaxPayload) {
 		return "", errors.New("permit_json must be valid bounded JSON")
 	}
-	candidate, err := a.credentials.Open(request.Profile)
+	a.mu.Lock()
+	old := a.active
+	previous := a.settings
+	a.mu.Unlock()
+	candidate, oldClosed, err := a.openCandidate(request.Profile, request.PermitJSON, old)
 	if err != nil {
 		return "", err
 	}
@@ -394,41 +512,50 @@ func (a *App) LoginJSON(raw string) (string, error) {
 			_ = candidate.Close()
 		}
 	}()
-	if err := connectClient(candidate, request.Profile, request.PermitJSON, request.AllowTOFU); err != nil {
+	if err := connectRuntime(candidate, request.PermitJSON, request.AllowTOFU); err != nil {
 		if errors.Is(err, auth.ErrEnrollmentPending) {
 			a.mu.Lock()
-			next := upsertInactiveProfile(a.settings, request.Profile)
+			next := upsertInactiveProfile(previous, request.Profile)
 			saveErr := a.store.save(next)
 			if saveErr == nil {
 				a.settings = next
 			}
 			a.mu.Unlock()
 			if saveErr != nil {
-				return "", saveErr
+				err = errors.Join(err, saveErr)
 			}
+		}
+		_ = candidate.Close()
+		candidate = nil
+		if restoreErr := a.restoreClosedRuntime(previous, old, oldClosed); restoreErr != nil {
+			return "", a.fail("login", errors.Join(err, restoreErr))
 		}
 		return "", a.fail("login", err)
 	}
 	if request.Profile.EnrollmentMode == "authority" {
-		request.Profile, err = hydrateEnrollmentProfile(candidate, request.Profile)
+		request.Profile, err = hydrateEnrollmentProfile(candidate.client, request.Profile)
 		if err != nil {
 			return "", err
 		}
+		candidate.profile = request.Profile
 	}
 
 	a.mu.Lock()
-	previous := a.settings
 	next := upsertProfile(previous, request.Profile)
 	if err := a.store.save(next); err != nil {
 		a.mu.Unlock()
+		_ = candidate.Close()
+		candidate = nil
+		if restoreErr := a.restoreClosedRuntime(previous, old, oldClosed); restoreErr != nil {
+			return "", errors.Join(err, restoreErr)
+		}
 		return "", err
 	}
-	old := a.client
-	a.client = candidate
+	a.active = candidate
 	a.settings = next
 	a.mu.Unlock()
 	connected = true
-	if old != nil {
+	if old != nil && !oldClosed {
 		_ = old.Close()
 	}
 	a.appendLog("info", "profile logged in: "+request.Profile.Name)
@@ -444,11 +571,17 @@ func (a *App) SwitchProfile(profileID string) error {
 		a.mu.Unlock()
 		return errors.New("profile not found")
 	}
-	candidate, err := a.credentials.Open(profile)
-	if err != nil {
+	if a.active != nil && a.active.profile.ID == profile.ID {
 		a.mu.Unlock()
+		return nil
+	}
+	old := a.active
+	a.mu.Unlock()
+	candidate, err := a.credentials.Open(profile, "")
+	if err != nil {
 		return err
 	}
+	a.mu.Lock()
 	next := a.settings
 	next.ActiveProfileID = profile.ID
 	if err := a.store.save(next); err != nil {
@@ -456,8 +589,7 @@ func (a *App) SwitchProfile(profileID string) error {
 		_ = candidate.Close()
 		return err
 	}
-	old := a.client
-	a.client = candidate
+	a.active = candidate
 	a.settings = next
 	a.mu.Unlock()
 	if old != nil {
@@ -480,8 +612,8 @@ func (a *App) DeactivateProfile() error {
 
 	a.mu.Lock()
 	if a.settings.ActiveProfileID == "" {
-		old := a.client
-		a.client = nil
+		old := a.active
+		a.active = nil
 		a.mu.Unlock()
 		if old != nil {
 			return old.Close()
@@ -494,8 +626,8 @@ func (a *App) DeactivateProfile() error {
 		a.mu.Unlock()
 		return fmt.Errorf("persist Profile deactivation: %w", err)
 	}
-	old := a.client
-	a.client = nil
+	old := a.active
+	a.active = nil
 	a.settings = next
 	a.mu.Unlock()
 
@@ -535,10 +667,10 @@ func (a *App) DeleteProfile(profileID, confirmation string) error {
 		a.mu.Unlock()
 		return err
 	}
-	var old *desktopbinding.Client
+	var old *profileRuntime
 	if active {
-		old = a.client
-		a.client = nil
+		old = a.active
+		a.active = nil
 	}
 	a.settings = next
 	a.mu.Unlock()
@@ -556,16 +688,17 @@ func (a *App) ResetStorage(confirm string) (string, error) {
 	a.lifecycleMu.Lock()
 	defer a.lifecycleMu.Unlock()
 	a.mu.Lock()
-	if a.client != nil {
-		_ = a.client.Close()
-		a.client = nil
-	}
+	old := a.active
+	a.active = nil
 	settings, err := a.store.reset(confirm)
 	if err == nil {
 		a.settings = settings
 	}
 	result, encodeErr := marshalJSON(a.settings)
 	a.mu.Unlock()
+	if old != nil {
+		_ = old.Close()
+	}
 	if err != nil {
 		return "", err
 	}
@@ -603,89 +736,88 @@ func (a *App) Connect() error {
 	defer a.lifecycleMu.Unlock()
 	a.mu.Lock()
 	profile, exists := findProfile(a.settings, a.settings.ActiveProfileID)
-	old := a.client
-	a.client = nil
+	current := a.active
 	a.mu.Unlock()
 	if !exists {
-		if old != nil {
-			a.mu.Lock()
-			a.client = old
-			a.mu.Unlock()
-		}
 		return errors.New("no active profile")
 	}
-	if old != nil {
-		_ = old.Close()
-	}
-	candidate, err := a.credentials.Open(profile)
-	if err != nil {
-		return err
-	}
-	a.mu.Lock()
-	current, currentExists := findProfile(a.settings, a.settings.ActiveProfileID)
-	if !currentExists || current.ID != profile.ID {
+	if current == nil {
+		var err error
+		current, err = a.credentials.Open(profile, "")
+		if err != nil {
+			return err
+		}
+		a.mu.Lock()
+		a.active = current
 		a.mu.Unlock()
-		_ = candidate.Close()
-		return errors.New("active profile changed while reconnecting")
 	}
-	a.client = candidate
-	a.mu.Unlock()
-	if err := connectClient(candidate, profile, "", false); err != nil {
+	if err := connectRuntime(current, "", false); err != nil {
+		if profileRuntimeTerminal(current) {
+			a.mu.Lock()
+			if a.active == current {
+				a.active = nil
+			}
+			a.mu.Unlock()
+			_ = current.Close()
+		}
 		return err
 	}
 	a.appendLog("info", "managed TCP connection started")
 	return nil
 }
 
-func connectClient(client *desktopbinding.Client, profile Profile, permitJSON string, allowTOFU bool) error {
-	if profile.EnrollmentMode == "authority" {
-		statusJSON, err := client.EnrollmentStatusJSON()
-		if err != nil {
-			return err
-		}
-		var status enrollmentStatus
-		if err := decodeStrictJSON([]byte(statusJSON), &status); err != nil {
-			return err
-		}
-		if status.Status != "enrolled" {
-			expectedParentID := int64(0)
-			if profile.ParentNodeID != "" {
-				expectedParentID, err = parsePositiveInt64(profile.ParentNodeID, "parent_node_id")
-				if err != nil {
-					return err
-				}
-			}
-			resultJSON, err := client.EnrollTCP(profile.Endpoint, permitJSON, allowTOFU, expectedParentID, profile.ParentPublicKey, profile.AuthorityPublicKey, defaultRequestTimeoutMS)
-			if err != nil {
-				return fmt.Errorf("enroll: %w", err)
-			}
-			var result protocol.EnrollmentResultV1
-			if err := decodeStrictJSON([]byte(resultJSON), &result); err != nil {
-				return err
-			}
-			if result.Status == "pending" {
-				return fmt.Errorf("%w: request %s is waiting for approval", auth.ErrEnrollmentPending, result.RequestID)
-			}
-		}
-		if err := client.StartEnrolledTCP(profile.Endpoint); err != nil {
-			return fmt.Errorf("connect enrolled parent: %w", err)
-		}
-		if err := client.WaitConnected(defaultRequestTimeoutMS); err != nil {
-			return fmt.Errorf("wait for enrolled connection: %w", err)
-		}
-		return nil
-	}
-	parentID, err := parsePositiveInt64(profile.ParentNodeID, "parent_node_id")
+func connectEnrollmentClient(client *desktopbinding.Client, profile Profile, permitJSON string, allowTOFU bool) error {
+	statusJSON, err := client.EnrollmentStatusJSON()
 	if err != nil {
 		return err
 	}
-	if err := client.TrustParent(parentID, profile.ParentPublicKey); err != nil {
-		return fmt.Errorf("trust parent: %w", err)
+	var status enrollmentStatus
+	if err := decodeStrictJSON([]byte(statusJSON), &status); err != nil {
+		return err
 	}
-	if err := client.StartTCP(profile.Endpoint, parentID, permitJSON); err != nil {
-		return fmt.Errorf("connect: %w", err)
+	if status.Status != "enrolled" {
+		expectedParentID := int64(0)
+		if profile.ParentNodeID != "" {
+			expectedParentID, err = parsePositiveInt64(profile.ParentNodeID, "parent_node_id")
+			if err != nil {
+				return err
+			}
+		}
+		resultJSON, err := client.EnrollTCP(profile.Endpoint, permitJSON, allowTOFU, expectedParentID, profile.ParentPublicKey, profile.AuthorityPublicKey, defaultRequestTimeoutMS)
+		if err != nil {
+			return fmt.Errorf("enroll: %w", err)
+		}
+		var result protocol.EnrollmentResultV1
+		if err := decodeStrictJSON([]byte(resultJSON), &result); err != nil {
+			return err
+		}
+		if result.Status == "pending" {
+			return fmt.Errorf("%w: request %s is waiting for approval", auth.ErrEnrollmentPending, result.RequestID)
+		}
+	}
+	if err := client.StartEnrolledTCP(profile.Endpoint); err != nil {
+		return fmt.Errorf("connect enrolled parent: %w", err)
 	}
 	if err := client.WaitConnected(defaultRequestTimeoutMS); err != nil {
+		return fmt.Errorf("wait for enrolled connection: %w", err)
+	}
+	return nil
+}
+
+func profileRuntimeTerminal(current *profileRuntime) bool {
+	if current == nil || current.host == nil {
+		return true
+	}
+	status := current.host.Status()
+	if status.Lifecycle == nodehost.LifecycleFailed || status.Lifecycle == nodehost.LifecycleStopped {
+		return true
+	}
+	parent, ok := current.host.Parent()
+	return ok && (parent.State == node.ConnectionFailed || parent.State == node.ConnectionStopped)
+}
+
+func connectRuntime(current *profileRuntime, permitJSON string, allowTOFU bool) error {
+	if err := current.connect(permitJSON, allowTOFU); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return connectionTimeoutGuidance(err, permitJSON)
 		}
@@ -726,20 +858,22 @@ func (a *App) Disconnect() error {
 	defer a.lifecycleMu.Unlock()
 	a.mu.Lock()
 	profile, exists := findProfile(a.settings, a.settings.ActiveProfileID)
-	old := a.client
-	a.client = nil
-	if exists {
-		client, err := a.credentials.Open(profile)
-		if err != nil {
-			a.client = old
-			a.mu.Unlock()
-			return err
-		}
-		a.client = client
-	}
+	old := a.active
+	a.active = nil
 	a.mu.Unlock()
 	if old != nil {
-		_ = old.Close()
+		if err := old.Close(); err != nil {
+			return err
+		}
+	}
+	if exists {
+		client, err := a.credentials.Open(profile, "")
+		if err != nil {
+			return err
+		}
+		a.mu.Lock()
+		a.active = client
+		a.mu.Unlock()
 	}
 	a.appendLog("info", "desktop connection stopped")
 	return nil
@@ -972,30 +1106,78 @@ func (a *App) Close() error {
 	a.lifecycleMu.Lock()
 	defer a.lifecycleMu.Unlock()
 	a.mu.Lock()
-	client := a.client
-	a.client = nil
+	current := a.active
+	a.active = nil
 	a.mu.Unlock()
-	if client == nil {
+	if current == nil {
 		return nil
 	}
-	return client.Close()
+	return current.Close()
 }
 
 func (a *App) currentClient() (*desktopbinding.Client, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.client == nil {
+	if a.active == nil || a.active.client == nil {
 		return nil, errors.New("desktop is signed out")
 	}
-	return a.client, nil
+	return a.active.client, nil
 }
 
 func (a *App) openProfileLocked(profile Profile) error {
-	client, err := a.credentials.Open(profile)
+	current, err := a.credentials.Open(profile, "")
 	if err != nil {
 		return err
 	}
-	a.client = client
+	a.active = current
+	return nil
+}
+
+// openCandidate preserves an existing runtime until the replacement Host has
+// been created. The one exception is a same-Profile replacement because a
+// state directory is exclusively owned by one Host; in that case failure is
+// rolled back by reopening the previous Profile runtime.
+func (a *App) openCandidate(profile Profile, permitJSON string, old *profileRuntime) (*profileRuntime, bool, error) {
+	oldClosed := old != nil && old.profile.ID == profile.ID
+	if oldClosed {
+		if err := old.Close(); err != nil {
+			return nil, false, fmt.Errorf("close previous desktop profile runtime: %w", err)
+		}
+		a.mu.Lock()
+		if a.active == old {
+			a.active = nil
+		}
+		a.mu.Unlock()
+	}
+	candidate, err := a.credentials.Open(profile, permitJSON)
+	if err == nil {
+		return candidate, oldClosed, nil
+	}
+	if !oldClosed {
+		return nil, false, err
+	}
+	restoreErr := a.restoreProfileRuntime(old.profile)
+	if restoreErr != nil {
+		return nil, true, errors.Join(err, restoreErr)
+	}
+	return nil, true, err
+}
+
+func (a *App) restoreClosedRuntime(_ Settings, old *profileRuntime, oldClosed bool) error {
+	if !oldClosed || old == nil {
+		return nil
+	}
+	return a.restoreProfileRuntime(old.profile)
+}
+
+func (a *App) restoreProfileRuntime(profile Profile) error {
+	restored, err := a.credentials.Open(profile, "")
+	if err != nil {
+		return fmt.Errorf("restore previous desktop profile runtime: %w", err)
+	}
+	a.mu.Lock()
+	a.active = restored
+	a.mu.Unlock()
 	return nil
 }
 

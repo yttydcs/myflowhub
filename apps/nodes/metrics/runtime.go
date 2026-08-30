@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/ed25519"
 	"errors"
-	"fmt"
 	"log/slog"
 	"sync"
 
+	"github.com/yttydcs/myflowhub/host/nodehost"
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/auth"
 	"github.com/yttydcs/myflowhub/runtime/link"
@@ -33,18 +33,38 @@ type RuntimeConfig struct {
 }
 
 type Runtime struct {
+	Host          *nodehost.Host
 	State         *auth.State
 	Node          *node.Node
 	SDK           *sdk.Client
-	Connection    *sdk.Connection
+	Connection    sdk.ConnectionStatus
 	Metrics       *Controller
 	Notifications *NotificationInbox
 
+	ctx       context.Context
 	cancel    context.CancelFunc
 	closeOnce sync.Once
 }
 
 func Start(ctx context.Context, config RuntimeConfig) (*Runtime, error) {
+	runtime, err := prepareRuntime(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+	if err := runtime.Host.Start(); err != nil {
+		return nil, errors.Join(err, runtime.Close())
+	}
+	notifications, err := startNotificationInbox(
+		runtime.ctx, runtime.SDK, runtime.Connection, config.ParentID, runtime.Metrics, config.NotificationCapacity,
+	)
+	if err != nil {
+		return nil, errors.Join(err, runtime.Close())
+	}
+	runtime.Notifications = notifications
+	return runtime, nil
+}
+
+func prepareRuntime(ctx context.Context, config RuntimeConfig) (*Runtime, error) {
 	if ctx == nil {
 		return nil, errors.New("metrics runtime context is required")
 	}
@@ -60,6 +80,9 @@ func Start(ctx context.Context, config RuntimeConfig) (*Runtime, error) {
 	if !validPlatform(config.Platform) {
 		return nil, errors.New("metrics runtime platform is invalid")
 	}
+	if err := validateNotificationCapacity(config.NotificationCapacity); err != nil {
+		return nil, err
+	}
 	if config.Driver == nil {
 		config.Driver = tcp.Driver{}
 	}
@@ -69,63 +92,41 @@ func Start(ctx context.Context, config RuntimeConfig) (*Runtime, error) {
 	if err := config.Endpoint.Validate(); err != nil {
 		return nil, err
 	}
-	state, err := auth.OpenState(config.StateDirectory, config.NodeID)
-	if err != nil {
-		return nil, err
-	}
-	if len(config.ParentKey) > 0 {
-		if len(config.ParentKey) != ed25519.PublicKeySize {
-			return nil, errors.New("metrics runtime parent key must be Ed25519")
-		}
-		if err := state.Trust.Add(config.ParentID, config.ParentKey); err != nil {
-			return nil, fmt.Errorf("trust metrics parent: %w", err)
-		}
-	}
-	if _, trusted := state.Trust.PublicKey(config.ParentID); !trusted {
-		return nil, errors.New("metrics runtime parent identity is not trusted")
-	}
 	runCtx, cancel := context.WithCancel(ctx)
-	runtime, err := node.New(runCtx, node.Config{
-		Identity: state.Identity, Trust: state.Trust, Policy: state.Policy, JoinPermit: config.Permit,
+	host, err := nodehost.New(runCtx, nodehost.Config{
+		StateDirectory: config.StateDirectory,
+		NodeID:         config.NodeID,
+		Parent: &nodehost.ParentConfig{
+			NodeID:     config.ParentID,
+			PublicKey:  append(ed25519.PublicKey(nil), config.ParentKey...),
+			Permit:     config.Permit,
+			Driver:     config.Driver,
+			Endpoint:   config.Endpoint,
+			Supervisor: config.Supervisor,
+		},
 	})
 	if err != nil {
 		cancel()
 		return nil, err
 	}
+	runtime := &Runtime{
+		Host: host, State: host.State(), Node: host.Node(), SDK: host.Client(),
+		ctx: runCtx, cancel: cancel,
+	}
 	controller, err := Register(ControllerConfig{
-		Node: runtime, Store: state.Store, Platform: config.Platform, Collector: config.Collector,
+		Node: host.Node(), Resources: host.Resources(), Store: host.State().Store, Platform: config.Platform, Collector: config.Collector,
 		Actuator: config.Actuator, Logger: config.Logger,
 	})
 	if err != nil {
-		_ = runtime.Close()
-		cancel()
-		return nil, err
+		return nil, errors.Join(err, runtime.Close())
 	}
-	client, err := sdk.NewClient(runtime)
-	if err != nil {
-		_ = controller.Close()
-		_ = runtime.Close()
-		cancel()
-		return nil, err
+	runtime.Metrics = controller
+	connection, ok := host.ParentStatus()
+	if !ok {
+		return nil, errors.Join(errors.New("metrics runtime parent status is unavailable"), runtime.Close())
 	}
-	connection, err := client.ConnectManaged(runCtx, config.Driver, config.Endpoint, config.ParentID, config.Supervisor)
-	if err != nil {
-		_ = controller.Close()
-		_ = client.Close()
-		cancel()
-		return nil, err
-	}
-	notifications, err := startNotificationInbox(runCtx, client, connection, config.ParentID, controller, config.NotificationCapacity)
-	if err != nil {
-		connection.Stop()
-		_ = controller.Close()
-		_ = client.Close()
-		cancel()
-		return nil, err
-	}
-	return &Runtime{
-		State: state, Node: runtime, SDK: client, Connection: connection, Metrics: controller, Notifications: notifications, cancel: cancel,
-	}, nil
+	runtime.Connection = connection
+	return runtime, nil
 }
 
 func (r *Runtime) Close() error {
@@ -137,19 +138,14 @@ func (r *Runtime) Close() error {
 		if r.Notifications != nil {
 			r.Notifications.Close()
 		}
-		if r.Connection != nil {
-			r.Connection.Stop()
+		if r.Metrics != nil {
+			closeErr = r.Metrics.Close()
 		}
 		if r.cancel != nil {
 			r.cancel()
 		}
-		if r.Metrics != nil {
-			closeErr = r.Metrics.Close()
-		}
-		if r.SDK != nil {
-			if err := r.SDK.Close(); err != nil && closeErr == nil {
-				closeErr = err
-			}
+		if r.Host != nil {
+			closeErr = errors.Join(closeErr, r.Host.Close())
 		}
 	})
 	return closeErr
