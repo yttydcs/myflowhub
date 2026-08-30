@@ -10,6 +10,7 @@
 - 部分 listener 启动失败时，已启动资源按逆序关闭并返回聚合后的可行动错误。
 - 准备完成前不得对外宣称 healthy 或接纳树边。
 - 修改持久 identity、admission 或 policy 的离线引导命令只能在组件停止时执行；运行中管理必须走已鉴权 Command，禁止两个进程并发写同一状态目录。
+- 新设备在 Authority Grant 原子保存前没有 Node ID；Enrollment 的重试与断线恢复遵循 [node-enrollment-and-admission-authority.md](node-enrollment-and-admission-authority.md)，不得在 supervisor 中本地补发身份。
 
 ## Run and supervision
 

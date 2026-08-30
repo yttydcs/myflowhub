@@ -18,6 +18,7 @@ import (
 )
 
 const protectedIdentityVersion = 1
+const protectedEnrollmentVersion = 1
 
 type protectedIdentityRecord struct {
 	Version    int                `json:"version"`
@@ -27,18 +28,61 @@ type protectedIdentityRecord struct {
 }
 
 type dpapiIdentityStore struct {
-	directory string
-	path      string
+	directory      string
+	path           string
+	enrollmentPath string
 }
 
-func newPlatformIdentityStore(directory string) (auth.IdentityStore, error) {
+func newPlatformIdentityStore(directory string) (platformCredentialBackend, error) {
 	if directory == "" {
 		return nil, errors.New("profile identity directory is required")
 	}
 	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("create profile identity directory: %w", err)
 	}
-	return &dpapiIdentityStore{directory: directory, path: filepath.Join(directory, "identity.dpapi")}, nil
+	return &dpapiIdentityStore{
+		directory: directory, path: filepath.Join(directory, "identity.dpapi"),
+		enrollmentPath: filepath.Join(directory, "enrollment.dpapi"),
+	}, nil
+}
+
+type protectedEnrollmentRecord struct {
+	Version    int                       `json:"version"`
+	Credential auth.EnrollmentCredential `json:"credential"`
+}
+
+func (s *dpapiIdentityStore) LoadEnrollmentCredential() (auth.EnrollmentCredential, bool, error) {
+	protected, err := os.ReadFile(s.enrollmentPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return auth.EnrollmentCredential{}, false, nil
+	}
+	if err != nil {
+		return auth.EnrollmentCredential{}, false, fmt.Errorf("read DPAPI Enrollment credential: %w", err)
+	}
+	plain, err := unprotectDPAPI(protected)
+	if err != nil {
+		return auth.EnrollmentCredential{}, false, fmt.Errorf("unprotect DPAPI Enrollment credential: %w", err)
+	}
+	var record protectedEnrollmentRecord
+	if err := decodeStrictJSON(plain, &record); err != nil {
+		return auth.EnrollmentCredential{}, false, fmt.Errorf("decode DPAPI Enrollment credential: %w", err)
+	}
+	if record.Version != protectedEnrollmentVersion {
+		return auth.EnrollmentCredential{}, false, fmt.Errorf("unsupported DPAPI Enrollment credential version %d", record.Version)
+	}
+	return record.Credential, true, nil
+}
+
+func (s *dpapiIdentityStore) SaveEnrollmentCredential(credential auth.EnrollmentCredential) error {
+	plain, err := json.Marshal(protectedEnrollmentRecord{Version: protectedEnrollmentVersion, Credential: credential})
+	if err != nil {
+		return fmt.Errorf("encode DPAPI Enrollment credential: %w", err)
+	}
+	protected, err := protectDPAPI(plain)
+	if err != nil {
+		return fmt.Errorf("protect DPAPI Enrollment credential: %w", err)
+	}
+	return writeAtomicDesktop(s.directory, s.enrollmentPath, protected)
 }
 
 func platformCredentialMode() string { return "windows-dpapi-user" }

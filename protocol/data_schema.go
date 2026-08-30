@@ -179,6 +179,25 @@ type dataSchemaType struct {
 func BuiltinDataSchemas() ([]DataSchemaDefinition, error) {
 	types := []dataSchemaType{
 		{SchemaResourceCatalogV2, "Resource catalog", reflect.TypeOf(ResourceCatalogV2{})},
+		{SchemaAdmissionStatusV1, "Admission status", reflect.TypeOf(AdmissionStatusV1{})},
+		{SchemaAdmissionListV1, "List admission records", reflect.TypeOf(AdmissionListV1{})},
+		{SchemaAdmissionIssuePermitV1, "Issue admission permit", reflect.TypeOf(AdmissionIssuePermitV1{})},
+		{SchemaAdmissionRevokePermitV1, "Revoke admission permit", reflect.TypeOf(AdmissionRevokePermitV1{})},
+		{SchemaAdmissionDecisionV1, "Decide admission request", reflect.TypeOf(AdmissionDecisionV1{})},
+		{SchemaAdmissionRevokeEnrollmentV1, "Revoke enrollment", reflect.TypeOf(AdmissionRevokeEnrollmentV1{})},
+		{SchemaAdmissionSubmitV1, "Submit admission request", reflect.TypeOf(AdmissionSubmitV1{})},
+		{SchemaAdmissionPermitRecordV1, "Admission permit", reflect.TypeOf(AdmissionPermitRecordV1{})},
+		{SchemaAdmissionRequestRecordV1, "Admission request", reflect.TypeOf(AdmissionRequestRecordV1{})},
+		{SchemaAdmissionEnrollmentRecordV1, "Admission enrollment", reflect.TypeOf(AdmissionEnrollmentRecordV1{})},
+		{SchemaAdmissionPermitListV1, "Admission permits", reflect.TypeOf(AdmissionPermitListV1{})},
+		{SchemaAdmissionRequestListV1, "Admission requests", reflect.TypeOf(AdmissionRequestListV1{})},
+		{SchemaAdmissionEnrollmentListV1, "Admission enrollments", reflect.TypeOf(AdmissionEnrollmentListV1{})},
+		{SchemaEnrollmentClientInitV1, "Enrollment client initialization", reflect.TypeOf(EnrollmentClientInitV1{})},
+		{SchemaEnrollmentChallengeV1, "Enrollment challenge", reflect.TypeOf(EnrollmentChallengeV1{})},
+		{SchemaEnrollmentProofV1, "Enrollment proof", reflect.TypeOf(EnrollmentProofV1{})},
+		{SchemaEnrollmentPermitV1, "Enrollment permit", reflect.TypeOf(EnrollmentPermitV1{})},
+		{SchemaEnrollmentGrantV1, "Enrollment grant", reflect.TypeOf(EnrollmentGrantV1{})},
+		{SchemaEnrollmentResultV1, "Enrollment result", reflect.TypeOf(EnrollmentResultV1{})},
 		{SchemaFileOfferV1, "File offer", reflect.TypeOf(FileOfferV1{})},
 		{SchemaFileChunkV1, "File chunk", reflect.TypeOf(FileChunkV1{})},
 		{SchemaFileCompleteV1, "File completion", reflect.TypeOf(FileCompleteV1{})},
@@ -318,10 +337,25 @@ func annotateBuiltinDataSchema(schema *DataSchemaDefinition) {
 	for _, path := range []string{"version"} {
 		setDataSchemaMinimum(schema, path, 1)
 	}
-	for _, path := range []string{"revision", "expected_revision", "epoch", "generation"} {
+	for _, path := range []string{"revision", "expected_revision", "epoch", "generation", "authority_epoch"} {
 		setDataSchemaMinimum(schema, path, 1)
 	}
 	switch schema.ID {
+	case SchemaAdmissionStatusV1:
+		for _, path := range []string{"permits", "pending_requests", "enrollments", "revocations"} {
+			setDataSchemaMinimum(schema, path, 0)
+		}
+	case SchemaAdmissionListV1:
+		setDataSchemaMinimum(schema, "limit", 0)
+		setDataSchemaMaximum(schema, "limit", MaxItems)
+	case SchemaAdmissionPermitRecordV1:
+		setDataSchemaEnum(schema, "status", "active", "consumed", "expired", "revoked")
+	case SchemaAdmissionRequestRecordV1:
+		setDataSchemaEnum(schema, "status", "approved", "expired", "pending", "rejected")
+	case SchemaAdmissionEnrollmentRecordV1:
+		setDataSchemaEnum(schema, "status", "active", "revoked")
+	case SchemaEnrollmentResultV1:
+		setDataSchemaEnum(schema, "status", "error", "granted", "pending", "rejected")
 	case SchemaFileProgressV1:
 		setDataSchemaEnum(schema, "state", "cancelled", "completed", "failed", "offered", "receiving")
 	case SchemaManagementHealthV1:
@@ -332,7 +366,7 @@ func annotateBuiltinDataSchema(schema *DataSchemaDefinition) {
 		setDataSchemaEnum(schema, "status", "ok")
 	case SchemaNotificationEventV1, SchemaNotificationPublishV1:
 		setDataSchemaMaxLength(schema, "body", MaxNotificationBodyBytes)
-	case SchemaManagementAdmitV1:
+	case SchemaManagementAdmitV1, SchemaAdmissionSubmitV1, SchemaEnrollmentClientInitV1:
 		setDataSchemaSensitive(schema, "permit")
 	case SchemaVariableWriteV2:
 		setDataSchemaFormat(schema, "value", "json-base64")
@@ -360,6 +394,12 @@ func dataSchemaAtPath(schema *DataSchemaDefinition, path string) *DataSchemaDefi
 func setDataSchemaMinimum(schema *DataSchemaDefinition, path string, value float64) {
 	if field := dataSchemaAtPath(schema, path); field != nil {
 		field.Minimum = &value
+	}
+}
+
+func setDataSchemaMaximum(schema *DataSchemaDefinition, path string, value float64) {
+	if field := dataSchemaAtPath(schema, path); field != nil {
+		field.Maximum = &value
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 
 	"github.com/yttydcs/myflowhub/host/hub"
 	"github.com/yttydcs/myflowhub/protocol"
+	"github.com/yttydcs/myflowhub/runtime/auth"
 	"github.com/yttydcs/myflowhub/transport/tcp"
 )
 
@@ -154,6 +155,97 @@ func TestPrepareProfileCreatesStableInactivePublicIdentity(t *testing.T) {
 	}
 	if second.Identity != first.Identity {
 		t.Fatalf("prepared identity changed: first=%+v second=%+v", first.Identity, second.Identity)
+	}
+}
+
+func TestAuthorityProfileEnrollsWithoutClientAssignedNodeOrParentKey(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	root, err := hub.StartPersistent(ctx, hub.PersistentConfig{
+		StateDirectory: t.TempDir(), NodeID: 1,
+		Listeners: []hub.ListenerConfig{{Driver: tcp.Driver{}, Endpoint: "127.0.0.1:0"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	desktopRoot := t.TempDir()
+	app, err := NewApp(desktopRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile := Profile{
+		ID: "authority-device", Name: "Authority Device", EnrollmentMode: "authority",
+		Endpoint: string(root.Endpoint), AutoConnect: true,
+	}
+	profileJSON, _ := json.Marshal(profile)
+	preparedJSON, err := app.PrepareProfileJSON(string(profileJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var prepared preparedProfile
+	if err := json.Unmarshal([]byte(preparedJSON), &prepared); err != nil {
+		t.Fatal(err)
+	}
+	if prepared.Identity.NodeID != "" || prepared.Identity.PublicKey == "" {
+		t.Fatalf("unregistered identity unexpectedly had a Node ID: %+v", prepared.Identity)
+	}
+	deviceKey, err := base64.RawStdEncoding.DecodeString(prepared.Identity.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	permit, err := root.EnrollmentAuthority.IssuePermit(
+		"00112233445566778899aabbccddeeff",
+		auth.DevicePublicKeyFingerprint(ed25519.PublicKey(deviceKey)),
+		root.Runtime.Identity.NodeID, false, "desktop", time.Minute,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	permitJSON, err := protocol.EncodeJSONPayload(&permit, protocol.EnrollmentMaxPayload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestJSON, _ := json.Marshal(LoginRequest{Profile: profile, PermitJSON: string(permitJSON)})
+	savedJSON, err := app.LoginJSON(string(requestJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Profile
+	if err := json.Unmarshal([]byte(savedJSON), &saved); err != nil {
+		t.Fatal(err)
+	}
+	if saved.NodeID == "" || saved.ParentNodeID != "1" || saved.ParentPublicKey == "" || saved.AuthorityNodeID != "1" || saved.AuthorityPublicKey == "" {
+		t.Fatalf("Authority binding was not hydrated into the Profile: %+v", saved)
+	}
+	if status, err := app.StatusJSON(); err != nil || !strings.Contains(status, `"state":"connected"`) {
+		t.Fatalf("Authority-enrolled Profile did not enter ordinary Join: %v (%s)", err, status)
+	}
+	settingsData, err := os.ReadFile(filepath.Join(desktopRoot, "settings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	logsJSON, err := app.LogsJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{permit.PermitID, permit.Signature} {
+		if strings.Contains(string(settingsData), secret) || strings.Contains(logsJSON, secret) {
+			t.Fatal("Enrollment Permit material was persisted in settings or logs")
+		}
+	}
+	if err := app.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := NewApp(desktopRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	if err := reopened.Connect(); err != nil {
+		t.Fatalf("persisted Authority Grant did not reconnect without another enrollment: %v", err)
 	}
 }
 

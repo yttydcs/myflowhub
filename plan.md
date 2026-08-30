@@ -531,7 +531,8 @@ DOC01 -> SCHEMA01 -> RENDER01 -> VALUE01 --+
 ## Execute - Implementation Result
 
 - Completed: `DOC01`, `SCHEMA01`, `RENDER01`, `VALUE01`, `OP01`, `LIVE01`, `VIEW01`.
-- Completed before heavy validation: focused Go tests, 75 frontend tests, TypeScript/Vite production frontend build, deterministic regeneration, Wails binding generation, and `git diff --check`.
+- Completed before heavy validation: focused Go tests, 81 frontend tests, TypeScript/Vite production frontend build, deterministic regeneration, Wails binding generation, and `git diff --check`.
+- Mainline integration: merged `master` @ `67bf3c3` before closeout and extended the canonical generated schema set for its centralized admission/enrollment payloads; provider-owned constraints and sensitive input annotations remain enforced by the same generation/freshness gates.
 - File boundary: native picker and blocking upload state are implemented. The current upload binding exposes no transfer handle, so per-transfer cancel and byte progress are not fabricated; owner-reported `file/progress` and `file/transfers` remain available as independent Widgets.
 - Security boundary: remotely executable renderers remain excluded; phase-1 renderer settings allowlist is empty; sensitive write-only fields render as password inputs and are never displayed as output.
 - Parallelism result: no implementation sub-agent was used because schema, registry, renderer, Workspace, styles, and generated artifacts formed overlapping write sets and the user invoked `$m-execute`, not delegated `$m-go`.
@@ -540,10 +541,11 @@ DOC01 -> SCHEMA01 -> RENDER01 -> VALUE01 --+
 
 - `GOWORK=off go test ./... -count=1`: all repository packages and integration tests passed.
 - `GOWORK=off .\scripts\mfh.ps1 -Action check -Target generated`: deterministic protocol/Desktop bindings remained fresh and the worktree stayed clean.
-- `npm test`: 12 files / 75 tests passed, including numeric bounds/step, renderer registry/fallback, command form, 10k Resource-tree budget, View persistence, nested layout, and WAI-ARIA navigation.
+- `npm test`: 13 files / 81 tests passed, including numeric bounds/step, renderer registry/fallback, command form, centralized admission UI, 10k Resource-tree budget, View persistence, nested layout, and WAI-ARIA navigation.
 - `npm run build`: TypeScript and Vite production build passed.
 - `wails build -clean -trimpath -platform windows/amd64 -o mfh-desktop.exe`: Windows production executable built successfully.
 - Real packaged Wails acceptance used an isolated default-deny Hub at `127.0.0.1:7443` and isolated Desktop config. The Profile completed one-use admission, loaded 2 Nodes / 24 root resources, and showed persistent `已连接` state.
+- After merging current `master`, a second packaged smoke used a fresh centralized Admission Authority state: the prepared device completed Enrollment Permit registration, received its Authority-assigned Node ID, restored the saved two-pane View, showed persistent `已连接`, and surfaced the intentionally ungranted topology read as explicit `Forbidden`.
 - Actual UI operations passed: `system/health` specialized display, switch to Raw JSON and back, `flow/create` schema-generated numeric/text/object/array controls, dynamic array rows, explicit invoke, actionable provider validation error, horizontal ratio drag, View save, restart restore, and light/dark themes.
 - Persisted View v3 retained renderer IDs and the dragged split weights `0.6484375 / 0.3515625`; operation draft and error state were not persisted.
 - Security inspection found no Permit, signature, or private key in settings/View JSON. The DPAPI identity remained protected, renderer settings stayed empty, and remotely executable UI remained excluded.

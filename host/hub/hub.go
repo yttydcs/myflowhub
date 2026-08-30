@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -14,6 +15,8 @@ import (
 	"github.com/yttydcs/myflowhub/feature/notification"
 	hostconfig "github.com/yttydcs/myflowhub/host/config"
 	"github.com/yttydcs/myflowhub/protocol"
+	"github.com/yttydcs/myflowhub/runtime/auth"
+	"github.com/yttydcs/myflowhub/runtime/enrollment"
 	"github.com/yttydcs/myflowhub/runtime/link"
 	"github.com/yttydcs/myflowhub/runtime/node"
 )
@@ -31,25 +34,28 @@ type Config struct {
 }
 
 type PersistentConfig struct {
-	StateDirectory  string
-	NodeID          protocol.NodeID
-	Node            node.Config
-	Listeners       []ListenerConfig
-	RefreshInterval time.Duration
-	FileRoot        string
-	File            filefeature.Config
-	Flow            flowfeature.Config
+	StateDirectory              string
+	NodeID                      protocol.NodeID
+	Node                        node.Config
+	Listeners                   []ListenerConfig
+	RefreshInterval             time.Duration
+	FileRoot                    string
+	File                        filefeature.Config
+	Flow                        flowfeature.Config
+	AdmissionAuthorityNodeID    protocol.NodeID
+	AdmissionAuthorityPublicKey ed25519.PublicKey
 }
 
 type Hub struct {
-	Node         *node.Node
-	Endpoint     link.Endpoint
-	Endpoints    []link.Endpoint
-	Runtime      *hostconfig.Runtime
-	Management   *management.Controller
-	Notification *notification.Controller
-	File         *filefeature.Controller
-	Flow         *flowfeature.Controller
+	Node                *node.Node
+	Endpoint            link.Endpoint
+	Endpoints           []link.Endpoint
+	Runtime             *hostconfig.Runtime
+	Management          *management.Controller
+	Notification        *notification.Controller
+	File                *filefeature.Controller
+	Flow                *flowfeature.Controller
+	EnrollmentAuthority *auth.EnrollmentAuthority
 
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
@@ -99,17 +105,58 @@ func StartPersistent(ctx context.Context, config PersistentConfig) (*Hub, error)
 		return nil, err
 	}
 	audit := management.NewAuditLog(nil, 256)
+	var runtimeRef *node.Node
+	var authority *auth.EnrollmentAuthority
+	var broker enrollment.Broker
+	var remoteBroker *enrollment.RemoteBroker
+	authorityNodeID := config.AdmissionAuthorityNodeID
+	if authorityNodeID == 0 || authorityNodeID == state.Identity.NodeID {
+		authority, err = auth.LoadEnrollmentAuthority(state.Identity, state.Store, auth.EnrollmentAuthorityConfig{
+			IsTargetDescendant: func(target, candidate protocol.NodeID) bool {
+				return runtimeRef != nil && isDescendant(runtimeRef, target, candidate)
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		authorityNodeID = state.Identity.NodeID
+		broker = enrollment.LocalBroker{Authority: authority}
+	} else {
+		if err := authorityNodeID.Validate(); err != nil {
+			return nil, fmt.Errorf("Admission Authority Node ID: %w", err)
+		}
+		if len(config.AdmissionAuthorityPublicKey) != ed25519.PublicKeySize {
+			return nil, errors.New("remote Admission Authority requires an Ed25519 public key")
+		}
+		remoteBroker = &enrollment.RemoteBroker{
+			AuthorityNodeID: authorityNodeID, AuthorityPublicKey: append(ed25519.PublicKey(nil), config.AdmissionAuthorityPublicKey...),
+		}
+		broker = remoteBroker
+	}
+	enrollmentServer, err := enrollment.NewServer(enrollment.ServerConfig{
+		Parent: state.Identity, Trust: state.Trust, Broker: broker,
+	})
+	if err != nil {
+		return nil, err
+	}
 	nodeConfig := config.Node
 	nodeConfig.Identity = state.Identity
 	nodeConfig.Trust = state.Trust
 	nodeConfig.Admission = state.Admission
 	nodeConfig.Policy = management.AuditPolicy(state.Policy, audit)
+	if nodeConfig.Enrollment == nil {
+		nodeConfig.Enrollment = enrollmentServer
+	}
 	runtime, err := node.New(ctx, nodeConfig)
 	if err != nil {
 		return nil, err
 	}
+	runtimeRef = runtime
+	if remoteBroker != nil {
+		remoteBroker.Node = runtime
+	}
 	controller, err := management.Register(management.Config{
-		Node: runtime, Admission: state.Admission, Trust: state.Trust, Policy: state.Policy,
+		Node: runtime, Admission: state.Admission, EnrollmentAuthority: authority, AuthorityNodeID: authorityNodeID, Trust: state.Trust, Policy: state.Policy,
 		Settings: state.Settings, RevokeNode: state.RevokeNode, Audit: audit,
 	})
 	if err != nil {
@@ -163,7 +210,7 @@ func StartPersistent(ctx context.Context, config PersistentConfig) (*Hub, error)
 	refreshCtx, cancel := context.WithCancel(ctx)
 	hub := &Hub{
 		Node: runtime, Endpoint: endpoints[0], Endpoints: endpoints, Runtime: state, Management: controller,
-		Notification: notificationController, File: fileController, Flow: flowController, cancel: cancel,
+		Notification: notificationController, File: fileController, Flow: flowController, EnrollmentAuthority: authority, cancel: cancel,
 	}
 	hub.wg.Add(1)
 	go func() {
@@ -182,6 +229,27 @@ func StartPersistent(ctx context.Context, config PersistentConfig) (*Hub, error)
 		}
 	}()
 	return hub, nil
+}
+
+func isDescendant(runtime *node.Node, target, candidate protocol.NodeID) bool {
+	if target == candidate {
+		return true
+	}
+	parents := make(map[protocol.NodeID]protocol.NodeID)
+	for _, relation := range runtime.Tree().Relations() {
+		parents[relation.Node] = relation.Parent
+	}
+	visited := make(map[protocol.NodeID]struct{})
+	for current := candidate; current != 0; current = parents[current] {
+		if current == target {
+			return true
+		}
+		if _, exists := visited[current]; exists {
+			return false
+		}
+		visited[current] = struct{}{}
+	}
+	return false
 }
 
 func (h *Hub) Close() error {

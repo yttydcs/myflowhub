@@ -25,6 +25,7 @@ Desktop 原先主要以 JSON textarea/pre 展示 Variable、Command、Stream、F
 ## 具体变更内容
 
 - 在 `protocol` 增加 provider-owned、受限且确定性的第一方 data schema 定义；现有 Go payload `Validate` 仍是运行时最终权威。
+- 归档前同步主线集中式节点准入实现，并把新增 admission/enrollment payload 纳入同一 canonical schema 生成与 freshness gate，避免主线协议扩展绕过 Desktop 表单契约。
 - 扩展 bindings 生成链，输出 Desktop 使用的 schema artifact，并加入覆盖、排序、边界、确定性与 freshness 检查。
 - 新增纯前端 `SchemaResolver` 与 `RendererRegistry`，按 schema ID、数据形状、能力和尺寸筛选/排序显示方式；未知或不兼容 schema 明确退回结构化/Raw JSON。
 - Variable 支持 boolean、enum、number/integer、string、object、array 等结构化显示与编辑；数值控件遵守 provider 的 min/max/step，写入采用显式草稿与 Apply/Reset。
@@ -60,10 +61,11 @@ Desktop 原先主要以 JSON textarea/pre 展示 Variable、Command、Stream、F
 
 - `GOWORK=off go test ./... -count=1`: 全仓 package 与 integration tests 通过。
 - `GOWORK=off .\scripts\mfh.ps1 -Action check -Target generated`: generated output fresh，工作树无漂移。
-- `npm test`: 12 个文件、75 个测试通过；包含 numeric bounds/step、registry/fallback、operation form、10k Resource tree 性能预算、View/layout 与 WAI-ARIA 行为。
+- `npm test`: 13 个文件、81 个测试通过；包含 numeric bounds/step、registry/fallback、operation form、集中式准入 UI、10k Resource tree 性能预算、View/layout 与 WAI-ARIA 行为。
 - `npm run build`: TypeScript 与 Vite production build 通过。
 - `wails build -clean -trimpath -platform windows/amd64 -o mfh-desktop.exe`: Windows production build 通过，产物约 11.9 MB。
 - 真实 Wails：隔离 default-deny Hub `127.0.0.1:7443` 完成 one-use admission，加载 2 Nodes / 24 root resources；验证健康状态专用显示、Raw JSON 往返切换、`flow/create` 结构化表单、数组动态项、显式 invoke/错误、比例拖拽、View 保存、重启恢复及完整浅/深主题。
+- 合并最新主线后再次用全新集中式 Admission Authority 状态验证打包程序：设备通过 Enrollment Permit 注册、获得 Authority 分配的 Node ID、恢复两面板 View 并显示 `已连接`；未授予的 topology read 以明确 `Forbidden` 呈现。
 - View v3 实际保存 `mfh.structured.health.v1`、`mfh.command` 与 split weights `0.6484375 / 0.3515625`；重启恢复两组件与比例，未持久化操作草稿/错误。
 - 安全检查：settings/View/state JSON 中没有 Permit、signature 或 private key；身份文件保持 Windows DPAPI 保护。
 - 截图证据：[浅色主题与重启恢复](verification/2026-08-30_desktop-schema-widgets-light.png)、[深色主题与嵌套 operation 表单](verification/2026-08-30_desktop-schema-widgets-dark.png)。

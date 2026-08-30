@@ -73,6 +73,8 @@ Variable 订阅默认可包含初始快照及后续变化；Stream 订阅默认�
 
 ## Authority and Routing Invariants
 
+首次注册中的 Admission Authority 是本节运行期 authority 的专用控制面：它统一签发 Node ID、Permit 和 Grant，但不取代直接父节点的链路控制，也不改变 Resource 请求沿权威树路由的规则。具体边界见 [Node Enrollment 与 Admission Authority](node-enrollment-and-admission-authority.md)。
+
 1. 已认证的直接父子 LinkSession 是节点树的边，也是运行期权限边和直接路由边。
 2. 父节点对其子树具有控制权；子节点只信任当前父节点下发的显式控制阶段消息。
 3. `parent-origin` 只证明消息入口方向，不能单独证明消息已经完成裁决。

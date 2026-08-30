@@ -20,12 +20,17 @@ Hub 是权威节点树的根或中继宿主，负责持久身份、子节点准�
 
 ## 首次引导
 
-Hub 不预置超级用户，也不会为了方便而关闭默认拒绝。首次接入按以下顺序完成：
+新版本首次准入以 [Node Enrollment 与 Admission Authority](../specs/node-enrollment-and-admission-authority.md) 为准：设备注册前只有密钥指纹，没有 Node ID；可使用 Authority 签发的 Permit 直接注册，或在父节点验证 proof 后进入 Pending 审批。下面的显式 Node ID 与旧 Permit 命令在迁移期继续作为兼容流程。
+
+Hub 不预置超级用户，也不会为了方便而关闭默认拒绝。新的 Authority 注册按以下顺序完成：
 
 1. 保持 Hub 停止，使用 `mfh-hub -identity` 读取持久 NodeID 与 raw-base64 Ed25519 公钥；
-2. 为子节点身份使用 `-issue-node-id`、`-issue-public-key`、`-issue-role` 签发短期、一次性 permit；
-3. 使用 `-policy grant` 为该主体授予最小的 `subscribe` / `invoke` 资源集合；
-4. 启动 Hub，之后优先通过已鉴权的 `system/admission/issue`、`system/admission/revoke`、`system/policy/grant`、`system/policy/revoke` Commands 管理。
+2. 子设备运行 `mfh-admin -op identity` 准备设备公钥但不生成 Node ID；Authority Hub 可用 `-issue-public-key`、`-issue-target-id`、`-issue-role` 签发绑定设备指纹和目标父节点的短期 Permit，也可让设备无 Permit 连接后进入 Pending；
+3. 设备运行 `mfh-admin -op enroll`，Permit 路径直接获得 Grant，Pending 路径等待集中审批后用同一命令重试；
+4. Grant 持久化后再使用 `-op snapshot` / `-op invoke`，系统根据已分配 Node ID 走普通 Join；对 `system/admission/*` 的命令默认路由到已绑定的 Authority，也可用 `-owner-id` 显式指定资源 owner；
+5. 使用 `system/policy/grant` 为已分配主体授予最小的 `subscribe` / `invoke` 资源集合。旧 `-issue-node-id` 只保留给 Legacy Join。
+
+中继 Hub 使用 `-admission-authority-id` 和 `-admission-authority-key` 固定同一个远端 Authority；父节点必须在 Authority 上获得 `system/admission/submit-enrollment` 的 `invoke` 权限，Authority 也必须在该父节点上获得 `system/admission/apply-revocation` 的 `invoke` 权限。Authority 不可达时，新注册明确失败，已有 Grant 的节点仍使用父节点缓存的直接信任重连。
 
 离线命令直接原子更新同一持久状态，必须在 Hub 停止时运行；它不是绕过在线权限的并发旁路。示例见仓库 `README.md` 与 `scripts/run-dev.ps1 -DryRun` 输出。
 

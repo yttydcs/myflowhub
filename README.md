@@ -39,12 +39,13 @@ The accepted architecture is indexed from [docs/README.md](docs/README.md), and 
 
 The script launches only canonical `cmd/mfh-hub`, `apps/desktop`, and `apps/nodes/metrics/windows` targets with `GOWORK=off`. It stores development state and logs below `.tmp/dev-state` unless `-StateRoot` is supplied. Background windows are hidden by default; use `-VisibleWindows` when an interactive console is useful.
 
-Hub authorization is default-deny. Stop the Hub before offline bootstrap, then inspect its durable identity, issue a one-use child permit, and grant only the required resources:
+Hub authorization is default-deny. A new device first prepares a durable key without a Node ID. Stop the Authority Hub before offline Permit issuance, then enroll through the target parent; the Authority returns the Node ID in its Grant:
 
 ```powershell
 go run ./cmd/mfh-hub -state .tmp/dev-state/hub -identity
-go run ./cmd/mfh-hub -state .tmp/dev-state/hub -issue-node-id 2 -issue-public-key '<raw-base64-ed25519-key>' -issue-role device
-go run ./cmd/mfh-hub -state .tmp/dev-state/hub -policy grant -subject 2 -action subscribe -resource-node 1 -resource system/health
+go run ./cmd/mfh-admin -state .tmp/dev-state/device -op identity
+go run ./cmd/mfh-hub -state .tmp/dev-state/hub -issue-public-key '<device-raw-base64-ed25519-key>' -issue-target-id 1 -issue-role device > .tmp/device-permit.json
+go run ./cmd/mfh-admin -state .tmp/dev-state/device -endpoint 127.0.0.1:7331 -op enroll -permit .tmp/device-permit.json
 ```
 
-The same policy rule can be removed by replacing `grant` with `revoke`. Online administration uses the authenticated management Commands documented in [docs/features/hub.md](docs/features/hub.md); offline mutation must never run concurrently with the Hub.
+After enrollment, grant only the required resources to the assigned Node ID with `-policy grant`; the rule can be removed with `revoke`. `-issue-node-id` remains available only for Legacy Join. Online administration uses the authenticated management Commands documented in [docs/features/hub.md](docs/features/hub.md); offline mutation must never run concurrently with the Hub.

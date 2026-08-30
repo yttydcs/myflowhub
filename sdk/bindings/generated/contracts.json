@@ -5,10 +5,13 @@
     "CancelSubscription",
     "CatalogJSON",
     "Close",
+    "EnrollTCP",
+    "EnrollmentStatusJSON",
     "IdentityJSON",
     "InvokeJSON",
     "OperateJSON",
     "SnapshotJSON",
+    "StartEnrolledTCP",
     "StartRFCOMM",
     "StartTCP",
     "StatusJSON",
@@ -22,13 +25,17 @@
     "CancelSubscription",
     "CatalogJSON",
     "Close",
+    "EnrollTCP",
+    "EnrollmentStatusJSON",
     "IdentityJSON",
     "InvokeJSON",
     "Open",
+    "OpenEnrollment",
     "OperateJSON",
     "PollSubscription",
     "SelectUploadFile",
     "SnapshotJSON",
+    "StartEnrolledTCP",
     "StartTCP",
     "StatusJSON",
     "Subscribe",
@@ -188,13 +195,68 @@
       ]
     },
     {
+      "name": "system/admission/approve",
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.admission.decision.v1",
+          "output_schema": "mfh.enrollment.grant.v1"
+        }
+      ]
+    },
+    {
       "name": "system/admission/issue",
       "type": "mfh.command",
       "capabilities": [
         {
           "name": "invoke",
-          "input_schema": "mfh.management.issue-permit.v1",
-          "output_schema": "mfh.provisioning.permit.v1"
+          "input_schema": "mfh.admission.issue-permit.v1",
+          "output_schema": "mfh.enrollment.permit.v1"
+        }
+      ]
+    },
+    {
+      "name": "system/admission/list-enrollments",
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.admission.list.v1",
+          "output_schema": "mfh.admission.enrollment-list.v1"
+        }
+      ]
+    },
+    {
+      "name": "system/admission/list-permits",
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.admission.list.v1",
+          "output_schema": "mfh.admission.permit-list.v1"
+        }
+      ]
+    },
+    {
+      "name": "system/admission/list-requests",
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.admission.list.v1",
+          "output_schema": "mfh.admission.request-list.v1"
+        }
+      ]
+    },
+    {
+      "name": "system/admission/reject",
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.admission.decision.v1",
+          "output_schema": "mfh.management.result.v1"
         }
       ]
     },
@@ -206,6 +268,42 @@
           "name": "invoke",
           "input_schema": "mfh.management.revoke-permit.v1",
           "output_schema": "mfh.management.result.v1"
+        }
+      ]
+    },
+    {
+      "name": "system/admission/revoke-enrollment",
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.admission.revoke-enrollment.v1",
+          "output_schema": "mfh.management.result.v1"
+        }
+      ]
+    },
+    {
+      "name": "system/admission/revoke-permit",
+      "type": "mfh.command",
+      "capabilities": [
+        {
+          "name": "invoke",
+          "input_schema": "mfh.admission.revoke-permit.v1",
+          "output_schema": "mfh.management.result.v1"
+        }
+      ]
+    },
+    {
+      "name": "system/admission/status",
+      "type": "mfh.variable",
+      "capabilities": [
+        {
+          "name": "read",
+          "output_schema": "mfh.admission.status.v1"
+        },
+        {
+          "name": "subscribe",
+          "event_schema": "mfh.admission.status.v1"
         }
       ]
     },

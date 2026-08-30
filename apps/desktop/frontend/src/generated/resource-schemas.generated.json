@@ -2,6 +2,1041 @@
   "version": 1,
   "schemas": [
     {
+      "id": "mfh.admission.decision.v1",
+      "type": "object",
+      "title": "Decide admission request",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        {
+          "name": "enrollment_request_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Enrollment Request Id"
+          }
+        },
+        {
+          "name": "admission_profile",
+          "schema": {
+            "type": "string",
+            "title": "Admission Profile"
+          }
+        },
+        {
+          "name": "reason",
+          "schema": {
+            "type": "string",
+            "title": "Reason"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.admission.enrollment-list.v1",
+      "type": "object",
+      "title": "Admission enrollments",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "authority_epoch",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Authority Epoch",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "items",
+          "required": true,
+          "schema": {
+            "type": "array",
+            "title": "Items",
+            "max_items": 4096,
+            "items": {
+              "type": "object",
+              "properties": [
+                {
+                  "name": "version",
+                  "required": true,
+                  "schema": {
+                    "type": "integer",
+                    "title": "Version",
+                    "multiple_of": 1
+                  }
+                },
+                {
+                  "name": "enrollment_id",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Enrollment Id"
+                  }
+                },
+                {
+                  "name": "node_id",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Node Id"
+                  }
+                },
+                {
+                  "name": "device_public_key_fingerprint",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Device Public Key Fingerprint"
+                  }
+                },
+                {
+                  "name": "parent_node_id",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Parent Node Id"
+                  }
+                },
+                {
+                  "name": "admission_profile",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Admission Profile"
+                  }
+                },
+                {
+                  "name": "created_at_unix_ms",
+                  "required": true,
+                  "schema": {
+                    "type": "integer",
+                    "title": "Created At Unix Ms",
+                    "format": "unix-ms",
+                    "multiple_of": 1
+                  }
+                },
+                {
+                  "name": "status",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Status"
+                  }
+                },
+                {
+                  "name": "revoked_at_unix_ms",
+                  "schema": {
+                    "type": "integer",
+                    "title": "Revoked At Unix Ms",
+                    "format": "unix-ms",
+                    "multiple_of": 1
+                  }
+                },
+                {
+                  "name": "reason",
+                  "schema": {
+                    "type": "string",
+                    "title": "Reason"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "next_cursor",
+          "schema": {
+            "type": "string",
+            "title": "Next Cursor"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.admission.enrollment-record.v1",
+      "type": "object",
+      "title": "Admission enrollment",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "enrollment_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Enrollment Id"
+          }
+        },
+        {
+          "name": "node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Node Id"
+          }
+        },
+        {
+          "name": "device_public_key_fingerprint",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Device Public Key Fingerprint"
+          }
+        },
+        {
+          "name": "parent_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Parent Node Id"
+          }
+        },
+        {
+          "name": "admission_profile",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Admission Profile"
+          }
+        },
+        {
+          "name": "created_at_unix_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Created At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "status",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Status",
+            "enum": [
+              "active",
+              "revoked"
+            ]
+          }
+        },
+        {
+          "name": "revoked_at_unix_ms",
+          "schema": {
+            "type": "integer",
+            "title": "Revoked At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "reason",
+          "schema": {
+            "type": "string",
+            "title": "Reason"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.admission.issue-permit.v1",
+      "type": "object",
+      "title": "Issue admission permit",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        {
+          "name": "device_public_key_fingerprint",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Device Public Key Fingerprint"
+          }
+        },
+        {
+          "name": "target_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Target Node Id"
+          }
+        },
+        {
+          "name": "allow_descendants",
+          "schema": {
+            "type": "boolean",
+            "title": "Allow Descendants"
+          }
+        },
+        {
+          "name": "admission_profile",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Admission Profile"
+          }
+        },
+        {
+          "name": "ttl_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Ttl Ms",
+            "unit": "ms",
+            "multiple_of": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.admission.list.v1",
+      "type": "object",
+      "title": "List admission records",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "cursor",
+          "schema": {
+            "type": "string",
+            "title": "Cursor"
+          }
+        },
+        {
+          "name": "limit",
+          "schema": {
+            "type": "integer",
+            "title": "Limit",
+            "minimum": 0,
+            "maximum": 4096,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "status",
+          "schema": {
+            "type": "string",
+            "title": "Status"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.admission.permit-list.v1",
+      "type": "object",
+      "title": "Admission permits",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "authority_epoch",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Authority Epoch",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "items",
+          "required": true,
+          "schema": {
+            "type": "array",
+            "title": "Items",
+            "max_items": 4096,
+            "items": {
+              "type": "object",
+              "properties": [
+                {
+                  "name": "version",
+                  "required": true,
+                  "schema": {
+                    "type": "integer",
+                    "title": "Version",
+                    "multiple_of": 1
+                  }
+                },
+                {
+                  "name": "permit_id",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Permit Id"
+                  }
+                },
+                {
+                  "name": "device_public_key_fingerprint",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Device Public Key Fingerprint"
+                  }
+                },
+                {
+                  "name": "target_node_id",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Target Node Id"
+                  }
+                },
+                {
+                  "name": "allow_descendants",
+                  "schema": {
+                    "type": "boolean",
+                    "title": "Allow Descendants"
+                  }
+                },
+                {
+                  "name": "admission_profile",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Admission Profile"
+                  }
+                },
+                {
+                  "name": "issued_at_unix_ms",
+                  "required": true,
+                  "schema": {
+                    "type": "integer",
+                    "title": "Issued At Unix Ms",
+                    "format": "unix-ms",
+                    "multiple_of": 1
+                  }
+                },
+                {
+                  "name": "expires_at_unix_ms",
+                  "required": true,
+                  "schema": {
+                    "type": "integer",
+                    "title": "Expires At Unix Ms",
+                    "format": "unix-ms",
+                    "multiple_of": 1
+                  }
+                },
+                {
+                  "name": "status",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Status"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "next_cursor",
+          "schema": {
+            "type": "string",
+            "title": "Next Cursor"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.admission.permit-record.v1",
+      "type": "object",
+      "title": "Admission permit",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "permit_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Permit Id"
+          }
+        },
+        {
+          "name": "device_public_key_fingerprint",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Device Public Key Fingerprint"
+          }
+        },
+        {
+          "name": "target_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Target Node Id"
+          }
+        },
+        {
+          "name": "allow_descendants",
+          "schema": {
+            "type": "boolean",
+            "title": "Allow Descendants"
+          }
+        },
+        {
+          "name": "admission_profile",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Admission Profile"
+          }
+        },
+        {
+          "name": "issued_at_unix_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Issued At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "expires_at_unix_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Expires At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "status",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Status",
+            "enum": [
+              "active",
+              "consumed",
+              "expired",
+              "revoked"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.admission.request-list.v1",
+      "type": "object",
+      "title": "Admission requests",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "authority_epoch",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Authority Epoch",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "items",
+          "required": true,
+          "schema": {
+            "type": "array",
+            "title": "Items",
+            "max_items": 4096,
+            "items": {
+              "type": "object",
+              "properties": [
+                {
+                  "name": "version",
+                  "required": true,
+                  "schema": {
+                    "type": "integer",
+                    "title": "Version",
+                    "multiple_of": 1
+                  }
+                },
+                {
+                  "name": "request_id",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Request Id"
+                  }
+                },
+                {
+                  "name": "device_public_key_fingerprint",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Device Public Key Fingerprint"
+                  }
+                },
+                {
+                  "name": "parent_node_id",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Parent Node Id"
+                  }
+                },
+                {
+                  "name": "created_at_unix_ms",
+                  "required": true,
+                  "schema": {
+                    "type": "integer",
+                    "title": "Created At Unix Ms",
+                    "format": "unix-ms",
+                    "multiple_of": 1
+                  }
+                },
+                {
+                  "name": "updated_at_unix_ms",
+                  "required": true,
+                  "schema": {
+                    "type": "integer",
+                    "title": "Updated At Unix Ms",
+                    "format": "unix-ms",
+                    "multiple_of": 1
+                  }
+                },
+                {
+                  "name": "expires_at_unix_ms",
+                  "required": true,
+                  "schema": {
+                    "type": "integer",
+                    "title": "Expires At Unix Ms",
+                    "format": "unix-ms",
+                    "multiple_of": 1
+                  }
+                },
+                {
+                  "name": "status",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Status"
+                  }
+                },
+                {
+                  "name": "reason",
+                  "schema": {
+                    "type": "string",
+                    "title": "Reason"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "next_cursor",
+          "schema": {
+            "type": "string",
+            "title": "Next Cursor"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.admission.request-record.v1",
+      "type": "object",
+      "title": "Admission request",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        {
+          "name": "device_public_key_fingerprint",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Device Public Key Fingerprint"
+          }
+        },
+        {
+          "name": "parent_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Parent Node Id"
+          }
+        },
+        {
+          "name": "created_at_unix_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Created At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "updated_at_unix_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Updated At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "expires_at_unix_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Expires At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "status",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Status",
+            "enum": [
+              "approved",
+              "expired",
+              "pending",
+              "rejected"
+            ]
+          }
+        },
+        {
+          "name": "reason",
+          "schema": {
+            "type": "string",
+            "title": "Reason"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.admission.revoke-enrollment.v1",
+      "type": "object",
+      "title": "Revoke enrollment",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        {
+          "name": "enrollment_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Enrollment Id"
+          }
+        },
+        {
+          "name": "reason",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Reason"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.admission.revoke-permit.v1",
+      "type": "object",
+      "title": "Revoke admission permit",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        {
+          "name": "permit_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Permit Id"
+          }
+        },
+        {
+          "name": "reason",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Reason"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.admission.status.v1",
+      "type": "object",
+      "title": "Admission status",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "authority_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Authority Node Id"
+          }
+        },
+        {
+          "name": "authority_epoch",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Authority Epoch",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "permits",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Permits",
+            "minimum": 0,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "pending_requests",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Pending Requests",
+            "minimum": 0,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "enrollments",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Enrollments",
+            "minimum": 0,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "revocations",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Revocations",
+            "minimum": 0,
+            "multiple_of": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.admission.submit.v1",
+      "type": "object",
+      "title": "Submit admission request",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        {
+          "name": "device_public_key",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Device Public Key"
+          }
+        },
+        {
+          "name": "parent_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Parent Node Id"
+          }
+        },
+        {
+          "name": "parent_public_key",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Parent Public Key"
+          }
+        },
+        {
+          "name": "permit",
+          "schema": {
+            "type": "string",
+            "title": "Permit",
+            "write_only": true,
+            "sensitive": true
+          }
+        },
+        {
+          "name": "transcript_digest",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Transcript Digest"
+          }
+        }
+      ]
+    },
+    {
       "id": "mfh.catalog.v2",
       "type": "object",
       "title": "Resource catalog",
@@ -253,6 +1288,604 @@
                 }
               ]
             }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.enrollment.challenge.v1",
+      "type": "object",
+      "title": "Enrollment challenge",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        {
+          "name": "parent_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Parent Node Id"
+          }
+        },
+        {
+          "name": "parent_public_key",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Parent Public Key"
+          }
+        },
+        {
+          "name": "authority_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Authority Node Id"
+          }
+        },
+        {
+          "name": "authority_public_key",
+          "schema": {
+            "type": "string",
+            "title": "Authority Public Key"
+          }
+        },
+        {
+          "name": "nonce",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Nonce"
+          }
+        },
+        {
+          "name": "expires_at_unix_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Expires At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "signature",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Signature"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.enrollment.client-init.v1",
+      "type": "object",
+      "title": "Enrollment client initialization",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        {
+          "name": "device_public_key",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Device Public Key"
+          }
+        },
+        {
+          "name": "permit",
+          "schema": {
+            "type": "string",
+            "title": "Permit",
+            "write_only": true,
+            "sensitive": true
+          }
+        },
+        {
+          "name": "expected_parent_node_id",
+          "schema": {
+            "type": "string",
+            "title": "Expected Parent Node Id"
+          }
+        },
+        {
+          "name": "expected_parent_public_key",
+          "schema": {
+            "type": "string",
+            "title": "Expected Parent Public Key"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.enrollment.grant.v1",
+      "type": "object",
+      "title": "Enrollment grant",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "enrollment_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Enrollment Id"
+          }
+        },
+        {
+          "name": "authority_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Authority Node Id"
+          }
+        },
+        {
+          "name": "authority_public_key",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Authority Public Key"
+          }
+        },
+        {
+          "name": "node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Node Id"
+          }
+        },
+        {
+          "name": "device_public_key",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Device Public Key"
+          }
+        },
+        {
+          "name": "parent_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Parent Node Id"
+          }
+        },
+        {
+          "name": "parent_public_key",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Parent Public Key"
+          }
+        },
+        {
+          "name": "admission_profile",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Admission Profile"
+          }
+        },
+        {
+          "name": "authority_epoch",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Authority Epoch",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "issued_at_unix_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Issued At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "signature",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Signature"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.enrollment.permit.v1",
+      "type": "object",
+      "title": "Enrollment permit",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "permit_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Permit Id"
+          }
+        },
+        {
+          "name": "authority_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Authority Node Id"
+          }
+        },
+        {
+          "name": "authority_public_key",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Authority Public Key"
+          }
+        },
+        {
+          "name": "device_public_key_fingerprint",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Device Public Key Fingerprint"
+          }
+        },
+        {
+          "name": "target_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Target Node Id"
+          }
+        },
+        {
+          "name": "allow_descendants",
+          "schema": {
+            "type": "boolean",
+            "title": "Allow Descendants"
+          }
+        },
+        {
+          "name": "admission_profile",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Admission Profile"
+          }
+        },
+        {
+          "name": "issued_at_unix_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Issued At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "expires_at_unix_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Expires At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "authority_epoch",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Authority Epoch",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "signature",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Signature"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.enrollment.proof.v1",
+      "type": "object",
+      "title": "Enrollment proof",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        {
+          "name": "nonce",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Nonce"
+          }
+        },
+        {
+          "name": "signature",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Signature"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.enrollment.result.v1",
+      "type": "object",
+      "title": "Enrollment result",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        {
+          "name": "status",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Status",
+            "enum": [
+              "error",
+              "granted",
+              "pending",
+              "rejected"
+            ]
+          }
+        },
+        {
+          "name": "grant",
+          "schema": {
+            "type": "object",
+            "title": "Grant",
+            "properties": [
+              {
+                "name": "version",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "title": "Version",
+                  "multiple_of": 1
+                }
+              },
+              {
+                "name": "enrollment_id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Enrollment Id"
+                }
+              },
+              {
+                "name": "authority_node_id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Authority Node Id"
+                }
+              },
+              {
+                "name": "authority_public_key",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Authority Public Key"
+                }
+              },
+              {
+                "name": "node_id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Node Id"
+                }
+              },
+              {
+                "name": "device_public_key",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Device Public Key"
+                }
+              },
+              {
+                "name": "parent_node_id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Parent Node Id"
+                }
+              },
+              {
+                "name": "parent_public_key",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Parent Public Key"
+                }
+              },
+              {
+                "name": "admission_profile",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Admission Profile"
+                }
+              },
+              {
+                "name": "authority_epoch",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "title": "Authority Epoch",
+                  "minimum": 0,
+                  "multiple_of": 1
+                }
+              },
+              {
+                "name": "issued_at_unix_ms",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "title": "Issued At Unix Ms",
+                  "format": "unix-ms",
+                  "multiple_of": 1
+                }
+              },
+              {
+                "name": "signature",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Signature"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "error",
+          "schema": {
+            "type": "object",
+            "title": "Error",
+            "properties": [
+              {
+                "name": "code",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Code"
+                }
+              },
+              {
+                "name": "message",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Message"
+                }
+              },
+              {
+                "name": "retryable",
+                "schema": {
+                  "type": "boolean",
+                  "title": "Retryable"
+                }
+              },
+              {
+                "name": "details",
+                "schema": {
+                  "type": "object",
+                  "title": "Details",
+                  "additional_properties": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "retry_after_ms",
+          "schema": {
+            "type": "integer",
+            "title": "Retry After Ms",
+            "unit": "ms",
+            "multiple_of": 1
           }
         }
       ]
@@ -1374,6 +3007,20 @@
               "allow",
               "deny"
             ]
+          }
+        },
+        {
+          "name": "target",
+          "schema": {
+            "type": "string",
+            "title": "Target"
+          }
+        },
+        {
+          "name": "status",
+          "schema": {
+            "type": "string",
+            "title": "Status"
           }
         },
         {

@@ -174,6 +174,79 @@ func TestBindingRejectsInvalidBoundaryValues(t *testing.T) {
 	}
 }
 
+func TestBindingEnrollmentNeedsNoClientNodeIDOrParentKey(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	root, err := hub.StartPersistent(ctx, hub.PersistentConfig{
+		StateDirectory: t.TempDir(), NodeID: 1,
+		Listeners: []hub.ListenerConfig{{Driver: tcp.Driver{}, Endpoint: "127.0.0.1:0"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	stateDirectory := t.TempDir()
+	client, err := NewEnrollmentClient(stateDirectory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusJSON, err := client.EnrollmentStatusJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var status struct {
+		Status          string `json:"status"`
+		RequestID       string `json:"request_id"`
+		DevicePublicKey string `json:"device_public_key"`
+		NodeID          string `json:"node_id"`
+	}
+	if err := json.Unmarshal([]byte(statusJSON), &status); err != nil {
+		t.Fatal(err)
+	}
+	if status.Status != "device" || status.NodeID != "" || status.DevicePublicKey == "" {
+		t.Fatalf("new binding client already had a Node ID: %s", statusJSON)
+	}
+	deviceKey, _ := base64.RawStdEncoding.DecodeString(status.DevicePublicKey)
+	permit, err := root.EnrollmentAuthority.IssuePermit(
+		"a0000000000000000000000000000001",
+		auth.DevicePublicKeyFingerprint(ed25519.PublicKey(deviceKey)),
+		root.Node.ID(), false, "binding-enrollment", time.Minute,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	permitPayload, _ := protocol.EncodeJSONPayload(&permit, protocol.EnrollmentMaxPayload)
+	resultJSON, err := client.EnrollTCP(string(root.Endpoint), string(permitPayload), false, 0, "", "", 3_000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result protocol.EnrollmentResultV1
+	if err := json.Unmarshal([]byte(resultJSON), &result); err != nil || result.Status != "granted" || result.Grant == nil {
+		t.Fatalf("unexpected binding Enrollment result: %v (%s)", err, resultJSON)
+	}
+	if err := client.StartEnrolledTCP(string(root.Endpoint)); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.WaitConnected(3_000); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := NewEnrollmentClient(stateDirectory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	reopenedStatus, err := reopened.EnrollmentStatusJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(reopenedStatus), &status); err != nil || status.Status != "enrolled" || status.NodeID != result.Grant.NodeID || status.RequestID == "" {
+		t.Fatalf("binding Enrollment state was not durable: %v (%s)", err, reopenedStatus)
+	}
+}
+
 func TestConnectionWaitErrorKeepsLatestDiagnostic(t *testing.T) {
 	err := connectionWaitError(context.DeadlineExceeded, sdk.ConnectionSnapshot{LastError: "remote closed during admission"})
 	if !errors.Is(err, context.DeadlineExceeded) || !strings.Contains(err.Error(), "remote closed during admission") {

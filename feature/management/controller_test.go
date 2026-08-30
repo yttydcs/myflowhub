@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 
 type fixture struct {
 	state      *hostconfig.Runtime
+	authority  *auth.EnrollmentAuthority
 	node       *node.Node
 	controller *management.Controller
 	audit      *management.AuditLog
@@ -30,16 +33,20 @@ func newFixture(t *testing.T) fixture {
 		t.Fatal(err)
 	}
 	audit := management.NewAuditLog(nil, 8)
+	authority, err := auth.LoadEnrollmentAuthority(state.Identity, state.Store, auth.EnrollmentAuthorityConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	runtime, err := node.New(context.Background(), node.Config{Identity: state.Identity, Trust: state.Trust, Admission: state.Admission, Policy: management.AuditPolicy(state.Policy, audit)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = runtime.Close() })
-	controller, err := management.Register(management.Config{Node: runtime, Admission: state.Admission, Trust: state.Trust, Policy: state.Policy, Settings: state.Settings, RevokeNode: state.RevokeNode, Audit: audit})
+	controller, err := management.Register(management.Config{Node: runtime, Admission: state.Admission, EnrollmentAuthority: authority, Trust: state.Trust, Policy: state.Policy, Settings: state.Settings, RevokeNode: state.RevokeNode, Audit: audit})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return fixture{state: state, node: runtime, controller: controller, audit: audit}
+	return fixture{state: state, authority: authority, node: runtime, controller: controller, audit: audit}
 }
 
 func TestManagementCatalogAndTopologyUseCanonicalTree(t *testing.T) {
@@ -58,6 +65,16 @@ func TestManagementCatalogAndTopologyUseCanonicalTree(t *testing.T) {
 		protocol.BuiltinManagementRevokeNode,
 		protocol.BuiltinManagementRevokePermit,
 		protocol.BuiltinManagementTopology,
+		protocol.BuiltinAdmissionStatus,
+		protocol.BuiltinAdmissionListPermits,
+		protocol.BuiltinAdmissionRevokePermit,
+		protocol.BuiltinAdmissionListRequests,
+		protocol.BuiltinAdmissionApprove,
+		protocol.BuiltinAdmissionReject,
+		protocol.BuiltinAdmissionListEnrollments,
+		protocol.BuiltinAdmissionRevokeEnrollment,
+		protocol.BuiltinAdmissionSubmitEnrollment,
+		protocol.BuiltinAdmissionApplyRevocation,
 	} {
 		if !catalogHas(catalog, name) {
 			t.Fatalf("management resource %q missing from catalog", name)
@@ -118,6 +135,152 @@ func TestManagementPermitConfigAndRevocationCommands(t *testing.T) {
 	}
 	if err := value.state.Policy.Authorize(context.Background(), grant); !errors.Is(err, auth.ErrForbidden) {
 		t.Fatalf("revoked node retained policy grant: %v", err)
+	}
+}
+
+func TestCentralAdmissionManagementListsApprovesAndRevokes(t *testing.T) {
+	value := newFixture(t)
+	device, _ := auth.GenerateDeviceIdentity()
+	issue := protocol.AdmissionIssuePermitV1{
+		Version:                    protocol.SchemaVersionV1,
+		RequestID:                  "50000000000000000000000000000001",
+		DevicePublicKeyFingerprint: auth.DevicePublicKeyFingerprint(device.PublicKey),
+		TargetNodeID:               "1", AdmissionProfile: "desktop", TTLMS: 60_000,
+	}
+	permitData := invoke(t, value.node, protocol.BuiltinAdmissionIssuePermit, encode(t, &issue))
+	var permit protocol.EnrollmentPermitV1
+	decode(t, permitData, &permit)
+	permitListData := invoke(t, value.node, protocol.BuiltinAdmissionListPermits, encode(t, &protocol.AdmissionListV1{Version: 1, Limit: 10}))
+	var permitList protocol.AdmissionPermitListV1
+	decode(t, permitListData, &permitList)
+	if len(permitList.Items) != 1 || permitList.Items[0].PermitID != permit.PermitID {
+		t.Fatalf("unexpected Permit list: %#v", permitList)
+	}
+	revokePermit := protocol.AdmissionRevokePermitV1{
+		Version: 1, RequestID: "50000000000000000000000000000002",
+		PermitID: permit.PermitID, Reason: "replaced",
+	}
+	invoke(t, value.node, protocol.BuiltinAdmissionRevokePermit, encode(t, &revokePermit))
+
+	pendingID := "50000000000000000000000000000003"
+	if outcome, err := value.authority.Submit(auth.EnrollmentSubmission{
+		RequestID: pendingID, DevicePublicKey: device.PublicKey,
+		ParentNodeID: value.node.ID(), ParentPublicKey: value.state.Identity.PublicKey,
+		TranscriptDigest: [32]byte{1},
+	}); err != nil || outcome.Status != "pending" {
+		t.Fatalf("create pending request: %#v, %v", outcome, err)
+	}
+	requestListData := invoke(t, value.node, protocol.BuiltinAdmissionListRequests, encode(t, &protocol.AdmissionListV1{Version: 1, Limit: 10, Status: "pending"}))
+	var requestList protocol.AdmissionRequestListV1
+	decode(t, requestListData, &requestList)
+	if len(requestList.Items) != 1 || requestList.Items[0].RequestID != pendingID {
+		t.Fatalf("unexpected Pending list: %#v", requestList)
+	}
+	approve := protocol.AdmissionDecisionV1{
+		Version: 1, RequestID: "50000000000000000000000000000004",
+		EnrollmentRequestID: pendingID, AdmissionProfile: "approved-desktop",
+	}
+	grantData := invoke(t, value.node, protocol.BuiltinAdmissionApprove, encode(t, &approve))
+	var grant protocol.EnrollmentGrantV1
+	decode(t, grantData, &grant)
+	nodeIDValue, _ := strconv.ParseUint(grant.NodeID, 10, 64)
+	if err := value.state.Trust.Add(protocol.NodeID(nodeIDValue), device.PublicKey); err != nil {
+		t.Fatal(err)
+	}
+	enrollmentListData := invoke(t, value.node, protocol.BuiltinAdmissionListEnrollments, encode(t, &protocol.AdmissionListV1{Version: 1, Limit: 10}))
+	var enrollmentList protocol.AdmissionEnrollmentListV1
+	decode(t, enrollmentListData, &enrollmentList)
+	if len(enrollmentList.Items) != 1 || enrollmentList.Items[0].NodeID != grant.NodeID {
+		t.Fatalf("unexpected Enrollment list: %#v", enrollmentList)
+	}
+	revoke := protocol.AdmissionRevokeEnrollmentV1{
+		Version: 1, RequestID: "50000000000000000000000000000005",
+		EnrollmentID: grant.EnrollmentID, Reason: "retired",
+	}
+	invoke(t, value.node, protocol.BuiltinAdmissionRevokeEnrollment, encode(t, &revoke))
+	if _, trusted := value.state.Trust.PublicKey(protocol.NodeID(nodeIDValue)); trusted {
+		t.Fatal("revoked Enrollment remained in parent trust")
+	}
+	var status protocol.AdmissionStatusV1
+	decodeVariable(t, value.node, protocol.BuiltinAdmissionStatus, &status)
+	if status.Enrollments != 0 || status.Revocations != 1 || status.PendingRequests != 0 {
+		t.Fatalf("unexpected admission status: %#v", status)
+	}
+}
+
+func TestCentralAdmissionListsUseStableCursors(t *testing.T) {
+	value := newFixture(t)
+	for index := 1; index <= 3; index++ {
+		device, _ := auth.GenerateDeviceIdentity()
+		requestID := "5100000000000000000000000000000" + strconv.Itoa(index)
+		issue := protocol.AdmissionIssuePermitV1{
+			Version: 1, RequestID: requestID,
+			DevicePublicKeyFingerprint: auth.DevicePublicKeyFingerprint(device.PublicKey),
+			TargetNodeID:               "1", AdmissionProfile: "desktop", TTLMS: 60_000,
+		}
+		invoke(t, value.node, protocol.BuiltinAdmissionIssuePermit, encode(t, &issue))
+	}
+	seen := make(map[string]struct{})
+	cursor := ""
+	for page := 0; page < 4; page++ {
+		data := invoke(t, value.node, protocol.BuiltinAdmissionListPermits, encode(t, &protocol.AdmissionListV1{Version: 1, Cursor: cursor, Limit: 1}))
+		var result protocol.AdmissionPermitListV1
+		decode(t, data, &result)
+		if len(result.Items) != 1 {
+			t.Fatalf("page %d returned %d items", page, len(result.Items))
+		}
+		if _, duplicate := seen[result.Items[0].PermitID]; duplicate {
+			t.Fatalf("cursor repeated Permit %s", result.Items[0].PermitID)
+		}
+		seen[result.Items[0].PermitID] = struct{}{}
+		cursor = result.NextCursor
+		if cursor == "" {
+			break
+		}
+	}
+	if len(seen) != 3 || cursor != "" {
+		t.Fatalf("pagination returned %d unique Permits and final cursor %q", len(seen), cursor)
+	}
+}
+
+func TestCentralAdmissionMutationAuditNamesActorTargetAndStatusWithoutSecretMaterial(t *testing.T) {
+	value := newFixture(t)
+	auditResource, ok := value.node.Registry().Resolve(protocol.ResourceID{Owner: value.node.ID(), Name: protocol.BuiltinManagementAudit})
+	if !ok {
+		t.Fatal("audit stream missing")
+	}
+	events := make(chan resource.StreamEvent, 1)
+	cancel, err := auditResource.(*resource.Stream).Watch(func(event resource.StreamEvent) { events <- event })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cancel()
+
+	device, _ := auth.GenerateDeviceIdentity()
+	fingerprint := auth.DevicePublicKeyFingerprint(device.PublicKey)
+	issue := protocol.AdmissionIssuePermitV1{
+		Version: 1, RequestID: "52000000000000000000000000000001",
+		DevicePublicKeyFingerprint: fingerprint, TargetNodeID: "1", AdmissionProfile: "desktop", TTLMS: 60_000,
+	}
+	permitData, err := value.node.Invoke(context.Background(), protocol.ResourceID{Owner: value.node.ID(), Name: protocol.BuiltinAdmissionIssuePermit}, encode(t, &issue))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var permit protocol.EnrollmentPermitV1
+	decode(t, permitData, &permit)
+
+	select {
+	case event := <-events:
+		var audit protocol.ManagementAuditV1
+		decode(t, event.Value, &audit)
+		if audit.Subject != "1" || audit.Action != "management.admission.issue" || audit.ResourceName != protocol.BuiltinAdmissionIssuePermit || audit.Target != permit.PermitID || audit.Status != "active" {
+			t.Fatalf("unexpected admission audit event: %#v", audit)
+		}
+		if strings.Contains(string(event.Value), fingerprint) || strings.Contains(string(event.Value), string(permitData)) {
+			t.Fatalf("admission audit leaked Permit input or body: %s", event.Value)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for admission audit event")
 	}
 }
 
@@ -225,6 +388,45 @@ func TestRemotePolicyDenyAndAllowAreAudited(t *testing.T) {
 			t.Fatalf("timed out waiting for remote %s audit event", want)
 		}
 	}
+}
+
+func TestCentralAdmissionResourcesRequireExplicitRemotePermission(t *testing.T) {
+	value := newFixture(t)
+	network := memory.NewNetwork()
+	defer network.Close()
+	if _, err := value.node.Listen(network, "admission-authority"); err != nil {
+		t.Fatal(err)
+	}
+	childIdentity, _ := auth.GenerateIdentity(2)
+	if err := value.state.Trust.Add(childIdentity.NodeID, childIdentity.PublicKey); err != nil {
+		t.Fatal(err)
+	}
+	childTrust := auth.NewTrustStore()
+	if err := childTrust.Add(value.node.ID(), value.state.Identity.PublicKey); err != nil {
+		t.Fatal(err)
+	}
+	child, err := node.New(context.Background(), node.Config{Identity: childIdentity, Trust: childTrust})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer child.Close()
+	if err := child.ConnectParent(context.Background(), network, "admission-authority", value.node.ID()); err != nil {
+		t.Fatal(err)
+	}
+	resourceID := protocol.ResourceID{Owner: value.node.ID(), Name: protocol.BuiltinAdmissionListPermits}
+	input := encode(t, &protocol.AdmissionListV1{Version: 1, Limit: 10})
+	if _, err := child.Invoke(context.Background(), resourceID, input); err == nil {
+		t.Fatal("remote actor read centralized Permit state without permission")
+	}
+	if err := value.state.Policy.Grant(auth.Request{Subject: child.ID(), Action: auth.ActionInvoke, Resource: resourceID}); err != nil {
+		t.Fatal(err)
+	}
+	output, err := child.Invoke(context.Background(), resourceID, input)
+	if err != nil {
+		t.Fatalf("authorized remote admission read failed: %v", err)
+	}
+	var permits protocol.AdmissionPermitListV1
+	decode(t, output, &permits)
 }
 
 func invoke(t *testing.T, runtime *node.Node, name string, input []byte) []byte {

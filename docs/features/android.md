@@ -2,6 +2,8 @@
 
 ## 定位
 
+Android 当前保留显式 Node ID、父节点公钥和既有 Join Permit 的兼容路径，不发送新的 `MFHE` Enrollment。无 Node ID 的首次注册由 Desktop/Go 路径先行落地，Android 迁移需单独批准。
+
 Android 产品有两个明确模式：
 
 - **Client**：作为普通子节点加入父链，浏览和操作任意授权节点的资源；

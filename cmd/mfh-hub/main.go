@@ -23,19 +23,24 @@ import (
 )
 
 type options struct {
-	id             uint64
-	address        string
-	stateDirectory string
-	identityOnly   bool
-	issueNodeID    uint64
-	issuePublicKey string
-	issueRole      string
-	permitTTL      time.Duration
-	policy         string
-	subject        uint64
-	action         string
-	resourceNode   uint64
-	resource       string
+	id               uint64
+	address          string
+	stateDirectory   string
+	identityOnly     bool
+	issueNodeID      uint64
+	issueTargetID    uint64
+	issuePublicKey   string
+	issueRole        string
+	issueRequestID   string
+	issueDescendants bool
+	authorityID      uint64
+	authorityKey     string
+	permitTTL        time.Duration
+	policy           string
+	subject          uint64
+	action           string
+	resourceNode     uint64
+	resource         string
 }
 
 func main() {
@@ -44,9 +49,14 @@ func main() {
 	flag.StringVar(&opts.address, "listen", "127.0.0.1:7331", "TCP listen address")
 	flag.StringVar(&opts.stateDirectory, "state", "state/hub", "durable Hub state directory")
 	flag.BoolVar(&opts.identityOnly, "identity", false, "print the durable Hub identity and exit (Hub must be stopped)")
-	flag.Uint64Var(&opts.issueNodeID, "issue-node-id", 0, "child node ID for an offline admission permit")
-	flag.StringVar(&opts.issuePublicKey, "issue-public-key", "", "child raw-base64 Ed25519 public key")
-	flag.StringVar(&opts.issueRole, "issue-role", "device", "role bound to an offline admission permit")
+	flag.Uint64Var(&opts.issueNodeID, "issue-node-id", 0, "legacy child Node ID; omit to issue a new Enrollment Permit without a client-selected Node ID")
+	flag.Uint64Var(&opts.issueTargetID, "issue-target-id", 0, "target parent/subtree Node ID for a new Enrollment Permit (defaults to this Hub)")
+	flag.StringVar(&opts.issuePublicKey, "issue-public-key", "", "device raw-base64 Ed25519 public key")
+	flag.StringVar(&opts.issueRole, "issue-role", "device", "legacy role or new Enrollment admission profile")
+	flag.StringVar(&opts.issueRequestID, "issue-request-id", "", "optional 16-byte lowercase hex idempotency ID for new Permit issuance")
+	flag.BoolVar(&opts.issueDescendants, "issue-allow-descendants", false, "allow the new Enrollment Permit below the target subtree")
+	flag.Uint64Var(&opts.authorityID, "admission-authority-id", 0, "Admission Authority Node ID; zero or this Hub uses the local Authority")
+	flag.StringVar(&opts.authorityKey, "admission-authority-key", "", "remote Admission Authority raw-base64 Ed25519 public key")
 	flag.DurationVar(&opts.permitTTL, "permit-ttl", time.Hour, "offline admission permit lifetime")
 	flag.StringVar(&opts.policy, "policy", "", "offline policy mutation: grant or revoke")
 	flag.Uint64Var(&opts.subject, "subject", 0, "policy subject node ID")
@@ -81,7 +91,7 @@ func run(ctx context.Context, opts options, output io.Writer) error {
 	if opts.identityOnly {
 		offlineModes++
 	}
-	if opts.issueNodeID != 0 || opts.issuePublicKey != "" {
+	if opts.issueNodeID != 0 || opts.issueTargetID != 0 || opts.issuePublicKey != "" || opts.issueRequestID != "" || opts.issueDescendants {
 		offlineModes++
 	}
 	if opts.policy != "" {
@@ -91,6 +101,9 @@ func run(ctx context.Context, opts options, output io.Writer) error {
 		return errors.New("identity, permit issuance, and policy mutation are mutually exclusive")
 	}
 	if offlineModes == 1 {
+		if opts.authorityID != 0 || opts.authorityKey != "" {
+			return errors.New("Admission Authority routing options apply only while running the Hub")
+		}
 		state, err := hostconfig.Open(opts.stateDirectory, nodeID)
 		if err != nil {
 			return fmt.Errorf("open Hub state: %w", err)
@@ -104,7 +117,7 @@ func run(ctx context.Context, opts options, output io.Writer) error {
 		case opts.policy != "":
 			return mutatePolicy(state.Policy, opts, output)
 		default:
-			return issuePermit(state.Admission, opts, output)
+			return issuePermit(state, opts, output)
 		}
 	}
 
@@ -114,10 +127,23 @@ func run(ctx context.Context, opts options, output io.Writer) error {
 	if opts.address == "" {
 		return errors.New("Hub listen address is required")
 	}
+	authorityNodeID := protocol.NodeID(opts.authorityID)
+	var authorityPublicKey ed25519.PublicKey
+	if authorityNodeID != 0 && authorityNodeID != nodeID {
+		decoded, err := base64.RawStdEncoding.DecodeString(opts.authorityKey)
+		if err != nil || len(decoded) != ed25519.PublicKeySize {
+			return errors.New("remote admission-authority-key must be a raw-base64 Ed25519 public key")
+		}
+		authorityPublicKey = ed25519.PublicKey(decoded)
+	} else if opts.authorityKey != "" {
+		return errors.New("admission-authority-key is only valid for a remote Admission Authority")
+	}
 	runtime, err := hub.StartPersistent(ctx, hub.PersistentConfig{
-		StateDirectory: opts.stateDirectory,
-		NodeID:         nodeID,
-		Listeners:      []hub.ListenerConfig{{Driver: tcp.Driver{}, Endpoint: link.Endpoint(opts.address)}},
+		StateDirectory:              opts.stateDirectory,
+		NodeID:                      nodeID,
+		Listeners:                   []hub.ListenerConfig{{Driver: tcp.Driver{}, Endpoint: link.Endpoint(opts.address)}},
+		AdmissionAuthorityNodeID:    authorityNodeID,
+		AdmissionAuthorityPublicKey: authorityPublicKey,
 	})
 	if err != nil {
 		return err
@@ -134,21 +160,56 @@ func run(ctx context.Context, opts options, output io.Writer) error {
 	return nil
 }
 
-func issuePermit(admission *auth.Admission, opts options, output io.Writer) error {
-	childID := protocol.NodeID(opts.issueNodeID)
-	if err := childID.Validate(); err != nil {
-		return fmt.Errorf("permit child identity: %w", err)
+func issuePermit(state *hostconfig.Runtime, opts options, output io.Writer) error {
+	if state == nil {
+		return errors.New("Hub state is required")
 	}
 	key, err := base64.RawStdEncoding.DecodeString(opts.issuePublicKey)
 	if err != nil || len(key) != ed25519.PublicKeySize {
 		return errors.New("issue-public-key must be a raw-base64 Ed25519 public key")
 	}
-	permit, err := admission.Issue(childID, ed25519.PublicKey(key), opts.issueRole, opts.permitTTL)
+	if opts.issueNodeID != 0 {
+		if opts.issueTargetID != 0 || opts.issueRequestID != "" || opts.issueDescendants {
+			return errors.New("legacy issue-node-id cannot be combined with new Enrollment Permit scope options")
+		}
+		childID := protocol.NodeID(opts.issueNodeID)
+		if err := childID.Validate(); err != nil {
+			return fmt.Errorf("permit child identity: %w", err)
+		}
+		permit, err := state.Admission.Issue(childID, ed25519.PublicKey(key), opts.issueRole, opts.permitTTL)
+		if err != nil {
+			return fmt.Errorf("issue legacy admission permit: %w", err)
+		}
+		if err := json.NewEncoder(output).Encode(permit); err != nil {
+			return fmt.Errorf("write legacy admission permit: %w", err)
+		}
+		return nil
+	}
+	targetID := protocol.NodeID(opts.issueTargetID)
+	if targetID == 0 {
+		targetID = state.Identity.NodeID
+	}
+	if err := targetID.Validate(); err != nil {
+		return fmt.Errorf("Enrollment Permit target: %w", err)
+	}
+	requestID := opts.issueRequestID
+	if requestID == "" {
+		generated, err := protocol.NewMessageID()
+		if err != nil {
+			return err
+		}
+		requestID = generated.String()
+	}
+	authority, err := auth.LoadEnrollmentAuthority(state.Identity, state.Store, auth.EnrollmentAuthorityConfig{})
 	if err != nil {
-		return fmt.Errorf("issue admission permit: %w", err)
+		return err
+	}
+	permit, err := authority.IssuePermit(requestID, auth.DevicePublicKeyFingerprint(ed25519.PublicKey(key)), targetID, opts.issueDescendants, opts.issueRole, opts.permitTTL)
+	if err != nil {
+		return fmt.Errorf("issue Enrollment Permit: %w", err)
 	}
 	if err := json.NewEncoder(output).Encode(permit); err != nil {
-		return fmt.Errorf("write admission permit: %w", err)
+		return fmt.Errorf("write Enrollment Permit: %w", err)
 	}
 	return nil
 }

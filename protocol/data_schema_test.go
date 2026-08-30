@@ -76,6 +76,16 @@ func TestBuiltinDataSchemaAnnotations(t *testing.T) {
 	if permit == nil || !permit.Sensitive || !permit.WriteOnly {
 		t.Fatal("admission permit must be write-only sensitive data")
 	}
+	enrollmentInit := byID[SchemaEnrollmentClientInitV1]
+	permit = dataSchemaAtPath(&enrollmentInit, "permit")
+	if permit == nil || !permit.Sensitive || !permit.WriteOnly {
+		t.Fatal("enrollment permit must be write-only sensitive data")
+	}
+	admissionList := byID[SchemaAdmissionListV1]
+	limit := dataSchemaAtPath(&admissionList, "limit")
+	if limit == nil || limit.Minimum == nil || *limit.Minimum != 0 || limit.Maximum == nil || *limit.Maximum != MaxItems {
+		t.Fatal("admission list limit bounds are missing")
+	}
 	health := byID[SchemaManagementHealthV1]
 	startedAt := dataSchemaAtPath(&health, "started_at_unix_ms")
 	if startedAt == nil || startedAt.Format != "unix-ms" {

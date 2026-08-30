@@ -14,6 +14,43 @@ import (
 
 var ErrUntrustedIdentity = errors.New("untrusted identity")
 
+type DeviceIdentity struct {
+	PublicKey  ed25519.PublicKey
+	PrivateKey ed25519.PrivateKey
+}
+
+func GenerateDeviceIdentity() (DeviceIdentity, error) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return DeviceIdentity{}, fmt.Errorf("generate device identity: %w", err)
+	}
+	return DeviceIdentity{PublicKey: publicKey, PrivateKey: privateKey}, nil
+}
+
+func (identity DeviceIdentity) Validate() error {
+	if len(identity.PublicKey) != ed25519.PublicKeySize || len(identity.PrivateKey) != ed25519.PrivateKeySize {
+		return errors.New("device identity requires an Ed25519 key pair")
+	}
+	if !bytes.Equal(identity.PrivateKey.Public().(ed25519.PublicKey), identity.PublicKey) {
+		return errors.New("device identity public and private keys do not match")
+	}
+	return nil
+}
+
+func (identity DeviceIdentity) Enroll(nodeID protocol.NodeID) (Identity, error) {
+	if err := identity.Validate(); err != nil {
+		return Identity{}, err
+	}
+	if err := nodeID.Validate(); err != nil {
+		return Identity{}, err
+	}
+	return Identity{
+		NodeID:     nodeID,
+		PublicKey:  append(ed25519.PublicKey(nil), identity.PublicKey...),
+		PrivateKey: append(ed25519.PrivateKey(nil), identity.PrivateKey...),
+	}, nil
+}
+
 type Identity struct {
 	NodeID     protocol.NodeID
 	PublicKey  ed25519.PublicKey

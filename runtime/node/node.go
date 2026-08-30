@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -21,6 +22,7 @@ type Config struct {
 	Trust               *auth.TrustStore
 	Policy              auth.Policy
 	Admission           *auth.Admission
+	Enrollment          EnrollmentHandler
 	JoinPermit          *protocol.ProvisioningPermitV1
 	Session             link.SessionConfig
 	Subscriptions       subscription.Config
@@ -29,6 +31,10 @@ type Config struct {
 	MaxHandshakes       int
 	MaxPending          int
 	MaxResourceSessions int
+}
+
+type EnrollmentHandler interface {
+	Handle(context.Context, link.Pipe) error
 }
 
 type peerSession struct {
@@ -228,7 +234,7 @@ func (n *Node) acceptLoop(listener link.Listener) {
 		case n.handshakes <- struct{}{}:
 			if !n.launch(func() {
 				defer func() { <-n.handshakes }()
-				if err := n.acceptChild(pipe); err != nil && n.ctx.Err() == nil {
+				if err := n.acceptIncoming(pipe); err != nil && n.ctx.Err() == nil {
 					n.emit(err)
 				}
 			}) {
@@ -240,6 +246,34 @@ func (n *Node) acceptLoop(listener link.Listener) {
 			_ = pipe.Close()
 			n.emit(errors.New("reject child link: handshake limit reached"))
 		}
+	}
+}
+
+func (n *Node) acceptIncoming(pipe link.Pipe) error {
+	handshakeCtx, cancel := context.WithTimeout(n.ctx, n.config.JoinTimeout)
+	stopClose := context.AfterFunc(handshakeCtx, func() { _ = pipe.Close() })
+	defer func() {
+		stopClose()
+		cancel()
+	}()
+	var magic [4]byte
+	if _, err := io.ReadFull(pipe, magic[:]); err != nil {
+		_ = pipe.Close()
+		return fmt.Errorf("read initial child frame magic: %w", err)
+	}
+	prefixed := link.PrependRead(pipe, magic[:])
+	switch string(magic[:]) {
+	case protocol.FrameMagic:
+		return n.acceptChild(prefixed)
+	case protocol.EnrollmentMagic:
+		defer pipe.Close()
+		if n.config.Enrollment == nil {
+			return errors.New("node enrollment is not enabled on this listener")
+		}
+		return n.config.Enrollment.Handle(handshakeCtx, prefixed)
+	default:
+		_ = pipe.Close()
+		return fmt.Errorf("unknown initial child frame magic %q", magic)
 	}
 }
 
