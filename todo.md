@@ -12,7 +12,7 @@
 
 - [ ] LAZY01 — 服务端分页、lazy loading 与真正 DOM windowing；现有 API 不支持，独立阶段
 - [ ] BRAND01 — 品牌图标与平台资产；独立任务拥有
-- [ ] ARC01 — change/plan archive 已生成；本地 merge、恢复验证与 cleanup 进行中
+- [x] ARC01 — change/plan/evidence 归档、本地 merge、恢复验证与 worktree/branch cleanup 完成
 - [ ] PUB01 — push/release/publication；未授权且无 remote
 
 ## Acceptance Checklist
@@ -35,6 +35,6 @@
 - Blocked: no
 - Approved Task IDs: `DOC01, TREE01, UI01, PREF01, QA01`
 - Planned Task IDs: `DOC01, TREE01, UI01, PREF01, QA01`
-- Active phase: `$m-archive` closeout in progress
+- Active phase: `$m-archive` complete
 - Implementation started: yes
 - Do not dispatch implementation subagents

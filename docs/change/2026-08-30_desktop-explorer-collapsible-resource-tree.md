@@ -153,6 +153,12 @@ Desktop Explorer 原本把当前 Node 的 Resources 按首段分组为平铺列�
 
 ## Closeout status
 
-- Archive candidate complete；等待从 canonical control-plane 执行本地合并、恢复无关 dirty state 并清理 worktree。
-- 无 remote；不推送、不发布。
+- `master` 已 fast-forward 到 product/archive commit `501805e`。
+- 仅 7 个与本功能重叠的主检出 dirty paths 被临时搁置；恢复时源码和稳定文档自动/手动合并，dist 从联合源码
+  重新生成。除 dist 外 32 个非重叠 dirty files 的长度和 SHA-256 保持不变。
+- 联合状态再次通过 10 个前端测试文件 / 54 个测试、TypeScript/Vite production build、全仓 Go tests 和
+  `git diff --check`。
+- 临时 stash 已按对象 ID 删除；此前已有的两个 stash 未修改。专用 worktree 和本地 feature branch 已清理。
+- 用户未提交的品牌、Agent Gateway、Metrics、`guide.md`、设计 demo 与 generated dist 仍保留在主检出且未暂存。
+- 无 remote；未 push、release 或 publication。
 

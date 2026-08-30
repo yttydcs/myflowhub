@@ -10,7 +10,7 @@
 - Code Repos: canonical monorepo `MyFlowHub` only
 - Worktree: `D:\project\MyFlowHub3\worktrees\desktop-explorer-resource-tree`
 - Participating Modules: `apps/desktop/frontend`、canonical `docs/`
-- Current Stage: `$m-continue` / `$m-test` Passed；`$m-archive` closeout in progress
+- Current Stage: `$m-archive` complete；archive、local merge 与 worktree cleanup 已完成
 - Publication: local-only；不新增 remote，不 push/release/publish
 
 ## Stage Records
@@ -448,8 +448,10 @@ interface UIPreferences {
 - Decision impact: none；Lessons impact: none；既有 Windows/Wails/frontend lessons 已覆盖可复用线索。
 - Index impact: intake/spec indexes 已在执行阶段更新；change/plan indexes 已在归档阶段更新。
 - Sub-agent trace: none；host policy/user authorization 不允许主动委派，且共享焦点/preference 写集不宜拆分。
-- Control-plane closeout: pending local merge、unrelated-dirt restoration verification、worktree/branch cleanup；任何恢复冲突
-  必须保留 worktree 与 feature commits 并停止。
+- Control-plane closeout: `master` fast-forward 到 `501805e`；7 个重叠 dirty paths 经 path-scoped temporary stash
+  恢复，联合源码重新生成 dist。除 dist 外 32 个非重叠 dirty files 的长度与 SHA-256 保持不变；前端 10 files /
+  54 tests、production build 与全仓 Go tests 通过。临时 stash 已删除，较早的两个 stash 未改动；专用 worktree
+  与 `feat/desktop-explorer-resource-tree` 已移除。无 remote/push/release/publication。
 
 ## Approval Gate
 
