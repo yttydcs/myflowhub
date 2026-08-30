@@ -41,7 +41,7 @@ func Canonical() (Manifest, error) {
 		},
 		DesktopMethods: []string{
 			"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "Open", "OperateJSON",
-			"PollSubscription", "SnapshotJSON", "StartTCP", "StatusJSON", "Subscribe", "SubscribeCapability",
+			"PollSubscription", "SelectUploadFile", "SnapshotJSON", "StartTCP", "StatusJSON", "Subscribe", "SubscribeCapability",
 			"TrustParent", "UploadFile", "WaitConnected",
 		},
 		Resources: []Resource{

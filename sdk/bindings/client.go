@@ -1,6 +1,6 @@
 package bindings
 
-//go:generate go run ./cmd/mfh-bindgen -out ./generated/contracts.json
+//go:generate go run ./cmd/mfh-bindgen -out ./generated/contracts.json -schemas-out ../../apps/desktop/frontend/src/generated/resource-schemas.generated.json
 
 import (
 	"context"

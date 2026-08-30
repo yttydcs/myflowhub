@@ -27,6 +27,7 @@
     "Open",
     "OperateJSON",
     "PollSubscription",
+    "SelectUploadFile",
     "SnapshotJSON",
     "StartTCP",
     "StatusJSON",
