@@ -10,7 +10,7 @@
 - Code Repos: canonical monorepo `MyFlowHub` only
 - Worktree: `D:\project\MyFlowHub3\worktrees\desktop-schema-driven-widgets`
 - Participating Modules: `protocol`、`sdk/bindings`、`apps/desktop`、`apps/desktop/frontend`、canonical `docs/`
-- Current Stage: `$m-test` passed for `DOC01`–`QA01`; `$m-archive` documentation and closeout in progress
+- Current Stage: `$m-archive` complete, including the 2026-08-31 post-merge `VIEW01` renderer-titlebar refinement
 - Publication: local-only; no remote, push, release, or publication is authorized
 
 ## Stage Records
@@ -556,15 +556,24 @@ DOC01 -> SCHEMA01 -> RENDER01 -> VALUE01 --+
 
 - `$m-docs` impact review: intake/feature/requirements/spec/decision are already canonical and indexed; no new reusable lesson is justified beyond existing generated-contract, Wails-binding, and frontend preflight lessons.
 - Change record: `docs/change/2026-08-30_desktop-schema-driven-resource-widgets.md`.
+- Follow-up change record: `docs/change/2026-08-31_desktop-renderer-selector-titlebar-refinement.md`.
 - Plan snapshot: `docs/plan/plan_archive_2026-08-30_desktop-schema-driven-resource-widgets.md`.
-- Test evidence: two governed screenshots under `docs/change/verification/`.
+- Test evidence: two original governed screenshots plus `docs/change/verification/2026-08-31_desktop-renderer-selector-titlebar.png`.
 - Closeout policy: commit archive records, safely fast-forward local `master` while preserving unrelated main-checkout changes, remove this worktree/branch, and do not push or publish.
 - Brand boundary: no icon asset, brand decision, or platform icon was changed by this workflow.
+
+### 2026-08-31 Post-merge VIEW01 Follow-up
+
+- Moved the compatible renderer selector from Widget content into the title bar, removed redundant visible label/description text, and retained its accessible name.
+- Removed the selector's vertical divider and vertical focus accent; fallback/error explanations remain visible in content.
+- Validation passed: focused 7 tests, full 81 frontend tests, TypeScript/Vite production build, Windows Wails production build, actual renderer switching, computed-style inspection, and governed screenshot evidence.
+- Stable-doc impact: none; current feature/requirement/spec/decision documents already define title-area renderer selection and presentation-only persistence.
+- Closeout runs directly on local `master`; the original dedicated workflow worktree/branch was already merged and cleaned, so no second merge or worktree removal is applicable.
 
 ## Approval Gate
 
 - Plan status: confirmed.
 - Approval status: `DOC01`–`QA01` approved by explicit `$m-execute` invocation.
 - Blocked: no.
-- `QA01` and rollback checkpoint `R5` passed; `$m-archive` is authorized and in progress.
+- `QA01` and rollback checkpoint `R5` passed; `$m-archive` and the 2026-08-31 follow-up closeout are complete locally.
 - Implementation sub-agents: not dispatched because the shared schema/registry/styles create overlapping write sets and `$m-go` delegation was not requested.

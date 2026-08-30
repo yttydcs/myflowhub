@@ -23,7 +23,7 @@ import {
   workspaceLayoutMinimumSize,
   type WorkspaceDockSide,
 } from '../workspace-layout'
-import { ResourceRenderer } from './Renderer'
+import { ResourceRenderer, ResourceRendererSelector } from './Renderer'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -132,13 +132,14 @@ function WorkspaceWidgetPane({ api, resource, widget, onRemove, onRendererChange
           <strong>{label}</strong>
           <small>{widget.owner_node_id} / {widget.resource_name}</small>
         </div>
+        {resource && <ResourceRendererSelector resource={resource} rendererID={widget.renderer} onRendererChange={onRendererChange} />}
         <div className="widget-controls">
           <button aria-label="移除组件" onClick={onRemove}><Trash2 aria-hidden="true" size={13} /></button>
         </div>
       </header>
       <div className="widget-body">
         {resource
-          ? <ResourceRenderer api={api} resource={resource} rendererID={widget.renderer} density={density} onRendererChange={onRendererChange} />
+          ? <ResourceRenderer api={api} resource={resource} rendererID={widget.renderer} density={density} />
           : (
             <div className="missing-resource">
               <strong>资源暂不可用</strong>

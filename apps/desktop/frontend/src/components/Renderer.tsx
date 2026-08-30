@@ -3,12 +3,10 @@ import {
   AlertTriangle,
   Braces,
   Check,
-  ChevronDown,
   CirclePause,
   CirclePlay,
   Eraser,
   FileUp,
-  Gauge,
   LoaderCircle,
   Pause,
   Play,
@@ -494,17 +492,13 @@ function UnknownRenderer({ resource }: RendererProps) {
   return <div className="unknown-renderer"><Braces aria-hidden="true" size={24} /><p>没有安装 <strong>{resource.type}</strong> 的专用 renderer。资源仍保持可发现。</p><pre>{pretty(resource)}</pre></div>
 }
 
-export function ResourceRenderer({ api, resource, rendererID, density = 'normal', onRendererChange }: RendererProps & { onRendererChange?(rendererID: string): void }) {
+export function ResourceRenderer({ api, resource, rendererID, density = 'normal' }: RendererProps) {
   const selection = selectResourceRenderer(resource, rendererID)
   const selectedID = selection.selected.id
   const publishable = resource.type === 'mfh.topic' && resource.capabilities.some((item) => item.name === 'publish')
   const knownType = ['mfh.variable', 'mfh.stream', 'mfh.topic', 'mfh.command', 'mfh.file'].includes(resource.type)
   const genericOperations = knownType ? [] : resource.capabilities.filter((item) => item.input_schema && item.name !== 'open')
   return <div className={`resource-renderer density-${density}`}>
-    {(selection.choices.length > 1 || selection.fallbackReason) && <div className="renderer-toolbar">
-      <label><Gauge aria-hidden="true" size={14} /><span>显示方式</span><select value={selectedID} onChange={(event) => onRendererChange?.(event.target.value)} disabled={!onRendererChange}>{selection.choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}</select><ChevronDown aria-hidden="true" size={13} /></label>
-      <small>{selection.selected.description}</small>
-    </div>}
     {selection.fallbackReason && <p className="renderer-note"><AlertTriangle aria-hidden="true" size={14} />{selection.fallbackReason}</p>}
     {publishable && <details className="publish-box"><summary><Radio aria-hidden="true" size={14} />发布到 Topic</summary><OperationRenderer api={api} resource={resource} capabilityName="publish" rendererID="mfh.operation.form.v1" density={density} /></details>}
     {resource.type === 'mfh.variable' && <VariableRenderer api={api} resource={resource} rendererID={selectedID} density={density} />}
@@ -514,6 +508,19 @@ export function ResourceRenderer({ api, resource, rendererID, density = 'normal'
     {!knownType && <UnknownRenderer api={api} resource={resource} rendererID={selectedID} density={density} />}
     {genericOperations.map((descriptor) => <details className="publish-box" key={descriptor.name}><summary><Play aria-hidden="true" size={14} />通用操作 {descriptor.name}</summary><OperationRenderer api={api} resource={resource} capabilityName={descriptor.name} rendererID="mfh.operation.form.v1" density={density} /></details>)}
   </div>
+}
+
+export function ResourceRendererSelector({ resource, rendererID, onRendererChange }: Pick<RendererProps, 'resource' | 'rendererID'> & { onRendererChange(rendererID: string): void }) {
+  const selection = selectResourceRenderer(resource, rendererID)
+  if (selection.choices.length < 2) return null
+  return (
+    <label className="widget-renderer-selector">
+      <span className="sr-only">显示方式</span>
+      <select aria-label="显示方式" value={selection.selected.id} onChange={(event) => onRendererChange(event.target.value)}>
+        {selection.choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
+      </select>
+    </label>
+  )
 }
 
 export function NodeRenderer({ node, resources }: { node: TopologyNode; resources: ResourceDescriptor[] }) {

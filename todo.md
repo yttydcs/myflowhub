@@ -25,7 +25,7 @@
 - [ ] REMOTE01 — owner-served schema discovery protocol; deferred for separate trust/cache/version/migration design.
 - [ ] PLUGIN01 — executable third-party renderer plugins; out of scope and requires a separate sandbox/trust model.
 - [ ] DASH01 — full dashboard query/history/chart engine; deferred because this workflow has no query/history contract.
-- [x] ARC01 — plan/change/evidence archive is prepared; local merge and worktree cleanup are the remaining control-plane closeout steps.
+- [x] ARC01 — original workflow and 2026-08-31 renderer-titlebar follow-up are archived and closed locally.
 - [ ] PUB01 — push/release/publication; not authorized and no remote is assumed.
 
 ## Acceptance Checklist
@@ -36,6 +36,7 @@
 - [x] Read-only data never exposes mutating controls.
 - [x] Writable drafts use Reset/Apply; failed/conflicting writes preserve the draft.
 - [x] Renderer selection persists per View and legacy IDs still open safely.
+- [x] Renderer selection is compactly placed in the Widget title bar without redundant body text or a vertical divider.
 - [x] Commands use generated forms with explicit Execute and Advanced JSON fallback.
 - [x] Streams/Topics have a 100-event bounded, frame-batched buffer with live controls and visible gap/expired/error state.
 - [x] File uses native selection and exposes in-flight/errors; independent first-party transfer resources expose owner progress within current capabilities.
@@ -57,6 +58,6 @@
 ## Current Gate
 
 - Blocked: no.
-- `DOC01`–`QA01` and archive documentation are complete.
-- Next gate: commit archive records, safely merge into local `master`, and clean up the dedicated worktree/branch.
+- `DOC01`–`QA01`, the original archive, and the post-merge renderer-titlebar follow-up are complete.
+- Next gate: none for this workflow; closeout is local-only and no push or publication is authorized.
 - Do not dispatch implementation sub-agents because the approved implementation write sets overlap.

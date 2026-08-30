@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { DesktopAPI } from '../api'
 import type { ResourceDescriptor, ResourceEvent } from '../types'
-import { MAX_VISIBLE_EVENTS, prependBoundedEvents, ResourceRenderer, SchemaEditor } from './Renderer'
+import { MAX_VISIBLE_EVENTS, prependBoundedEvents, ResourceRenderer, ResourceRendererSelector, SchemaEditor } from './Renderer'
 
 function mockAPI(overrides: Partial<DesktopAPI> = {}): DesktopAPI {
   return {
@@ -95,7 +95,7 @@ describe('schema-driven resource renderer', () => {
     const descriptor = resource('mfh.variable', [
       { name: 'read', permission: 'system.health.read', output_schema: 'mfh.management.health.v1', max_payload_bytes: 4096 },
     ])
-    render(<ResourceRenderer api={api} resource={descriptor} onRendererChange={onRendererChange} />)
+    render(<><ResourceRendererSelector resource={descriptor} onRendererChange={onRendererChange} /><ResourceRenderer api={api} resource={descriptor} /></>)
 
     expect(await screen.findByText('running')).toBeInTheDocument()
     expect(api.snapshot).toHaveBeenCalledTimes(1)
