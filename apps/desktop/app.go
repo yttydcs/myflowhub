@@ -69,9 +69,9 @@ type platformCredentialBackend interface {
 	auth.EnrollmentCredentialStore
 }
 
-// profileRuntime is the Desktop product's explicit ownership boundary. Normal
-// profiles use a non-owning binding over Host.Client, while authority profiles
-// temporarily use the owning Enrollment binding until they receive a Node ID.
+// profileRuntime is the Desktop product's explicit ownership boundary. Static
+// profiles use a non-owning binding over Host.Client; authority profiles keep
+// the owning Enrollment binding as a compatibility bootstrap/reconnect path.
 type profileRuntime struct {
 	profile Profile
 	host    *nodehost.Host

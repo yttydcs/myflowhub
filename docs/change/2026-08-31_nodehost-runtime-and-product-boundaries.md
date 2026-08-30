@@ -9,7 +9,7 @@ Desktop、MetricsNode 与 Android 都需要创建持久 identity、Node、Parent
 - 新增 `host/nodehost`，统一持有 auth state、唯一 Node、Registry、attached SDK Client、可选 Parent 与 Listeners，并提供 `New`、单次 `Start`、幂等 `Close` 和 root/relay/leaf/offline 角色。
 - 新增 `Registry.Variable(VariableSpec)`，自动绑定本地 owner，同时保留 schema、content type、read/write permission 与 payload limit 校验。
 - 新增 non-owning SDK/binding attached Client 与只读 `ConnectionStatus`；旧 runtime-owning API 保留为兼容入口并标记弃用。所有 operation 继续经过原 Node route、Session queue 与 durable subscription。
-- Desktop 改为 Parent-only leaf NodeHost；Desktop binding 只管理 facade/subscription，不创建 Node、Parent、Listener 或 MCP。
+- Desktop 的静态/既有 Profile 改为 Parent-only leaf NodeHost；Desktop binding 通常只管理 facade/subscription，不创建 Listener 或 MCP。注册前没有 Node ID 的 authority Enrollment Profile 暂时保留 owning binding 作为 bootstrap/reconnect 兼容路径。
 - Metrics Windows/CLI/Android mobile 共用 NodeHost、Registry 与 attached SDK Client，并在 Host 启动前完成资源注册。
 - Android 保留既有 gomobile ABI：导出的 `android.Client` 是平台 lifecycle wrapper，Host 构造集中在 `sdk/bindings/android/host.go`；Kotlin Service 继续拥有 OS lifecycle，并用 generation guard 防止停止后的陈旧异步启动。
 - architecture test 把 Android Host 例外精确限制为 `sdk/bindings/android/host.go -> host/nodehost|host/hub`，其余 SDK 生产文件仍禁止依赖 `host/`。
@@ -107,6 +107,7 @@ Desktop、MetricsNode 与 Android 都需要创建持久 identity、Node、Parent
 - 采用单一通用 NodeHost，而不是把 Metrics 合并进 Desktop或为 leaf/root/relay 建立不同 Host 类型；角色由组合配置表达。
 - attached Client 的 `Connect`/`Close` 明确拒绝 lifecycle 操作，换取所有权可验证；旧 owning API 暂留以控制兼容风险。
 - Android 为保 ABI 保留 lifecycle wrapper，但 Host 构造/import 集中在单文件 composition root；Android in-process Hub 迁移延期。
+- Desktop authority Enrollment 暂留 owning runtime，避免在本轮同时改变 Enrollment identity/Grant persistence；该例外不改变产品权限，并在 NodeHost 可直接消费持久 Grant 后删除。
 - 不迁移 Hub、ClipboardNode、Agent Gateway、Web/Embedded 或 installer，避免在首批 API 未稳定前扩大写集。
 
 ## 测试与验证方式 / 结果
@@ -123,7 +124,7 @@ Desktop、MetricsNode 与 Android 都需要创建持久 identity、Node、Parent
 
 - generic Android Client 与 Metrics RuntimeConfig 仍使用默认 identity persistence；Keystore-backed `IdentityStore` 注入是后续 seam。
 - Android Gradle/JVM 与真实设备 lifecycle 需要在可用环境补验。
-- 旧 owning SDK/binding 与新 attached API 在迁移期并存；新增产品应只走 NodeHost attached path。
+- 旧 owning SDK/binding 与新 attached API 在迁移期并存；除 Desktop authority Enrollment 等已记录兼容入口外，新增产品应只走 NodeHost attached path。
 - 没有 wire、Resource schema、Profile/config 或持久数据格式迁移。
 
 ## 回滚方案

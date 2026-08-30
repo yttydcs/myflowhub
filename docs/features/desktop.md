@@ -29,7 +29,7 @@ authoritative Node tree ── node-owned Resources
 
 ## Profile 与登录
 
-新建 Profile 使用 Enrollment：客户端先准备仅含密钥的 Device identity，连接父 endpoint 后通过 Permit 直接注册或等待审批；Node ID 与签名 Grant 由 Admission Authority 下发并原子保存。父节点公钥不再是常规必填项，无预置锚时采用显式 TOFU 并在首次成功后固定。已有 version 2 Profile 仍按原 Node ID、父节点 ID、公钥和 Join Permit 路径连接。
+新建 Profile 使用 Enrollment：客户端先准备仅含密钥的 Device identity，连接父 endpoint 后通过 Permit 直接注册或等待审批；Node ID 与签名 Grant 由 Admission Authority 下发并原子保存。父节点公钥不再是常规必填项，无预置锚时采用显式 TOFU 并在首次成功后固定。由于注册前没有 Node ID，authority Enrollment Profile 当前通过明确的 owning binding 兼容路径完成 bootstrap 和后续重连；该路径不提供 Listener、MCP 或额外权限，待 NodeHost 可直接消费持久 Grant 后移除。已有 version 2 Profile 仍按原 Node ID、父节点 ID、公钥和 Join Permit 路径连接，并由 Parent-only NodeHost 持有运行时。
 
 设置格式为 version 2。每个 Profile 隔离 endpoint、本机 Node identity、受信任父节点和 Views；单个应用
 实例只激活一个 Profile。登录成功后保存 Profile 与身份，下次启动可自动连接。切换 Profile 会先关闭旧
