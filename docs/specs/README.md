@@ -12,6 +12,8 @@
 - 受保护 generated 文档的维护说明
 
 ## Current Specs
+- [node-enrollment-and-admission-authority.md](node-enrollment-and-admission-authority.md)
+  - 首次 Enrollment、Permit/Pending、Authority、Node ID 分配、撤销和兼容 Join 的当前契约
 - [brand-identity-assets.md](brand-identity-assets.md)
   - Coupled Seam canonical 几何、色彩、full/compact/tray 资产路由与平台派生边界
 - [resource-platform-v2.md](resource-platform-v2.md)

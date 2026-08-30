@@ -27,20 +27,24 @@ type Settings struct {
 }
 
 type Profile struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	NodeID          string `json:"node_id"`
-	Endpoint        string `json:"endpoint"`
-	ParentNodeID    string `json:"parent_node_id"`
-	ParentPublicKey string `json:"parent_public_key"`
-	AutoConnect     bool   `json:"auto_connect"`
-	CreatedAtUnixMS int64  `json:"created_at_unix_ms"`
-	UpdatedAtUnixMS int64  `json:"updated_at_unix_ms"`
+	ID                 string `json:"id"`
+	Name               string `json:"name"`
+	EnrollmentMode     string `json:"enrollment_mode,omitempty"`
+	NodeID             string `json:"node_id"`
+	Endpoint           string `json:"endpoint"`
+	ParentNodeID       string `json:"parent_node_id"`
+	ParentPublicKey    string `json:"parent_public_key"`
+	AuthorityNodeID    string `json:"authority_node_id,omitempty"`
+	AuthorityPublicKey string `json:"authority_public_key,omitempty"`
+	AutoConnect        bool   `json:"auto_connect"`
+	CreatedAtUnixMS    int64  `json:"created_at_unix_ms"`
+	UpdatedAtUnixMS    int64  `json:"updated_at_unix_ms"`
 }
 
 type LoginRequest struct {
 	Profile    Profile `json:"profile"`
 	PermitJSON string  `json:"permit_json,omitempty"`
+	AllowTOFU  bool    `json:"allow_tofu,omitempty"`
 }
 
 type settingsStore struct{ root string }
@@ -168,17 +172,48 @@ func validateProfile(value Profile) error {
 	if name := strings.TrimSpace(value.Name); name == "" || len(name) > 80 {
 		return errors.New("profile name must contain between 1 and 80 bytes")
 	}
-	if _, err := parsePositiveInt64(value.NodeID, "node_id"); err != nil {
-		return err
+	mode := value.EnrollmentMode
+	if mode == "" {
+		mode = "legacy"
 	}
-	if _, err := parsePositiveInt64(value.ParentNodeID, "parent_node_id"); err != nil {
-		return err
+	if mode != "legacy" && mode != "authority" {
+		return errors.New("enrollment_mode must be legacy or authority")
+	}
+	if value.AuthorityNodeID != "" {
+		if _, err := parsePositiveInt64(value.AuthorityNodeID, "authority_node_id"); err != nil {
+			return err
+		}
+	}
+	if len(value.AuthorityPublicKey) > 512 {
+		return errors.New("authority_public_key must contain at most 512 bytes")
+	}
+	if mode == "legacy" {
+		if _, err := parsePositiveInt64(value.NodeID, "node_id"); err != nil {
+			return err
+		}
+		if _, err := parsePositiveInt64(value.ParentNodeID, "parent_node_id"); err != nil {
+			return err
+		}
+		if key := strings.TrimSpace(value.ParentPublicKey); key == "" || len(key) > 512 {
+			return errors.New("parent_public_key must contain between 1 and 512 bytes")
+		}
+	} else {
+		if value.NodeID != "" {
+			if _, err := parsePositiveInt64(value.NodeID, "node_id"); err != nil {
+				return err
+			}
+		}
+		if value.ParentNodeID != "" {
+			if _, err := parsePositiveInt64(value.ParentNodeID, "parent_node_id"); err != nil {
+				return err
+			}
+		}
+		if len(value.ParentPublicKey) > 512 {
+			return errors.New("pinned public keys must contain at most 512 bytes")
+		}
 	}
 	if endpoint := strings.TrimSpace(value.Endpoint); endpoint == "" || len(endpoint) > 512 {
 		return errors.New("endpoint must contain between 1 and 512 bytes")
-	}
-	if key := strings.TrimSpace(value.ParentPublicKey); key == "" || len(key) > 512 {
-		return errors.New("parent_public_key must contain between 1 and 512 bytes")
 	}
 	return nil
 }

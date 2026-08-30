@@ -72,6 +72,25 @@ func (a *AuditLog) RecordDecision(request auth.Request, decisionErr error) {
 		Action: string(request.Action), ResourceNode: strconv.FormatUint(uint64(request.Resource.Owner), 10),
 		ResourceName: request.Resource.Name, Decision: decision, Detail: detail,
 	}
+	a.record(event)
+}
+
+func (a *AuditLog) RecordOutcome(request auth.Request, target, status string) {
+	if a == nil {
+		return
+	}
+	event := protocol.ManagementAuditV1{
+		Version: 1, TimeUnixMS: a.now().UTC().UnixMilli(), Subject: strconv.FormatUint(uint64(request.Subject), 10),
+		Action: string(request.Action), ResourceNode: strconv.FormatUint(uint64(request.Resource.Owner), 10),
+		ResourceName: request.Resource.Name, Decision: "allow", Target: target, Status: status,
+	}
+	a.record(event)
+}
+
+func (a *AuditLog) record(event protocol.ManagementAuditV1) {
+	if a == nil {
+		return
+	}
 	payload, err := protocol.EncodeJSONPayload(&event, protocol.DefaultMaxPayload)
 	if err != nil {
 		return

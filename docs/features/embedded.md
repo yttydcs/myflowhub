@@ -30,6 +30,8 @@ Embedded is a constrained **leaf/client profile**, not a reduced Hub. C, MicroPy
 
 ## Admission workflow
 
+本节是迁移期兼容流程。C、MicroPython 与 ESP32 当前仍要求预置 Node ID 和父节点公钥，不发送 `MFHE` Enrollment；新的无 Node ID 首次注册协议见 [Node Enrollment 与 Admission Authority](../specs/node-enrollment-and-admission-authority.md)，其原生客户端迁移另行实施。
+
 1. Configure a stable Node ID, parent ID/address, and parent public key.
 2. Boot once to create and persist the Ed25519 identity; capture the logged public key.
 3. Pre-trust the exact `(Node ID, public key)` or issue a one-use permit from the direct parent.

@@ -246,12 +246,12 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     if (saveError) setError(saveError)
   }
 
-  const login = async (profile: Profile, permit: string) => {
+  const login = async (profile: Profile, permit: string, allowTOFU: boolean) => {
     if (!confirmDiscard()) return false
     setBusy(true)
     setError('')
     try {
-      const saved = await api.login(profile, permit)
+      const saved = await api.login(profile, permit, allowTOFU)
       const next = await api.settings()
       setSettings(next)
       const nextProfile = next.profiles.find((item) => item.id === next.active_profile_id) || saved
@@ -625,6 +625,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
             {activeContent === 'settings'
               ? (
                 <DesktopSettings
+                  api={api}
                   settings={settings}
                   activeProfile={activeProfile}
                   status={status}

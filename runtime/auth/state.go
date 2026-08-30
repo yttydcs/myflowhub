@@ -10,12 +10,28 @@ import (
 )
 
 type State struct {
-	Directory string
-	Store     *keystore.Store
-	Identity  Identity
-	Trust     *TrustStore
-	Policy    *PolicyState
-	Admission *Admission
+	Directory           string
+	Store               *keystore.Store
+	Identity            Identity
+	Trust               *TrustStore
+	Policy              *PolicyState
+	Admission           *Admission
+	EnrollmentAuthority *EnrollmentAuthority
+}
+
+func (state *State) EnableEnrollmentAuthority(config EnrollmentAuthorityConfig) error {
+	if state == nil || state.Store == nil {
+		return errors.New("runtime state is required")
+	}
+	if state.EnrollmentAuthority != nil {
+		return nil
+	}
+	authority, err := LoadEnrollmentAuthority(state.Identity, state.Store, config)
+	if err != nil {
+		return err
+	}
+	state.EnrollmentAuthority = authority
+	return nil
 }
 
 func OpenState(directory string, nodeID protocol.NodeID) (*State, error) {

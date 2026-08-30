@@ -32,6 +32,7 @@ type Listener interface {
 type Client struct {
 	mu            sync.Mutex
 	state         *auth.State
+	enrollment    *auth.EnrollmentClientState
 	runtime       *node.Node
 	sdk           *sdk.Client
 	connection    *sdk.Connection
@@ -153,8 +154,12 @@ func (c *Client) start(driver link.Driver, endpoint string, parentID int64, perm
 		return errors.New("parent identity is not trusted")
 	}
 	runCtx, cancel := context.WithCancel(context.Background())
+	var policy auth.Policy
+	if c.state.Policy != nil {
+		policy = c.state.Policy
+	}
 	runtime, err := node.New(runCtx, node.Config{
-		Identity: c.state.Identity, Trust: c.state.Trust, Policy: c.state.Policy, JoinPermit: permit,
+		Identity: c.state.Identity, Trust: c.state.Trust, Policy: policy, JoinPermit: permit,
 	})
 	if err != nil {
 		cancel()

@@ -27,6 +27,8 @@ authoritative Node tree ── node-owned Resources
 
 ## Profile 与登录
 
+新建 Profile 使用 Enrollment：客户端先准备仅含密钥的 Device identity，连接父 endpoint 后通过 Permit 直接注册或等待审批；Node ID 与签名 Grant 由 Admission Authority 下发并原子保存。父节点公钥不再是常规必填项，无预置锚时采用显式 TOFU 并在首次成功后固定。已有 version 2 Profile 仍按原 Node ID、父节点 ID、公钥和 Join Permit 路径连接。
+
 设置格式为 version 2。每个 Profile 隔离 endpoint、本机 Node identity、受信任父节点和 Views；单个应用
 实例只激活一个 Profile。登录成功后保存 Profile 与身份，下次启动可自动连接。切换 Profile 会先关闭旧
 client，其 subscription、session 和 connection 随之清理，再打开新身份。
@@ -34,8 +36,8 @@ client，其 subscription、session 和 connection 随之清理，再打开新�
 - 登录页支持新建、选择、编辑和显式确认删除 Profile；
 - 全新 Profile 可先准备受保护的本机 identity 并复制 raw-base64 Ed25519 公钥；准备动作只保存非 active Profile，不连接、不登录，也不返回私钥；
 - admission permit 只传给本次连接，不写入 settings 或日志；
-- Windows 使用当前用户作用域 DPAPI 保存 Ed25519 identity；密文位于 Profile 目录的
-  `identity.dpapi`；
+- Windows 使用当前用户作用域 DPAPI 保存 Ed25519 identity；Legacy 密文位于 Profile 目录的
+  `identity.dpapi`，Enrollment 设备密钥、观察到的信任锚和 Grant 位于独立的 `enrollment.dpapi`；
 - 没有系统保护 backend 的平台明确使用 session-only identity，不写明文 secret；
 - 删除 Profile 会删除其本地身份、runtime state 和 Views；settings reset 不删除这些 Profile 状态。
 
@@ -55,7 +57,7 @@ backup 和 rename 提交。损坏或不兼容的 settings/View 不会被静默�
 - View Manager：创建、打开和删除当前 Profile 的本地 Views。
 
 左下角固定显示当前 Profile 和连接状态，点击进入主区 Settings Tab。Settings 铺满可用主区并隐藏右侧
-Inspector，包含 Connection、Profile 和 Appearance 三类设置；Profile 切换、编辑、删除和连接动作继续经过
+Inspector，包含 Connection、Authority 准入管理、Profile 和 Appearance 设置；准入页把 Permit、Pending 请求和 Enrollment 统一路由到 Profile 绑定的 Authority，Profile 切换、编辑、删除和连接动作继续经过
 Wails boundary。主区顶部使用可关闭的内容 Tab；Settings 是其中一种内容，不弹出第二个设置窗口。
 
 右侧 Inspector 承载临时 Node/Resource preview，不与 View widget 混在同一内容流。点击 Node 显示父节点

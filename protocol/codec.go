@@ -10,7 +10,7 @@ import (
 
 const fixedHeaderSize = 98
 
-var frameMagic = [4]byte{'M', 'F', 'H', '4'}
+const FrameMagic = "MFH4"
 
 type Codec struct {
 	MaxPayload int
@@ -34,7 +34,7 @@ func (c Codec) Encode(writer io.Writer, envelope Envelope) error {
 		return fmt.Errorf("encode frame: %w: wire length exceeds uint32", ErrPayloadTooLarge)
 	}
 	header := make([]byte, fixedHeaderSize)
-	copy(header[:4], frameMagic[:])
+	copy(header[:4], FrameMagic)
 	binary.BigEndian.PutUint16(header[4:6], envelope.Version)
 	header[6] = byte(envelope.Phase)
 	header[7] = byte(envelope.Operation)
@@ -67,7 +67,7 @@ func (c Codec) Decode(reader io.Reader) (Envelope, error) {
 	if _, err := io.ReadFull(reader, header); err != nil {
 		return Envelope{}, fmt.Errorf("decode frame header: %w", err)
 	}
-	if string(header[:4]) != string(frameMagic[:]) {
+	if string(header[:4]) != FrameMagic {
 		return Envelope{}, errors.New("decode frame: invalid magic")
 	}
 	contentLen := int(header[8])

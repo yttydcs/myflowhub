@@ -49,12 +49,18 @@ describe('desktop resource workspace', () => {
     document.documentElement.removeAttribute('data-theme')
   })
 
-  it('shows a compact persistent-profile login when no profile is active', async () => {
+  it('shows connection, device identity, and explicit admission choices when no profile is active', async () => {
     const settings: Settings = { version: 2, profiles: [], updated_at_unix_ms: 1, credential_mode: 'session-only' }
     render(<App api={mockAPI(settings)} />)
     expect(await screen.findByRole('heading', { name: '登录 MyFlowHub' })).toBeInTheDocument()
-    expect(screen.getByLabelText(/一次性准入 Permit/)).toBeInTheDocument()
-    expect(screen.queryByText(/让设备成为节点/)).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '连接到父节点' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '准备这台设备' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '选择准入方式' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /申请管理员审批/ })).toBeChecked()
+    expect(screen.queryByLabelText('Enrollment Permit')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: /已有 Permit/ }))
+    expect(screen.getByLabelText('Enrollment Permit')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/首次连接时信任/)).not.toBeInTheDocument()
   })
 
   it('discovers resources, previews them in the inspector, and adds them through a keyboard-equivalent action', async () => {
@@ -82,11 +88,12 @@ describe('desktop resource workspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: `打开 ${profile.name} 的设置` }))
     fireEvent.click(screen.getByRole('button', { name: 'Profile' }))
     fireEvent.click(screen.getByRole('button', { name: '新建 Profile' }))
+    fireEvent.click(screen.getByRole('radio', { name: /Legacy 兼容/ }))
     fireEvent.change(screen.getByLabelText('Profile 名称'), { target: { value: 'Lab' } })
     fireEvent.change(screen.getByLabelText('Profile ID'), { target: { value: 'lab' } })
     fireEvent.change(screen.getByLabelText('本机 Node ID'), { target: { value: '4' } })
     fireEvent.change(screen.getByLabelText('父 Node ID'), { target: { value: '1' } })
-    fireEvent.change(screen.getByLabelText('连接端点'), { target: { value: '127.0.0.1:7441' } })
+    fireEvent.change(screen.getByLabelText('父节点地址'), { target: { value: '127.0.0.1:7441' } })
     fireEvent.change(screen.getByLabelText('父节点公钥'), { target: { value: 'public-key' } })
     fireEvent.click(screen.getByRole('button', { name: '保存 Profile' }))
     await waitFor(() => expect(api.saveProfile).toHaveBeenCalledWith(expect.objectContaining({ id: 'lab', name: 'Lab' })))
@@ -101,13 +108,11 @@ describe('desktop resource workspace', () => {
     render(<App api={api} />)
     fireEvent.change(await screen.findByLabelText('Profile 名称'), { target: { value: 'Personal' } })
     fireEvent.change(screen.getByLabelText('Profile ID'), { target: { value: 'personal' } })
-    fireEvent.change(screen.getByLabelText('本机 Node ID'), { target: { value: '2' } })
-    fireEvent.change(screen.getByLabelText('父 Node ID'), { target: { value: '1' } })
-    fireEvent.change(screen.getByLabelText('连接端点'), { target: { value: '127.0.0.1:7441' } })
-    fireEvent.change(screen.getByLabelText('父节点公钥'), { target: { value: 'public-key' } })
-    const permit = screen.getByLabelText(/一次性准入 Permit/)
+    fireEvent.change(screen.getByLabelText('父节点地址'), { target: { value: '127.0.0.1:7441' } })
+    fireEvent.click(screen.getByRole('radio', { name: /已有 Permit/ }))
+    const permit = screen.getByLabelText(/Enrollment Permit/)
     fireEvent.change(permit, { target: { value: '{"version":1}' } })
-    fireEvent.click(screen.getByRole('button', { name: /登录并进入工作区/ }))
+    fireEvent.click(screen.getByRole('button', { name: /使用 Permit 注册并连接/ }))
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('一次性准入 Permit')
     expect(alert).toHaveFocus()
@@ -125,11 +130,8 @@ describe('desktop resource workspace', () => {
     render(<App api={api} />)
     fireEvent.change(await screen.findByLabelText('Profile 名称'), { target: { value: profile.name } })
     fireEvent.change(screen.getByLabelText('Profile ID'), { target: { value: profile.id } })
-    fireEvent.change(screen.getByLabelText('本机 Node ID'), { target: { value: profile.node_id } })
-    fireEvent.change(screen.getByLabelText('父 Node ID'), { target: { value: profile.parent_node_id } })
-    fireEvent.change(screen.getByLabelText('连接端点'), { target: { value: profile.endpoint } })
-    fireEvent.change(screen.getByLabelText('父节点公钥'), { target: { value: profile.parent_public_key } })
-    fireEvent.click(screen.getByRole('button', { name: '准备身份' }))
+    fireEvent.change(screen.getByLabelText('父节点地址'), { target: { value: profile.endpoint } })
+    fireEvent.click(screen.getByRole('button', { name: '提前生成公钥' }))
 
     expect(await screen.findByDisplayValue('desktop-public-key')).toBeInTheDocument()
     expect(screen.getByText(/Profile 已保存，但尚未登录或连接/)).toBeInTheDocument()
@@ -139,8 +141,42 @@ describe('desktop resource workspace', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('desktop-public-key'))
     expect(screen.getByText('公钥已复制')).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('连接端点'), { target: { value: '127.0.0.1:7331' } })
+    fireEvent.change(screen.getByLabelText('父节点地址'), { target: { value: '127.0.0.1:7331' } })
     expect(screen.queryByDisplayValue('desktop-public-key')).not.toBeInTheDocument()
+  })
+
+  it('keeps Node ID and parent identity out of the default enrollment form and requires explicit TOFU', async () => {
+    const settings: Settings = { version: 2, profiles: [], updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
+    const api = mockAPI(settings)
+    render(<App api={api} />)
+    fireEvent.change(await screen.findByLabelText('Profile 名称'), { target: { value: 'Device' } })
+    fireEvent.change(screen.getByLabelText('Profile ID'), { target: { value: 'device' } })
+    fireEvent.change(screen.getByLabelText('父节点地址'), { target: { value: '127.0.0.1:7441' } })
+
+    expect(screen.queryByLabelText('本机 Node ID')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('父 Node ID')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '提交注册申请' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('确认信任当前父节点端点')
+    expect(api.login).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByLabelText(/首次连接时信任该端点返回/))
+    fireEvent.click(screen.getByRole('button', { name: '提交注册申请' }))
+
+    await waitFor(() => expect(api.login).toHaveBeenCalledWith(
+      expect.objectContaining({ enrollment_mode: 'authority', node_id: '' }),
+      '',
+      true,
+    ))
+  })
+
+  it('reduces an enrolled authority profile to a direct reconnect action', async () => {
+    const enrolledProfile: Profile = { ...profile, enrollment_mode: 'authority' }
+    const settings: Settings = { version: 2, profiles: [enrolledProfile], updated_at_unix_ms: 1, credential_mode: 'windows-dpapi-user' }
+    render(<App api={mockAPI(settings)} />)
+
+    expect(await screen.findByText(`已注册为 Node ${enrolledProfile.node_id}`)).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '选择准入方式' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Enrollment Permit')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '连接父节点' })).toBeInTheDocument()
   })
 
   it('does not switch profiles while unsaved workspace changes are rejected', async () => {

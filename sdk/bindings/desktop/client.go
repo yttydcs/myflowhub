@@ -30,6 +30,44 @@ func (c *Client) OpenWithIdentityStore(stateDirectory string, nodeID int64, iden
 	return c.open(stateDirectory, nodeID, identityStore)
 }
 
+func (c *Client) OpenEnrollment(stateDirectory string) error {
+	if c == nil {
+		return errors.New("desktop binding client is required")
+	}
+	core, err := bindings.NewEnrollmentClient(stateDirectory)
+	if err != nil {
+		return err
+	}
+	return c.install(core)
+}
+
+func (c *Client) OpenEnrollmentWithCredentialStore(stateDirectory string, store auth.EnrollmentCredentialStore) error {
+	if c == nil {
+		return errors.New("desktop binding client is required")
+	}
+	if store == nil {
+		return errors.New("desktop protected Enrollment credential store is required")
+	}
+	core, err := bindings.NewEnrollmentClientWithCredentialStore(stateDirectory, store)
+	if err != nil {
+		return err
+	}
+	return c.install(core)
+}
+
+func (c *Client) install(core *bindings.Client) error {
+	c.mu.Lock()
+	if c.core != nil {
+		c.mu.Unlock()
+		_ = core.Close()
+		return errors.New("desktop binding client is already open")
+	}
+	c.core = core
+	c.subscriptions = make(map[int64]*subscription)
+	c.mu.Unlock()
+	return nil
+}
+
 func (c *Client) open(stateDirectory string, nodeID int64, identityStore auth.IdentityStore) error {
 	if c == nil {
 		return errors.New("desktop binding client is required")
@@ -78,6 +116,30 @@ func (c *Client) StartTCP(endpoint string, parentID int64, permitJSON string) er
 		return err
 	}
 	return core.StartTCP(endpoint, parentID, permitJSON)
+}
+
+func (c *Client) EnrollmentStatusJSON() (string, error) {
+	core, err := c.current()
+	if err != nil {
+		return "", err
+	}
+	return core.EnrollmentStatusJSON()
+}
+
+func (c *Client) EnrollTCP(endpoint, permitJSON string, allowTOFU bool, expectedParentID int64, expectedParentKey, expectedAuthorityKey string, timeoutMS int64) (string, error) {
+	core, err := c.current()
+	if err != nil {
+		return "", err
+	}
+	return core.EnrollTCP(endpoint, permitJSON, allowTOFU, expectedParentID, expectedParentKey, expectedAuthorityKey, timeoutMS)
+}
+
+func (c *Client) StartEnrolledTCP(endpoint string) error {
+	core, err := c.current()
+	if err != nil {
+		return err
+	}
+	return core.StartEnrolledTCP(endpoint)
 }
 
 func (c *Client) StatusJSON() (string, error) {
