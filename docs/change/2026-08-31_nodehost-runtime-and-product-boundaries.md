@@ -148,5 +148,8 @@ Desktop、MetricsNode 与 Android 都需要创建持久 identity、Node、Parent
 ## Closeout status
 
 - Archive docs：完成。
-- Feature commit、master integration、worktree/branch cleanup：等待 control-plane preflight 与本次 closeout 后续步骤。
+- Feature commits：`19b4cfe feat: 收敛通用 NodeHost 与产品运行时`、`350e733 docs: 记录 Enrollment 兼容边界`。
+- Master integration：在临时 detached worktree 中把主检出 tracked 修改快照重放到 `350e733`，四个重叠 docs 路径均自动合并；随后 `master` 从 `5c17648` fast-forward 到 `350e733`。
+- Preservation：主检出 autostash 恢复后与预演结果逐文件比对，tracked/untracked 用户改动保留差异为 0；这些未提交内容仍留在主检出，未被纳入本归档提交。
+- Cleanup：临时集成 worktree、`worktrees/nodehost-runtime` 与已合并的 `refactor/nodehost-runtime` 分支均已删除；既有 `feat/desktop-profile-entry` worktree 未改动。
 - Publication：local-only；未授权 push、release 或 publish。

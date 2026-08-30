@@ -528,9 +528,9 @@ DOC01
 - Approved execution Task IDs: `DOC01, HOST01, RES01, SDK01, DESK01, METR01, ANDR01, QA01`
 - Blocked: no
 - Implementation completed: yes — `$m-go` delegated execution and heavy validation
-- Archive readiness: ready for `$m-archive`
+- Archive readiness: completed by `$m-archive`
 - Archive documentation completed: yes
-- Local integration/cleanup: pending closeout preflight
+- Local integration/cleanup: completed
 - Push/publication: not authorized
 
 ## Archive Routing
