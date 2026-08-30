@@ -10,7 +10,7 @@
 - Code Repos: canonical monorepo `MyFlowHub` only
 - Worktree: `D:\project\MyFlowHub3\worktrees\desktop-profile-entry`
 - Participating Modules: `runtime/auth`、`apps/desktop`、`apps/desktop/frontend`、Wails generated bindings、canonical `docs/`
-- Current Stage: `$m-archive` documentation and post-mainline validation complete; local merge/cleanup pending
+- Current Stage: `$m-archive` complete; local `master` integrated and feature worktree/branch removed
 - Publication: local-only; no remote, push, release, or deployment is authorized
 
 ## Stage Records
@@ -536,11 +536,11 @@ DOC01 -> STATE01 -> SESSION01 -> UI01 -> QA01
 - Change record: `docs/change/2026-08-31_desktop-profile-entry-production.md`.
 - Plan snapshot: `docs/plan/plan_archive_2026-08-31_desktop-profile-entry-production.md`.
 - Governed visual evidence: first connection and dark 1024×768 chooser screenshots under `docs/change/verification/`.
-- Closeout policy: commit locally, preserve unrelated dirty main-checkout files, fast-forward local `master`, remove this worktree/branch, and do not push, release, publish, or deploy.
+- Closeout result: local `master` was fast-forwarded, the four overlapping user-owned edits were restored, the feature worktree/branch was removed, and no push, release, publication, or deployment was performed.
 
 ## Approval Gate
 
 - Plan status: approved and implemented through `UI01`.
 - Approval status: `DOC01`, `STATE01`, `SESSION01`, `UI01`, and `QA01` explicitly approved via `$m-execute`.
 - Blocked: no.
-- Next stage: finish the authorized local merge and worktree cleanup; no push, publication, release, or deployment.
+- Next stage: none for this workflow; deferred `STARTUP01`, `MOBILE01`, and `PUB01` remain outside scope.

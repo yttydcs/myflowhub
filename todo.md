@@ -48,5 +48,5 @@
 ## Current Gate
 
 - Blocked: no — `DOC01`, `STATE01`, `SESSION01`, `UI01`, and `QA01` were explicitly approved via `$m-execute`.
-- `$m-archive` documentation and post-mainline validation are complete; only the authorized local merge/worktree cleanup remains.
+- `$m-archive` is complete: local `master` is integrated, unrelated main-checkout edits are restored, and the feature worktree/branch is removed.
 - No implementation sub-agents were dispatched because the write sets overlapped and no delegation was requested.
