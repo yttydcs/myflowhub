@@ -9,6 +9,27 @@ export interface Sample {
   error?: string
 }
 
+export interface Definition {
+  name: string
+  unit: string
+  controllable: boolean
+  interval_ms: number
+}
+
+export interface IdentityResult {
+  node_id: string
+  public_key: string
+}
+
+export interface StartRequest {
+  state_directory: string
+  node_id: string
+  parent_node_id: string
+  endpoint: string
+  parent_public_key: string
+  permit?: Record<string, unknown>
+}
+
 export interface Setting {
   metric: string
   enabled: boolean

@@ -12,6 +12,15 @@ MetricsNode 采集设备指标，并在平台允许时执行亮度等有界控�
 - 采样节奏、启用项与父节点配置持久化；敏感身份材料不进入普通配置或日志。
 - 通知频道是同一版本化配置的一部分；节点消费父节点的 `notifications/events` Stream，并由 Windows/Android 宿主呈现系统通知。
 
+## Windows UI
+
+- Windows Wails 产品默认进入“资源状态”，以表格展示真实 `Status.samples`；没有 sample 时显示 idle/等待空态，不生成演示值或 fallback 指标。
+- 资源行同时表达 `fresh`、`stale`、`unavailable`、单位、采样间隔和错误摘要；宽屏检查器补充 schema、采样时间、观察时间与写入边界，但不承载唯一操作。
+- “采集策略”继续编辑版本化 configuration，包括 enabled、writable、interval 与 notification channels；保存沿用 revision 冲突和 backend validation。
+- “连接与身份”继续使用独立 Metrics state directory、Node identity、父节点 trust 和 provisioning permit；permit 仅驻留当前表单，连接成功或应用释放时清空。
+- 界面使用 Metrics 自有的 Desktop-aligned token、品牌静态资源和 light/dark 偏好；只共享视觉规范，不依赖 Desktop 私有组件、状态、IPC 或生命周期。
+- 状态轮询保持约 1 秒节奏，单次请求不重叠；停止或释放 UI 后取消调度，旧请求不能覆盖新的启停结果。
+
 ## Permissions
 
 读指标和改设备状态使用不同权限点。父控子仍需通过显式 control；本地执行端始终执行范围、安全和设备存在性校验。
