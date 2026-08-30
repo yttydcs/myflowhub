@@ -96,10 +96,13 @@ MyFlowHub/
 ### sdk
 
 - `sdk/go` 和普通 binding 是客户端层，不依赖 `host/`。
-- 唯一例外是 `sdk/bindings/android/host.go`：Android 产品在同一 gomobile artifact 中暴露可选 in-process Hub，因此该文件是平台组合根，只允许导入 `host/hub`。architecture test 固定这一精确 file/import pair，例外不得扩散。
+- 唯一例外是 `sdk/bindings/android/host.go`：Android 产品需要在同一 gomobile artifact 中组合完整运行时，因此该文件是单文件平台组合根，只允许导入通用 leaf `host/nodehost` 与延期迁移的 in-process `host/hub`。architecture test 固定这两个精确 file/import pair，例外不得扩散。
+- 为保留既有 gomobile ABI，导出的 `android.Client` 是平台 lifecycle wrapper：`client.go` 不直接依赖 `host/`，而是调用 `host.go` 内的 leaf runtime factory，因而可以间接启动并在 `Close` 时关闭自己唯一拥有的 leaf Host。
+- `android.Client` 内部持有的通用 `bindings.Client` 才是 non-owning operation facade；它只清理 Client-local subscription/facade 状态，不拥有或关闭 Host。
+- 其他 `sdk/bindings/android` 文件、其他 binding 与 `sdk/go` 不得借平台组合需求新增 `host/` 依赖。Android 的单文件例外不改变 SDK 整体的 non-owning 定位。
 
 - 依赖 protocol 和面向客户端的公共契约。
-- 不依赖 host 或应用实现。
+- 除上述精确 `android/host.go` 例外外，不依赖 host 或应用实现。
 - 第一方应用不得复制发送、等待、超时、重连或订阅生命周期逻辑。
 
 ### apps

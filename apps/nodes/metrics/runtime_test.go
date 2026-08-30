@@ -6,6 +6,7 @@ import (
 	"time"
 
 	featurenotification "github.com/yttydcs/myflowhub/feature/notification"
+	"github.com/yttydcs/myflowhub/host/nodehost"
 	"github.com/yttydcs/myflowhub/internal/keystore"
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/auth"
@@ -62,7 +63,7 @@ func TestRuntimeConnectsAndParentControlsMetricsResources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Close()
+	t.Cleanup(func() { _ = runtime.Close() })
 	waitRuntimeConnected(t, runtime)
 	if err := runtime.Metrics.Update(CPUPercent, "73", nil); err != nil {
 		t.Fatal(err)
@@ -95,6 +96,103 @@ func TestRuntimeConnectsAndParentControlsMetricsResources(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitNotificationFromParent(t, ctx, root, runtime)
+	if err := runtime.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.Close(); err != nil {
+		t.Fatalf("second close: %v", err)
+	}
+	if status := runtime.Host.Status(); status.Lifecycle != nodehost.LifecycleStopped {
+		t.Fatalf("host did not stop with metrics runtime: %+v", status)
+	}
+}
+
+func TestRuntimeUsesSingleLeafHostAndCompletePreStartCatalog(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	parentIdentity, err := auth.GenerateIdentity(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	network := memory.NewNetwork()
+	defer network.Close()
+	runtime, err := prepareRuntime(ctx, RuntimeConfig{
+		StateDirectory: t.TempDir(), NodeID: 2, ParentID: 1, ParentKey: parentIdentity.PublicKey,
+		Driver: network, Endpoint: "metrics-prestart", Platform: "windows",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Close()
+	if runtime.Host == nil || runtime.Node != runtime.Host.Node() || runtime.SDK != runtime.Host.Client() {
+		t.Fatal("metrics runtime did not expose the single Host-owned Node and Client")
+	}
+	if runtime.State != runtime.Host.State() || runtime.Host.Resources() != runtime.Node.Registry() {
+		t.Fatal("metrics runtime did not expose the Host-owned state and Registry")
+	}
+	status := runtime.Host.Status()
+	if status.Lifecycle != nodehost.LifecycleNew || status.Role != nodehost.RoleLeaf || len(status.Endpoints) != 0 {
+		t.Fatalf("unexpected prepared metrics host: %+v", status)
+	}
+
+	descriptors := runtime.Host.Resources().List()
+	expected := 3 + len(Definitions("windows")) // catalog, config, config update, and every metric variable
+	for _, definition := range Definitions("windows") {
+		if definition.Controllable {
+			expected++
+		}
+	}
+	if len(descriptors) != expected {
+		t.Fatalf("pre-start catalog has %d resources, want %d: %+v", len(descriptors), expected, descriptors)
+	}
+	for _, descriptor := range descriptors {
+		if descriptor.ID.Owner != runtime.Host.ID() {
+			t.Fatalf("catalog resource %q owner %d, want %d", descriptor.ID.Name, descriptor.ID.Owner, runtime.Host.ID())
+		}
+	}
+	var catalog protocol.ResourceCatalogV2
+	if err := protocol.DecodeJSONPayload(
+		runtime.Host.Resources().Catalog().Snapshot().Value, protocol.DefaultMaxPayload, &catalog,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if len(catalog.Resources) != expected {
+		t.Fatalf("published pre-start catalog has %d resources, want %d", len(catalog.Resources), expected)
+	}
+}
+
+func TestRuntimePreparationFailureReleasesHostStateDirectory(t *testing.T) {
+	parentIdentity, err := auth.GenerateIdentity(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stateDirectory := t.TempDir()
+	state, err := auth.OpenState(stateDirectory, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := DefaultConfig("android")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := state.Store.Save("metrics.json", stored); err != nil {
+		t.Fatal(err)
+	}
+	network := memory.NewNetwork()
+	defer network.Close()
+	if _, err := Start(context.Background(), RuntimeConfig{
+		StateDirectory: stateDirectory, NodeID: 2, ParentID: 1, ParentKey: parentIdentity.PublicKey,
+		Driver: network, Endpoint: "metrics-rollback", Platform: "windows",
+	}); err == nil {
+		t.Fatal("expected stored platform mismatch")
+	}
+	host, err := nodehost.New(context.Background(), nodehost.Config{StateDirectory: stateDirectory, NodeID: 2})
+	if err != nil {
+		t.Fatalf("failed metrics preparation retained the Host state reservation: %v", err)
+	}
+	if err := host.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func waitNotificationFromParent(t *testing.T, ctx context.Context, root *node.Node, runtime *Runtime) {

@@ -2,6 +2,7 @@ package androidbinding
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -11,14 +12,89 @@ import (
 	"sync"
 
 	"github.com/yttydcs/myflowhub/host/hub"
+	"github.com/yttydcs/myflowhub/host/nodehost"
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/auth"
 	"github.com/yttydcs/myflowhub/runtime/link"
 	"github.com/yttydcs/myflowhub/runtime/node"
+	"github.com/yttydcs/myflowhub/sdk/bindings"
 	sdk "github.com/yttydcs/myflowhub/sdk/go"
 	"github.com/yttydcs/myflowhub/transport/rfcomm"
 	"github.com/yttydcs/myflowhub/transport/tcp"
 )
+
+// androidLeafRuntime is the Android platform composition root for a generic
+// leaf Client. Keeping Host ownership here prevents the portable operation
+// facade from acquiring a dependency on host packages.
+type androidLeafRuntime struct {
+	host   *nodehost.Host
+	facade *bindings.Client
+	cancel context.CancelFunc
+
+	closeOnce sync.Once
+	closeErr  error
+}
+
+type androidLeafConfig struct {
+	StateDirectory string
+	NodeID         protocol.NodeID
+	ParentID       protocol.NodeID
+	ParentKey      ed25519.PublicKey
+	Permit         *protocol.ProvisioningPermitV1
+	Driver         link.Driver
+	Endpoint       link.Endpoint
+}
+
+func newAndroidLeafRuntime(config androidLeafConfig) (*androidLeafRuntime, error) {
+	runCtx, cancel := context.WithCancel(context.Background())
+	host, err := nodehost.New(runCtx, nodehost.Config{
+		StateDirectory: config.StateDirectory,
+		NodeID:         config.NodeID,
+		Parent: &nodehost.ParentConfig{
+			NodeID: config.ParentID, PublicKey: config.ParentKey, Permit: config.Permit,
+			Driver: config.Driver, Endpoint: config.Endpoint, Supervisor: node.SupervisorConfig{},
+		},
+	})
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	connection, ok := host.ParentStatus()
+	if !ok {
+		_ = host.Close()
+		cancel()
+		return nil, errors.New("Android client parent status is unavailable")
+	}
+	facade, err := bindings.NewAttachedClient(host.Client(), bindings.PublicIdentity{
+		NodeID: host.ID(), PublicKey: host.PublicKey(),
+	}, connection)
+	if err != nil {
+		_ = host.Close()
+		cancel()
+		return nil, err
+	}
+	if err := host.Start(); err != nil {
+		_ = facade.Close()
+		_ = host.Close()
+		cancel()
+		return nil, err
+	}
+	return &androidLeafRuntime{host: host, facade: facade, cancel: cancel}, nil
+}
+
+func (r *androidLeafRuntime) Close() error {
+	if r == nil {
+		return nil
+	}
+	r.closeOnce.Do(func() {
+		// The facade owns subscriptions only. Close it before the Host so its
+		// callbacks cannot race the Node shutdown.
+		r.closeErr = r.facade.Close()
+		r.cancel()
+		r.closeErr = errors.Join(r.closeErr, r.host.Close())
+	})
+	return r.closeErr
+}
 
 type Host struct {
 	mu         sync.Mutex

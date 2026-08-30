@@ -11,9 +11,13 @@ import (
 	"time"
 
 	"github.com/yttydcs/myflowhub/host/hub"
+	"github.com/yttydcs/myflowhub/host/nodehost"
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/auth"
+	"github.com/yttydcs/myflowhub/runtime/node"
+	"github.com/yttydcs/myflowhub/runtime/resource"
 	sdk "github.com/yttydcs/myflowhub/sdk/go"
+	"github.com/yttydcs/myflowhub/transport/memory"
 	"github.com/yttydcs/myflowhub/transport/tcp"
 )
 
@@ -171,6 +175,208 @@ func TestBindingRejectsInvalidBoundaryValues(t *testing.T) {
 	}
 	if _, err := client.InvokeJSON(1, "test/command", "not-json", 1_000); err == nil {
 		t.Fatal("invalid command JSON was accepted")
+	}
+}
+
+func TestAttachedBindingUsesHostClientAndOnlyClosesLocalFacade(t *testing.T) {
+	host, err := nodehost.New(context.Background(), nodehost.Config{StateDirectory: t.TempDir(), NodeID: 72})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer host.Close()
+	variableID := protocol.ResourceID{Owner: host.ID(), Name: "test/status"}
+	variable, err := resource.NewVariable(resource.VariableDescriptor(variableID, "application/json", "test.status.v1", "test.read", 64), []byte(`{"state":"ready"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := host.Resources().Register(variable); err != nil {
+		t.Fatal(err)
+	}
+	if err := host.Start(); err != nil {
+		t.Fatal(err)
+	}
+	facade, err := NewAttachedClient(host.Client(), PublicIdentity{
+		NodeID: host.ID(), PublicKey: host.PublicKey(),
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identityJSON, err := facade.IdentityJSON()
+	if err != nil || !strings.Contains(identityJSON, `"node_id":"72"`) {
+		t.Fatalf("unexpected attached identity %q: %v", identityJSON, err)
+	}
+	snapshot, err := facade.SnapshotJSON(72, variableID.Name, 1_000)
+	if err != nil || snapshot != `{"state":"ready"}` {
+		t.Fatalf("unexpected attached snapshot %q: %v", snapshot, err)
+	}
+	if err := facade.TrustParent(1, base64.RawStdEncoding.EncodeToString(host.State().Identity.PublicKey)); err == nil || !strings.Contains(err.Error(), "owned by the attached node host") {
+		t.Fatalf("attached facade allowed trust mutation: %v", err)
+	}
+	if err := facade.StartTCP("127.0.0.1:1", 1, ""); err == nil || !strings.Contains(err.Error(), "owned by the attached node host") {
+		t.Fatalf("attached facade allowed parent start: %v", err)
+	}
+	if err := facade.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-host.Node().Done():
+		t.Fatal("attached binding Close closed the host node")
+	default:
+	}
+	event, err := host.Client().Snapshot(context.Background(), variableID)
+	if err != nil || string(event.Value) != `{"state":"ready"}` {
+		t.Fatalf("host client was affected by attached facade Close: event=%+v err=%v", event, err)
+	}
+}
+
+func TestAttachedBindingRejectsMismatchedPublicIdentity(t *testing.T) {
+	host, err := nodehost.New(context.Background(), nodehost.Config{StateDirectory: t.TempDir(), NodeID: 73})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer host.Close()
+	if _, err := NewAttachedClient(host.Client(), PublicIdentity{NodeID: 74, PublicKey: host.PublicKey()}, nil); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("mismatched attached identity returned %v", err)
+	}
+}
+
+func TestAttachedBindingBeforeHostStartAllowsLocalOperationsButNotParentWait(t *testing.T) {
+	parent, err := auth.GenerateIdentity(76)
+	if err != nil {
+		t.Fatal(err)
+	}
+	network := memory.NewNetwork()
+	defer network.Close()
+	host, err := nodehost.New(context.Background(), nodehost.Config{
+		StateDirectory: t.TempDir(), NodeID: 75,
+		Parent: &nodehost.ParentConfig{NodeID: parent.NodeID, PublicKey: parent.PublicKey, Driver: network, Endpoint: "not-started"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer host.Close()
+	statusID := protocol.ResourceID{Owner: host.ID(), Name: "test/pre-start"}
+	variable, err := resource.NewVariable(resource.VariableDescriptor(statusID, "application/json", "test.status.v1", "test.read", 64), []byte(`{"ready":false}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := host.Resources().Register(variable); err != nil {
+		t.Fatal(err)
+	}
+	connection, ok := host.ParentStatus()
+	if !ok {
+		t.Fatal("configured parent status was not available")
+	}
+	facade, err := NewAttachedClient(host.Client(), PublicIdentity{NodeID: host.ID(), PublicKey: host.PublicKey()}, connection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer facade.Close()
+	if snapshot, err := facade.SnapshotJSON(75, statusID.Name, 1_000); err != nil || snapshot != `{"ready":false}` {
+		t.Fatalf("pre-start local operation failed: %q %v", snapshot, err)
+	}
+	if err := facade.WaitConnected(100); !errors.Is(err, nodehost.ErrNotStarted) {
+		t.Fatalf("pre-start parent wait returned %v", err)
+	}
+}
+
+func TestAttachedBindingSubscriptionCancellationDoesNotAffectHost(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	network := memory.NewNetwork()
+	defer network.Close()
+	root, err := nodehost.New(ctx, nodehost.Config{
+		StateDirectory: t.TempDir(), NodeID: 81,
+		Listeners: []nodehost.ListenerConfig{{Driver: network, Endpoint: "attached-root"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	statusID := protocol.ResourceID{Owner: root.ID(), Name: "test/streaming-status"}
+	status, err := resource.NewVariable(resource.VariableDescriptor(statusID, "application/json", "test.status.v1", "test.subscribe", 64), []byte(`{"value":1}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := root.Resources().Register(status); err != nil {
+		t.Fatal(err)
+	}
+	leaf, err := nodehost.New(ctx, nodehost.Config{
+		StateDirectory: t.TempDir(), NodeID: 82,
+		Parent: &nodehost.ParentConfig{
+			NodeID: root.ID(), PublicKey: root.State().Identity.PublicKey,
+			Driver: network, Endpoint: "attached-root",
+			Supervisor: node.SupervisorConfig{MinBackoff: time.Millisecond, MaxBackoff: 5 * time.Millisecond},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer leaf.Close()
+	if err := root.State().Trust.Add(leaf.ID(), leaf.State().Identity.PublicKey); err != nil {
+		t.Fatal(err)
+	}
+	if err := root.State().Policy.Grant(auth.Request{Subject: leaf.ID(), Action: auth.ActionSubscribe, Resource: statusID}); err != nil {
+		t.Fatal(err)
+	}
+	if err := root.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := leaf.Start(); err != nil {
+		t.Fatal(err)
+	}
+	connection, ok := leaf.ParentStatus()
+	if !ok {
+		t.Fatal("leaf did not expose parent status")
+	}
+	facade, err := NewAttachedClient(leaf.Client(), PublicIdentity{
+		NodeID: leaf.ID(), PublicKey: leaf.PublicKey(),
+	}, connection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer facade.Close()
+	if err := facade.WaitConnected(2_000); err != nil {
+		t.Fatal(err)
+	}
+	listener := &testListener{events: make(chan string, 2), errors: make(chan string, 1)}
+	subscriptionID, err := facade.Subscribe(int64(root.ID()), statusID.Name, 60_000, listener)
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-listener.events:
+	case failure := <-listener.errors:
+		t.Fatalf("attached subscription failed: %s", failure)
+	case <-time.After(2 * time.Second):
+		t.Fatal("attached subscription did not deliver its snapshot")
+	}
+	facade.CancelSubscription(subscriptionID)
+	deadline := time.Now().Add(time.Second)
+	for root.Node().Stats().ActiveSubscriptions != 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if active := root.Node().Stats().ActiveSubscriptions; active != 0 {
+		t.Fatalf("attached subscription was not cancelled: %d active", active)
+	}
+	if _, err := status.Set([]byte(`{"value":2}`)); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case event := <-listener.events:
+		t.Fatalf("cancelled attached subscription delivered %s", event)
+	case <-time.After(50 * time.Millisecond):
+	}
+	if err := facade.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-leaf.Node().Done():
+		t.Fatal("attached subscription facade Close stopped the leaf Host")
+	default:
+	}
+	if current := connection.Snapshot(); current.State != sdk.ConnectionConnected {
+		t.Fatalf("attached subscription cancellation changed Host connection: %+v", current)
 	}
 }
 

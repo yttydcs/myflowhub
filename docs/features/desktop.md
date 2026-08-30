@@ -2,9 +2,11 @@
 
 ## 定位
 
-Desktop 是 Node/Resource 平台的通用工作台，不是另一套 Hub 或业务 runtime。它通过 canonical SDK
-连接一个父节点，从 authoritative Node tree 和每个 Node 的 `system/catalog` 发现资源；前端不解析 wire、
+Desktop 是 Node/Resource 平台的通用工作台，不是另一套 Hub 或业务 runtime。它拥有独立的 NodeHost，
+默认以 Parent-only leaf 连接一个父节点，从 authoritative Node tree 和每个 Node 的 `system/catalog` 发现资源；前端不解析 wire、
 不推断路由，也不把按钮可见性当作权限边界。
+
+Desktop 与 MetricsNode 完全独立：二者使用不同 Node identity、state、进程、Resource owner 和安装包。共享 NodeHost/SDK package 不会让 Desktop 拥有 Metrics 资源，也不会赋予 Desktop 默认 Listener、中继或网络特权。
 
 源码边界：
 
@@ -19,7 +21,7 @@ React workspace
 Desktop binding: catalog · operate · subscribe · session
           │
           ▼
-canonical Go SDK + ParentSupervisor
+NodeHost + attached canonical Go SDK
           │
           ▼
 authoritative Node tree ── node-owned Resources
@@ -31,7 +33,7 @@ authoritative Node tree ── node-owned Resources
 
 设置格式为 version 2。每个 Profile 隔离 endpoint、本机 Node identity、受信任父节点和 Views；单个应用
 实例只激活一个 Profile。登录成功后保存 Profile 与身份，下次启动可自动连接。切换 Profile 会先关闭旧
-client，其 subscription、session 和 connection 随之清理，再打开新身份。
+Host，其 subscription、session 和 connection 随之清理，再打开新身份。连接失败后的重试创建新的候选 Host，只有成功后才替换活动实例。
 
 - 登录页支持新建、选择、编辑和显式确认删除 Profile；
 - 全新 Profile 可先准备受保护的本机 identity 并复制 raw-base64 Ed25519 公钥；准备动作只保存非 active Profile，不连接、不登录，也不返回私钥；
@@ -141,6 +143,7 @@ wails build -clean
 - [本轮 Explorer 请求](../intake/2026-08-30_desktop-explorer-collapsible-resource-tree.md)
 - [Desktop 资源工作区 requirements](../requirements/desktop-resource-workspace.md)
 - [Desktop Resource Workspace v3](../specs/desktop-resource-workspace-v3.md)
+- [NodeHost Runtime](../specs/node-host-runtime.md)
 - [Explorer Resource tree 变更归档](../change/2026-08-30_desktop-explorer-collapsible-resource-tree.md)
 
 ## 明确移除

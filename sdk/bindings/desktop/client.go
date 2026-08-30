@@ -19,17 +19,19 @@ type Client struct {
 	subscriptions map[int64]*subscription
 }
 
-func (c *Client) Open(stateDirectory string, nodeID int64) error {
-	return c.open(stateDirectory, nodeID, nil)
-}
-
-func (c *Client) OpenWithIdentityStore(stateDirectory string, nodeID int64, identityStore auth.IdentityStore) error {
-	if identityStore == nil {
-		return errors.New("desktop protected identity store is required")
+// NewAttachedClient creates a Desktop JSON/subscription facade over a generic
+// non-owning binding. Closing the facade only closes its binding-local
+// subscriptions; the product that supplied the NodeHost remains its owner.
+func NewAttachedClient(core *bindings.Client) (*Client, error) {
+	if core == nil {
+		return nil, errors.New("desktop binding requires an attached core client")
 	}
-	return c.open(stateDirectory, nodeID, identityStore)
+	return &Client{core: core, subscriptions: make(map[int64]*subscription)}, nil
 }
 
+// OpenEnrollment installs the compatibility Enrollment lifecycle used before
+// a profile has a granted Node identity. Normal Desktop profiles use
+// NewAttachedClient with a product-owned NodeHost.
 func (c *Client) OpenEnrollment(stateDirectory string) error {
 	if c == nil {
 		return errors.New("desktop binding client is required")
@@ -56,31 +58,9 @@ func (c *Client) OpenEnrollmentWithCredentialStore(stateDirectory string, store 
 }
 
 func (c *Client) install(core *bindings.Client) error {
-	c.mu.Lock()
-	if c.core != nil {
-		c.mu.Unlock()
-		_ = core.Close()
-		return errors.New("desktop binding client is already open")
-	}
-	c.core = core
-	c.subscriptions = make(map[int64]*subscription)
-	c.mu.Unlock()
-	return nil
-}
-
-func (c *Client) open(stateDirectory string, nodeID int64, identityStore auth.IdentityStore) error {
 	if c == nil {
+		_ = core.Close()
 		return errors.New("desktop binding client is required")
-	}
-	var core *bindings.Client
-	var err error
-	if identityStore == nil {
-		core, err = bindings.NewClient(stateDirectory, nodeID)
-	} else {
-		core, err = bindings.NewClientWithIdentityStore(stateDirectory, nodeID, identityStore)
-	}
-	if err != nil {
-		return err
 	}
 	c.mu.Lock()
 	if c.core != nil {
@@ -100,22 +80,6 @@ func (c *Client) IdentityJSON() (string, error) {
 		return "", err
 	}
 	return core.IdentityJSON()
-}
-
-func (c *Client) TrustParent(parentID int64, rawPublicKey string) error {
-	core, err := c.current()
-	if err != nil {
-		return err
-	}
-	return core.TrustParent(parentID, rawPublicKey)
-}
-
-func (c *Client) StartTCP(endpoint string, parentID int64, permitJSON string) error {
-	core, err := c.current()
-	if err != nil {
-		return err
-	}
-	return core.StartTCP(endpoint, parentID, permitJSON)
 }
 
 func (c *Client) EnrollmentStatusJSON() (string, error) {

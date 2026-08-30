@@ -46,7 +46,7 @@ func NewEnrollmentClientWithCredentialStore(stateDirectory string, store auth.En
 }
 
 func newEnrollmentBindingClient(enrollmentState *auth.EnrollmentClientState) (*Client, error) {
-	client := &Client{enrollment: enrollmentState, subscriptions: make(map[int64]context.CancelFunc)}
+	client := &Client{enrollment: enrollmentState, ownsRuntime: true, subscriptions: make(map[int64]context.CancelFunc)}
 	if err := client.installEnrolledState(); err != nil {
 		return nil, err
 	}
@@ -210,6 +210,7 @@ func (c *Client) installEnrolledStateLocked() error {
 		return err
 	}
 	c.state = &auth.State{Identity: identity, Trust: trust}
+	c.identity = PublicIdentity{NodeID: identity.NodeID, PublicKey: append(ed25519.PublicKey(nil), identity.PublicKey...)}
 	return nil
 }
 

@@ -21,7 +21,7 @@ type NotificationStatus struct {
 
 type NotificationInbox struct {
 	client     *sdk.Client
-	connection *sdk.Connection
+	connection sdk.ConnectionStatus
 	parent     protocol.NodeID
 	controller *Controller
 	capacity   int
@@ -35,15 +35,15 @@ type NotificationInbox struct {
 	closeOnce sync.Once
 }
 
-func startNotificationInbox(ctx context.Context, client *sdk.Client, connection *sdk.Connection, parent protocol.NodeID, controller *Controller, capacity int) (*NotificationInbox, error) {
+func startNotificationInbox(ctx context.Context, client *sdk.Client, connection sdk.ConnectionStatus, parent protocol.NodeID, controller *Controller, capacity int) (*NotificationInbox, error) {
 	if ctx == nil || client == nil || connection == nil || controller == nil {
 		return nil, errors.New("metrics notification inbox dependencies are required")
 	}
 	if capacity == 0 {
 		capacity = defaultNotificationCapacity
 	}
-	if capacity < 1 || capacity > 1024 {
-		return nil, errors.New("metrics notification inbox capacity must be between 1 and 1024")
+	if err := validateNotificationCapacity(capacity); err != nil {
+		return nil, err
 	}
 	runCtx, cancel := context.WithCancel(ctx)
 	value := &NotificationInbox{
@@ -113,7 +113,7 @@ func (i *NotificationInbox) run(ctx context.Context) {
 		for _, channel := range config.NotificationChannels {
 			channels[channel] = struct{}{}
 		}
-		subscription, err := i.client.SubscribeDurableConnection(ctx, i.connection, protocol.ResourceID{
+		subscription, err := i.client.SubscribeDurableStatus(ctx, i.connection, protocol.ResourceID{
 			Owner: i.parent, Name: protocol.BuiltinNotificationEvents,
 		}, 30*time.Second, i.capacity)
 		if err != nil {
@@ -130,6 +130,13 @@ func (i *NotificationInbox) run(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func validateNotificationCapacity(capacity int) error {
+	if capacity < 0 || capacity > 1024 {
+		return errors.New("metrics notification inbox capacity must be between 1 and 1024")
+	}
+	return nil
 }
 
 func (i *NotificationInbox) consume(ctx context.Context, subscription *sdk.DurableSubscription, revision uint64, channels map[string]struct{}) bool {

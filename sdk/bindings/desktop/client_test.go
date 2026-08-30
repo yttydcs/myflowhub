@@ -1,20 +1,35 @@
 package desktop
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
+
+	"github.com/yttydcs/myflowhub/host/nodehost"
+	"github.com/yttydcs/myflowhub/protocol"
+	"github.com/yttydcs/myflowhub/sdk/bindings"
 )
 
-func TestClientLifecycleAndPollingBoundary(t *testing.T) {
-	var client Client
-	if _, err := client.IdentityJSON(); err == nil {
-		t.Fatal("unopened desktop client was accepted")
+func TestAttachedClientLifecycleAndPollingBoundary(t *testing.T) {
+	if _, err := NewAttachedClient(nil); err == nil {
+		t.Fatal("nil attached core was accepted")
 	}
-	if err := client.Open(t.TempDir(), 2); err != nil {
+	host, err := nodehost.New(context.Background(), nodehost.Config{
+		StateDirectory: t.TempDir(), NodeID: 2,
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := client.Open(t.TempDir(), 3); err == nil {
-		t.Fatal("desktop client was opened twice")
+	defer host.Close()
+	core, err := bindings.NewAttachedClient(host.Client(), bindings.PublicIdentity{
+		NodeID: host.ID(), PublicKey: host.PublicKey(),
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewAttachedClient(core)
+	if err != nil {
+		t.Fatal(err)
 	}
 	identity, err := client.IdentityJSON()
 	if err != nil || !json.Valid([]byte(identity)) {
@@ -50,5 +65,14 @@ func TestClientLifecycleAndPollingBoundary(t *testing.T) {
 	}
 	if err := client.Close(); err != nil {
 		t.Fatal(err)
+	}
+
+	// The facade is non-owning: its Close must not close the Host client or
+	// prevent the Host from starting its own lifecycle.
+	if id, err := host.Client().NodeID(); err != nil || id != protocol.NodeID(2) {
+		t.Fatalf("facade close affected host client: id=%d err=%v", id, err)
+	}
+	if err := host.Start(); err != nil {
+		t.Fatalf("facade close affected host lifecycle: %v", err)
 	}
 }

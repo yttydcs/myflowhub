@@ -19,7 +19,7 @@
 - [desktop-resource-workspace.md](desktop-resource-workspace.md)
   - Desktop Profile、登录持久化、Node/Resource Explorer、Renderer Registry、Workspace 和 View 的长期需求。
 - [unified-node-runtime.md](unified-node-runtime.md)
-  - 统一权威节点树、可插拔链路、资源/订阅/指令内核和 monorepo 收敛的长期需求与验收口径。
+  - 统一权威节点树、通用 NodeHost、非 owning SDK、可插拔链路和 monorepo 收敛的长期需求与验收口径。
 - [management-node-display-name.md](management-node-display-name.md)
   - 设备管理中的节点显示名需求、范围与验收口径。
 - [auth-controlled-admission.md](auth-controlled-admission.md)

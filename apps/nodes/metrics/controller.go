@@ -33,6 +33,7 @@ type Actuator interface {
 
 type ControllerConfig struct {
 	Node      *node.Node
+	Resources *resource.Registry
 	Store     *keystore.Store
 	Platform  string
 	Collector Collector
@@ -43,6 +44,7 @@ type ControllerConfig struct {
 
 type Controller struct {
 	node      *node.Node
+	resources *resource.Registry
 	store     *keystore.Store
 	collector Collector
 	actuator  Actuator
@@ -68,6 +70,12 @@ func Register(config ControllerConfig) (*Controller, error) {
 	if config.Node == nil || config.Store == nil {
 		return nil, errors.New("metrics controller requires a node and durable store")
 	}
+	if config.Resources == nil {
+		config.Resources = config.Node.Registry()
+	}
+	if config.Resources != config.Node.Registry() {
+		return nil, errors.New("metrics controller resources must belong to its node")
+	}
 	if !validPlatform(config.Platform) {
 		return nil, errors.New("metrics controller platform is invalid")
 	}
@@ -80,7 +88,7 @@ func Register(config ControllerConfig) (*Controller, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	value := &Controller{
-		node: config.Node, store: config.Store, collector: config.Collector, actuator: config.Actuator, logger: config.Logger, now: config.Now,
+		node: config.Node, resources: config.Resources, store: config.Store, collector: config.Collector, actuator: config.Actuator, logger: config.Logger, now: config.Now,
 		config: current, variables: make(map[Name]*resource.Variable), samples: make(map[Name]SampleV1), changed: make(chan struct{}),
 		ctx: ctx, cancel: cancel,
 	}
@@ -194,16 +202,14 @@ func (c *Controller) registerResources() error {
 	if err != nil {
 		return err
 	}
-	c.configVariable, err = resource.NewVariable(resource.VariableDescriptor(
-		protocol.ResourceID{Owner: owner, Name: ResourceConfig}, "application/json", SchemaConfigV1,
-		"metrics.config.read", protocol.DefaultMaxPayload,
-	), configPayload)
+	c.configVariable, err = c.resources.Variable(resource.VariableSpec{
+		Name: ResourceConfig, ContentType: "application/json", Schema: SchemaConfigV1,
+		ReadPermission: "metrics.config.read", MaxPayloadBytes: protocol.DefaultMaxPayload, Initial: configPayload,
+	})
 	if err != nil {
 		return err
 	}
-	if err := c.register(c.configVariable); err != nil {
-		return err
-	}
+	c.registered = append(c.registered, c.configVariable.Descriptor().ID)
 	update, err := resource.NewCommand(resource.CommandDescriptorSchemas(
 		protocol.ResourceID{Owner: owner, Name: ResourceConfigUpdate}, "application/json", SchemaConfigUpdateV1, SchemaConfigV1,
 		"metrics.config.write", protocol.DefaultMaxPayload,
@@ -224,16 +230,14 @@ func (c *Controller) registerResources() error {
 		if err != nil {
 			return err
 		}
-		variable, err := resource.NewVariable(resource.VariableDescriptor(
-			protocol.ResourceID{Owner: owner, Name: ResourceName(definition.Name)}, "application/json", SchemaSampleV1,
-			"metrics.read", protocol.DefaultMaxPayload,
-		), payload)
+		variable, err := c.resources.Variable(resource.VariableSpec{
+			Name: ResourceName(definition.Name), ContentType: "application/json", Schema: SchemaSampleV1,
+			ReadPermission: "metrics.read", MaxPayloadBytes: protocol.DefaultMaxPayload, Initial: payload,
+		})
 		if err != nil {
 			return err
 		}
-		if err := c.register(variable); err != nil {
-			return err
-		}
+		c.registered = append(c.registered, variable.Descriptor().ID)
 		c.variables[definition.Name] = variable
 		c.samples[definition.Name] = sample
 		if definition.Controllable {
@@ -254,7 +258,7 @@ func (c *Controller) registerResources() error {
 }
 
 func (c *Controller) register(value resource.Resource) error {
-	if err := c.node.Registry().Register(value); err != nil {
+	if err := c.resources.Register(value); err != nil {
 		return err
 	}
 	c.registered = append(c.registered, value.Descriptor().ID)
@@ -264,7 +268,7 @@ func (c *Controller) register(value resource.Resource) error {
 func (c *Controller) removeRegistered() error {
 	var result error
 	for index := len(c.registered) - 1; index >= 0; index-- {
-		if err := c.node.Registry().Remove(c.registered[index]); err != nil && !errors.Is(err, resource.ErrNotFound) && result == nil {
+		if err := c.resources.Remove(c.registered[index]); err != nil && !errors.Is(err, resource.ErrNotFound) && result == nil {
 			result = err
 		}
 	}

@@ -128,22 +128,22 @@ func readPermit(path string) (*protocol.ProvisioningPermitV1, error) {
 	return &permit, nil
 }
 
-func waitConnected(ctx context.Context, connection *sdk.Connection) error {
+func waitConnected(ctx context.Context, connection sdk.ConnectionStatus) error {
+	if ctx == nil || connection == nil {
+		return errors.New("metrics parent connection dependencies are required")
+	}
+	snapshot := connection.Snapshot()
 	for {
-		snapshot := connection.Snapshot()
 		switch snapshot.State {
 		case sdk.ConnectionConnected:
 			return nil
 		case sdk.ConnectionFailed, sdk.ConnectionStopped:
 			return fmt.Errorf("metrics parent connection %s: %s", snapshot.State, snapshot.LastError)
 		}
-		select {
-		case _, ok := <-connection.Changes():
-			if !ok {
-				return errors.New("metrics parent connection stopped")
-			}
-		case <-ctx.Done():
-			return fmt.Errorf("wait for metrics parent: %w", ctx.Err())
+		next, err := connection.WaitChange(ctx, snapshot.Generation)
+		if err != nil {
+			return fmt.Errorf("wait for metrics parent: %w", err)
 		}
+		snapshot = next
 	}
 }

@@ -12,6 +12,8 @@
 - 受保护 generated 文档的维护说明
 
 ## Current Specs
+- [node-host-runtime.md](node-host-runtime.md)
+  - 纯 Go NodeHost、Parent/Listeners 角色组合、attached SDK ownership、资源注册和薄平台适配契约
 - [node-enrollment-and-admission-authority.md](node-enrollment-and-admission-authority.md)
   - 首次 Enrollment、Permit/Pending、Authority、Node ID 分配、撤销和兼容 Join 的当前契约
 - [brand-identity-assets.md](brand-identity-assets.md)

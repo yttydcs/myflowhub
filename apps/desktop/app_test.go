@@ -10,12 +10,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/yttydcs/myflowhub/host/hub"
+	"github.com/yttydcs/myflowhub/host/nodehost"
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/auth"
+	"github.com/yttydcs/myflowhub/runtime/link"
+	"github.com/yttydcs/myflowhub/sdk/bindings"
+	desktopbinding "github.com/yttydcs/myflowhub/sdk/bindings/desktop"
 	"github.com/yttydcs/myflowhub/transport/tcp"
 )
 
@@ -30,7 +35,7 @@ func TestConnectClientProvidesActionableAdmissionTimeout(t *testing.T) {
 	}
 }
 
-func TestAppReconnectReplacesAStartedBindingClient(t *testing.T) {
+func TestAppConnectUsesOneLeafHostAndItsManagedReconnectPath(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	root, err := hub.StartPersistent(ctx, hub.PersistentConfig{
@@ -79,23 +84,245 @@ func TestAppReconnectReplacesAStartedBindingClient(t *testing.T) {
 	if err := app.Disconnect(); err != nil {
 		t.Fatal(err)
 	}
-	started, err := app.currentClient()
-	if err != nil {
-		t.Fatal(err)
+	app.mu.Lock()
+	started := app.active
+	app.mu.Unlock()
+	if started == nil || started.host == nil || started.client == nil {
+		t.Fatal("login did not install a complete profile runtime")
 	}
-	if err := started.TrustParent(1, profile.ParentPublicKey); err != nil {
-		t.Fatal(err)
+	if started.host.Role() != nodehost.RoleLeaf || len(started.host.Endpoints()) != 0 {
+		t.Fatalf("desktop runtime is not a parent-only leaf: role=%s endpoints=%v", started.host.Role(), started.host.Endpoints())
 	}
-	if err := started.StartTCP("127.0.0.1:1", 1, ""); err != nil {
-		t.Fatal(err)
-	}
+	hostClient := started.host.Client()
 	if err := app.Connect(); err != nil {
-		t.Fatalf("reconnect did not replace the already-started binding client: %v", err)
+		t.Fatalf("connect did not reuse the Host-owned supervisor: %v", err)
+	}
+	app.mu.Lock()
+	reused := app.active
+	app.mu.Unlock()
+	if reused != started || reused.host.Client() != hostClient {
+		t.Fatal("Connect replaced the Host or created a second SDK client")
 	}
 	status, err := app.StatusJSON()
 	if err != nil || !strings.Contains(status, `"state":"connected"`) {
 		t.Fatalf("unexpected reconnect status: %v (%s)", err, status)
 	}
+
+	// A different Profile whose persisted parent trust conflicts with its new
+	// configuration must not replace the active runtime.
+	rejected := testProfile("rejected", "3")
+	rejected.Endpoint = string(root.Endpoint)
+	rejected.ParentPublicKey = profile.ParentPublicKey
+	preparedRejected, _ := json.Marshal(rejected)
+	if _, err := app.PrepareProfileJSON(string(preparedRejected)); err != nil {
+		t.Fatal(err)
+	}
+	rejected.ParentPublicKey = base64.RawStdEncoding.EncodeToString(make([]byte, ed25519.PublicKeySize))
+	rejectedJSON, _ := json.Marshal(rejected)
+	if _, err := app.SaveProfileJSON(string(rejectedJSON)); err == nil {
+		t.Fatal("conflicting parent identity was unexpectedly saved")
+	}
+	app.mu.Lock()
+	restored := app.active
+	app.mu.Unlock()
+	if restored != started || restored.host.Client() != hostClient {
+		t.Fatal("failed candidate replaced the active Host")
+	}
+
+	// A same-Profile replacement cannot coexist with the old Host because the
+	// state directory is exclusive. If opening the replacement fails, Desktop
+	// must reopen the previous configuration and keep Connect retryable.
+	conflicting := profile
+	conflicting.ParentPublicKey = base64.RawStdEncoding.EncodeToString(make([]byte, ed25519.PublicKeySize))
+	conflictingJSON, _ := json.Marshal(conflicting)
+	if _, err := app.SaveProfileJSON(string(conflictingJSON)); err == nil {
+		t.Fatal("conflicting parent identity was unexpectedly saved")
+	}
+	app.mu.Lock()
+	restored = app.active
+	app.mu.Unlock()
+	if restored == nil || restored.host == nil || restored.host.Role() != nodehost.RoleLeaf {
+		t.Fatalf("same-profile failure did not restore the active leaf runtime: %+v", restored)
+	}
+	if restored.host.Status().Lifecycle != nodehost.LifecycleNew {
+		t.Fatalf("restored profile runtime lifecycle = %q, want new", restored.host.Status().Lifecycle)
+	}
+}
+
+func TestFailedProfileRuntimeClosesHostAndAllowsRetry(t *testing.T) {
+	parent, err := auth.GenerateIdentity(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	open := func() (*profileRuntime, error) {
+		return openTestProfileRuntime(directory, testProfile("retry", "2"), parent, permanentFailureDriver{})
+	}
+
+	failed, err := open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := connectRuntime(failed, "", false); err == nil || !strings.Contains(err.Error(), auth.ErrUntrustedIdentity.Error()) {
+		t.Fatalf("permanent parent failure was not surfaced: %v", err)
+	}
+	if err := failed.Close(); err != nil {
+		t.Fatal(err)
+	}
+	retry, err := open()
+	if err != nil {
+		t.Fatalf("failed runtime retained the state directory: %v", err)
+	}
+	if retry.host.Role() != nodehost.RoleLeaf || len(retry.host.Endpoints()) != 0 {
+		t.Fatalf("retry runtime is not a listener-free leaf: role=%s endpoints=%v", retry.host.Role(), retry.host.Endpoints())
+	}
+	if err := retry.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAppConnectReplacesTerminalParentRuntimeBeforeRetry(t *testing.T) {
+	parent, err := auth.GenerateIdentity(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	store, err := newSettingsStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile := testProfile("terminal-retry", "2")
+	profile.Endpoint = "parent"
+	profile.ParentPublicKey = base64.RawStdEncoding.EncodeToString(parent.PublicKey)
+	settings := upsertProfile(defaultSettings(), profile)
+	if err := store.save(settings); err != nil {
+		t.Fatal(err)
+	}
+	firstDriver := &recordingPermanentFailureDriver{}
+	secondDriver := &recordingPermanentFailureDriver{}
+	credentials := &sequenceCredentialStore{
+		directory: filepath.Join(root, "profiles", profile.ID),
+		parent:    parent,
+		drivers:   []link.Driver{firstDriver, secondDriver},
+	}
+	first, err := credentials.Open(profile, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := &App{store: store, credentials: credentials, settings: settings, active: first}
+	defer app.Close()
+
+	if err := app.Connect(); err == nil || !strings.Contains(err.Error(), auth.ErrUntrustedIdentity.Error()) {
+		t.Fatalf("first terminal connection failure was not surfaced: %v", err)
+	}
+	app.mu.Lock()
+	activeAfterFirst := app.active
+	app.mu.Unlock()
+	if activeAfterFirst != nil || first.host.Status().Lifecycle != nodehost.LifecycleStopped {
+		t.Fatalf("terminal runtime was retained: active=%p lifecycle=%q", activeAfterFirst, first.host.Status().Lifecycle)
+	}
+	if firstDriver.Dials() != 1 {
+		t.Fatalf("first runtime dial count = %d, want 1", firstDriver.Dials())
+	}
+
+	if err := app.Connect(); err == nil || !strings.Contains(err.Error(), auth.ErrUntrustedIdentity.Error()) {
+		t.Fatalf("second terminal connection failure was not surfaced: %v", err)
+	}
+	if credentials.Opens() != 2 || secondDriver.Dials() != 1 {
+		t.Fatalf("retry did not create and dial a new runtime: opens=%d second_dials=%d", credentials.Opens(), secondDriver.Dials())
+	}
+}
+
+type permanentFailureDriver struct{}
+
+func (permanentFailureDriver) Dial(context.Context, link.Endpoint) (link.Pipe, error) {
+	return nil, auth.ErrUntrustedIdentity
+}
+
+func (permanentFailureDriver) Listen(context.Context, link.Endpoint) (link.Listener, error) {
+	return nil, errors.New("permanent failure driver does not listen")
+}
+
+type recordingPermanentFailureDriver struct {
+	mu    sync.Mutex
+	dials int
+}
+
+func (d *recordingPermanentFailureDriver) Dial(context.Context, link.Endpoint) (link.Pipe, error) {
+	d.mu.Lock()
+	d.dials++
+	d.mu.Unlock()
+	return nil, auth.ErrUntrustedIdentity
+}
+
+func (*recordingPermanentFailureDriver) Listen(context.Context, link.Endpoint) (link.Listener, error) {
+	return nil, errors.New("recording failure driver does not listen")
+}
+
+func (d *recordingPermanentFailureDriver) Dials() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.dials
+}
+
+type sequenceCredentialStore struct {
+	mu        sync.Mutex
+	directory string
+	parent    auth.Identity
+	drivers   []link.Driver
+	opens     int
+}
+
+func (s *sequenceCredentialStore) Open(profile Profile, _ string) (*profileRuntime, error) {
+	s.mu.Lock()
+	if s.opens >= len(s.drivers) {
+		s.mu.Unlock()
+		return nil, errors.New("test credential store exhausted")
+	}
+	driver := s.drivers[s.opens]
+	s.opens++
+	s.mu.Unlock()
+	return openTestProfileRuntime(s.directory, profile, s.parent, driver)
+}
+
+func (*sequenceCredentialStore) Remove(string) error { return nil }
+func (*sequenceCredentialStore) Mode() string        { return "test" }
+
+func (s *sequenceCredentialStore) Opens() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.opens
+}
+
+func openTestProfileRuntime(directory string, profile Profile, parent auth.Identity, driver link.Driver) (*profileRuntime, error) {
+	host, err := nodehost.New(context.Background(), nodehost.Config{
+		StateDirectory: directory, NodeID: 2,
+		Parent: &nodehost.ParentConfig{
+			NodeID: 1, PublicKey: parent.PublicKey, Driver: driver, Endpoint: "parent",
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	status, ok := host.ParentStatus()
+	if !ok {
+		_ = host.Close()
+		return nil, errors.New("test host has no parent status")
+	}
+	core, err := bindings.NewAttachedClient(host.Client(), bindings.PublicIdentity{
+		NodeID: host.ID(), PublicKey: host.PublicKey(),
+	}, status)
+	if err != nil {
+		_ = host.Close()
+		return nil, err
+	}
+	client, err := desktopbinding.NewAttachedClient(core)
+	if err != nil {
+		_ = core.Close()
+		_ = host.Close()
+		return nil, err
+	}
+	return &profileRuntime{profile: profile, host: host, client: client}, nil
 }
 
 func testProfile(id, nodeID string) Profile {
@@ -277,6 +504,7 @@ func TestAppSupportsIsolatedPersistentProfiles(t *testing.T) {
 		t.Fatalf("new desktop did not start signed out: %v (%s)", err, status)
 	}
 	first := testProfile("operator-1", "42")
+	first.AutoConnect = false
 	data, _ := json.Marshal(first)
 	if _, err := app.SaveProfileJSON(string(data)); err != nil {
 		t.Fatal(err)
@@ -286,6 +514,7 @@ func TestAppSupportsIsolatedPersistentProfiles(t *testing.T) {
 		t.Fatalf("first profile identity mismatch: %v (%s)", err, identity)
 	}
 	second := testProfile("operator-2", "43")
+	second.AutoConnect = false
 	data, _ = json.Marshal(second)
 	if _, err := app.SaveProfileJSON(string(data)); err != nil {
 		t.Fatal(err)

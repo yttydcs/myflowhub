@@ -22,6 +22,7 @@
 ## Platform And Toolchain
 
 - [go-cross-compile-tests-on-windows.md](go-cross-compile-tests-on-windows.md)：Windows 上设置非本机 `GOOS` 后，普通 `go test` 会尝试执行目标二进制；跨平台门禁必须区分 compile-only 与真实 target runtime。
+- [android-gradle-loopback-daemon-unavailable.md](android-gradle-loopback-daemon-unavailable.md)：Gradle single-use daemon 在 task 前失败于 `Unable to establish loopback connection` 时，分层记录 gomobile/Gradle/device 证据并标为环境 Unavailable。
 - [brand-symbol-optical-size-variants.md](brand-symbol-optical-size-variants.md)：品牌主标在 16/20/24px 必须使用独立光学校正版，避免 tray/favicon 负空间闭合。
 - [windows-clean-checkout-eol-and-generated-drift.md](windows-clean-checkout-eol-and-generated-drift.md)：Windows `core.autocrlf`、gofmt 全仓误报、Wails/Vite byte drift、Gradle short TEMP 与 JDK 选择。
 - [android-runtime-and-mobile-bindings.md](android-runtime-and-mobile-bindings.md)：sticky restart、live session、FGS/RFCOMM、URI staging 与真实 AAR 证明。

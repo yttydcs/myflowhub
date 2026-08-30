@@ -10,12 +10,11 @@ import android.util.Base64
 import androidx.core.app.NotificationCompat
 import org.json.JSONObject
 import java.io.File
-import java.util.concurrent.atomic.AtomicBoolean
 
 class NodeService : Service() {
     private var bridge: MobileBridge? = null
     private lateinit var platform: MetricPlatform
-    private val workerRunning = AtomicBoolean(false)
+    private val runtimeGeneration = RuntimeGeneration()
     private var worker: Thread? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -36,9 +35,13 @@ class NodeService : Service() {
     }
 
     override fun onDestroy() {
-        stopWorker()
-        runCatching { bridge?.stop() }
-        bridge = null
+        var current: MobileBridge? = null
+        runtimeGeneration.invalidate {
+            current = bridge
+            bridge = null
+            stopWorker()
+        }
+        runCatching { current?.stop() }
         super.onDestroy()
     }
 
@@ -74,26 +77,38 @@ class NodeService : Service() {
     }
 
     private fun launch(request: String) {
+        var previous: MobileBridge? = null
+        val generation = runtimeGeneration.begin {
+            previous = bridge
+            bridge = null
+            stopWorker()
+        }
+        runCatching { previous?.stop() }.onFailure(NodeStateStore::error)
         Thread {
             try {
-                val current = bridge ?: MobileBridge().also { bridge = it }
-                val status = current.start(request)
-                NodeStateStore.status(status)
-                getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification("Running"))
-                startWorker(current)
+                val candidate = MobileBridge()
+                val status = candidate.start(request)
+                val installed = runtimeGeneration.commit(generation) {
+                    bridge = candidate
+                    NodeStateStore.status(status)
+                    getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification("Running"))
+                    startWorker(candidate, generation)
+                }
+                if (!installed) runCatching { candidate.stop() }
             } catch (error: Throwable) {
-                NodeStateStore.error(error)
-                getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification("Failed: ${error.message.orEmpty().take(80)}"))
+                if (runtimeGeneration.isCurrent(generation)) {
+                    NodeStateStore.error(error)
+                    getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification("Failed: ${error.message.orEmpty().take(80)}"))
+                }
             }
-        }.start()
+        }.also { it.name = "metrics-runtime-launch-$generation"; it.start() }
     }
 
-    private fun startWorker(current: MobileBridge) {
+    private fun startWorker(current: MobileBridge, generation: Long) {
         stopWorker()
-        workerRunning.set(true)
         worker = Thread {
             val nextDue = mutableMapOf<String, Long>()
-            while (workerRunning.get()) {
+            while (runtimeGeneration.isCurrent(generation) && !Thread.currentThread().isInterrupted) {
                 try {
                     val now = System.currentTimeMillis()
                     val config = JSONObject(current.configuration())
@@ -112,9 +127,14 @@ class NodeService : Service() {
                     drainNotifications(current)
                     NodeStateStore.status(current.status())
                 } catch (error: Throwable) {
+                    if (!runtimeGeneration.isCurrent(generation) || Thread.currentThread().isInterrupted) return@Thread
                     NodeStateStore.error(error)
                 }
-                Thread.sleep(250)
+                try {
+                    Thread.sleep(250)
+                } catch (_: InterruptedException) {
+                    return@Thread
+                }
             }
         }.also { it.name = "metrics-platform-worker"; it.start() }
     }
@@ -158,16 +178,19 @@ class NodeService : Service() {
 
     private fun stopNode() {
         getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
-        stopWorker()
-        runCatching { bridge?.stop() }.onFailure(NodeStateStore::error)
-        bridge = null
+        var current: MobileBridge? = null
+        runtimeGeneration.invalidate {
+            current = bridge
+            bridge = null
+            stopWorker()
+        }
+        runCatching { current?.stop() }.onFailure(NodeStateStore::error)
         NodeStateStore.stopped()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     private fun stopWorker() {
-        workerRunning.set(false)
         worker?.interrupt()
         worker = null
     }
