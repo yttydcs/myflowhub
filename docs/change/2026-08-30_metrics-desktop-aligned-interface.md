@@ -130,4 +130,9 @@ Metrics Windows Wails 前端原为单文件命令式 DOM 与深色渐变卡片�
 
 ## Closeout status
 
-- 归档文档已准备；local merge、主检出 dirt 恢复与 worktree/branch cleanup 状态将在控制面操作完成后补记。
+- 本地 `master` 已 fast-forward 到归档候选 `cde3ec9`；产品提交为 `2b995e0`，首轮归档提交为 `15dcb7d`，并已同步此前 `master` 的准入与 schema 工作。
+- 主检出 dirty 状态通过临时 stash `4820bc4` 保护并恢复：所有非重叠 tracked 内容与 stash snapshot 一致，28 个 untracked 文件经 repository filter 校验一致；重叠的 intake 索引同时保留 Metrics 与用户原有记录。
+- 临时 stash 已在恢复验证后删除；此前已有的两个 stash 未修改。
+- 专用 `metrics-desktop-ui` worktree 已移除，本地 `feat/metrics-desktop-ui` 分支已删除。
+- 用户未提交的 Desktop 界面改动、产品独立性/Agent Gateway 文档、设计稿、生成 dist 与 `guide.md` 在恢复时均保留且未暂存；其后续工作区状态继续由对应用户工作流管理。
+- 仓库无 remote；本次仅完成本地合并，未 push、release 或 publication。

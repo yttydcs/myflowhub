@@ -9,7 +9,7 @@
 - Worktree: `D:\project\MyFlowHub3\worktrees\metrics-desktop-ui`
 - Docs root: `D:\project\MyFlowHub3\worktrees\metrics-desktop-ui\docs`
 - Participating modules: `apps/nodes/metrics/windows/frontend`、`apps/nodes/metrics/windows`、canonical `docs/`
-- Current stage: `$m-archive` documentation prepared；local merge 与 worktree cleanup 待完成
+- Current stage: `$m-archive` complete；archive、local merge 与 worktree cleanup 已完成
 - Publication: local-only；不新增 remote，不 push、release 或 publish
 
 ## Planning Inputs
@@ -168,7 +168,7 @@ Backend Go、schema、generated Wails bindings、Desktop frontend 和 Android Me
 - Plan snapshot：`docs/plan/plan_archive_2026-08-30_metrics-desktop-aligned-interface.md`。
 - Lessons：不新增；本次工具链与 Wails 验证边界已由 `frontend-and-powershell-preflight.md` 覆盖。
 - Production data boundary：资源值只来自 `Status.samples`；`充电中` 等是 boolean 展示映射，视觉验收 fixture 不进入生产 fallback。
-- Closeout policy：提交产品与归档记录，安全同步当前本地 `master`，保留主检出未提交设计/文档，随后移除专用 worktree 与本地 feature branch。
+- Closeout result：本地 `master` 已 fast-forward 到 `cde3ec9`；主检出 dirty 状态验证恢复，专用 worktree 与本地 feature branch 已移除。
 - Publication：local-only；不 push、release 或 publish。
 
 ## Approval Gate
