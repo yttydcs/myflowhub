@@ -34,6 +34,18 @@ type publicIdentity struct {
 	PublicKey string `json:"public_key"`
 }
 
+type enrollmentStatus struct {
+	Status             string `json:"status"`
+	RequestID          string `json:"request_id"`
+	DevicePublicKey    string `json:"device_public_key"`
+	NodeID             string `json:"node_id"`
+	EnrollmentID       string `json:"enrollment_id"`
+	ParentNodeID       string `json:"parent_node_id"`
+	ParentPublicKey    string `json:"parent_public_key"`
+	AuthorityNodeID    string `json:"authority_node_id"`
+	AuthorityPublicKey string `json:"authority_public_key"`
+}
+
 type preparedProfile struct {
 	Profile  Profile        `json:"profile"`
 	Identity publicIdentity `json:"identity"`
@@ -45,14 +57,19 @@ type CredentialStore interface {
 	Mode() string
 }
 
+type platformCredentialBackend interface {
+	auth.IdentityStore
+	auth.EnrollmentCredentialStore
+}
+
 type profileCredentialStore struct {
 	settings *settingsStore
 	mu       sync.Mutex
-	stores   map[string]auth.IdentityStore
+	stores   map[string]platformCredentialBackend
 }
 
 func newProfileCredentialStore(settings *settingsStore) *profileCredentialStore {
-	return &profileCredentialStore{settings: settings, stores: make(map[string]auth.IdentityStore)}
+	return &profileCredentialStore{settings: settings, stores: make(map[string]platformCredentialBackend)}
 }
 
 func (s *profileCredentialStore) Open(profile Profile) (*desktopbinding.Client, error) {
@@ -60,10 +77,6 @@ func (s *profileCredentialStore) Open(profile Profile) (*desktopbinding.Client, 
 		return nil, errors.New("desktop credential store is unavailable")
 	}
 	directory, err := s.settings.stateDirectory(profile.ID)
-	if err != nil {
-		return nil, err
-	}
-	nodeID, err := parsePositiveInt64(profile.NodeID, "node_id")
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +93,18 @@ func (s *profileCredentialStore) Open(profile Profile) (*desktopbinding.Client, 
 		return nil, err
 	}
 	client := &desktopbinding.Client{}
-	if err := client.OpenWithIdentityStore(directory, nodeID, identityStore); err != nil {
-		return nil, fmt.Errorf("open profile identity: %w", err)
+	if profile.EnrollmentMode == "authority" {
+		if err := client.OpenEnrollmentWithCredentialStore(directory, identityStore); err != nil {
+			return nil, fmt.Errorf("open profile Enrollment credential: %w", err)
+		}
+	} else {
+		nodeID, err := parsePositiveInt64(profile.NodeID, "node_id")
+		if err != nil {
+			return nil, err
+		}
+		if err := client.OpenWithIdentityStore(directory, nodeID, identityStore); err != nil {
+			return nil, fmt.Errorf("open profile identity: %w", err)
+		}
 	}
 	return client, nil
 }
@@ -227,12 +250,23 @@ func (a *App) PrepareProfileJSON(raw string) (string, error) {
 		return "", err
 	}
 	defer candidate.Close()
-	identityJSON, err := candidate.IdentityJSON()
+	identityJSON := ""
+	if profile.EnrollmentMode == "authority" {
+		identityJSON, err = candidate.EnrollmentStatusJSON()
+	} else {
+		identityJSON, err = candidate.IdentityJSON()
+	}
 	if err != nil {
 		return "", fmt.Errorf("read prepared profile identity: %w", err)
 	}
 	var identity publicIdentity
-	if err := decodeStrictJSON([]byte(identityJSON), &identity); err != nil {
+	if profile.EnrollmentMode == "authority" {
+		var status enrollmentStatus
+		if err := decodeStrictJSON([]byte(identityJSON), &status); err != nil {
+			return "", fmt.Errorf("decode prepared Enrollment identity: %w", err)
+		}
+		identity = publicIdentity{NodeID: status.NodeID, PublicKey: status.DevicePublicKey}
+	} else if err := decodeStrictJSON([]byte(identityJSON), &identity); err != nil {
 		return "", fmt.Errorf("decode prepared profile identity: %w", err)
 	}
 
@@ -271,8 +305,26 @@ func (a *App) LoginJSON(raw string) (string, error) {
 			_ = candidate.Close()
 		}
 	}()
-	if err := connectClient(candidate, request.Profile, request.PermitJSON); err != nil {
+	if err := connectClient(candidate, request.Profile, request.PermitJSON, request.AllowTOFU); err != nil {
+		if errors.Is(err, auth.ErrEnrollmentPending) {
+			a.mu.Lock()
+			next := upsertInactiveProfile(a.settings, request.Profile)
+			saveErr := a.store.save(next)
+			if saveErr == nil {
+				a.settings = next
+			}
+			a.mu.Unlock()
+			if saveErr != nil {
+				return "", saveErr
+			}
+		}
 		return "", a.fail("login", err)
+	}
+	if request.Profile.EnrollmentMode == "authority" {
+		request.Profile, err = hydrateEnrollmentProfile(candidate, request.Profile)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	a.mu.Lock()
@@ -406,7 +458,21 @@ func (a *App) IdentityJSON() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return client.IdentityJSON()
+	a.mu.Lock()
+	profile, _ := findProfile(a.settings, a.settings.ActiveProfileID)
+	a.mu.Unlock()
+	if profile.EnrollmentMode != "authority" {
+		return client.IdentityJSON()
+	}
+	statusJSON, err := client.EnrollmentStatusJSON()
+	if err != nil {
+		return "", err
+	}
+	var status enrollmentStatus
+	if err := decodeStrictJSON([]byte(statusJSON), &status); err != nil {
+		return "", err
+	}
+	return marshalJSON(publicIdentity{NodeID: status.NodeID, PublicKey: status.DevicePublicKey})
 }
 
 func (a *App) Connect() error {
@@ -441,14 +507,51 @@ func (a *App) Connect() error {
 	}
 	a.client = candidate
 	a.mu.Unlock()
-	if err := connectClient(candidate, profile, ""); err != nil {
+	if err := connectClient(candidate, profile, "", false); err != nil {
 		return err
 	}
 	a.appendLog("info", "managed TCP connection started")
 	return nil
 }
 
-func connectClient(client *desktopbinding.Client, profile Profile, permitJSON string) error {
+func connectClient(client *desktopbinding.Client, profile Profile, permitJSON string, allowTOFU bool) error {
+	if profile.EnrollmentMode == "authority" {
+		statusJSON, err := client.EnrollmentStatusJSON()
+		if err != nil {
+			return err
+		}
+		var status enrollmentStatus
+		if err := decodeStrictJSON([]byte(statusJSON), &status); err != nil {
+			return err
+		}
+		if status.Status != "enrolled" {
+			expectedParentID := int64(0)
+			if profile.ParentNodeID != "" {
+				expectedParentID, err = parsePositiveInt64(profile.ParentNodeID, "parent_node_id")
+				if err != nil {
+					return err
+				}
+			}
+			resultJSON, err := client.EnrollTCP(profile.Endpoint, permitJSON, allowTOFU, expectedParentID, profile.ParentPublicKey, profile.AuthorityPublicKey, defaultRequestTimeoutMS)
+			if err != nil {
+				return fmt.Errorf("enroll: %w", err)
+			}
+			var result protocol.EnrollmentResultV1
+			if err := decodeStrictJSON([]byte(resultJSON), &result); err != nil {
+				return err
+			}
+			if result.Status == "pending" {
+				return fmt.Errorf("%w: request %s is waiting for approval", auth.ErrEnrollmentPending, result.RequestID)
+			}
+		}
+		if err := client.StartEnrolledTCP(profile.Endpoint); err != nil {
+			return fmt.Errorf("connect enrolled parent: %w", err)
+		}
+		if err := client.WaitConnected(defaultRequestTimeoutMS); err != nil {
+			return fmt.Errorf("wait for enrolled connection: %w", err)
+		}
+		return nil
+	}
 	parentID, err := parsePositiveInt64(profile.ParentNodeID, "parent_node_id")
 	if err != nil {
 		return err
@@ -466,6 +569,26 @@ func connectClient(client *desktopbinding.Client, profile Profile, permitJSON st
 		return fmt.Errorf("wait for connection: %w", err)
 	}
 	return nil
+}
+
+func hydrateEnrollmentProfile(client *desktopbinding.Client, profile Profile) (Profile, error) {
+	statusJSON, err := client.EnrollmentStatusJSON()
+	if err != nil {
+		return Profile{}, err
+	}
+	var status enrollmentStatus
+	if err := decodeStrictJSON([]byte(statusJSON), &status); err != nil {
+		return Profile{}, err
+	}
+	if status.Status != "enrolled" || status.NodeID == "" {
+		return Profile{}, errors.New("Enrollment did not persist a granted Node ID")
+	}
+	profile.NodeID = status.NodeID
+	profile.ParentNodeID = status.ParentNodeID
+	profile.ParentPublicKey = status.ParentPublicKey
+	profile.AuthorityNodeID = status.AuthorityNodeID
+	profile.AuthorityPublicKey = status.AuthorityPublicKey
+	return profile, nil
 }
 
 func connectionTimeoutGuidance(err error, permitJSON string) error {
@@ -620,6 +743,46 @@ func (a *App) UploadFile(ownerNodeID, sourcePath, destination, contentType strin
 		return "", err
 	}
 	return client.UploadFile(ownerID, sourcePath, destination, contentType, 10*60*1000)
+}
+
+// SelectUploadFile opens the platform-native picker and returns a validated
+// regular file. Cancellation is represented by an empty path, not an error.
+func (a *App) SelectUploadFile() (string, error) {
+	a.mu.Lock()
+	ctx := a.ctx
+	a.mu.Unlock()
+	if ctx == nil {
+		return "", errors.New("desktop application is not started")
+	}
+	selected, err := runtime.OpenFileDialog(ctx, runtime.OpenDialogOptions{
+		Title:   "选择要上传的文件",
+		Filters: []runtime.FileFilter{{DisplayName: "所有文件", Pattern: "*"}},
+	})
+	if err != nil {
+		return "", fmt.Errorf("select upload file: %w", err)
+	}
+	if selected == "" {
+		return "", nil
+	}
+	return validateSelectedUploadFile(selected)
+}
+
+func validateSelectedUploadFile(path string) (string, error) {
+	if strings.TrimSpace(path) == "" || strings.TrimSpace(path) != path {
+		return "", errors.New("selected upload path is invalid")
+	}
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve selected upload file: %w", err)
+	}
+	info, err := os.Stat(absolute)
+	if err != nil {
+		return "", fmt.Errorf("inspect selected upload file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", errors.New("selected upload path must be a regular file")
+	}
+	return filepath.Clean(absolute), nil
 }
 
 func (a *App) ViewsJSON() (string, error) {

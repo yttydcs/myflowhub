@@ -221,7 +221,7 @@ function Generate-Contracts { Invoke-Native $root 'go' @('generate', './sdk/bind
 function Check-Generated {
     Generate-Contracts; Generate-Desktop; Generate-Metrics
     Invoke-Native $root 'go' @('test', './sdk/bindings', './internal/protocoltest', '-count=1')
-    $tracked = @('sdk/bindings/generated', 'apps/desktop/frontend/wailsjs', 'apps/nodes/metrics/windows/frontend/wailsjs')
+    $tracked = @('sdk/bindings/generated', 'apps/desktop/frontend/src/generated', 'apps/desktop/frontend/wailsjs', 'apps/nodes/metrics/windows/frontend/wailsjs')
     & git -C $root diff --exit-code -- @tracked
     if ($LASTEXITCODE -ne 0) { throw 'generated source differs from the repository' }
 }

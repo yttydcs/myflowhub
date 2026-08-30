@@ -1,14 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Cable, CircleUserRound, Moon, Palette, PlugZap, Plus, Save, Sun, Trash2, Unplug } from 'lucide-react'
+import { Cable, CircleUserRound, Moon, Palette, PlugZap, Plus, Save, ShieldCheck, Sun, Trash2, Unplug } from 'lucide-react'
+import type { DesktopAPI } from '../api'
 import { ProfileEditor, createEmptyProfile } from './ProfileEditor'
+import { AdmissionConsole } from './AdmissionConsole'
 import { Button } from './ui/button'
 import type { Theme } from '../preferences'
 import type { ConnectionStatus, Profile, Settings as SettingsDocument } from '../types'
 
-type Section = 'connection' | 'profiles' | 'appearance'
+type Section = 'connection' | 'admission' | 'profiles' | 'appearance'
 
 export function Settings({
   settings,
+  api,
   activeProfile,
   status,
   theme,
@@ -21,6 +24,7 @@ export function Settings({
   onThemeChange,
 }: {
   settings: SettingsDocument
+  api: DesktopAPI
   activeProfile: Profile
   status: ConnectionStatus
   theme: Theme
@@ -61,6 +65,7 @@ export function Settings({
       <aside className="settings-nav" aria-label="设置分类">
         <h1 id="settings-title">设置</h1>
         <button className={section === 'connection' ? 'is-active' : ''} onClick={() => setSection('connection')}><Cable aria-hidden="true" size={15} />连接</button>
+        {activeProfile.authority_node_id && <button className={section === 'admission' ? 'is-active' : ''} onClick={() => setSection('admission')}><ShieldCheck aria-hidden="true" size={15} />准入管理</button>}
         <button className={section === 'profiles' ? 'is-active' : ''} onClick={() => setSection('profiles')}><CircleUserRound aria-hidden="true" size={15} />Profile</button>
         <button className={section === 'appearance' ? 'is-active' : ''} onClick={() => setSection('appearance')}><Palette aria-hidden="true" size={15} />外观</button>
       </aside>
@@ -73,8 +78,8 @@ export function Settings({
               <div><dt>状态</dt><dd><span className={`status-dot ${status.state}`} aria-hidden="true" />{connectionLabel(status.state)}</dd></div>
               <div><dt>活动 Profile</dt><dd>{activeProfile.name}</dd></div>
               <div><dt>端点</dt><dd><code>{status.endpoint || activeProfile.endpoint}</code></dd></div>
-              <div><dt>本机 Node</dt><dd>{activeProfile.node_id}</dd></div>
-              <div><dt>父 Node</dt><dd>{status.parent_node_id || activeProfile.parent_node_id}</dd></div>
+              <div><dt>本机 Node</dt><dd>{activeProfile.node_id || '等待 Authority 下发'}</dd></div>
+              <div><dt>父 Node</dt><dd>{status.parent_node_id || activeProfile.parent_node_id || '首次连接时确认'}</dd></div>
               <div><dt>凭据存储</dt><dd>{settings.credential_mode}</dd></div>
             </dl>
             {status.last_error && <p className="settings-error" role="alert">{status.last_error}</p>}
@@ -95,7 +100,7 @@ export function Settings({
                   <div key={profile.id} className={`settings-profile-row ${draft.id === profile.id && !isNew ? 'is-selected' : ''}`}>
                     <button onClick={() => editProfile(profile)}>
                       <span className="profile-avatar" aria-hidden="true">{profile.name.slice(0, 1).toUpperCase()}</span>
-                      <span><strong>{profile.name}</strong><small>{profile.node_id} · {profile.endpoint}</small></span>
+                      <span><strong>{profile.name}</strong><small>{profile.node_id || '未注册'} · {profile.endpoint}</small></span>
                     </button>
                     {profile.id !== activeProfile.id && <button className="activate-profile" onClick={() => void onSwitchProfile(profile.id)}>启用</button>}
                     <button className="profile-delete" onClick={() => void deleteProfile(profile)} aria-label={`删除 Profile ${profile.name}`}><Trash2 aria-hidden="true" size={13} /></button>
@@ -110,6 +115,8 @@ export function Settings({
             </div>
           </div>
         )}
+
+        {section === 'admission' && activeProfile.authority_node_id && <AdmissionConsole api={api} authorityNodeID={activeProfile.authority_node_id} />}
 
         {section === 'appearance' && (
           <div className="settings-section">

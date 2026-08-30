@@ -35,6 +35,8 @@ export function SaveProfileJSON(arg1:string):Promise<string>;
 
 export function SaveViewJSON(arg1:string):Promise<string>;
 
+export function SelectUploadFile():Promise<string>;
+
 export function SettingsJSON():Promise<string>;
 
 export function SnapshotJSON(arg1:string,arg2:string):Promise<string>;

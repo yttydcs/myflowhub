@@ -4,6 +4,8 @@
 
 ## Current Decisions
 
+- [Provider 拥有数据 Schema，Desktop 拥有 Renderer 选择](2026-08-30_provider-schema-desktop-renderer-ownership.md)
+- [使用集中式 Admission Authority 管理首次准入](2026-08-30_centralized-admission-authority.md)
 - [Desktop 使用 n 元分割树实现多面板停靠](2026-08-30_desktop-n-ary-docking-layout.md)
 - [采用 Coupled Seam 作为 MyFlowHub canonical 品牌身份](2026-08-29_coupled-seam-brand-identity.md)
 - [可扩展 Resource type system 与 Desktop workspace](2026-08-28_extensible-resource-type-system-and-desktop-workspace.md)

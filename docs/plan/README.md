@@ -24,6 +24,8 @@
 - [MetricsNode](#metricsnode)
 
 ## Snapshots / Meta
+- [plan_archive_2026-08-30_desktop-schema-driven-resource-widgets.md](plan_archive_2026-08-30_desktop-schema-driven-resource-widgets.md)
+- [plan_archive_2026-08-30_node-enrollment-admission-authority.md](plan_archive_2026-08-30_node-enrollment-admission-authority.md)
 - [plan_archive_2026-08-30_desktop-explorer-collapsible-resource-tree.md](plan_archive_2026-08-30_desktop-explorer-collapsible-resource-tree.md)
 - [plan_archive_2026-08-30_desktop-nested-docking-layout.md](plan_archive_2026-08-30_desktop-nested-docking-layout.md)
 - [plan_archive_2026-08-29_brand-icon-coupled-seam.md](plan_archive_2026-08-29_brand-icon-coupled-seam.md)

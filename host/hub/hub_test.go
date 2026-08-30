@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/yttydcs/myflowhub/runtime/auth"
+	"github.com/yttydcs/myflowhub/runtime/enrollment"
 	"github.com/yttydcs/myflowhub/runtime/node"
 	"github.com/yttydcs/myflowhub/transport/memory"
 	"github.com/yttydcs/myflowhub/transport/tcp"
@@ -26,6 +28,48 @@ func TestStartAndClose(t *testing.T) {
 	}
 	if err := value.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestPersistentHubEnablesCentralEnrollmentByDefault(t *testing.T) {
+	network := memory.NewNetwork()
+	defer network.Close()
+	value, err := StartPersistent(context.Background(), PersistentConfig{
+		StateDirectory: t.TempDir(), NodeID: 1,
+		Listeners: []ListenerConfig{{Driver: network, Endpoint: "enrollment-hub"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer value.Close()
+	if value.EnrollmentAuthority == nil {
+		t.Fatal("persistent root Hub did not enable its Admission Authority")
+	}
+	device, _ := auth.GenerateDeviceIdentity()
+	permit, err := value.EnrollmentAuthority.IssuePermit(
+		"70000000000000000000000000000001",
+		auth.DevicePublicKeyFingerprint(device.PublicKey),
+		value.Node.ID(),
+		false,
+		"headless",
+		time.Hour,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipe, err := network.Dial(context.Background(), value.Endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := enrollment.Enroll(context.Background(), pipe, device, enrollment.ClientOptions{
+		RequestID: "70000000000000000000000000000002", Permit: &permit,
+	})
+	_ = pipe.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Identity == nil || result.Identity.NodeID == 0 {
+		t.Fatalf("persistent Hub did not enroll the device: %#v", result)
 	}
 }
 

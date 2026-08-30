@@ -25,6 +25,8 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-08-30_desktop-schema-driven-resource-widgets.md](2026-08-30_desktop-schema-driven-resource-widgets.md)
+- [2026-08-30_node-enrollment-admission-authority.md](2026-08-30_node-enrollment-admission-authority.md)
 - [2026-08-30_desktop-explorer-collapsible-resource-tree.md](2026-08-30_desktop-explorer-collapsible-resource-tree.md)
 - [2026-08-30_desktop-nested-docking-layout.md](2026-08-30_desktop-nested-docking-layout.md)
 - [2026-08-29_brand-icon-coupled-seam.md](2026-08-29_brand-icon-coupled-seam.md)

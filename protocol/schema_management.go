@@ -291,6 +291,8 @@ type ManagementAuditV1 struct {
 	ResourceNode string `json:"resource_node"`
 	ResourceName string `json:"resource_name"`
 	Decision     string `json:"decision"`
+	Target       string `json:"target,omitempty"`
+	Status       string `json:"status,omitempty"`
 	Detail       string `json:"detail,omitempty"`
 }
 
@@ -315,6 +317,12 @@ func (a ManagementAuditV1) Validate() error {
 	}
 	if a.Decision != "allow" && a.Decision != "deny" {
 		return errors.New("audit decision is invalid")
+	}
+	if err := validateText("target", a.Target, MaxLabelBytes, false); err != nil {
+		return err
+	}
+	if err := validateText("status", a.Status, MaxIdentifierBytes, false); err != nil {
+		return err
 	}
 	return validateText("detail", a.Detail, 2048, false)
 }

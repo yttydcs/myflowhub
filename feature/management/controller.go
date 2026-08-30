@@ -14,6 +14,7 @@ import (
 
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/auth"
+	"github.com/yttydcs/myflowhub/runtime/command"
 	"github.com/yttydcs/myflowhub/runtime/node"
 	"github.com/yttydcs/myflowhub/runtime/resource"
 )
@@ -26,32 +27,37 @@ type Settings interface {
 }
 
 type Config struct {
-	Node       *node.Node
-	Admission  *auth.Admission
-	Trust      *auth.TrustStore
-	Policy     *auth.PolicyState
-	Settings   Settings
-	RevokeNode func(protocol.NodeID) error
-	Audit      *AuditLog
-	Now        func() time.Time
+	Node                *node.Node
+	Admission           *auth.Admission
+	EnrollmentAuthority *auth.EnrollmentAuthority
+	AuthorityNodeID     protocol.NodeID
+	Trust               *auth.TrustStore
+	Policy              *auth.PolicyState
+	Settings            Settings
+	RevokeNode          func(protocol.NodeID) error
+	Audit               *AuditLog
+	Now                 func() time.Time
 }
 
 type Controller struct {
-	mu        sync.Mutex
-	node      *node.Node
-	admission *auth.Admission
-	trust     *auth.TrustStore
-	policy    *auth.PolicyState
-	settings  Settings
-	revoke    func(protocol.NodeID) error
-	audit     *AuditLog
-	now       func() time.Time
-	startedAt time.Time
-	topology  *resource.Variable
-	health    *resource.Variable
-	config    *resource.Variable
-	auditFeed *resource.Stream
-	lastError string
+	mu              sync.Mutex
+	node            *node.Node
+	admission       *auth.Admission
+	authority       *auth.EnrollmentAuthority
+	authorityNodeID protocol.NodeID
+	trust           *auth.TrustStore
+	policy          *auth.PolicyState
+	settings        Settings
+	revoke          func(protocol.NodeID) error
+	audit           *AuditLog
+	now             func() time.Time
+	startedAt       time.Time
+	topology        *resource.Variable
+	health          *resource.Variable
+	config          *resource.Variable
+	auditFeed       *resource.Stream
+	admissionStatus *resource.Variable
+	lastError       string
 }
 
 func Register(config Config) (*Controller, error) {
@@ -65,8 +71,14 @@ func Register(config Config) (*Controller, error) {
 		config.Audit = NewAuditLog(config.Now, 256)
 	}
 	value := &Controller{
-		node: config.Node, admission: config.Admission, trust: config.Trust, policy: config.Policy,
+		node: config.Node, admission: config.Admission, authority: config.EnrollmentAuthority, authorityNodeID: config.AuthorityNodeID, trust: config.Trust, policy: config.Policy,
 		settings: config.Settings, revoke: config.RevokeNode, audit: config.Audit, now: config.Now, startedAt: config.Now().UTC(),
+	}
+	if value.authority != nil {
+		if value.authorityNodeID != 0 && value.authorityNodeID != value.authority.NodeID() {
+			return nil, errors.New("configured Admission Authority Node ID does not match the local Authority")
+		}
+		value.authorityNodeID = value.authority.NodeID()
 	}
 	resources, err := value.buildResources()
 	if err != nil {
@@ -115,6 +127,10 @@ func (c *Controller) Refresh() error {
 		c.lastError = err.Error()
 		return err
 	}
+	if err := c.refreshAdmissionStatusLocked(); err != nil {
+		c.lastError = err.Error()
+		return err
+	}
 	c.lastError = ""
 	return nil
 }
@@ -139,7 +155,13 @@ func (c *Controller) buildResources() ([]resource.Resource, error) {
 		return nil, err
 	}
 	c.topology, c.health, c.config, c.auditFeed = topology, health, configVariable, auditFeed
-	issue, err := c.command(protocol.BuiltinManagementIssuePermit, protocol.SchemaManagementIssuePermitV1, protocol.SchemaProvisioningPermitV1, "management.admission.issue", c.issuePermit)
+	issueInputSchema := protocol.SchemaManagementIssuePermitV1
+	issueOutputSchema := protocol.SchemaProvisioningPermitV1
+	if c.authority != nil {
+		issueInputSchema = protocol.SchemaAdmissionIssuePermitV1
+		issueOutputSchema = protocol.SchemaEnrollmentPermitV1
+	}
+	issue, err := c.command(protocol.BuiltinManagementIssuePermit, issueInputSchema, issueOutputSchema, "management.admission.issue", c.issuePermit)
 	if err != nil {
 		return nil, err
 	}
@@ -163,14 +185,37 @@ func (c *Controller) buildResources() ([]resource.Resource, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []resource.Resource{topology, health, configVariable, auditFeed, issue, revokePermit, revokeNode, updateConfig, grantPolicy, revokePolicy}, nil
+	resources := []resource.Resource{topology, health, configVariable, auditFeed, issue, revokePermit, revokeNode, updateConfig, grantPolicy, revokePolicy}
+	admissionResources, err := c.buildEnrollmentAuthorityResources()
+	if err != nil {
+		return nil, err
+	}
+	return append(resources, admissionResources...), nil
 }
 
 func (c *Controller) command(name, inputSchema, outputSchema, permission string, handler resource.CommandHandler) (*resource.Command, error) {
 	return resource.NewCommand(resource.CommandDescriptorSchemas(protocol.ResourceID{Owner: c.node.ID(), Name: name}, contentTypeJSON, inputSchema, outputSchema, permission, protocol.DefaultMaxPayload), handler)
 }
 
-func (c *Controller) issuePermit(_ context.Context, input []byte) ([]byte, error) {
+func (c *Controller) issuePermit(ctx context.Context, input []byte) ([]byte, error) {
+	if c.authority != nil {
+		var request protocol.AdmissionIssuePermitV1
+		if err := protocol.DecodeJSONPayload(input, protocol.DefaultMaxPayload, &request); err == nil {
+			if request.TTLMS > math.MaxInt64/int64(time.Millisecond) {
+				return nil, errors.New("permit ttl_ms overflows duration")
+			}
+			targetID, _ := strconv.ParseUint(request.TargetNodeID, 10, 64)
+			permit, err := c.authority.IssuePermit(request.RequestID, request.DevicePublicKeyFingerprint, protocol.NodeID(targetID), request.AllowDescendants, request.AdmissionProfile, time.Duration(request.TTLMS)*time.Millisecond)
+			if err != nil {
+				return nil, err
+			}
+			c.auditAdmissionOutcome(ctx, "management.admission.issue", protocol.BuiltinAdmissionIssuePermit, permit.PermitID, "active")
+			if err := c.Refresh(); err != nil {
+				return nil, err
+			}
+			return protocol.EncodeJSONPayload(&permit, protocol.DefaultMaxPayload)
+		}
+	}
 	var request protocol.ManagementIssuePermitV1
 	if err := protocol.DecodeJSONPayload(input, protocol.DefaultMaxPayload, &request); err != nil {
 		return nil, err
@@ -185,6 +230,22 @@ func (c *Controller) issuePermit(_ context.Context, input []byte) ([]byte, error
 		return nil, err
 	}
 	return protocol.EncodeJSONPayload(&permit, protocol.DefaultMaxPayload)
+}
+
+func (c *Controller) auditAdmissionOutcome(ctx context.Context, action auth.Action, resourceName, target, status string) {
+	delegation, ok := command.DelegationFromContext(ctx)
+	subject, subjectOK := delegation.Subject()
+	if !ok || !subjectOK {
+		return
+	}
+	c.audit.RecordOutcome(auth.Request{
+		Subject: subject,
+		Action:  action,
+		Resource: protocol.ResourceID{
+			Owner: c.node.ID(),
+			Name:  resourceName,
+		},
+	}, target, status)
 }
 
 func (c *Controller) revokePermit(_ context.Context, input []byte) ([]byte, error) {

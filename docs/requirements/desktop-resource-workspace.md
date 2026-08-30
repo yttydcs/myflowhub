@@ -47,7 +47,9 @@
    面包屑和返回完整树；Resource 搜索必须保留匹配项祖先并只临时展开路径。实现不得依赖固定层数或演示数据。
 8. Node preview 至少显示身份、连接/健康状态、父子关系和资源摘要；Node/Resource 临时预览位于右侧
    Inspector，不得被误写入 View。
-9. Renderer Registry 必须按 type/schema/capability 选择 preview、widget 和 editor/action，并为未知类型提供通用 inspector。
+9. Resource provider 必须拥有数据语义与有效域：schema 定义类型、范围、步长、枚举、格式、字段和校验约束；
+   Desktop Renderer Registry 按 type/schema/capability 和 pane 条件过滤兼容组件、选择安全默认项，并允许用户
+   切换兼容 renderer。组件选择不得改变 Resource 值、授予权限、放宽 schema 或依赖 Resource name。
 10. Workspace 必须支持添加、移除、精确插入、嵌套重排和调整 Widget；首个 Widget 默认占满可用区，
     直接添加后续 Widget 默认在整个 root 右侧。拖动 Resource 或 Widget 到 pane 四边只分割目标 pane，
     拖到同级 divider 精确插入该 sibling index，拖到工作区外缘分割整个 root。布局不得要求独立的
@@ -55,10 +57,17 @@
 11. 每个 split 的所有相邻 pane 必须可用指针连续调整并可用键盘细调，以有限正的归一化 weights 连同
     axis、child 顺序和嵌套拓扑保存。拖动期间只预览、释放后提交；取消恢复已保存比例。移除/移动后必须
     折叠空/单子节点并合并同轴 split。空间小于递归 pane minimum 时允许 Workspace 滚动，不得静默重排。
-12. View 只保存 Resource reference、renderer ID/version、layout 和局部展示设置，不复制 Resource 正文或权限。
+12. View 只保存 Resource reference、renderer ID/version、layout 和 allowlisted 非秘密展示设置，不复制
+    Resource value、draft、operation payload、event body、文件内容、权限或 credential。旧 renderer ID 必须
+    通过显式 alias 保持可读；不兼容的已保存 renderer 必须明确 fallback，不能静默删除用户选择。
 13. View store 必须版本化、原子提交、按 Profile 隔离，并拒绝损坏或不兼容数据的静默覆盖。
-14. Variable、Stream、Topic、Command、File 至少有可用的第一方 renderer；Media 在生产数据面完成前使用明确 capability/session placeholder。
-15. 所有权限错误、资源消失、连接恢复、subscription gap 和 session 失败必须在对应 Widget 内明确显示。
+14. Variable、Stream、Topic、Command、File 至少有可用的第一方 schema-driven renderer。Variable 必须覆盖
+    布尔、枚举、数字、文本、时间、对象和数组的安全展示/编辑；operation 必须支持 generated form 与 raw
+    fallback；event 必须提供有界 log/table/timeline 控制；File 必须提供原生选择和进度状态。Media 在生产
+    数据面完成前使用明确 capability/session placeholder。
+15. 所有权限错误、资源消失、连接恢复、revision conflict、schema missing/unsupported/mismatch、已保存
+    renderer 不兼容、subscription gap/expired 和 session 失败必须在对应 Widget 内明确显示。失败的可写
+    draft 不得被静默丢弃。
 16. 左下角必须显示 active Profile 与 Connection state，并打开铺满主区的 Settings Tab；Settings 至少包含
    Connection、Profile、Appearance，顶栏不得重复 Profile 或 Connection。
 
@@ -81,6 +90,8 @@
   `content-visibility` 或等价离屏策略。服务端按需加载或真正 DOM windowing 在现有 topology/catalog API
   不支持时必须作为明确分期边界记录，不能用第二套资源模型伪装。
 - 前端不得自行裁决权限、解析 wire 或复制产品 runtime。
+- schema resolver、renderer compatibility/ranking 和 settings 校验必须是确定性可测试的纯领域逻辑；schema
+  深度、字段、数组、事件缓冲和渲染工作量必须有显式上限。
 - Wails binding input 在 Go boundary 再次执行 schema、大小和路径校验。
 
 ## Edge Cases
@@ -106,6 +117,15 @@
 - v1/v2 View 保留全部 Widget 迁移为 v3；未知/损坏布局不覆盖原文件，首次 v3 写回前存在可恢复的
   pre-v3 snapshot。
 - 左下 Profile/Connection 入口能打开 Settings Tab；连接、Profile CRUD/切换和浅/深色在真实 API/mock boundary 下可操作，顶栏无重复状态。
+- `integer 0..100 step 1` fixture 只提供能遵循约束的 renderer，slider/stepper 的 pointer 与键盘变化均为
+  1；string fixture 可在兼容的单行、多行、code/text renderer 间切换。切换不调用 Resource API，保存并
+  重开 View 后恢复一致。
+- read-only Variable 无写控件；writable draft 通过 Reset/Apply 和 `expected_revision` 写入，Forbidden、校验
+  失败或 revision conflict 后 draft 保留。Command form 只在显式 Execute 时调用；unsupported schema
+  回退 Advanced JSON/descriptor inspector。
+- Stream/Topic 的 pause/filter/clear/rate/autoscroll 与 gap/expired 状态有界可测；File picker cancel、上传
+  progress 和 session error 明确；catalog/topology/health/config/flow/audit/notification/file schema 使用结构化
+  adapter 而非 Resource path 特判。
 - 未知类型、离线、Forbidden、Expired、Gap 和 Schema mismatch 均有独立可测试状态。
 - Vitest/Testing Library、TypeScript、Vite production build、Wails production build、浏览器交互与真实 Wails GUI smoke 通过。
 

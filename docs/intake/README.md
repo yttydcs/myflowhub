@@ -5,6 +5,8 @@
 ## Current Records
 
 - [Metrics 对齐 Desktop 视觉语言的独立界面](2026-08-30_metrics-desktop-aligned-interface.md)
+- [Desktop schema-driven Resource widgets](2026-08-30_desktop-schema-driven-resource-widgets.md)
+- [Node Enrollment 与集中式准入 Authority](2026-08-30_node-enrollment-central-authority.md)
 - [Desktop Explorer 可折叠分区与 Resource path tree](2026-08-30_desktop-explorer-collapsible-resource-tree.md)
 - [Desktop 多面板嵌套停靠讨论记录](2026-08-30_desktop-nested-docking-layout.md)
 - [MyFlowHub 品牌图标 Coupled Seam 定稿](2026-08-29_brand-icon-coupled-seam.md)

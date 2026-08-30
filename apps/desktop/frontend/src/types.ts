@@ -1,10 +1,13 @@
 export type Profile = {
   id: string
   name: string
+  enrollment_mode?: 'authority' | 'legacy'
   node_id: string
   endpoint: string
   parent_node_id: string
   parent_public_key: string
+  authority_node_id?: string
+  authority_public_key?: string
   auto_connect: boolean
   created_at_unix_ms?: number
   updated_at_unix_ms?: number

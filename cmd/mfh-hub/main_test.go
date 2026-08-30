@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -110,5 +111,53 @@ func TestOfflineModesAreMutuallyExclusive(t *testing.T) {
 	}, &bytes.Buffer{})
 	if err == nil {
 		t.Fatal("expected mutually exclusive mode error")
+	}
+}
+
+func TestOfflineEnrollmentPermitDoesNotRequireChildNodeID(t *testing.T) {
+	directory := t.TempDir()
+	device, err := auth.GenerateDeviceIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	opts := options{
+		id: 1, stateDirectory: directory,
+		issuePublicKey: base64.RawStdEncoding.EncodeToString(device.PublicKey),
+		issueRole:      "headless", permitTTL: time.Hour,
+		issueRequestID: "90000000000000000000000000000001",
+	}
+	if err := run(context.Background(), opts, &output); err != nil {
+		t.Fatal(err)
+	}
+	var permit protocol.EnrollmentPermitV1
+	if err := json.Unmarshal(output.Bytes(), &permit); err != nil {
+		t.Fatal(err)
+	}
+	state, err := hostconfig.Open(directory, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.VerifyEnrollmentPermit(state.Identity.PublicKey, permit); err != nil {
+		t.Fatal(err)
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(output.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := raw["child_node_id"]; exists {
+		t.Fatal("new Enrollment Permit contains a client-selected child_node_id")
+	}
+	if permit.TargetNodeID != "1" || permit.AdmissionProfile != "headless" {
+		t.Fatalf("unexpected Enrollment Permit: %#v", permit)
+	}
+}
+
+func TestRunRequiresPinnedKeyForRemoteAdmissionAuthority(t *testing.T) {
+	err := run(context.Background(), options{
+		id: 2, address: "127.0.0.1:0", stateDirectory: t.TempDir(), authorityID: 1,
+	}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "admission-authority-key") {
+		t.Fatalf("remote Authority without pinned key error = %v", err)
 	}
 }

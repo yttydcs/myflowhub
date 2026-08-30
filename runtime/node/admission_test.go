@@ -53,3 +53,45 @@ func TestUntrustedChildCanJoinOnlyWithParentIssuedPermit(t *testing.T) {
 		t.Fatal("admitted child was not persisted to trust store")
 	}
 }
+
+func TestListenerClosesStalledInitialHandshakeAtJoinTimeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	identity, _ := auth.GenerateIdentity(1)
+	trust := auth.NewTrustStore()
+	if err := trust.Add(identity.NodeID, identity.PublicKey); err != nil {
+		t.Fatal(err)
+	}
+	parent, err := New(ctx, Config{
+		Identity: identity, Trust: trust, Policy: auth.AllowAll{}, JoinTimeout: 50 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer parent.Close()
+	network := memory.NewNetwork()
+	defer network.Close()
+	endpoint, err := parent.Listen(network, "stalled-handshake")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipe, err := network.Dial(ctx, endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pipe.Close()
+	readResult := make(chan error, 1)
+	go func() {
+		var value [1]byte
+		_, readErr := pipe.Read(value[:])
+		readResult <- readErr
+	}()
+	select {
+	case readErr := <-readResult:
+		if readErr == nil {
+			t.Fatal("stalled pre-authentication pipe closed without a read error")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("stalled pre-authentication pipe was not closed at JoinTimeout")
+	}
+}
