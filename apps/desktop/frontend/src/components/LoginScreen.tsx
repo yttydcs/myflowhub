@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { ArrowRight, Check, Copy, KeyRound, Moon, Plus, Sun, Trash2 } from 'lucide-react'
+import { BrandMark } from './BrandMark'
 import { ProfileEditor, createEmptyProfile } from './ProfileEditor'
 import { Button } from './ui/button'
 import { Input, Textarea } from './ui/input'
@@ -72,14 +73,14 @@ export function LoginScreen({ settings, busy, error, theme, onThemeChange, onPre
   return (
     <main className="login-shell">
       <header className="login-topbar">
-        <div className="brand-lockup"><span className="brand-mark small" aria-hidden="true">M</span><strong>MyFlowHub</strong></div>
+        <div className="brand-lockup"><BrandMark size="compact" /><strong>MyFlowHub</strong></div>
         <button className="icon-button" onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')} aria-label={theme === 'light' ? '切换到深色主题' : '切换到浅色主题'}>
           {theme === 'light' ? <Moon aria-hidden="true" size={15} /> : <Sun aria-hidden="true" size={15} />}
         </button>
       </header>
       <section className="login-panel" aria-labelledby="login-title">
         <div className="login-heading">
-          <span className="brand-mark" aria-hidden="true">M</span>
+          <BrandMark />
           <h1 id="login-title">登录 MyFlowHub</h1>
         </div>
 
