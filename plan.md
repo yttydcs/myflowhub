@@ -1,464 +1,547 @@
-# Plan - Desktop Explorer 可折叠分区与 Resource path tree
+# Plan - Desktop Schema-driven Resource Widgets
 
 ## Workflow Information
 
 - Repo: `D:\project\MyFlowHub3\repo\MyFlowHub`
-- Branch: `feat/desktop-explorer-resource-tree`
-- Base: `master` @ `550dfeebd55da5af4abce8a4c718ff30b77f5981`
+- Branch: `feat/desktop-schema-driven-widgets`
+- Base: `master` @ `54b46e6bc0c1bbea5b265a875e7c8132ae28e004`
 - Project Root: `D:\project\MyFlowHub3`
-- Docs Root: `D:\project\MyFlowHub3\worktrees\desktop-explorer-resource-tree\docs`
+- Docs Root: `D:\project\MyFlowHub3\worktrees\desktop-schema-driven-widgets\docs`
 - Code Repos: canonical monorepo `MyFlowHub` only
-- Worktree: `D:\project\MyFlowHub3\worktrees\desktop-explorer-resource-tree`
-- Participating Modules: `apps/desktop/frontend`、canonical `docs/`
-- Current Stage: `$m-archive` complete；archive、local merge 与 worktree cleanup 已完成
-- Publication: local-only；不新增 remote，不 push/release/publish
+- Worktree: `D:\project\MyFlowHub3\worktrees\desktop-schema-driven-widgets`
+- Participating Modules: `protocol`、`sdk/bindings`、`apps/desktop`、`apps/desktop/frontend`、canonical `docs/`
+- Current Stage: `$m-execute` implementation complete for `DOC01`–`VIEW01`; `QA01` heavy validation pending
+- Publication: local-only; no remote, push, release, or publication is authorized
 
 ## Stage Records
 
 ### Initialization
 
-- `guide.md`: 已读取；遵守中文提交、canonical docs、`GOWORK=off` 与 sibling worktree 规则。
-- Project/docs/code repo confirmation: project root、canonical repo 与 repo-local governed docs root 已确认。
-- Base/worktree confirmation: 独立 branch/worktree 已由 `$m-discuss` 创建；原主检出仍有品牌、文档、源码和
-  generated dist 的未提交改动，本 worktree 不暂存、覆盖、还原或归档这些改动。
-- Root control files: 上一轮完成状态已保存在
-  `docs/plan/plan_archive_2026-08-30_desktop-nested-docking-layout.md` 与对应 `docs/change`；根级
-  `plan.md`/`todo.md` 现切换为本轮活动控制面。
+- `guide.md`: read; Chinese commit messages, canonical docs, `GOWORK=off`, and sibling-worktree rules apply.
+- Project/docs/code repo confirmation: the canonical monorepo is both the owning code repo and governed docs root.
+- Base/worktree confirmation: the dedicated semantic branch and worktree already exist under the project `worktrees\` directory.
+- Main checkout protection: unrelated main-checkout changes such as `guide.md`, thesis files, design demos, and other task docs remain outside this worktree and must not be staged, overwritten, reverted, or archived by this workflow.
+- Root control files: the previously completed Explorer control files are retained in `docs/plan`; root `plan.md` and `todo.md` now become this workflow's active control plane.
 
 ### Discuss - Discovery And Requirements Shaping
 
 #### Goal
 
-让 Node/Resource 上下分区可通过标题收起，并把当前 Node 的 Resource 首段分组列表升级为完整相对路径树，
-同时保留现有预览、拖放、添加、独立滚动、Profile footer 与可访问性。
+Replace raw-JSON-first Desktop widgets with schema-driven operational displays and controls while preserving generic Resource discovery, provider authority, permissions, revision safety, and View persistence.
 
 #### Scope
 
-- 两个 section disclosure；最多收起一个；另一块满高；恢复旧比例。
-- 当前 owner 下任意深度 Resource path tree、混合 Resource/parent、搜索祖先和完整键盘交互。
-- 折叠与 Resource path 展开状态按 Profile 保存。
-- React/Vitest/CSS/production dist、稳定文档与真实 Wails GUI 验证。
+- Provider-owned data type, constraints, semantics, and capability declarations.
+- Desktop-owned compatible renderer set, default ranking, responsive presentation, and safe fallback.
+- User-selectable renderer and non-secret display settings persisted per View widget.
+- Rich first-party Variable, operation, event, File, and structured resource experiences.
+- Generated first-party schema metadata for the current canonical protocol schemas without changing the wire descriptor in this phase.
 
 #### Assumptions
 
-- 默认双区展开；Resource 第一层 path 默认展开。
-- 折叠不清空搜索、选择或展开状态；搜索临时展开不写回 preference。
-- Resource descriptors 已由 canonical protocol/Wails boundary 校验；前端不重写或规范化 Resource ID。
-
-#### Open Questions
-
-- 无阻塞问题。缩进、行高和默认第一层展开密度可在 GUI 验收中微调，不改变信息模型。
+- Invocation of `$m-plan` after the staged explanation confirms the phase-1 delivery boundary: built-in first-party schema provider now, owner-served schema discovery later.
+- Current Go payload structs and `Validate` methods remain runtime enforcement authority.
+- Existing `ViewWidget.renderer` and bounded `settings` fields are sufficient; View document version stays at v3.
+- Presentation choices never grant permission or relax provider constraints.
 
 #### Options Considered
 
-- Resource path tree：采用。
-- type-first tree：拒绝；重复 type 层且割裂相同 path。
-- Node/Resource 混合 tree：拒绝；混淆 authority 与 presentation，并重现拥挤问题。
-- 可折叠首段分组 list：拒绝；不满足任意深度 tree。
+1. Restyle JSON textareas: rejected because it does not add semantic controls.
+2. Resource-name-specific screens: rejected because paths are not stable type contracts.
+3. Full remote schema/plugin protocol now: deferred because trust, caching, compatibility, and migration require a separate protocol workflow.
+4. Staged schema resolver with generated first-party metadata, generic primitives, and explicit specialized adapters: selected.
 
 #### Recommended Direction
 
-使用纯 trie/index 派生层和扁平可见行；UI 分别实现 disclosure header、Resource treeitem 与独立 action；
-可选 preference 字段保持 version 1 向后兼容，不引入依赖或后端 schema。
+Implement a provider/display/user separation. A generated built-in schema provider adapts today's first-party schema IDs to a bounded JSON-Schema-compatible vocabulary. Desktop filters and ranks compatible renderers; the user may select any compatible renderer, and the selection is stored in the View without copying resource values.
 
 #### Research Summary
 
-- W3C APG Disclosure Pattern：button + `aria-expanded`，Enter/Space 切换，可选 `aria-controls`。
-- W3C APG Tree View Pattern：parent 的 `aria-expanded`、roving focus、方向键/Home/End 与焦点/选择分离。
-- 研究只用于交互契约；具体实现沿用现有 Node tree 与项目组件体系。
+- JSON Schema annotation and validation separation supports reusable data contracts.
+- JSON Forms demonstrates separate data/UI schemas and a ranked renderer registry.
+- Grafana demonstrates reusable unit/range/value mappings across display types.
+- These patterns inform the architecture only; the project will not import a competing theme or full dashboard framework.
 
 #### Worktree / Branch / Docs Root Status
 
-- Ready。分支、worktree、docs root 与原始 intake 均已就绪。
+- Dedicated worktree: ready.
+- Discussion intake and index: drafted in this worktree.
+- Runtime implementation: not started.
+- Issue list: none blocking planning.
 
-#### Issue List
+## Plan - Requirements And Architecture
 
-- 无。
+### Discussion Summary
 
-### Plan - Requirements And Architecture
+The provider defines what the data means and what values are valid. Desktop defines how valid data can be displayed. The user chooses among compatible displays. For example, a writable integer with `minimum=0`, `maximum=100`, and `multipleOf=1` may be edited through a slider, number stepper, or numeric input; a read-only rendering may be a number, gauge, progress bar, or bounded trend. A string may use a single-line, multiline, code, or read-only text renderer when its provider constraints allow it.
 
-#### Discussion Summary
+### Accepted / Rejected Requirements
 
-用户确认需要两个可点击收起的 Explorer section，并要求 Resource 为树状。讨论已明确 Resource tree 按
-协议的相对 path 派生，保持与 Node authority tree 分离，并处理真实 Resource 同时作为 path parent 的情况。
+Accepted:
 
-#### Accepted / Rejected Requirements
+- Controls are driven by schema ID, data shape, constraints, capabilities, and allowlisted presentation hints.
+- Renderer changes are presentation-only and must never mutate a resource.
+- Writable edits are staged; Apply performs the existing authoritative operation and preserves drafts on error or revision conflict.
+- Unknown, unsupported, malformed, or incompatible schemas retain structured/raw access with an explicit explanation.
+- All current first-party resource families gain useful non-JSON-first behavior in proportion to their contracts.
+- Existing design tokens, light/dark themes, flat pane composition, nested split layout, and accessibility conventions remain.
 
-- Accepted: disclosure、path trie、任意深度、hybrid item、搜索祖先、ARIA tree、per-Profile state。
-- Rejected: Node/Resource 混排、type-first、固定深度、服务端层级伪造、专用依赖与双收起空侧栏。
+Rejected or deferred:
 
-#### Requirements Analysis
+- Resource-path matching, remotely supplied executable UI, automatic destructive inference, and controls that cannot enforce provider constraints.
+- Full owner-served schema discovery, third-party executable renderer plugins, query-language dashboards, and production Media visualization in this phase.
 
-##### Goal
+### Requirements Analysis
 
-提高窄侧栏中 Node/Resource 浏览效率，同时保持资源身份、权限边界和操作路径不变。
+#### Goal
 
-##### Scope
+Deliver a maintainable renderer platform that makes first-party resources directly usable and establishes the stable extension seam for future provider-served schemas.
 
-- Frontend domain、Explorer component、split layout、UI preference、styles、tests、generated production dist。
-- 不改 Go protocol、catalog、Wails bindings、View v3 或 Workspace docking。
+#### Scope
 
-##### Use Cases
+- First-party schemas referenced by the current canonical binding contract and resource catalog.
+- Generic scalar/object/array display and form generation.
+- Variable, Command/generic operation, Stream/Topic, File, and selected structured first-party renderers.
+- Renderer selection, persistence, responsive density, raw fallback, accessibility, and tests.
 
-1. 用户收起 Node 区，让 Resource tree 满高浏览；点击标题恢复双区和旧比例。
-2. 用户收起 Resource 区，让深层 Node tree 满高浏览；不会把两个区域同时收起。
-3. 用户展开 `system/config`，既可预览/添加该 Resource，也可继续进入 `update` child。
-4. 用户搜索深层 Resource；树显示匹配项和祖先，清空后恢复先前展开状态。
-5. 用户重启或切换 Profile；每个 Profile 恢复自己的 section/path 展开偏好。
+#### Use Cases
 
-##### Functional Requirements
+1. A user opens a numeric Variable and sees a meaningful value rather than JSON; writable bounded values offer safe controls.
+2. The user switches a numeric widget between compatible presentations and sees the choice restored after saving/reopening the View.
+3. A user invokes a Command through generated labeled fields and inspects structured output or raw JSON when necessary.
+4. A user monitors Stream/Topic data as a table, timeline, or log and can pause, filter, clear, and recognize gaps.
+5. A user selects a local file through the Desktop host, starts a transfer, and sees progress and actionable errors.
+6. A first-party catalog, topology, health, configuration, flow, notification, audit, or transfer payload receives a structured display selected by stable schema ID.
+7. An unknown third-party schema remains discoverable and usable through a safe raw fallback.
 
-- Header disclosure 的指针与键盘等价路径、正确状态语义和焦点隐藏。
-- Resource tree 的 owner/path 唯一 key、任意深度、hybrid node、稳定排序和扁平可见行。
-- WAI-ARIA tree navigation、Resource selection、Inspector、DnD 与 add action 无回归。
-- Preference optional fields 的验证、上限、旧文档兼容和 Profile 隔离。
+#### Functional Requirements
 
-##### Non-functional Requirements
+- Resolve input/output/event schemas through a typed provider interface.
+- Support a bounded declarative schema vocabulary: `null`, `boolean`, `integer`, `number`, `string`, `object`, homogeneous `array`, properties, required, enum, numeric bounds/step, string length/pattern/format, item limits, labels/descriptions, units, precision, read/write sensitivity, and stable field order.
+- Reject or fall back for unsupported keywords, recursive definitions, invalid references, excessive depth/fields, or invalid schema documents.
+- Register renderers with stable versioned IDs, modes, compatibility predicates, ranking, minimum size, and allowed settings.
+- Treat legacy `mfh.variable`, `mfh.stream`, `mfh.topic`, `mfh.command`, and `mfh.file` renderer IDs as automatic compatibility aliases.
+- Offer only renderers compatible with both schema and resource capability.
+- Keep a keyboard-accessible presentation selector in the widget chrome when more than one compatible renderer exists.
+- Preserve resource payloads, drafts, credentials, and secrets outside `ViewWidget.settings`.
+- Keep Advanced JSON/descriptor access available for all resources.
 
-- 无新增依赖；构建/运行继续使用现有 React、dnd-kit、Radix/shadcn primitives 与 CSS tokens。
-- build O(total path segments)，flatten O(visible rows)，搜索不引入逐行全树扫描。
-- 浅/深色、reduced-motion、窄窗口、固定 footer 与独立滚动可用。
+#### Non-functional Requirements
 
-##### Inputs / Outputs
+- No unnecessary visual-system or docking dependency; prefer project primitives and small internal modules.
+- Schema resolution and renderer selection are deterministic, pure, and covered by unit tests.
+- Schema/render trees have explicit depth, property, array, event-buffer, and payload bounds.
+- Resize observation is batched; pane-size changes update responsive density without resaving the View or causing per-pixel request traffic.
+- High-rate events use bounded buffers and batched UI updates.
+- WAI-ARIA names, keyboard equivalents, focus behavior, non-color status, and error associations are required.
+- Runtime owner validation, authority, permission, size, path, session, and revision enforcement remain final.
 
-- Input: 当前 Node 的 validated `ResourceDescriptor[]`、query、expanded key set、collapsed pane、split ratio。
-- Output: Resource path index、visible rows、selection/DnD/add callbacks、validated per-Profile preference。
-- Persisted output: optional `collapsed_explorer_pane`、`expanded_resource_paths` 和现有 split ratio。
+#### Inputs / Outputs
 
-##### Edge Cases
+Inputs:
 
-- 单 segment、六层以上 path、Unicode segment、numeric segment 排序。
-- 同一 path 同时有 Resource 与 children；不同 owner 存在同名 path。
-- 空 Resource tree、搜索无结果、catalog 更新后存在陈旧 expanded key。
-- 在内容或 header 获得焦点时收起；折叠期间窗口 resize；清空搜索恢复状态。
-- 10,000 Resources 共享前缀或高度分散；Profile preference 损坏/超限。
+- `ResourceDescriptor`, capabilities, schema IDs, content types, presentation hints, current values/events/results, View widget renderer/settings, pane dimensions, and user actions.
 
-##### Acceptance Criteria
+Outputs:
 
-- 两个 header 可指针/Enter/Space 切换，状态和 `aria-controls` 正确，最多一个收起。
-- 收起后 sibling 满高、separator 不可达；展开后比例不变，footer 始终固定。
-- 任意深度、namespace、leaf、hybrid item 均有正确可见行和 ARIA 元数据。
-- Resource keyboard、preview、drag/add、搜索祖先与 per-Profile 恢复通过自动化和 packaged GUI。
+- resolved bounded data schema, compatible renderer list, selected renderer, staged draft/validation state, structured display/control tree, operation payload, and display-only View settings.
 
-##### Risks
+No resource value, operation payload, event body, secret, file content, or permission result is persisted as renderer settings.
 
-- Explorer.tsx 已承载 Node tree、Resource list 与 DnD，若直接继续堆逻辑会降低可维护性。
-- treeitem 与 drag/add/disclosure 是多个交互入口，错误 DOM 结构会造成重复 Tab stop 或嵌套按钮。
-- 原主检出的 `App.tsx`、`style.css` 与 generated dist 有独立未提交改动，归档合并必须再次安全收敛。
+#### Edge Cases
 
-#### Architecture Design
+- Missing or unknown schema ID/content type.
+- Known schema whose generated definition is stale or invalid.
+- Saved renderer removed or made incompatible after schema change.
+- Read-only Variable viewed through a previously writable renderer choice.
+- Nullable values, empty arrays/objects, very large arrays, deeply nested objects, unsupported unions, and opaque JSON fields.
+- Revision conflict, Forbidden, Expired, Gap, disconnect/reconnect, resource disappearance, and schema mismatch while editing.
+- Pane too small for a renderer, light/dark theme changes, reduced motion, keyboard-only operation, and multiple simultaneous widgets.
+- File picker cancellation and upload/session failure.
 
-##### Overall Solution
+#### Acceptance Criteria
 
-新增独立纯函数模块 `src/lib/resource-tree.ts`，把当前 Node Resources 构建为 trie/index，并根据 expanded/query
-输出扁平行；`Explorer.tsx` 只持有查询、roving focus 与事件编排。`ExplorerSplitPane` 接收 union collapse
-state 并切换 grid rows/separator。`UIPreferences.version=1` 增加可选字段，由 App 传递和持久化。
+- A bounded integer fixture (`0..100`, step `1`) offers compatible numeric displays/controls; keyboard and pointer edits honor bounds and step.
+- A string fixture offers compatible one-line/multiline/code/text choices as allowed by its constraints; switching does not call the resource API.
+- Read-only data never exposes mutating controls; writable drafts use Reset/Apply and remain intact after failed writes or revision conflicts.
+- Saving and reopening a View restores explicit renderer choice and valid display settings; legacy renderer IDs still open safely.
+- Commands render a generated form for supported fields, validate locally, submit only on explicit Execute, and show typed output; Advanced JSON remains available.
+- Streams/Topics expose live state, pause/resume, clear, filter, count/rate, autoscroll, and visible gap/expired state using bounded storage.
+- File upload uses a native picker boundary and shows destination/progress/cancel/error state where the current session contract supports it.
+- Catalog/topology/health/config/flow/audit/notification/file payloads receive table, definition-list, status, timeline, or progress adapters keyed by schema ID, never by resource path.
+- Unknown or unsupported schemas show an actionable fallback rather than a blank or misleading control.
+- Light/dark, compact/normal/expanded panes, nested splits, offline/Forbidden states, and existing Explorer/View behavior do not regress.
 
-##### Alternatives Considered
+#### Risks
 
-- 把 trie 继续塞入 `store.ts`：可行但会扩大已经混合 Node/View helpers 的模块；拒绝。
-- 递归 `ResourceTreeNode` 组件持有局部 state：易写但状态分散、搜索/性能/键盘困难；拒绝。
-- 引入 tree/virtualization library：当前上限与组件体系不需要；拒绝。
+- Handwritten Go validators and declarative schemas can drift; generation coverage and representative parity fixtures must fail closed.
+- A complete JSON Schema engine would enlarge scope; this phase supports a documented bounded vocabulary and visibly falls back outside it.
+- Generic nested forms can become unwieldy; opaque/conditional fields keep an Advanced JSON path rather than pretending full fidelity.
+- Renderer settings can accidentally retain data; settings are allowlisted display metadata only and tested for serialization boundaries.
+- Wails native dialog testing needs an injectable boundary because the real dialog cannot run in jsdom.
 
-##### Module Responsibilities
+### Architecture Design
 
-- `src/lib/resource-tree.ts`: path validation assumptions、trie/index、default expansion、query ancestors、flatten rows。
-- `src/components/Explorer.tsx`: section header、Resource row/tree ARIA、roving focus、selection、drag/add wiring。
-- `src/components/ExplorerSplitPane.tsx`: 双展开/单折叠 layout、separator availability、ratio preview/commit。
-- `src/preferences.ts` + `App.tsx`: optional state validation、Profile persistence、props/callback plumbing。
-- `src/style.css`: disclosure header、tree indentation、collapsed layout、light/dark/focus/overflow。
-- tests: domain invariants、component interaction、preference compatibility、integration persistence。
+#### Overall Solution
 
-##### Data / Call Flow
+```text
+provider schema ID + capability + value/event/result
+                         |
+                         v
+SchemaResolver -> built-in generated provider (phase 1)
+                         |
+                         v
+bounded ResolvedDataSchema + validation result
+                         |
+                         v
+RendererRegistry compatibility filter + rank
+                         |
+              +----------+-----------+
+              |                      |
+              v                      v
+automatic safe default       user-selected compatible renderer
+              |                      |
+              +----------+-----------+
+                         v
+resource controller + display/control primitive
+                         |
+                         v
+authoritative Desktop API operation/subscription/session
+```
 
-`catalog → current owner Resources → buildResourceTree → flattenResourceTreeRows(expanded, query) → Explorer rows →
-selection / preview / DnD / add`。
+The resource controller owns transport lifecycle; value renderers never call Wails directly. This prevents every slider/table from duplicating subscription, revision, cancellation, and error behavior.
 
-`localStorage(Profile) → UIPreferences → App → Explorer/ExplorerSplitPane → callbacks → validated saveUIPreferences`。
+#### Canonical Schema Source And Generation
 
-##### Interface Drafts
+- Add a protocol-owned, bounded declarative schema model and first-party definitions keyed by existing schema constants.
+- Existing Go payload structs and `Validate` methods remain enforcement authority; declarative definitions describe UI-visible shape and constraints.
+- Extend the existing `go generate ./sdk/bindings` path to emit a deterministic Desktop schema artifact from the protocol definitions.
+- Add freshness tests, schema-ID coverage against the canonical binding manifest, duplicate/sort/limit validation, and representative valid/invalid fixture parity.
+- Add LF rules and generated-check tracking for the new artifact.
+- Do not add schema documents to `SchemaDescriptorV2` or alter catalog/wire encoding in phase 1.
+
+#### Module Responsibilities
+
+| Module | Responsibility |
+| --- | --- |
+| `protocol` | First-party declarative schema definitions, IDs, limits, and validation of definitions |
+| `sdk/bindings` generator | Deterministic cross-language schema artifact and freshness/coverage gates |
+| `frontend/src/rendering/schema` | Typed resolver/provider interface, bounded runtime validation, defaults, and safe fallback reasons |
+| `frontend/src/rendering/registry` | Versioned renderer definitions, compatibility, ranking, aliases, and settings validation |
+| resource controllers | Snapshot/subscription/operation/session lifecycle, revisions, staged drafts, retry/cancel/error state |
+| display/control primitives | Pure schema-aware value display and editing controls |
+| specialized adapters | Schema-ID-selected tables/status/timelines/forms that compose generic primitives |
+| Workspace/View integration | Renderer selector, pane density, settings persistence, dirty state, and detached/incompatible handling |
+| Wails host | Native file picker and existing validated Desktop API boundary |
+
+#### Data / Call Flow
+
+1. Workspace resolves the current resource and View widget.
+2. `SchemaResolver` resolves each capability's relevant schema ID through provider order.
+3. The bounded validator accepts the schema or returns a reasoned unsupported/invalid result.
+4. `RendererRegistry` filters by resource mode, capability, schema features, pane density, and minimum size.
+5. A saved compatible renderer wins; an automatic/legacy alias uses deterministic ranking; an incompatible saved choice visibly falls back without erasing the stored preference.
+6. The resource controller fetches or subscribes once and passes typed state to the selected presentation component.
+7. Editors produce staged drafts and local errors; Apply/Execute converts the draft to the existing API payload.
+8. Runtime errors are displayed in-widget. A successful write refreshes authoritative value/revision; a failed write preserves the draft.
+9. Presentation choice/settings update the View and mark it dirty but never call a resource operation.
+
+#### Interface Drafts
 
 ```ts
-type ExplorerCollapsedPane = 'node' | 'resource'
+type SchemaResolution =
+  | { status: 'resolved'; schema: ResolvedDataSchema; source: string }
+  | { status: 'missing' | 'unsupported' | 'invalid'; schemaID?: string; reason: string }
 
-interface ResourcePathNode {
-  key: string
-  ownerNodeID: string
-  path: string
-  segment: string
-  resource?: ResourceDescriptor
-  children: string[]
+interface SchemaProvider {
+  id: string
+  resolve(schemaID: string): SchemaResolution | undefined
 }
 
-interface ResourceTreeRow {
-  key: string
-  parentKey?: string
-  depth: number
-  posInSet: number
-  setSize: number
-  node: ResourcePathNode
-}
-
-interface UIPreferences {
-  version: 1
-  collapsed_explorer_pane?: ExplorerCollapsedPane
-  expanded_resource_paths?: string[]
+interface RendererDefinition {
+  id: string
+  mode: 'value' | 'operation' | 'event' | 'file' | 'structured'
+  supports(context: RendererContext): Compatibility
+  rank(context: RendererContext): number
+  validateSettings(value: unknown): RendererSettings
 }
 ```
 
-最终命名可按周边代码微调，但 owner/full path 唯一性、optional preference 与扁平行字段不可丢失。
+Renderer IDs are versioned and resource-mode specific, for example `mfh.variable.slider.v1`, `mfh.variable.number.v1`, `mfh.value.table.v1`, `mfh.event.timeline.v1`, and `mfh.operation.form.v1`. Exact names are finalized in the spec before code use.
 
-##### Error Handling and Safety
+#### Initial Schema / Renderer Matrix
 
-- 不重写 validated Resource name；duplicate identity 继续由 catalog boundary 拒绝。
-- preference union、数组长度和 key 长度不合法时沿用显式默认值与 warning，不静默部分接受损坏文档。
-- 陈旧展开 key 只在派生时无匹配，不影响 catalog、selection 或保存的 View。
-- 收起时移除受控内容的可见性与焦点可达性，不以负尺寸或 CSS 覆盖隐藏可交互元素。
+| Shape / mode | Compatible presentations |
+| --- | --- |
+| Boolean read/write | text/status; switch or checkbox for staged writable drafts |
+| Enum read/write | badge/text; select or segmented choice within bounded option count |
+| Bounded numeric | number/stat/progress/gauge/trend; numeric input/stepper/slider when writable |
+| Unbounded numeric | number/stat/trend; numeric input/stepper when writable |
+| String | text/code; one-line, multiline, or code textarea when constraints/format allow |
+| Date/time/duration | localized display; matching bounded input when writable |
+| Object | definition list, grouped display, generated form, or JSON tree/raw fallback |
+| Homogeneous array | list/table, repeatable form rows within limits, or JSON fallback |
+| Command/operation | generated input form + explicit Execute + structured output + Advanced JSON |
+| Stream/Topic | log/table/timeline with bounded buffer, filter, pause, clear, rate, autoscroll, gap |
+| File | native source selection, destination, progress/status, cancel/error |
+| Unknown/unsupported | descriptor + JSON tree/raw viewer; no invented editing control |
 
-##### Performance and Testing Strategy
+#### First-party Structured Coverage
 
-- 纯函数测试覆盖 10,000 Resources、深层/共享前缀、hybrid、query ancestors 与 owner isolation。
-- Testing Library 覆盖 role/state/keyboard/focus/DnD/add；现有 split pointer capture 和 ratio tests 保留。
-- 分层执行 frontend test/build、全仓 `GOWORK=off go test ./...`、Wails production build 和真实 GUI smoke。
+- `mfh.catalog.v2`: searchable resource table and details.
+- management topology/health/config: hierarchy/table, status checks, and grouped key/value display.
+- management audit and notification events: timeline/log with stable metadata columns.
+- file transfers/progress: transfer table and progress/status presentation.
+- flow definitions/runs/events: definition/run tables and event timeline; deeply conditional flow-editing fields may retain Advanced JSON where the bounded dialect cannot express them faithfully.
+- management and flow Commands: generated forms where supported, with schema-driven raw fallback for opaque fields.
 
-##### Extensibility Design Points
+#### Error Handling And Safety
 
-- path node 保留 optional Resource，使未来 namespace metadata 不需要重写可见行算法。
-- 扁平行可在 API 支持分页后接入 DOM windowing，但本轮不提前引入分页状态。
-- Collapse union 可以未来扩展为 sidebar-wide hide，但不与 Workspace docking layout 混合。
+- Missing/invalid schema, unsupported vocabulary, incompatible saved renderer, and malformed settings have distinct messages and safe fallbacks.
+- Unknown schema never receives an inferred mutating control.
+- Local validation is advisory UX; owner/runtime errors remain authoritative and are not swallowed.
+- Revision conflicts preserve the user's draft and offer authoritative reload/reset.
+- `readOnly`, `writeOnly`, and sensitive annotations suppress unsafe echo/persistence.
+- Renderer settings are bounded, versioned, allowlisted, and contain presentation only.
+- Remote HTML, JS, arbitrary CSS, component names outside the registry, and side-effecting URLs are never evaluated.
+- Subscription and session effects are cleaned up on unmount, resource change, profile switch, and connection loss.
 
-#### Issue List
+#### Performance And Testing Strategy
 
-- 无。
+- Pure unit tests cover definition validation, resolver precedence, compatibility/ranking, schema validation, aliases, settings, and fallback.
+- Component tests cover keyboard/pointer controls, staged edits, switch-without-mutation, errors/conflicts, operation forms, event buffering, and responsive variants.
+- Go tests cover schema-definition validity, generator freshness/coverage, View settings bounds, native dialog boundary, and app regressions.
+- Synthetic deep/wide object and high-rate event fixtures verify depth/field/buffer limits and batching.
+- Production validation uses `GOWORK=off`, Vitest, TypeScript/Vite, generated-contract check, full Go tests, Wails production build, browser interaction, and real packaged GUI smoke.
 
-### Stage 3.1 - Planning
+#### Extensibility Design Points
 
-#### Project Goal and Current State
+- `SchemaResolver` accepts ordered providers; a future owner-served provider can be inserted without replacing renderers.
+- Renderer registry remains local and allowlisted; future third-party data schemas do not imply third-party executable UI.
+- Schema/version mismatch falls back without losing View topology or resource reference.
+- Specialized adapters compose the same generic primitives and are selected by schema or explicit renderer ID, not path.
 
-上一轮 Node/Resource 上下分区和 n 元停靠已在 `master` 完成。本轮只升级 Explorer 分区 disclosure 与 Resource
-展示树，不改变已归档的 View v3 和 docking contract。当前只有 planning/docs 改动，业务逻辑和测试未修改。
+## Stage 3.1 - Planning
 
-#### Docs Governance Routing Decision
+### Project Goal And Current State
 
-- Docs root 是 canonical repo 的 `docs/`；本 worktree 内编辑，之后随代码本地归档。
-- 原始请求：`docs/intake/2026-08-30_desktop-explorer-collapsible-resource-tree.md`。
-- 用户行为、长期验收和技术契约分别路由到 feature、requirement、spec；无需新 ADR 或 lesson。
-- 根级 `plan.md`/`todo.md` 是活动控制面例外；完成后归档到 `docs/plan` 和 `docs/change`。
+The current renderer layer is a single `Renderer.tsx` with JSON textareas/pre blocks and broad type dispatch. View v3 already stores renderer/settings and supports arbitrary nested panes. The plan retains that layout/store contract while creating the missing schema and renderer domains.
 
-#### Related Intake / Features / Requirements / Specs / Decisions / Lessons
+### Docs Governance Routing Decision
 
-- Intake: `docs/intake/2026-08-30_desktop-explorer-collapsible-resource-tree.md`
+Using `$m-docs`:
+
+- Docs root: `D:\project\MyFlowHub3\worktrees\desktop-schema-driven-widgets\docs`
+- Intake impact: clarify; discussion brief and intake index already updated.
+- Feature impact: clarify `docs/features/desktop.md` with current schema-driven widget behavior.
+- Requirements impact: clarify `docs/requirements/desktop-resource-workspace.md` with provider/display/user ownership and renderer-switch acceptance.
+- Specs impact: add `docs/specs/desktop-schema-rendering.md`; link it from the spec index and Desktop workspace v3.
+- Decision impact: add an ADR for provider-owned data schemas and Desktop-owned renderer selection; update the decision index.
+- Lessons known at planning time: reference generated-contract drift and observable-side-effect lessons; no new lesson is justified before implementation evidence.
+- Archive/change impact: `$m-archive` will later retain the approved plan, test evidence, stable-doc impact, and change record.
+- Root docs index impact: none; category topology and reading order do not change.
+
+### Related Intake / Features / Requirements / Specs / Decisions / Lessons
+
+- Intake: `docs/intake/2026-08-30_desktop-schema-driven-resource-widgets.md`
 - Feature: `docs/features/desktop.md`
-- Requirement: `docs/requirements/desktop-resource-workspace.md`
-- Spec: `docs/specs/desktop-resource-workspace-v3.md`
-- Decisions: `docs/decisions/2026-08-27_authoritative-node-tree-and-pluggable-links.md`、
-  `docs/decisions/2026-08-28_extensible-resource-type-system-and-desktop-workspace.md`
-- Lessons: `docs/lessons/frontend-and-powershell-preflight.md`、
-  `docs/lessons/windows-clean-checkout-eol-and-generated-drift.md`、
-  `docs/lessons/frontend-worktree-wailsjs-missing.md`
+- Requirements: `docs/requirements/desktop-resource-workspace.md`, `docs/requirements/extensible-resource-platform.md`
+- Specs: `docs/specs/desktop-resource-workspace-v3.md`, `docs/specs/resource-platform-v2.md`, `docs/specs/build-and-ci.md`
+- Decisions: `docs/decisions/2026-08-28_extensible-resource-type-system-and-desktop-workspace.md`, `docs/decisions/2026-08-30_desktop-n-ary-docking-layout.md`
+- Lessons: `docs/lessons/observable-side-effects-and-generated-contracts.md`, `docs/lessons/wails-binding-proto-drift.md`, `docs/lessons/frontend-and-powershell-preflight.md`
 
-#### Stable Docs Impact
+### Stable Docs Impact
 
-- Intake impact: add
+- Intake impact: clarify
 - Feature impact: clarify
 - Requirements impact: clarify
-- Specs impact: clarify
-- Decision impact: none
-- Lessons known at planning time: existing three lessons apply；不新增 lesson，执行/测试后复核
+- Specs impact: add
+- Decision impact: add
+- Lessons impact: none planned; reassess after test/debug evidence
 
-#### Executable Task List
+### Executable Task List
 
-| Task ID | Title | Scope | Depends On |
-| --- | --- | --- | --- |
-| DOC01 | 稳定文档与控制面收敛 | Will execute | none |
-| TREE01 | Resource path-tree 领域层 | Will execute | DOC01 |
-| UI01 | Resource tree 与 section disclosure UI | Will execute | TREE01 |
-| PREF01 | 折叠/展开 per-Profile preference 与 split layout | Will execute | TREE01 |
-| QA01 | 自动化、构建与真实 GUI 验证 | Will execute | UI01, PREF01 |
-| LAZY01 | 服务端分页、lazy loading 与真正 DOM windowing | Will not execute now | Deferred: API 不支持，独立性能阶段 |
-| BRAND01 | 品牌图标与平台资产 | Will not execute now | Out of scope: 独立任务拥有 |
-| ARC01 | change/plan 归档、合并与 worktree 清理 | Will not execute now | 仅在 QA 通过且用户调用 `$m-archive` 后执行 |
-| PUB01 | push/release/publication | Will not execute now | 未授权且仓库无 remote |
+| Task ID | Title | Scope | Primary files / modules | Acceptance cue |
+| --- | --- | --- | --- | --- |
+| DOC01 | Stabilize schema-rendering contracts | Will execute | governed docs | Stable ownership, behavior, spec, ADR, and indexes agree |
+| SCHEMA01 | Add provider-owned built-in schema metadata and generation | Will execute | `protocol`, `sdk/bindings`, generated artifact | Deterministic coverage/freshness/parity gates pass |
+| RENDER01 | Create schema resolver and renderer registry domains | Will execute | frontend `rendering/*`, types/settings | Pure compatibility/ranking/fallback tests pass |
+| VALUE01 | Implement generic value controls and Variable UX | Will execute | value primitives, Variable controller/renderer | Numeric/string/bool/object/array choices and staged writes work |
+| OP01 | Implement structured operation and result UX | Will execute | operation form/result renderers | Supported forms validate and submit explicitly; raw fallback remains |
+| LIVE01 | Implement event, File, and first-party structured views | Will execute | event/file/specialized renderers, Wails file boundary | Bounded live UX, picker/progress, schema-ID adapters work |
+| VIEW01 | Integrate selection, persistence, responsiveness, and accessibility | Will execute | Workspace/App/View/settings/styles | Choices persist; aliases/fallback/density/keyboard behavior pass |
+| QA01 | Run proportional full validation and GUI evidence | Will execute | tests/build/generated/Wails | Unit, full Go, generated, frontend, production, GUI gates pass |
+| REMOTE01 | Owner-served schema discovery protocol | Will not execute now | future protocol/catalog/cache work | Deferred: separate trust/version/cache migration decision |
+| PLUGIN01 | Executable third-party renderer plugins | Will not execute now | future plugin platform | Out of scope and unsafe without sandbox/trust model |
+| DASH01 | Full dashboard query/chart engine | Will not execute now | future analytics layer | Deferred: no query/history contract and unnecessary dependency scope |
+| ARC01 | Archive, merge, and cleanup | Will not execute now | `docs/plan`, `docs/change`, Git/worktree | Owned by later `$m-archive` after test gate |
+| PUB01 | Push, release, or publication | Will not execute now | remote/release infrastructure | Not authorized; repository may have no remote |
 
-#### Execution Scope After Approval
+### Execution Scope After Approval
 
-##### Will Execute
+#### Will Execute
 
-- `DOC01, TREE01, UI01, PREF01, QA01`
+- `DOC01`, `SCHEMA01`, `RENDER01`, `VALUE01`, `OP01`, `LIVE01`, `VIEW01`, `QA01`
 
-##### Will Not Execute Now
+#### Will Not Execute Now
 
-- `LAZY01`：现有 topology/catalog API 无分页；另立性能工作流。
-- `BRAND01`：独立品牌任务拥有，避免覆盖主检出未提交资产。
-- `ARC01`：属于 `$m-archive`，必须在实施和测试通过后单独进入。
-- `PUB01`：没有用户授权且无 remote。
+- `REMOTE01`: deferred to a protocol workflow because owner-served definitions need wire discovery, trust, cache, compatibility, and invalidation rules.
+- `PLUGIN01`: remotely executable UI remains out of scope and is not implied by declarative schemas.
+- `DASH01`: no full Grafana-like query/history platform in this widget usability phase.
+- `ARC01`: only after implementation and tests pass, through an explicit `$m-archive` invocation.
+- `PUB01`: no remote/push/release authorization.
 
-#### Task Details
+### Task Details
 
-##### DOC01 - 稳定文档与控制面收敛
-
-- Owner: primary agent
-- Worktree: `D:\project\MyFlowHub3\worktrees\desktop-explorer-resource-tree`
-- Plan Path: root `plan.md` / `todo.md`
-- Goal: 保持 intake → feature → requirement → spec → plan 的可追溯一致性。
-- Files / Modules: `docs/intake/**`、`docs/features/desktop.md`、
-  `docs/requirements/desktop-resource-workspace.md`、`docs/specs/desktop-resource-workspace-v3.md` 与 indexes。
-- Write Set: 仅上述 docs 与根控制面；不写 change/plan archive。
-- Acceptance: 旧“首段分组 list”不再作为当前目标；索引与链接完整；decision/lessons impact 明确。
-- Test Points: link/path 检查、`git diff --check`、稳定文档术语搜索。
-- Rollback: 恢复本轮 docs/control-plane patch，不影响 runtime。
-
-##### TREE01 - Resource path-tree 领域层
+#### DOC01 - Stabilize Schema-rendering Contracts
 
 - Owner: primary agent
-- Worktree: active worktree
+- Worktree: current dedicated worktree
 - Plan Path: root `plan.md`
-- Goal: 以纯函数构建 arbitrary-depth trie/index 和扁平可见行。
-- Files / Modules: `apps/desktop/frontend/src/lib/resource-tree.ts`、对应 `.test.ts`，必要时清理 `store.ts` 的
-  `groupResources`/`ResourceGroup`。
-- Write Set: 纯 TypeScript domain/test；不触碰 Go protocol。
-- Acceptance: namespace/leaf/hybrid/owner isolation/排序/search ancestors/default expansion/10k fixture 通过。
-- Test Points: focused Vitest + existing `store.test.ts` 回归。
-- Rollback: 删除新模块并恢复旧 `groupResources` 消费。
+- Goal: make the provider/display/user ownership model and phase boundary canonical before runtime changes.
+- Files / Modules: `docs/intake`, `docs/features/desktop.md`, `docs/requirements/desktop-resource-workspace.md`, new `docs/specs/desktop-schema-rendering.md`, related category indexes, new decision record.
+- Write Set: governed documentation only.
+- Acceptance: no competing truth; phase-1 wire non-change and future remote provider seam are explicit; all new leaves are indexed and cross-linked.
+- Test Points: Markdown link/path inspection and `git diff --check`.
+- Rollback: revert DOC01 files without affecting runtime.
 
-##### UI01 - Resource tree 与 section disclosure UI
-
-- Owner: primary agent
-- Worktree: active worktree
-- Plan Path: root `plan.md`
-- Goal: 用扁平行渲染完整 Resource tree，并让两个 heading 成为可访问 disclosure。
-- Files / Modules: `components/Explorer.tsx`、`components/Explorer.test.tsx`、必要时新增局部 Resource row component、
-  `style.css`。
-- Write Set: Explorer component/styles/tests；保留 Node tree、Inspector、DnD 和 add callback。
-- Acceptance: ARIA roles/states、roving focus、hybrid item、搜索、preview/drag/add、light/dark 均正确。
-- Test Points: Testing Library role/keyboard/focus；无嵌套按钮或重复主 Tab stop。
-- Rollback: 恢复旧 grouped list JSX/CSS；domain 模块可独立移除。
-
-##### PREF01 - 折叠/展开 per-Profile preference 与 split layout
+#### SCHEMA01 - Add Provider-owned Built-in Schema Metadata And Generation
 
 - Owner: primary agent
-- Worktree: active worktree
+- Worktree: current dedicated worktree
 - Plan Path: root `plan.md`
-- Goal: 持久化 collapse/resource expansion，并让 split 在双展开和单折叠间稳定切换。
-- Files / Modules: `preferences.ts/.test.ts`、`App.tsx/.test.tsx`、
-  `components/ExplorerSplitPane.tsx/.test.tsx`、相关 props/types/style。
-- Write Set: optional v1 fields、App plumbing、collapsed grid rows/separator。
-- Acceptance: 旧 preference 可读；非法新字段显式回退；最多一个收起；ratio 不被折叠覆盖；Profile 隔离。
-- Test Points: localStorage integration、pointer/keyboard separator regression、hidden focus exclusion。
-- Rollback: 删除可选 fields/props，恢复 always-expanded grid；旧持久文档仍兼容。
+- Goal: provide deterministic first-party data schemas keyed by existing protocol schema constants.
+- Files / Modules: `protocol/data_schema*.go`, protocol tests, `sdk/bindings/contract`, `sdk/bindings/cmd/mfh-bindgen`, generated Desktop schema artifact, `.gitattributes`, `scripts/mfh.ps1` generated tracking.
+- Write Set: declarative definitions, generator, generated artifact, and focused tests; no `SchemaDescriptorV2` wire change.
+- Acceptance: all schemas used by the canonical first-party binding manifest resolve or are explicitly classified as opaque/session-only; definitions are sorted, bounded, unique, and deterministic.
+- Test Points: protocol definition tests, representative valid/invalid fixtures, generator freshness, `check/generated`.
+- Rollback: remove the new definitions/output/generator extension; existing catalog and runtime remain unchanged.
 
-##### QA01 - 自动化、构建与真实 GUI 验证
+#### RENDER01 - Create Schema Resolver And Renderer Registry Domains
 
 - Owner: primary agent
-- Worktree: active worktree
+- Worktree: current dedicated worktree
 - Plan Path: root `plan.md`
-- Goal: 以风险相称验证功能、性能、generated dist 与 packaged Desktop。
-- Files / Modules: frontend tests、`frontend/dist/**`、必要的 `artifacts/m-test/**`（仅在重测试阶段）。
-- Write Set: 测试修正和 production dist；不写品牌资产或主检出用户文件。
-- Acceptance: frontend/Go/build/Wails 通过；真实 Hub 下 disclosure、hybrid path、search、DnD/add、重启持久化通过。
+- Goal: separate schema resolution, validation, compatibility/ranking, and renderer settings from React transport components.
+- Files / Modules: `apps/desktop/frontend/src/rendering/schema/*`, `rendering/registry/*`, generated-schema loader, `types.ts`, focused unit tests.
+- Write Set: pure domain modules and tests.
+- Acceptance: deterministic provider lookup; bounded schema validation; stable renderer IDs/aliases; safe missing/invalid/incompatible results; settings reject unknown or unsafe state.
+- Test Points: resolver precedence, schema limits, compatibility matrix, default ranking, alias migration, settings round-trip/fallback.
+- Rollback: remove rendering domain and retain old `Renderer.tsx` dispatch until integration tasks land.
+
+#### VALUE01 - Implement Generic Value Controls And Variable UX
+
+- Owner: primary agent
+- Worktree: current dedicated worktree
+- Plan Path: root `plan.md`
+- Goal: make scalar and common structured Variables useful while preserving revision and permission safety.
+- Files / Modules: resource controllers, value display/control primitives, Variable renderers, UI primitives/styles, component tests.
+- Write Set: React components/styles/tests; no server permission change.
+- Acceptance: bool/enum/number/string/date/object/array matrix works; bounded slider/stepper honors provider constraints; read-only is distinct; Reset/Apply and conflict draft preservation work; raw mode remains.
+- Test Points: pointer/keyboard bounds/step, invalid draft, read-only, successful write, Forbidden/conflict, unmount cleanup, renderer switch without API mutation.
+- Rollback: registry can route Variables to the legacy JSON renderer alias.
+
+#### OP01 - Implement Structured Operation And Result UX
+
+- Owner: primary agent
+- Worktree: current dedicated worktree
+- Plan Path: root `plan.md`
+- Goal: replace JSON-only Command/Topic publish/generic operation entry with generated forms and structured output.
+- Files / Modules: operation controller, form generator, result display, Advanced JSON mode, tests.
+- Write Set: frontend only.
+- Acceptance: labels/descriptions/required/enums/bounds/formats render; local errors associate with fields; Execute is explicit; server errors remain visible; opaque/unsupported fields use raw mode.
+- Test Points: form payload conversion, no submit-on-change, output schema rendering, error handling, size/unsupported fallback.
+- Rollback: route operations to the Advanced JSON renderer without changing API contracts.
+
+#### LIVE01 - Implement Event, File, And First-party Structured Views
+
+- Owner: primary agent
+- Worktree: current dedicated worktree
+- Plan Path: root `plan.md`
+- Goal: provide bounded operational monitoring and useful schema-ID-specific views across existing first-party resources.
+- Files / Modules: event controller/renderers, specialized adapters, `apps/desktop/app.go`, frontend API facade/types, File renderer, tests/styles.
+- Write Set: frontend plus a narrow Wails native file-picker method and its generated binding output if public API changes.
+- Acceptance: event pause/resume/filter/clear/rate/autoscroll/gap states; native file selection/cancel; transfer progress/errors; catalog/topology/health/config/flow/audit/notification/file adapters selected only by schema/renderer ID.
+- Test Points: bounded event buffer/batching, gap/expired, subscription cleanup, picker cancellation/mock, schema-ID dispatch, detached/Forbidden/session failure.
+- Rollback: keep generic event/raw and typed-path File fallback while removing optional specialized registrations; no protocol rollback required.
+
+#### VIEW01 - Integrate Selection, Persistence, Responsiveness, And Accessibility
+
+- Owner: primary agent
+- Worktree: current dedicated worktree
+- Plan Path: root `plan.md`
+- Goal: make renderer choice a first-class View behavior without changing layout version.
+- Files / Modules: `Workspace.tsx`, `App.tsx`, `store.ts`, `types.ts`, `views.go`, renderer settings integration, CSS, Workspace/App/Go tests.
+- Write Set: View/widget integration and validation; View document remains v3.
+- Acceptance: accessible selector appears only for multiple compatible choices; selection marks View dirty, persists, restores, and does not mutate data; legacy IDs auto-resolve; incompatible saved choice visibly falls back; compact/normal/expanded modes behave inside nested panes.
+- Test Points: save/reopen, legacy fixture, malformed settings, no resource API on switch, ResizeObserver batching, focus/keyboard labels, light/dark and narrow pane.
+- Rollback: retain stored values but map them through legacy aliases/raw fallback; no layout migration rollback.
+
+#### QA01 - Run Proportional Full Validation And GUI Evidence
+
+- Owner: primary agent
+- Worktree: current dedicated worktree
+- Plan Path: root `plan.md`
+- Goal: prove renderer correctness, generated-contract freshness, regression safety, and packaged Desktop usability.
+- Files / Modules: focused tests, generated output, production `dist`; temporary visual evidence later routed by `$m-archive`.
+- Write Set: tests and deterministic build/generated outputs only.
+- Acceptance: all planned checks pass; no unreviewed generated diff; representative light/dark and multi-pane GUI scenarios are visually verified.
 - Test Points:
-  - 新 worktree 先检查锁文件依赖与 `wailsjs`；缺失时只运行 canonical generate 入口，不跨 worktree 复制
-  - `npm ci`（仅在依赖未安装或不完整时）
-  - `npm test`
-  - `npm run build`
-  - `$env:GOWORK='off'; go test ./... -count=1`
-  - `wails build -clean -platform windows/amd64`
-  - packaged Wails light/dark、窄窗口、固定 footer、Profile restart smoke
-- Rollback: 恢复实现提交并重新生成旧 production dist；不修改用户 Profile/View 数据。
+  - `GOWORK=off go test ./protocol ./sdk/bindings ./apps/desktop/... -count=1`
+  - `GOWORK=off go test ./... -count=1`
+  - `npm ci`, `npm test`, `npm run build` in Desktop frontend
+  - `./scripts/mfh.ps1 -Action check -Target generated`
+  - `wails build -clean -trimpath -platform windows/amd64 -o mfh-desktop.exe`
+  - browser interaction for forms/renderer switching and real packaged Wails GUI smoke
+- Rollback: stop before merge/archive, revert failing task group to its prior passing checkpoint, and preserve evidence/error signature.
 
-#### Dependencies
+### Dependencies
 
-- `TREE01 → UI01/PREF01 → QA01`；DOC01 已在计划阶段建立契约，执行时随实现校准。
-- UI01 与 PREF01 都修改 Explorer props/tests，顺序执行以避免冲突。
-- Archive/merge 必须在 QA 通过后单独处理原主检出 dirty state。
+```text
+DOC01 -> SCHEMA01 -> RENDER01 -> VALUE01 --+
+                              -> OP01 -----+-> VIEW01 -> QA01
+                              -> LIVE01 ---+
+```
 
-#### Risks and Notes
+- `DOC01` fixes terminology and contracts used by all code tasks.
+- `SCHEMA01` provides the generated inputs for `RENDER01`.
+- `VALUE01`, `OP01`, and `LIVE01` may proceed independently after the registry contract is stable.
+- `VIEW01` integrates all renderer families before the full validation gate.
 
-- `system/config` hybrid fixture 是结构门禁，不得只测试普通 folder/leaf。
-- preference 保持 version 1 optional extension；不要为了两个字段强制迁移。
-- 不提交 `apps/desktop/build/bin`；tracked `frontend/dist` 必须由最终源码生成。
-- Windows 上在 generate/build 前后检查 tracked status 与 EOL drift；不得把环境噪声误当业务变更。
-- 原主检出当前 dirty 内容是用户/独立任务资产；archive 时需要逐路径保存、合并和复验。
+### Risks And Notes
 
-#### Parallelism Assessment
+- The largest risk is semantic drift between Go validation and declarative schemas; freshness, coverage, and parity tests are mandatory.
+- The second risk is scope explosion in nested/conditional forms; unsupported constructs must fall back rather than grow an incomplete schema engine.
+- The third risk is lifecycle duplication; transport stays in resource controllers, not presentation primitives.
+- No dependency should be added unless a focused comparison proves it smaller and safer than the bounded internal implementation. A full component/theme/dashboard package is disallowed.
+- Brand/icon work is not touched by this workflow.
+- Main-checkout unrelated changes remain protected.
 
-- 不派发实现 sub-agent。TREE/UI/PREF 共享 Explorer 类型、焦点和 preference 契约，顺序执行更安全；当前用户也
-  未授权额外 delegation。若后续明确授权，仅可把纯 domain test 或只读审查作为有界子任务。
+### Parallelism Assessment
 
-#### Issue List
+- Planning and initialization are performed by the primary agent only.
+- No implementation sub-agent is dispatched before approval.
+- After approval, `VALUE01`, `OP01`, and `LIVE01` are conceptually parallel after `RENDER01`, but their shared registry/styles make sequential primary-agent execution the safer default unless the execution skill explicitly establishes non-overlapping write sets.
 
-- 无。
+### Issue List
 
-### Execute - Implementation
+- No blocking prerequisite remains.
+- The user invoked `$m-execute`, approving `DOC01`–`QA01`; deferred tasks remain outside the write set.
 
-- Completed Task IDs: `DOC01, TREE01, UI01, PREF01, QA01`。
-- `TREE01`: 新增独立 `resource-tree.ts`，以 owner/full-path key 构建 arbitrary-depth trie/index，支持纯
-  namespace、leaf、Resource/parent hybrid、numeric ordering、search ancestors、默认首层展开与扁平可见行；
-  删除旧首段 `groupResources` presentation model。
-- `UI01`: Explorer 的 Resource 区改为单选 WAI-ARIA tree，保留类型图标、Inspector selection、drag handle
-  与 add action；Node/Resource heading 改为原生 disclosure button，单折叠时 sibling 满高且 separator 移除。
-- `PREF01`: `UIPreferences.version=1` 增加 optional `expanded_resource_paths` 与
-  `collapsed_explorer_pane`，保持旧文档兼容、Profile 隔离、长度/union 上限与显式损坏回退；折叠不覆盖 split ratio。
-- `QA01`: production dist 已从最终源码生成，Wails Windows/amd64 production executable 已构建；未修改品牌资产、
-  Go protocol/View schema、remote 或原主检出用户改动。
+## Execute - Implementation Result
 
-#### Verification Evidence
-
-- Frontend: `npm test`，9 files / 53 tests passed；包含 10,000 Resource、hybrid path、search restore、ARIA
-  keyboard、collapse/split、preference compatibility 与 App localStorage integration。
-- Frontend production: `npm run build` passed (`tsc --noEmit` + Vite production build)。
-- Repository: `$env:GOWORK='off'; go test ./... -count=1` passed。
-- Desktop production: Wails CLI v2.11.0 `wails build -clean -platform windows/amd64` passed；输出为
-  `apps/desktop/build/bin/myflowhub-desktop.exe`（ignored，不纳入提交）。
-- Connected GUI smoke: Windows packaged app 连接 `127.0.0.1:7331` 成功；验证两个 pane 互斥折叠/满高、固定
-  Profile footer、独立 Resource 滚动、`system/config → update` hybrid 展开、Resource drag 到 Workspace、浅/深色
-  与重启持久化。临时拖入的未保存 widget 已通过重启丢弃，用户原有 View 保持 4 widgets；最终 production build
-  已重新启动供本地查看。
-- Hygiene: `git diff --check` passed；Wails 产生的 `go.mod` stat-only noise 已核对 hash 与 HEAD 相同且未保留；
-  main checkout 未被暂存、覆盖、还原或归档。
-
-#### Execution Issues
-
-- 无实现阻塞。Computer Use 的 WebView accessibility element click 对滚动后元素索引不稳定，GUI smoke 改用每步
-  刷新的 screenshot-relative coordinate；该工具限制未影响产品结果或自动化门禁。
-
-### Continue - Heavy Validation
-
-- Terminal status: `Passed`；1 次 validation-only cycle 收敛，无需返回 `$m-execute`。
-- Task IDs: `DOC01, TREE01, UI01, PREF01, QA01` 全部保持完成；未产生计划外实现修复。
-- Automated: `npm test` 9 files / 53 tests passed；10,000 Resource fixture 578 ms（门槛 750 ms）；
-  `$env:GOWORK='off'; go test ./... -count=1` passed；`npm run build` passed；`git diff --check` passed。
-- Packaged UI: 对既有最终 Wails production executable 实际操作；验证 Node 收起后 Resource 满高、Resource 收起后
-  Node 满高、separator 移除、`system/config` hybrid 展开到 `system/config/update`、Tree `ArrowLeft` 逐级收起、固定
-  Profile/连接 footer 与原 4-widget View 保持不变。
-- Evidence: `artifacts/m-test/desktop-explorer-resource-tree/README.md` 与同目录三张 GUI 截图。
-- Review: 需求覆盖、架构、性能、可用性、可读性、扩展性、稳定性/安全、权限/数据暴露、测试覆盖、联调和
-  子 Agent 治理均通过；本轮未使用 sub-agent，未发生写集冲突或审计缺口。
-- Residual risk: 真正服务端分页/lazy loading/DOM windowing 仍是已明确延期的 `LAZY01`；品牌与发布仍不在本任务范围。
-- Rollback: 回退本分支实现和 generated dist，并保留原 Profile/View 数据；原主检出无关 dirty change 未触碰。
-- Decision: ready for `$m-archive`；本阶段未创建 `docs/change`、未提交、未合并、未清理、未推送。
-
-### Archive - Documentation Candidate
-
-- Docs root: `docs/` in the canonical monorepo；local-only，无 remote/push/publication。
-- Change entry: `docs/change/2026-08-30_desktop-explorer-collapsible-resource-tree.md`。
-- Plan archive: `docs/plan/plan_archive_2026-08-30_desktop-explorer-collapsible-resource-tree.md`。
-- Evidence index: `artifacts/m-test/desktop-explorer-resource-tree/README.md`。
-- Intake impact: updated；Feature impact: updated；Requirements impact: updated；Specs impact: updated。
-- Decision impact: none；Lessons impact: none；既有 Windows/Wails/frontend lessons 已覆盖可复用线索。
-- Index impact: intake/spec indexes 已在执行阶段更新；change/plan indexes 已在归档阶段更新。
-- Sub-agent trace: none；host policy/user authorization 不允许主动委派，且共享焦点/preference 写集不宜拆分。
-- Control-plane closeout: `master` fast-forward 到 `501805e`；7 个重叠 dirty paths 经 path-scoped temporary stash
-  恢复，联合源码重新生成 dist。除 dist 外 32 个非重叠 dirty files 的长度与 SHA-256 保持不变；前端 10 files /
-  54 tests、production build 与全仓 Go tests 通过。临时 stash 已删除，较早的两个 stash 未改动；专用 worktree
-  与 `feat/desktop-explorer-resource-tree` 已移除。无 remote/push/release/publication。
+- Completed: `DOC01`, `SCHEMA01`, `RENDER01`, `VALUE01`, `OP01`, `LIVE01`, `VIEW01`.
+- Partially completed: `QA01` lightweight gate only. Focused Go tests, 75 frontend tests, TypeScript/Vite production frontend build, deterministic regeneration, Wails binding generation, and `git diff --check` pass.
+- Remaining heavy gate: full `GOWORK=off go test ./...`, post-commit generated check, production Wails build, browser interaction, and packaged GUI smoke.
+- File boundary: native picker and blocking upload state are implemented. The current upload binding exposes no transfer handle, so per-transfer cancel and byte progress are not fabricated; owner-reported `file/progress` and `file/transfers` remain available as independent Widgets.
+- Security boundary: remotely executable renderers remain excluded; phase-1 renderer settings allowlist is empty; sensitive write-only fields render as password inputs and are never displayed as output.
+- Parallelism result: no implementation sub-agent was used because schema, registry, renderer, Workspace, styles, and generated artifacts formed overlapping write sets and the user invoked `$m-execute`, not delegated `$m-go`.
 
 ## Approval Gate
 
-- Planned execution Task IDs: `DOC01, TREE01, UI01, PREF01, QA01`
-- Technical blockers: none
-- Approved execution Task IDs: `DOC01, TREE01, UI01, PREF01, QA01`
-- Blocked: no
-- Implementation started: yes
-- Enter execution under the approved write set only。
-- Do not dispatch implementation sub-agents。
+- Plan status: confirmed.
+- Approval status: `DOC01`–`QA01` approved by explicit `$m-execute` invocation.
+- Blocked: no.
+- `$m-execute` exit gate reached for implementation tasks; enter `$m-test`/`$m-continue` for `QA01`.
+- Do not enter `$m-archive` until `QA01` and rollback checkpoint `R5` pass.
+- Implementation sub-agents: not dispatched because the shared schema/registry/styles create overlapping write sets and `$m-go` delegation was not requested.
