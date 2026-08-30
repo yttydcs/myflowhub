@@ -199,6 +199,7 @@ conflict、每 Profile 隔离、32 View 上限、原子 temp/sync/backup/rename 
 
 ## Related docs
 
+- [Desktop schema rendering](desktop-schema-rendering.md)
 - [Desktop feature](../features/desktop.md)
 - [Desktop requirements](../requirements/desktop-resource-workspace.md)
 - [n-ary docking decision](../decisions/2026-08-30_desktop-n-ary-docking-layout.md)

@@ -76,12 +76,24 @@ View 使用任意深度的 n 元 horizontal/vertical split tree。所有相邻 p
 
 renderer 由 descriptor 的 type、capability、schema 和 presentation hint 驱动：
 
-- Variable：读取 JSON 快照与刷新；
-- Stream：有界实时事件列表和订阅状态；
-- Topic：订阅事件，展示 publisher/sequence 数据，并通过 `publish` capability 发布；
-- Command：按 input schema 提供 JSON operation 表单并显示 typed result/error；
-- File：选择本地路径和目标路径，通过绑定到 Resource 的 session 上传；
-- unknown：完整显示 descriptor，不隐藏未知 type。
+- Resource provider 通过 schema 定义值类型、范围、步长、枚举、格式、字段和校验约束；Desktop 不从
+  Resource name 猜测这些语义；
+- Desktop renderer registry 根据 schema、capability 和 pane 尺寸过滤兼容组件并选择安全默认项；用户可在
+  Widget 标题区切换兼容 renderer，切换只更新 View 展示设置，不调用 Resource operation；
+- Variable：布尔、枚举、数字、文本、时间、对象和数组使用对应展示/控件；可写值先形成 draft，Reset/Apply
+  后通过 `expected_revision` 条件写入，失败或冲突保留 draft；
+- Stream/Topic：使用有界 log/table/timeline，支持 pause、clear、filter、autoscroll，并明确显示
+  publisher/sequence、gap、expired 和 subscription state；Topic publish 复用 schema form；
+- Command/通用 operation：支持 schema form、显式 Execute、typed result 和 Advanced JSON fallback；
+- File：通过原生文件选择、目标路径、in-flight/error 状态完成上传；owner 提供的 `file/progress` 与
+  `file/transfers` 可作为独立 Widget 展示实际进度。当前阻塞式上传 binding 尚不提供单次 transfer cancel；
+- first-party catalog/topology/health/config/flow/audit/notification/file payload 使用 schema ID 选择结构化
+  table/status/timeline/progress adapter；
+- unknown/unsupported：说明缺少或不支持的 schema，完整保留 descriptor、JSON tree/raw 数据和安全 fallback。
+
+provider presentation metadata 只能作为默认 hint，不能指定可执行组件或放宽数据约束。View 只保存版本化
+renderer ID 与 allowlisted 非秘密显示设置；不保存 value、draft、operation payload、event body、文件内容、
+permission 或 credential。旧 `mfh.variable/stream/topic/command/file` renderer ID 作为 automatic alias 继续可读。
 
 加载、空、离线、Forbidden、订阅失败、缺失资源和未知 renderer 都会明确呈现。拖放具有独立键盘
 激活手柄和添加按钮等价路径；Node tree 与 Resource path tree 都使用 roving focus，并实现 Arrow
@@ -101,6 +113,7 @@ Up/Down/Left/Right、Home、End、Enter 与 Space 的 WAI-ARIA 键盘路径。�
 - Wails boundary 再次校验 Node ID、Profile、JSON 大小、capability/schema 和 View layout；
 - Desktop 日志最多 500 条，不记录 operation payload、文件块、剪贴板正文、private key 或 permit；
 - 权限、schema、session 与路径最终由 authority 和 Resource owner 校验；
+- schema form 的客户端校验只提供即时反馈，不能替代 owner/runtime 的权威校验；
 - File 只接受普通本地文件，服务端路径固定在配置根内，chunk 有大小与 SHA-256 校验。
 
 ## 构建与验证
