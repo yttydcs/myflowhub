@@ -21,6 +21,7 @@
 
 - [ ] STARTUP01 — force Profile selection on every launch; deferred to preserve persisted active Profile and auto-connect behavior.
 - [ ] MOBILE01 — Android/Embedded native Enrollment chooser; separate product approval required.
+- [x] ARC01 — stable docs, reusable lesson, governed evidence, plan snapshot, local merge and cleanup closeout.
 - [ ] PUB01 — push/release/deployment/publication; not authorized.
 
 ## Acceptance Checklist
@@ -47,5 +48,5 @@
 ## Current Gate
 
 - Blocked: no — `DOC01`, `STATE01`, `SESSION01`, `UI01`, and `QA01` were explicitly approved via `$m-execute`.
-- `$m-test` heavy validation passed; QA01 is complete and the workflow is ready for `$m-archive`.
+- `$m-archive` documentation and post-mainline validation are complete; only the authorized local merge/worktree cleanup remains.
 - No implementation sub-agents were dispatched because the write sets overlapped and no delegation was requested.

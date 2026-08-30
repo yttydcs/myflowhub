@@ -44,6 +44,7 @@
 - [Node Enrollment 与 Admission Authority](../specs/node-enrollment-and-admission-authority.md)
 - [集中式 Admission Authority](../decisions/2026-08-30_centralized-admission-authority.md)
 - [Desktop Binding 重连与准入诊断](../lessons/desktop-binding-reconnect-and-admission-diagnostics.md)
+- [Desktop Profile 入口生产化归档](../change/2026-08-31_desktop-profile-entry-production.md)
 
 ## Open Questions
 

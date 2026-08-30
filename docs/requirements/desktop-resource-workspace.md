@@ -159,4 +159,5 @@
 
 ## Related Changes
 
+- [Desktop Profile 入口生产化](../change/2026-08-31_desktop-profile-entry-production.md)
 - [Desktop Explorer 可折叠分区与 Resource path tree](../change/2026-08-30_desktop-explorer-collapsible-resource-tree.md)

@@ -65,3 +65,5 @@ Desktop 只向前端投影 allowlist 字段：Profile ID、状态、可选 reque
 - [Desktop 资源工作区需求](../requirements/desktop-resource-workspace.md)
 - [Desktop 当前行为](../features/desktop.md)
 - [Desktop Profile 入口生产化 intake](../intake/2026-08-31_desktop-profile-entry-production.md)
+- [Credential 状态检查必须是只读路径](../lessons/credential-status-inspection-must-be-read-only.md)
+- [Desktop Profile 入口生产化归档](../change/2026-08-31_desktop-profile-entry-production.md)

@@ -25,6 +25,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-08-31_desktop-profile-entry-production.md](2026-08-31_desktop-profile-entry-production.md)
 - [2026-08-31_desktop-renderer-selector-titlebar-refinement.md](2026-08-31_desktop-renderer-selector-titlebar-refinement.md)
 - [2026-08-30_desktop-schema-driven-resource-widgets.md](2026-08-30_desktop-schema-driven-resource-widgets.md)
 - [2026-08-30_node-enrollment-admission-authority.md](2026-08-30_node-enrollment-admission-authority.md)
