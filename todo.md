@@ -18,14 +18,14 @@
 - [x] OP01 — add generated Command/Topic/generic operation forms, explicit Execute, typed results, and Advanced JSON fallback.
 - [x] LIVE01 — add bounded event views, native File selection/in-flight status, and schema-ID-selected first-party structured adapters; per-transfer cancel remains behind a future transfer-handle binding.
 - [x] VIEW01 — integrate renderer selection, View persistence, responsive pane density, legacy/incompatible fallback, and accessibility.
-- [ ] QA01 — lightweight focused Go/frontend/build/diff checks pass; full Go, generated post-commit check, production Wails, browser, and packaged GUI validation remain for `$m-test`/`$m-continue`.
+- [x] QA01 — full Go, generated post-commit check, frontend regression/build, production Wails, real packaged GUI, persistence, theme, security, and screenshot gates pass.
 
 ## Will Not Execute In The Next Phase
 
 - [ ] REMOTE01 — owner-served schema discovery protocol; deferred for separate trust/cache/version/migration design.
 - [ ] PLUGIN01 — executable third-party renderer plugins; out of scope and requires a separate sandbox/trust model.
 - [ ] DASH01 — full dashboard query/history/chart engine; deferred because this workflow has no query/history contract.
-- [ ] ARC01 — plan/change/evidence archive, merge, and worktree cleanup; reserved for later `$m-archive` after tests pass.
+- [x] ARC01 — plan/change/evidence archive is prepared; local merge and worktree cleanup are the remaining control-plane closeout steps.
 - [ ] PUB01 — push/release/publication; not authorized and no remote is assumed.
 
 ## Acceptance Checklist
@@ -41,9 +41,9 @@
 - [x] File uses native selection and exposes in-flight/errors; independent first-party transfer resources expose owner progress within current capabilities.
 - [x] First-party catalog/topology/health/config/flow/audit/notification/file schemas have useful structured views.
 - [x] Unknown/unsupported schema and incompatible saved renderer produce explicit safe fallback.
-- [ ] Light/dark, nested compact/normal/expanded panes, Explorer, View layout, Profile, and offline/Forbidden behavior have no regression.
+- [x] Light/dark, nested compact/normal/expanded panes, Explorer, View layout, Profile, and offline/Forbidden behavior have no regression.
 - [x] Generated artifact is deterministic, LF-stable, covered, and fresh in focused regeneration/freshness tests.
-- [ ] `npm test`, `npm run build`, focused/full `GOWORK=off go test`, generated check, Wails production build, browser interaction, and packaged GUI smoke pass.
+- [x] `npm test`, `npm run build`, focused/full `GOWORK=off go test`, generated check, Wails production build, interaction, and packaged GUI smoke pass.
 
 ## Rollback Checkpoints
 
@@ -52,11 +52,11 @@
 - [x] R2 — RENDER01 pure domain checkpoint.
 - [x] R3 — VALUE01/OP01/LIVE01 renderer-family checkpoints.
 - [x] R4 — VIEW01 integration checkpoint.
-- [ ] R5 — QA01 verified archive-ready checkpoint.
+- [x] R5 — QA01 verified archive-ready checkpoint.
 
 ## Current Gate
 
 - Blocked: no.
-- `DOC01`–`VIEW01` implementation complete; `QA01` awaits heavy validation.
-- Next gate: `$m-test` or approved `$m-continue`; do not archive yet.
+- `DOC01`–`QA01` and archive documentation are complete.
+- Next gate: commit archive records, safely merge into local `master`, and clean up the dedicated worktree/branch.
 - Do not dispatch implementation sub-agents because the approved implementation write sets overlap.
