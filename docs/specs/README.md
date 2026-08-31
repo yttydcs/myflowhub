@@ -12,6 +12,8 @@
 - 受保护 generated 文档的维护说明
 
 ## Current Specs
+- [desktop-profile-entry.md](desktop-profile-entry.md)
+  - Existing Profile / 首次连接入口、受保护 Enrollment 状态投影、Profile ID 与非破坏性返回选择器契约
 - [node-host-runtime.md](node-host-runtime.md)
   - 纯 Go NodeHost、Parent/Listeners 角色组合、attached SDK ownership、资源注册和薄平台适配契约
 - [node-enrollment-and-admission-authority.md](node-enrollment-and-admission-authority.md)

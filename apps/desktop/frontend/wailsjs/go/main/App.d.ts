@@ -9,6 +9,8 @@ export function Close():Promise<void>;
 
 export function Connect():Promise<void>;
 
+export function DeactivateProfile():Promise<void>;
+
 export function DeleteProfile(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteView(arg1:string,arg2:number):Promise<void>;
@@ -28,6 +30,8 @@ export function OperateJSON(arg1:string,arg2:string,arg3:string,arg4:string,arg5
 export function PollSubscription(arg1:number,arg2:number):Promise<string>;
 
 export function PrepareProfileJSON(arg1:string):Promise<string>;
+
+export function ProfileStatesJSON():Promise<string>;
 
 export function ResetStorage(arg1:string):Promise<string>;
 

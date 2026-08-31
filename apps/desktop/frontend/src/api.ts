@@ -2,6 +2,7 @@ import * as App from '../wailsjs/go/main/App'
 import type {
   ConnectionStatus,
   Profile,
+  ProfileState,
   ResourceCatalog,
   Settings,
   Topology,
@@ -16,10 +17,12 @@ export type PreparedProfile = { profile: Profile; identity: PublicIdentity }
 
 export interface DesktopAPI {
   settings(): Promise<Settings>
+  profileStates(): Promise<ProfileState[]>
   prepareProfile(profile: Profile): Promise<PreparedProfile>
   saveProfile(profile: Profile): Promise<Profile>
   login(profile: Profile, permitJSON: string, allowTOFU: boolean): Promise<Profile>
   switchProfile(profileID: string): Promise<void>
+  deactivateProfile(): Promise<void>
   deleteProfile(profileID: string, confirmation: string): Promise<void>
   identity(): Promise<PublicIdentity>
   connect(): Promise<void>
@@ -46,10 +49,12 @@ function parseOperation(raw: string): OperationResult {
 
 export const api: DesktopAPI = {
   settings: async () => JSON.parse(await App.SettingsJSON()),
+  profileStates: async () => JSON.parse(await App.ProfileStatesJSON()),
   prepareProfile: async (profile) => JSON.parse(await App.PrepareProfileJSON(JSON.stringify(profile))),
   saveProfile: async (profile) => JSON.parse(await App.SaveProfileJSON(JSON.stringify(profile))),
   login: async (profile, permitJSON, allowTOFU) => JSON.parse(await App.LoginJSON(JSON.stringify({ profile, permit_json: permitJSON, allow_tofu: allowTOFU }))),
   switchProfile: App.SwitchProfile,
+  deactivateProfile: App.DeactivateProfile,
   deleteProfile: App.DeleteProfile,
   identity: async () => JSON.parse(await App.IdentityJSON()),
   connect: App.Connect,

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Cable, CircleUserRound, Moon, Palette, PlugZap, Plus, Save, ShieldCheck, Sun, Trash2, Unplug } from 'lucide-react'
+import { ArrowLeftToLine, Cable, CircleUserRound, Moon, Palette, PlugZap, Plus, Save, ShieldCheck, Sun, Trash2, Unplug } from 'lucide-react'
 import type { DesktopAPI } from '../api'
 import { ProfileEditor, createEmptyProfile } from './ProfileEditor'
 import { AdmissionConsole } from './AdmissionConsole'
@@ -18,6 +18,7 @@ export function Settings({
   busy,
   onConnect,
   onDisconnect,
+  onDeactivateProfile,
   onSwitchProfile,
   onSaveProfile,
   onDeleteProfile,
@@ -31,6 +32,7 @@ export function Settings({
   busy: boolean
   onConnect(): Promise<void>
   onDisconnect(): Promise<void>
+  onDeactivateProfile(): Promise<void>
   onSwitchProfile(profileID: string): Promise<void>
   onSaveProfile(profile: Profile): Promise<boolean>
   onDeleteProfile(profileID: string): Promise<void>
@@ -87,6 +89,7 @@ export function Settings({
               {status.state === 'connected'
                 ? <Button variant="secondary" disabled={busy} onClick={() => void onDisconnect()}><Unplug aria-hidden="true" size={14} />断开连接</Button>
                 : <Button disabled={busy || status.state === 'connecting'} onClick={() => void onConnect()}><PlugZap aria-hidden="true" size={14} />{status.state === 'connecting' ? '连接中…' : '连接'}</Button>}
+              <Button variant="secondary" disabled={busy} onClick={() => void onDeactivateProfile()}><ArrowLeftToLine aria-hidden="true" size={14} />返回 Profile 选择</Button>
             </div>
           </div>
         )}

@@ -21,6 +21,16 @@ export type Settings = {
   credential_mode: string
 }
 
+export type ProfileState = {
+  profile_id: string
+  state: 'legacy' | 'missing' | 'device' | 'pending' | 'enrolled' | 'error'
+  request_id?: string
+  node_id?: string
+  parent_node_id?: string
+  authority_node_id?: string
+  message?: string
+}
+
 export type ConnectionStatus = {
   state: 'signed_out' | 'disconnected' | 'connecting' | 'connected' | 'failed' | 'stopped'
   parent_node_id?: string

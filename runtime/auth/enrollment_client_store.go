@@ -44,6 +44,25 @@ type EnrollmentCredentialStore interface {
 	SaveEnrollmentCredential(EnrollmentCredential) error
 }
 
+// InspectEnrollmentClientState validates and snapshots an existing credential
+// without creating or persisting Enrollment state.
+func InspectEnrollmentClientState(store EnrollmentCredentialStore) (EnrollmentClientSnapshot, bool, error) {
+	if store == nil {
+		return EnrollmentClientSnapshot{}, false, errors.New("enrollment credential store is required")
+	}
+	state, found, err := store.LoadEnrollmentCredential()
+	if err != nil {
+		return EnrollmentClientSnapshot{}, false, fmt.Errorf("load enrollment client state: %w", err)
+	}
+	if !found {
+		return EnrollmentClientSnapshot{}, false, nil
+	}
+	if err := validateEnrollmentCredential(state); err != nil {
+		return EnrollmentClientSnapshot{}, false, fmt.Errorf("load enrollment client state: %w", err)
+	}
+	return enrollmentClientSnapshot(state), true, nil
+}
+
 type keystoreEnrollmentCredentialStore struct {
 	store *keystore.Store
 }

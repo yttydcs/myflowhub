@@ -24,6 +24,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Snapshots / Meta
+- [plan_archive_2026-08-31_desktop-profile-entry-production.md](plan_archive_2026-08-31_desktop-profile-entry-production.md)
 - [plan_archive_2026-08-31_nodehost-runtime-and-product-boundaries.md](plan_archive_2026-08-31_nodehost-runtime-and-product-boundaries.md)
 - [plan_archive_2026-08-30_desktop-schema-driven-resource-widgets.md](plan_archive_2026-08-30_desktop-schema-driven-resource-widgets.md)
 - [plan_archive_2026-08-30_node-enrollment-admission-authority.md](plan_archive_2026-08-30_node-enrollment-admission-authority.md)

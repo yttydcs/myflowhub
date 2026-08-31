@@ -2,10 +2,77 @@ package auth
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/yttydcs/myflowhub/internal/keystore"
+	"github.com/yttydcs/myflowhub/protocol"
 )
+
+type recordingEnrollmentCredentialStore struct {
+	credential EnrollmentCredential
+	found      bool
+	loadErr    error
+	saves      int
+}
+
+func (s *recordingEnrollmentCredentialStore) LoadEnrollmentCredential() (EnrollmentCredential, bool, error) {
+	return cloneEnrollmentCredential(s.credential), s.found, s.loadErr
+}
+
+func (s *recordingEnrollmentCredentialStore) SaveEnrollmentCredential(EnrollmentCredential) error {
+	s.saves++
+	return nil
+}
+
+func TestInspectEnrollmentClientStateIsReadOnly(t *testing.T) {
+	store := &recordingEnrollmentCredentialStore{}
+	if snapshot, found, err := InspectEnrollmentClientState(store); err != nil || found || snapshot.Status != "" {
+		t.Fatalf("missing inspection = %#v, %v, %v", snapshot, found, err)
+	}
+	if store.saves != 0 {
+		t.Fatalf("inspection persisted %d credentials", store.saves)
+	}
+
+	device, err := GenerateDeviceIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestID, err := protocol.NewMessageID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.credential = EnrollmentCredential{
+		Version: enrollmentClientStateVersion, Status: "device", RequestID: requestID.String(),
+		DevicePublicKey: device.PublicKey, DevicePrivateKey: device.PrivateKey,
+	}
+	store.found = true
+	snapshot, found, err := InspectEnrollmentClientState(store)
+	if err != nil || !found || snapshot.Status != "device" || snapshot.RequestID != requestID.String() {
+		t.Fatalf("existing inspection = %#v, %v, %v", snapshot, found, err)
+	}
+	snapshot.DevicePublicKey[0] ^= 0xff
+	if bytes.Equal(snapshot.DevicePublicKey, store.credential.DevicePublicKey) {
+		t.Fatal("inspection returned aliased public key data")
+	}
+	if store.saves != 0 {
+		t.Fatalf("inspection persisted %d credentials", store.saves)
+	}
+}
+
+func TestInspectEnrollmentClientStateRejectsInvalidOrUnreadableState(t *testing.T) {
+	store := &recordingEnrollmentCredentialStore{found: true, credential: EnrollmentCredential{Version: 99}}
+	if _, found, err := InspectEnrollmentClientState(store); err == nil || found {
+		t.Fatalf("invalid inspection unexpectedly succeeded: found=%v err=%v", found, err)
+	}
+	store.loadErr = errors.New("protected store unavailable")
+	if _, found, err := InspectEnrollmentClientState(store); err == nil || found {
+		t.Fatalf("failed inspection unexpectedly succeeded: found=%v err=%v", found, err)
+	}
+	if store.saves != 0 {
+		t.Fatalf("failed inspections persisted %d credentials", store.saves)
+	}
+}
 
 func TestEnrollmentClientStatePersistsOneDeviceAndGrantAtomically(t *testing.T) {
 	store, _ := keystore.New(t.TempDir())

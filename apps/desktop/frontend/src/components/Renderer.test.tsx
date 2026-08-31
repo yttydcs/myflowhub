@@ -7,10 +7,12 @@ import { MAX_VISIBLE_EVENTS, prependBoundedEvents, ResourceOperationPanel, Resou
 function mockAPI(overrides: Partial<DesktopAPI> = {}): DesktopAPI {
   return {
     settings: vi.fn(),
+    profileStates: vi.fn(),
     prepareProfile: vi.fn(),
     saveProfile: vi.fn(),
     login: vi.fn(),
     switchProfile: vi.fn(),
+    deactivateProfile: vi.fn(),
     deleteProfile: vi.fn(),
     identity: vi.fn(),
     connect: vi.fn(),
