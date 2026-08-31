@@ -83,6 +83,11 @@ Desktop 也缺少从真实 Resource 统一触发操作和展示内容的入口�
 - [Observable side effects 与 generated contracts](../lessons/observable-side-effects-and-generated-contracts.md)
 - [Windows clean checkout、EOL 与 generated drift](../lessons/windows-clean-checkout-eol-and-generated-drift.md)
 
+## Related plan snapshots
+
+- [实施与验证计划](../plan/plan_archive_2026-08-31_resource-collections-and-capability-actions.md)
+- [MAIN02 实施前 accepted-design 草案](../plan/plan_archive_2026-08-31_resource-collections-and-actions-accepted-design.md)
+
 ## 对应 plan.md 任务映射
 
 | Task ID | 结果 |
@@ -162,6 +167,11 @@ Desktop 也缺少从真实 Resource 统一触发操作和展示内容的入口�
 
 ## Closeout status
 
-- Archive docs：已生成；最终 control-plane integration 状态将在主检出恢复与 cleanup 后补记。
+- Archive docs：完成；change/plan/lesson、21 个真实 UI 证据文件与实施前 accepted-design 草案均已进入受治理目录。
 - Feature commits：`46da972 feat: 引入资源集合与能力操作`、`946fc40 Merge branch 'master' into feat/resource-collections-actions`。
+- Master integration：`master` 从 `00bd333` fast-forward 到 `cd9fa7c`；主检出 tracked 快照在临时 detached worktree
+  预演后重放，实际 tree `3f7f7d7` 与预演逐字节一致。
+- Preservation：8 个实质 tracked 用户修改恢复为未暂存状态；其余原状态项只有 EOL/index normalization、没有内容差异。
+  其他 untracked 文件保持原位；同名旧 spec 已归档为 accepted-design 快照，未用旧草案覆盖 current contract。
+- Cleanup：tracked stash、临时预演 worktree、功能 worktree/branch 与可逆备份将在本归档提交后清理并复核。
 - Publication：local-only；未授权 push、release、publish 或 deployment。
