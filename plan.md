@@ -1,579 +1,598 @@
-# Plan - Desktop Schema-driven Resource Widgets
+# Plan - Resource Collections、Capability Actions 与 Desktop 交互
 
 ## Workflow Information
 
 - Repo: `D:\project\MyFlowHub3\repo\MyFlowHub`
-- Branch: `feat/desktop-schema-driven-widgets`
-- Base: `master` @ `54b46e6bc0c1bbea5b265a875e7c8132ae28e004`
+- Branch: `feat/resource-collections-actions`
+- Base: `master` @ `eb1f722ca9c336f72bb4a207fd6b780301ada791`
 - Project Root: `D:\project\MyFlowHub3`
-- Docs Root: `D:\project\MyFlowHub3\worktrees\desktop-schema-driven-widgets\docs`
+- Docs Root: `D:\project\MyFlowHub3\worktrees\resource-collections-actions\docs`
 - Code Repos: canonical monorepo `MyFlowHub` only
-- Worktree: `D:\project\MyFlowHub3\worktrees\desktop-schema-driven-widgets`
-- Participating Modules: `protocol`、`sdk/bindings`、`apps/desktop`、`apps/desktop/frontend`、canonical `docs/`
-- Current Stage: `$m-archive` complete, including the 2026-08-31 post-merge `VIEW01` renderer-titlebar refinement
-- Publication: local-only; no remote, push, release, or publication is authorized
+- Worktree: `D:\project\MyFlowHub3\worktrees\resource-collections-actions`
+- Participating Modules: `protocol`、`runtime/resource`、`feature/flow`、新 `feature/filesystem`、`sdk/go`、
+  `sdk/bindings`、`apps/desktop`、`apps/desktop/frontend`、canonical `docs/`
+- Current Stage: `$m-go` stage 3.2 delegated execution complete；`DOC01, COLL01, FLOW01, FS01, SDK01, DESK01,
+  RENDER01, QA01` 已完成；用户批准范围不变
+- Publication: local-only；未授权 remote、push、release 或 publication
 
 ## Stage Records
 
 ### Initialization
 
-- `guide.md`: read; Chinese commit messages, canonical docs, `GOWORK=off`, and sibling-worktree rules apply.
-- Project/docs/code repo confirmation: the canonical monorepo is both the owning code repo and governed docs root.
-- Base/worktree confirmation: the dedicated semantic branch and worktree already exist under the project `worktrees\` directory.
-- Main checkout protection: unrelated main-checkout changes such as `guide.md`, thesis files, design demos, and other task docs remain outside this worktree and must not be staged, overwritten, reverted, or archived by this workflow.
-- Root control files: the previously completed Explorer control files are retained in `docs/plan`; root `plan.md` and `todo.md` now become this workflow's active control plane.
+- `guide.md`: 已读取；中文 commit、canonical docs、`GOWORK=off` 与 sibling worktree 规则生效。
+- Real owning repo: `D:\project\MyFlowHub3\repo\MyFlowHub`，不是外层 workspace。
+- Dedicated branch/worktree: 已创建 `feat/resource-collections-actions` / 当前 worktree。
+- Main checkout protection: 主 checkout 的 Metrics dist、Desktop docs、Agent Gateway/Desktop-Metrics docs、
+  design demos、`guide.md` 等未提交内容均不属于本 workflow write set。
+- Existing root `plan.md`/`todo.md` described an archived renderer workflow；该历史已有 `docs/plan` archive，
+  root control files are replaced for this active workflow only.
 
 ### Discuss - Discovery And Requirements Shaping
 
 #### Goal
 
-Replace raw-JSON-first Desktop widgets with schema-driven operational displays and controls while preserving generic Resource discovery, provider authority, permissions, revision safety, and View persistence.
+把 Resource、Resource Capability、Collection member、独立 Command Resource 与 Desktop 交互收敛成一套模型：
+普通操作不再占据独立资源节点；大量动态成员不膨胀全局 catalog；目录、Flow definitions/runs 等 provider 可以
+复用 Collection contract；Desktop 可以从 Explorer、Inspector 和 View 安全触发同一 capability，并按内容
+schema 使用专用 renderer。
 
-#### Scope
+#### Confirmed direction
 
-- Provider-owned data type, constraints, semantics, and capability declarations.
-- Desktop-owned compatible renderer set, default ranking, responsive presentation, and safe fallback.
-- User-selectable renderer and non-secret display settings persisted per View widget.
-- Rich first-party Variable, operation, event, File, and structured resource experiences.
-- Generated first-party schema metadata for the current canonical protocol schemas without changing the wire descriptor in this phase.
+- Resource 继续是全局身份、owner、授权与审计单位。
+- Capability 表达对 Resource 的普通操作。
+- Collection 是一个 Resource 管理多个 scoped members；member 默认不是全局 Resource。
+- UI path namespace 只是展示，不是 Collection 或权限树。
+- 独立 Command Resource 只用于没有自然目标且自身形成独立执行/安全/审计边界的操作。
+- filesystem 每个需要单独授权的 root 默认注册为一个 Collection Resource。
+- Flow 使用 `flow/definitions` 与 `flow/runs` Collections。
+- Desktop 真实 Resource 提供右键/键盘操作入口；View Widget 提供常用动作和 schema/content renderer。
+- 不暴露任意 Windows shell，不让 UI、presentation hint 或产品名赋予权限。
 
-#### Assumptions
+#### Rejected options
 
-- Invocation of `$m-plan` after the staged explanation confirms the phase-1 delivery boundary: built-in first-party schema provider now, owner-served schema discovery later.
-- Current Go payload structs and `Validate` methods remain runtime enforcement authority.
-- Existing `ViewWidget.renderer` and bounded `settings` fields are sufficient; View document version stays at v3.
-- Presentation choices never grant permission or relax provider constraints.
+1. 每个 member 和每个 API endpoint 都注册为 Resource：拒绝，catalog/UI/权限管理会膨胀。
+2. 把所有行为集中进全局 `commands/`：拒绝，破坏领域 owner、schema 与权限边界。
+3. 只在 Desktop 折叠旧命令节点：拒绝，无法解决协议、SDK 和 provider 模型。
+4. 将真实磁盘路径作为 ResourceID：拒绝，会泄漏部署细节并绑定平台。
+5. 暴露 `system/exec.invoke(commandLine)`：拒绝，等价于高风险远程 shell。
 
-#### Options Considered
+#### Discussion status
 
-1. Restyle JSON textareas: rejected because it does not add semantic controls.
-2. Resource-name-specific screens: rejected because paths are not stable type contracts.
-3. Full remote schema/plugin protocol now: deferred because trust, caching, compatibility, and migration require a separate protocol workflow.
-4. Staged schema resolver with generated first-party metadata, generic primitives, and explicit specialized adapters: selected.
-
-#### Recommended Direction
-
-Implement a provider/display/user separation. A generated built-in schema provider adapts today's first-party schema IDs to a bounded JSON-Schema-compatible vocabulary. Desktop filters and ranks compatible renderers; the user may select any compatible renderer, and the selection is stored in the View without copying resource values.
-
-#### Research Summary
-
-- JSON Schema annotation and validation separation supports reusable data contracts.
-- JSON Forms demonstrates separate data/UI schemas and a ranked renderer registry.
-- Grafana demonstrates reusable unit/range/value mappings across display types.
-- These patterns inform the architecture only; the project will not import a competing theme or full dashboard framework.
-
-#### Worktree / Branch / Docs Root Status
-
-- Dedicated worktree: ready.
-- Discussion intake and index: drafted in this worktree.
-- Runtime implementation: not started.
-- Issue list: none blocking planning.
+- Coherent requirement: yes.
+- External research required: no.
+- Blocking questions: none for the bounded first implementation.
+- Stable design: recorded in requirements/spec/decision; current APIs remain unchanged until the corresponding implementation and generated contracts land.
 
 ## Plan - Requirements And Architecture
 
-### Discussion Summary
-
-The provider defines what the data means and what values are valid. Desktop defines how valid data can be displayed. The user chooses among compatible displays. For example, a writable integer with `minimum=0`, `maximum=100`, and `multipleOf=1` may be edited through a slider, number stepper, or numeric input; a read-only rendering may be a number, gauge, progress bar, or bounded trend. A string may use a single-line, multiline, code, or read-only text renderer when its provider constraints allow it.
-
-### Accepted / Rejected Requirements
-
-Accepted:
-
-- Controls are driven by schema ID, data shape, constraints, capabilities, and allowlisted presentation hints.
-- Renderer changes are presentation-only and must never mutate a resource.
-- Writable edits are staged; Apply performs the existing authoritative operation and preserves drafts on error or revision conflict.
-- Unknown, unsupported, malformed, or incompatible schemas retain structured/raw access with an explicit explanation.
-- All current first-party resource families gain useful non-JSON-first behavior in proportion to their contracts.
-- Existing design tokens, light/dark themes, flat pane composition, nested split layout, and accessibility conventions remain.
-
-Rejected or deferred:
-
-- Resource-path matching, remotely supplied executable UI, automatic destructive inference, and controls that cannot enforce provider constraints.
-- Full owner-served schema discovery, third-party executable renderer plugins, query-language dashboards, and production Media visualization in this phase.
-
 ### Requirements Analysis
-
-#### Goal
-
-Deliver a maintainable renderer platform that makes first-party resources directly usable and establishes the stable extension seam for future provider-served schemas.
 
 #### Scope
 
-- First-party schemas referenced by the current canonical binding contract and resource catalog.
-- Generic scalar/object/array display and form generation.
-- Variable, Command/generic operation, Stream/Topic, File, and selected structured first-party renderers.
-- Renderer selection, persistence, responsive density, raw fallback, accessibility, and tests.
+Will implement:
 
-#### Use Cases
+- `mfh.collection` type and bounded generic member list/page contract.
+- reusable multi-capability handler Resource while preserving Registry schema/size/copy/error enforcement.
+- typed generic Collection SDK helpers and regenerated first-party contracts.
+- clean-break Flow migration to two Collections.
+- opt-in, read-only filesystem Collection provider supporting multiple independently authorized roots.
+- Desktop shared Resource action model, accessible context menu, View action entry, Collection browser, safe text/code/image rendering.
+- stable docs convergence and full proportional validation.
 
-1. A user opens a numeric Variable and sees a meaningful value rather than JSON; writable bounded values offer safe controls.
-2. The user switches a numeric widget between compatible presentations and sees the choice restored after saving/reopening the View.
-3. A user invokes a Command through generated labeled fields and inspects structured output or raw JSON when necessary.
-4. A user monitors Stream/Topic data as a table, timeline, or log and can pause, filter, clear, and recognize gaps.
-5. A user selects a local file through the Desktop host, starts a transfer, and sees progress and actionable errors.
-6. A first-party catalog, topology, health, configuration, flow, notification, audit, or transfer payload receives a structured display selected by stable schema ID.
-7. An unknown third-party schema remains discoverable and usable through a safe raw fallback.
+Will not imply:
 
-#### Functional Requirements
+- a second resource/authority tree;
+- global identity for every member;
+- arbitrary remote shell;
+- permission granted by catalog metadata or UI controls;
+- generic per-member policy selectors or effective-capability discovery in this phase;
+- writable/delete filesystem operations or large-file download sessions;
+- migration of every existing Management/Admission/Notification Command Resource.
 
-- Resolve input/output/event schemas through a typed provider interface.
-- Support a bounded declarative schema vocabulary: `null`, `boolean`, `integer`, `number`, `string`, `object`, homogeneous `array`, properties, required, enum, numeric bounds/step, string length/pattern/format, item limits, labels/descriptions, units, precision, read/write sensitivity, and stable field order.
-- Reject or fall back for unsupported keywords, recursive definitions, invalid references, excessive depth/fields, or invalid schema documents.
-- Register renderers with stable versioned IDs, modes, compatibility predicates, ranking, minimum size, and allowed settings.
-- Treat legacy `mfh.variable`, `mfh.stream`, `mfh.topic`, `mfh.command`, and `mfh.file` renderer IDs as automatic compatibility aliases.
-- Offer only renderers compatible with both schema and resource capability.
-- Keep a keyboard-accessible presentation selector in the widget chrome when more than one compatible renderer exists.
-- Preserve resource payloads, drafts, credentials, and secrets outside `ViewWidget.settings`.
-- Keep Advanced JSON/descriptor access available for all resources.
+#### Use cases
 
-#### Non-functional Requirements
+1. A product registers `storage/a` and `storage/b` from different local roots without registering each file.
+2. A caller granted `list/read` on `storage/a` can browse and preview bounded files but cannot escape the root.
+3. Flow callers list/get/create/update/archive/run definitions through `flow/definitions` and list/get/subscribe/cancel runs
+   through `flow/runs`.
+4. Desktop users right-click a real Resource or press Menu/Shift+F10 to preview, add to View, or open a supported operation.
+5. A View Widget exposes safe common actions and renders Collection members using schema/content type; text is escaped,
+   allowlisted raster images are decoded locally, and unknown/binary content falls back explicitly.
+6. A pure Explorer namespace only expands/collapses and never exposes Resource actions.
 
-- No unnecessary visual-system or docking dependency; prefer project primitives and small internal modules.
-- Schema resolution and renderer selection are deterministic, pure, and covered by unit tests.
-- Schema/render trees have explicit depth, property, array, event-buffer, and payload bounds.
-- Resize observation is batched; pane-size changes update responsive density without resaving the View or causing per-pixel request traffic.
-- High-rate events use bounded buffers and batched UI updates.
-- WAI-ARIA names, keyboard equivalents, focus behavior, non-color status, and error associations are required.
-- Runtime owner validation, authority, permission, size, path, session, and revision enforcement remain final.
+#### Functional requirements
+
+- Collection list requests and page/member responses are versioned, bounded, deterministic and schema-validated.
+- Member descriptors contain opaque provider-scoped key, kind, label, optional content/schema/attributes and sorted
+  capability subset; they never claim a Node owner or global ResourceID.
+- A handler Resource rejects missing/extra handlers, unsupported capability, wrong schema and oversized input/output.
+- Existing Variable/Stream/Topic/Command/File behavior remains unchanged outside explicit Flow migration.
+- Outer authorization remains exact `subject + ResourceID + capability`; providers additionally validate member locator,
+  caller ownership where applicable, root containment and domain rules.
+- Flow old endpoint Resources disappear atomically with first-party SDK/contracts/tests; old grants do not silently map to
+  broader new grants.
+- Filesystem registration validates unique Resource names and roots before registering any mount; partial failure rolls back
+  registrations. Physical roots never appear in catalog payloads.
+- Filesystem list/read uses canonicalized paths, rejects absolute/parent/traversal and symlink/junction escape, bounds entries,
+  cursor, metadata, file size and response payload.
+- Desktop action derivation is a pure function of descriptor plus optional known authorization state. Without effective
+  introspection it shows supported operations and preserves authoritative Forbidden feedback.
+- Destructive/mutating/input-bearing actions open an explicit operation form; context-menu selection alone does not execute.
+- Context menu has pointer and Menu/Shift+F10 entry, Escape close, focus restoration and accessible labels.
+- Renderer selection remains provider-schema/Desktop-registry/user-View separated and never persists member content or drafts.
+
+#### Non-functional requirements
+
+- Core remains type-extensible; no product type switch is added to routing/auth.
+- Collection listing is O(entries sorted for one page scope) with explicit `limit` and maximum scan/response bounds.
+- No unbounded file read, event buffer, cursor, attribute map or renderer decode.
+- No new data-plane queue; operations continue through Node/SDK generic operation and existing session lanes.
+- Go APIs remain platform-neutral; Android and other bindings continue to use the same generic operation path.
+- Accessibility and keyboard behavior are tested, not inferred from pointer smoke.
+- Generated artifacts are deterministic and included in freshness gates.
 
 #### Inputs / Outputs
 
 Inputs:
 
-- `ResourceDescriptor`, capabilities, schema IDs, content types, presentation hints, current values/events/results, View widget renderer/settings, pane dimensions, and user actions.
+- Resource descriptor and capability schemas;
+- Collection list/member requests;
+- Flow definition/run payloads;
+- filesystem mount config and member locator;
+- Desktop Resource selection, action selection, renderer selection and operation drafts.
 
 Outputs:
 
-- resolved bounded data schema, compatible renderer list, selected renderer, staged draft/validation state, structured display/control tree, operation payload, and display-only View settings.
+- Collection page/member descriptors;
+- domain-specific member payloads and Flow events;
+- bounded filesystem content response;
+- typed SDK results and regenerated binding contracts;
+- Desktop menus, forms, action buttons and safe content views.
 
-No resource value, operation payload, event body, secret, file content, or permission result is persisted as renderer settings.
+No physical root, Resource value, file content, operation draft, credential or permission decision is persisted in View settings.
 
-#### Edge Cases
+#### Edge cases
 
-- Missing or unknown schema ID/content type.
-- Known schema whose generated definition is stale or invalid.
-- Saved renderer removed or made incompatible after schema change.
-- Read-only Variable viewed through a previously writable renderer choice.
-- Nullable values, empty arrays/objects, very large arrays, deeply nested objects, unsupported unions, and opaque JSON fields.
-- Revision conflict, Forbidden, Expired, Gap, disconnect/reconnect, resource disappearance, and schema mismatch while editing.
-- Pane too small for a renderer, light/dark theme changes, reduced motion, keyboard-only operation, and multiple simultaneous widgets.
-- File picker cancellation and upload/session failure.
+- Empty collection, exact final page, stale/invalid cursor, duplicate/unsorted member capability and oversized attributes.
+- Collection disappears or descriptor changes while Explorer/menu/Widget is open.
+- Old Flow grant remains persisted but old Resource no longer exists.
+- Flow run is cancelled by non-owner, terminal run is cancelled again, or definition is archived while active.
+- Filesystem root is missing, relative, replaced, symlinked/junctioned, case-varied, unreadable or changes between list/read.
+- File is empty, invalid UTF-8, too large, unsupported binary, HTML/SVG, or MIME/extension disagree.
+- Right-click on a pure namespace, keyboard menu on a focused Resource, operation Forbidden after menu opened.
+- Saved View refers to an old Flow command Resource; layout remains but Widget shows missing Resource rather than retargeting.
 
-#### Acceptance Criteria
+#### Acceptance criteria
 
-- A bounded integer fixture (`0..100`, step `1`) offers compatible numeric displays/controls; keyboard and pointer edits honor bounds and step.
-- A string fixture offers compatible one-line/multiline/code/text choices as allowed by its constraints; switching does not call the resource API.
-- Read-only data never exposes mutating controls; writable drafts use Reset/Apply and remain intact after failed writes or revision conflicts.
-- Saving and reopening a View restores explicit renderer choice and valid display settings; legacy renderer IDs still open safely.
-- Commands render a generated form for supported fields, validate locally, submit only on explicit Execute, and show typed output; Advanced JSON remains available.
-- Streams/Topics expose live state, pause/resume, clear, filter, count/rate, autoscroll, and visible gap/expired state using bounded storage.
-- File upload uses a native picker boundary and shows destination/progress/cancel/error state where the current session contract supports it.
-- Catalog/topology/health/config/flow/audit/notification/file payloads receive table, definition-list, status, timeline, or progress adapters keyed by schema ID, never by resource path.
-- Unknown or unsupported schemas show an actionable fallback rather than a blank or misleading control.
-- Light/dark, compact/normal/expanded panes, nested splits, offline/Forbidden states, and existing Explorer/View behavior do not regress.
-
-#### Risks
-
-- Handwritten Go validators and declarative schemas can drift; generation coverage and representative parity fixtures must fail closed.
-- A complete JSON Schema engine would enlarge scope; this phase supports a documented bounded vocabulary and visibly falls back outside it.
-- Generic nested forms can become unwieldy; opaque/conditional fields keep an Advanced JSON path rather than pretending full fidelity.
-- Renderer settings can accidentally retain data; settings are allowlisted display metadata only and tested for serialization boundaries.
-- Wails native dialog testing needs an injectable boundary because the real dialog cannot run in jsdom.
+- Catalog contains `mfh.collection` descriptors with validated standard list/page schemas.
+- Registry/runtime tests prove arbitrary multi-capability dispatch without weakening schema, size, copy or unsupported errors.
+- Flow catalog contains `flow/definitions` and `flow/runs` only for this domain; old five command Resources and
+  `flow/events` are absent, and all first-party callers use the new capabilities.
+- Three-mount filesystem fixture registers exactly three Resources; physical roots are absent from catalog; list/read work;
+  traversal and symlink/junction escape are rejected.
+- Desktop real Resource context menu and keyboard equivalent work; pure namespaces have no menu; selecting an input-bearing
+  action opens the shared explicit form and makes no call until Execute.
+- View Widget actions, Collection list/detail navigation and text/code/raster-image/fallback renderers work without path-name
+  dispatch or persisted content.
+- Focused/full Go tests, generated checks, frontend tests/build and Windows Wails production build pass; representative GUI
+  interaction verifies menu, Flow actions, filesystem text preview, View restore, light/dark and Forbidden states.
 
 ### Architecture Design
 
-#### Overall Solution
+#### Overall solution
 
 ```text
-provider schema ID + capability + value/event/result
-                         |
-                         v
-SchemaResolver -> built-in generated provider (phase 1)
-                         |
-                         v
-bounded ResolvedDataSchema + validation result
-                         |
-                         v
-RendererRegistry compatibility filter + rank
-                         |
-              +----------+-----------+
-              |                      |
-              v                      v
-automatic safe default       user-selected compatible renderer
-              |                      |
-              +----------+-----------+
-                         v
-resource controller + display/control primitive
-                         |
-                         v
-authoritative Desktop API operation/subscription/session
+Node catalog: one Collection Resource
+          │ descriptor capabilities + schemas
+          ▼
+authority: subject + ResourceID + capability
+          ▼
+runtime HandlerResource dispatch
+          ▼
+provider validates member key + domain/root scope
+          ▼
+domain payload/event
+          ▼
+attached SDK / bindings generic operation
+          ▼
+Desktop shared action controller
+       ├── Explorer context menu
+       ├── Inspector operation form
+       └── View Widget action + content renderer
 ```
 
-The resource controller owns transport lifecycle; value renderers never call Wails directly. This prevents every slider/table from duplicating subscription, revision, cancellation, and error behavior.
+#### Protocol contract
 
-#### Canonical Schema Source And Generation
+- Add `ResourceTypeCollection = "mfh.collection"`.
+- Add reusable capability constants where semantics are generic: `list` and `get`; domain names such as `run`, `archive`
+  and `cancel` remain extensible CapabilityIDs.
+- Add bounded protocol payloads equivalent to:
 
-- Add a protocol-owned, bounded declarative schema model and first-party definitions keyed by existing schema constants.
-- Existing Go payload structs and `Validate` methods remain enforcement authority; declarative definitions describe UI-visible shape and constraints.
-- Extend the existing `go generate ./sdk/bindings` path to emit a deterministic Desktop schema artifact from the protocol definitions.
-- Add freshness tests, schema-ID coverage against the canonical binding manifest, duplicate/sort/limit validation, and representative valid/invalid fixture parity.
-- Add LF rules and generated-check tracking for the new artifact.
-- Do not add schema documents to `SchemaDescriptorV2` or alter catalog/wire encoding in phase 1.
-
-#### Module Responsibilities
-
-| Module | Responsibility |
-| --- | --- |
-| `protocol` | First-party declarative schema definitions, IDs, limits, and validation of definitions |
-| `sdk/bindings` generator | Deterministic cross-language schema artifact and freshness/coverage gates |
-| `frontend/src/rendering/schema` | Typed resolver/provider interface, bounded runtime validation, defaults, and safe fallback reasons |
-| `frontend/src/rendering/registry` | Versioned renderer definitions, compatibility, ranking, aliases, and settings validation |
-| resource controllers | Snapshot/subscription/operation/session lifecycle, revisions, staged drafts, retry/cancel/error state |
-| display/control primitives | Pure schema-aware value display and editing controls |
-| specialized adapters | Schema-ID-selected tables/status/timelines/forms that compose generic primitives |
-| Workspace/View integration | Renderer selector, pane density, settings persistence, dirty state, and detached/incompatible handling |
-| Wails host | Native file picker and existing validated Desktop API boundary |
-
-#### Data / Call Flow
-
-1. Workspace resolves the current resource and View widget.
-2. `SchemaResolver` resolves each capability's relevant schema ID through provider order.
-3. The bounded validator accepts the schema or returns a reasoned unsupported/invalid result.
-4. `RendererRegistry` filters by resource mode, capability, schema features, pane density, and minimum size.
-5. A saved compatible renderer wins; an automatic/legacy alias uses deterministic ranking; an incompatible saved choice visibly falls back without erasing the stored preference.
-6. The resource controller fetches or subscribes once and passes typed state to the selected presentation component.
-7. Editors produce staged drafts and local errors; Apply/Execute converts the draft to the existing API payload.
-8. Runtime errors are displayed in-widget. A successful write refreshes authoritative value/revision; a failed write preserves the draft.
-9. Presentation choice/settings update the View and mark it dirty but never call a resource operation.
-
-#### Interface Drafts
-
-```ts
-type SchemaResolution =
-  | { status: 'resolved'; schema: ResolvedDataSchema; source: string }
-  | { status: 'missing' | 'unsupported' | 'invalid'; schemaID?: string; reason: string }
-
-interface SchemaProvider {
-  id: string
-  resolve(schemaID: string): SchemaResolution | undefined
+```go
+type CollectionListRequestV1 struct {
+    Version int
+    Parent  string
+    Cursor  string
+    Limit   int
 }
 
-interface RendererDefinition {
-  id: string
-  mode: 'value' | 'operation' | 'event' | 'file' | 'structured'
-  supports(context: RendererContext): Compatibility
-  rank(context: RendererContext): number
-  validateSettings(value: unknown): RendererSettings
+type CollectionMemberV1 struct {
+    Key          string
+    Kind         string
+    Label        string
+    ContentType  string
+    Schema       string
+    Capabilities []CapabilityID
+    Attributes   map[string]string
+}
+
+type CollectionPageV1 struct {
+    Version    int
+    Revision   uint64
+    Parent     string
+    Members    []CollectionMemberV1
+    NextCursor string
 }
 ```
 
-Renderer IDs are versioned and resource-mode specific, for example `mfh.variable.slider.v1`, `mfh.variable.number.v1`, `mfh.value.table.v1`, `mfh.event.timeline.v1`, and `mfh.operation.form.v1`. Exact names are finalized in the spec before code use.
+- Exact field names/limits are finalized in the spec before generated use. Cursor remains opaque to callers.
+- `list` uses the standard request/page schema. Other capabilities declare domain schemas explicitly.
+- Capability `Permission` remains compatibility metadata in v2 and does not become a second authorization key; removing or
+  renaming it requires the deferred catalog-version task.
 
-#### Initial Schema / Renderer Matrix
+#### Runtime responsibilities
 
-| Shape / mode | Compatible presentations |
-| --- | --- |
-| Boolean read/write | text/status; switch or checkbox for staged writable drafts |
-| Enum read/write | badge/text; select or segmented choice within bounded option count |
-| Bounded numeric | number/stat/progress/gauge/trend; numeric input/stepper/slider when writable |
-| Unbounded numeric | number/stat/trend; numeric input/stepper when writable |
-| String | text/code; one-line, multiline, or code textarea when constraints/format allow |
-| Date/time/duration | localized display; matching bounded input when writable |
-| Object | definition list, grouped display, generated form, or JSON tree/raw fallback |
-| Homogeneous array | list/table, repeatable form rows within limits, or JSON fallback |
-| Command/operation | generated input form + explicit Execute + structured output + Advanced JSON |
-| Stream/Topic | log/table/timeline with bounded buffer, filter, pause, clear, rate, autoscroll, gap |
-| File | native source selection, destination, progress/status, cancel/error |
-| Unknown/unsupported | descriptor + JSON tree/raw viewer; no invented editing control |
+- Add a normalized HandlerResource constructor with a map from CapabilityID to handler.
+- Constructor verifies every operation capability has exactly one handler and no undeclared handler exists; event-only
+  capability is owned by an explicit observable wrapper/provider.
+- Registry remains the single point for descriptor normalization, input/output schema matching, bounds and defensive copies.
+- No Collection logic is inserted into Node routing or auth switches.
 
-#### First-party Structured Coverage
+#### Flow mapping
 
-- `mfh.catalog.v2`: searchable resource table and details.
-- management topology/health/config: hierarchy/table, status checks, and grouped key/value display.
-- management audit and notification events: timeline/log with stable metadata columns.
-- file transfers/progress: transfer table and progress/status presentation.
-- flow definitions/runs/events: definition/run tables and event timeline; deeply conditional flow-editing fields may retain Advanced JSON where the bounded dialect cannot express them faithfully.
-- management and flow Commands: generated forms where supported, with schema-driven raw fallback for opaque fields.
+| Resource | Capability | Input | Output/Event |
+| --- | --- | --- | --- |
+| `flow/definitions` | `list` | collection list request | collection page |
+| `flow/definitions` | `get` | member request | Flow definition |
+| `flow/definitions` | `create` | Flow definition | Flow definition |
+| `flow/definitions` | `update` | Flow definition | Flow definition |
+| `flow/definitions` | `archive` | Flow archive | Flow archive |
+| `flow/definitions` | `run` | Flow run | Flow run summary |
+| `flow/runs` | `list` | collection list request | collection page |
+| `flow/runs` | `get` | member request | Flow run summary |
+| `flow/runs` | `subscribe` | subscription control | Flow event |
+| `flow/runs` | `cancel` | Flow cancel | Flow run summary |
 
-#### Error Handling And Safety
+The existing initiator delegation, downstream policy intersection, dedupe, limits, persistence and event sequencing remain.
 
-- Missing/invalid schema, unsupported vocabulary, incompatible saved renderer, and malformed settings have distinct messages and safe fallbacks.
-- Unknown schema never receives an inferred mutating control.
-- Local validation is advisory UX; owner/runtime errors remain authoritative and are not swallowed.
-- Revision conflicts preserve the user's draft and offer authoritative reload/reset.
-- `readOnly`, `writeOnly`, and sensitive annotations suppress unsafe echo/persistence.
-- Renderer settings are bounded, versioned, allowlisted, and contain presentation only.
-- Remote HTML, JS, arbitrary CSS, component names outside the registry, and side-effecting URLs are never evaluated.
-- Subscription and session effects are cleaned up on unmount, resource change, profile switch, and connection loss.
+#### Filesystem provider
 
-#### Performance And Testing Strategy
+- New feature package owns configuration and Resource implementations; NodeHost/Core do not import it.
+- API shape is equivalent to `filesystem.Register(node, []Mount)` so Desktop, Metrics, Agent Gateway or another product may
+  opt in without installing or coupling another product.
+- One mount is one Resource by default. Named virtual mounts are deferred because their shared permission meaning must remain
+  explicit.
+- First phase capabilities: `list`, `get` metadata and bounded `read`; provider is read-only by default and in implementation.
+- Content response carries locator, content type, encoding/data, size and stable metadata needed for stale-read feedback.
+- HTML/SVG is never rendered as executable content; unsupported binary stays metadata/raw-download-placeholder only.
 
-- Pure unit tests cover definition validation, resolver precedence, compatibility/ranking, schema validation, aliases, settings, and fallback.
-- Component tests cover keyboard/pointer controls, staged edits, switch-without-mutation, errors/conflicts, operation forms, event buffering, and responsive variants.
-- Go tests cover schema-definition validity, generator freshness/coverage, View settings bounds, native dialog boundary, and app regressions.
-- Synthetic deep/wide object and high-rate event fixtures verify depth/field/buffer limits and batching.
-- Production validation uses `GOWORK=off`, Vitest, TypeScript/Vite, generated-contract check, full Go tests, Wails production build, browser interaction, and real packaged GUI smoke.
+#### SDK and generated contracts
 
-#### Extensibility Design Points
+- Add generic typed payload operation helper accepting ResourceID + CapabilityID, rather than adding one method per endpoint.
+- Add a small CollectionClient for list/get plumbing; FlowClient calls the two Collection Resource IDs and explicit capabilities.
+- Keep `host.Client()` and direct SDK Client on the same optimized Node path; no extra connection or queue is introduced.
+- Update binding contract fixtures and generated Desktop schema artifact. Existing generic `OperateJSON` remains the Wails and
+  Android-compatible transport surface unless implementation evidence requires a narrow additive facade.
 
-- `SchemaResolver` accepts ordered providers; a future owner-served provider can be inserted without replacing renderers.
-- Renderer registry remains local and allowlisted; future third-party data schemas do not imply third-party executable UI.
-- Schema/version mismatch falls back without losing View topology or resource reference.
-- Specialized adapters compose the same generic primitives and are selected by schema or explicit renderer ID, not path.
+#### Desktop interaction
 
-## Stage 3.1 - Planning
+- Introduce a pure ResourceAction model shared by Explorer, Inspector and Workspace.
+- Use an accessible context-menu primitive; adding the focused Radix context-menu package is permitted if it avoids a custom
+  focus/placement implementation and remains the only new UI dependency.
+- Context menu actions select/open an operation controller. Only explicit Execute invokes a mutating/input-bearing capability.
+- Widget renderer exposes a compact primary-action area and reuses the same operation form/result state.
+- Collection renderer performs paged list, selected-member get/read, bounded loading/error/empty states and cancellation on
+  unmount/resource/profile change.
+- Content renderer selects by authoritative result schema/content type: escaped text/code/JSON, allowlisted raster image, or
+  metadata/raw fallback. Resource name is never a dispatch key.
 
-### Project Goal And Current State
+#### Permission model in this phase
 
-The current renderer layer is a single `Renderer.tsx` with JSON textareas/pre blocks and broad type dispatch. View v3 already stores renderer/settings and supports arbitrary nested panes. The plan retains that layout/store contract while creating the missing schema and renderer domains.
+- Network authority continues exact capability grants on the Collection Resource.
+- Provider validates member containment and existing domain ownership rules.
+- Separate roots are separate Resources when they require different grants.
+- Generic member-prefix selectors and an authoritative effective-capabilities discovery API are deferred as `AUTHZ02`.
+- Desktop therefore shows descriptor-supported actions, optionally honors known authorization state, and always handles
+  authoritative Forbidden without silent retry or optimistic success.
 
-### Docs Governance Routing Decision
+#### Error handling and safety
 
-Using `$m-docs`:
+- Invalid schema/version/cursor/member key: explicit malformed error.
+- Missing member/resource: explicit not found/gone behavior.
+- Unsupported capability: Registry unsupported error before provider mutation.
+- Forbidden: preserved from authority and rendered at the originating menu/form/widget.
+- Filesystem escape/symlink/junction/oversize/unsupported content: fail closed with actionable reason.
+- Flow migration: no fallback alias; stale Widgets stay visibly missing, stale grants remain inert.
+- Partial provider registration: remove already registered mounts in reverse order.
+- UI async state: abort or ignore stale result by resource/action generation; drafts survive operation failure.
 
-- Docs root: `D:\project\MyFlowHub3\worktrees\desktop-schema-driven-widgets\docs`
-- Intake impact: clarify; discussion brief and intake index already updated.
-- Feature impact: clarify `docs/features/desktop.md` with current schema-driven widget behavior.
-- Requirements impact: clarify `docs/requirements/desktop-resource-workspace.md` with provider/display/user ownership and renderer-switch acceptance.
-- Specs impact: add `docs/specs/desktop-schema-rendering.md`; link it from the spec index and Desktop workspace v3.
-- Decision impact: add an ADR for provider-owned data schemas and Desktop-owned renderer selection; update the decision index.
-- Lessons known at planning time: reference generated-contract drift and observable-side-effect lessons; no new lesson is justified before implementation evidence.
-- Archive/change impact: `$m-archive` will later retain the approved plan, test evidence, stable-doc impact, and change record.
-- Root docs index impact: none; category topology and reading order do not change.
+#### Performance and validation strategy
 
-### Related Intake / Features / Requirements / Specs / Decisions / Lessons
+- Protocol/runtime/provider/SDK use focused table tests plus existing cross-node integration tests.
+- Collection page and filesystem list enforce hard limits; Desktop does not load an unbounded member tree.
+- Frontend action derivation, menu keyboard behavior, operation no-submit-before-Execute, collection state and content safety are
+  unit/component tested.
+- Full repository and production packaging gates run only after focused suites pass.
 
-- Intake: `docs/intake/2026-08-30_desktop-schema-driven-resource-widgets.md`
-- Feature: `docs/features/desktop.md`
-- Requirements: `docs/requirements/desktop-resource-workspace.md`, `docs/requirements/extensible-resource-platform.md`
-- Specs: `docs/specs/desktop-resource-workspace-v3.md`, `docs/specs/resource-platform-v2.md`, `docs/specs/build-and-ci.md`
-- Decisions: `docs/decisions/2026-08-28_extensible-resource-type-system-and-desktop-workspace.md`, `docs/decisions/2026-08-30_desktop-n-ary-docking-layout.md`
-- Lessons: `docs/lessons/observable-side-effects-and-generated-contracts.md`, `docs/lessons/wails-binding-proto-drift.md`, `docs/lessons/frontend-and-powershell-preflight.md`
+#### Extension points
 
-### Stable Docs Impact
+- Other providers implement the standard list seam and domain capabilities without Core changes.
+- A member may later be promoted to global Resource without changing Collection member keys already stored by the provider.
+- Future AUTHZ02 may add member selectors/effective capability discovery without changing the rule that UI is not authority.
+- Future FS02 may add atomic write/delete and download sessions without placing large bytes on the control lane.
 
-- Intake impact: clarify
-- Feature impact: clarify
-- Requirements impact: clarify
-- Specs impact: add
-- Decision impact: add
-- Lessons impact: none planned; reassess after test/debug evidence
+### Stage 3.1 - Planning
 
-### Executable Task List
+#### Docs Governance Routing Decision
 
-| Task ID | Title | Scope | Primary files / modules | Acceptance cue |
-| --- | --- | --- | --- | --- |
-| DOC01 | Stabilize schema-rendering contracts | Will execute | governed docs | Stable ownership, behavior, spec, ADR, and indexes agree |
-| SCHEMA01 | Add provider-owned built-in schema metadata and generation | Will execute | `protocol`, `sdk/bindings`, generated artifact | Deterministic coverage/freshness/parity gates pass |
-| RENDER01 | Create schema resolver and renderer registry domains | Will execute | frontend `rendering/*`, types/settings | Pure compatibility/ranking/fallback tests pass |
-| VALUE01 | Implement generic value controls and Variable UX | Will execute | value primitives, Variable controller/renderer | Numeric/string/bool/object/array choices and staged writes work |
-| OP01 | Implement structured operation and result UX | Will execute | operation form/result renderers | Supported forms validate and submit explicitly; raw fallback remains |
-| LIVE01 | Implement event, File, and first-party structured views | Will execute | event/file/specialized renderers, Wails file boundary | Bounded live UX, picker/progress, schema-ID adapters work |
-| VIEW01 | Integrate selection, persistence, responsiveness, and accessibility | Will execute | Workspace/App/View/settings/styles | Choices persist; aliases/fallback/density/keyboard behavior pass |
-| QA01 | Run proportional full validation and GUI evidence | Will execute | tests/build/generated/Wails | Unit, full Go, generated, frontend, production, GUI gates pass |
-| REMOTE01 | Owner-served schema discovery protocol | Will not execute now | future protocol/catalog/cache work | Deferred: separate trust/version/cache migration decision |
-| PLUGIN01 | Executable third-party renderer plugins | Will not execute now | future plugin platform | Out of scope and unsafe without sandbox/trust model |
-| DASH01 | Full dashboard query/chart engine | Will not execute now | future analytics layer | Deferred: no query/history contract and unnecessary dependency scope |
-| ARC01 | Archive, merge, and cleanup | Will not execute now | `docs/plan`, `docs/change`, Git/worktree | Owned by later `$m-archive` after test gate |
-| PUB01 | Push, release, or publication | Will not execute now | remote/release infrastructure | Not authorized; repository may have no remote |
+- Docs root: `D:\project\MyFlowHub3\worktrees\resource-collections-actions\docs`，canonical repo-local governed docs root.
+- Intake impact: add — discussion evidence recorded.
+- Feature impact: clarify — update Flow and Desktop current behavior only when implementation lands.
+- Requirements impact: clarify — Collection/action and Desktop interaction requirements added.
+- Specs impact: add/clarify — new Collection/action spec and Flow target contract added; protocol map/status updated during execution.
+- Decision impact: add — Collection Resource + Capability Action ADR added.
+- Lessons impact: none known at planning time; archive re-evaluates filesystem/path or generated-contract findings.
+- Index status: intake/specs/decisions indexes updated; requirements existing leaves require no new index entry.
 
-### Execution Scope After Approval
+#### Related stable docs
 
-#### Will Execute
+- Intake: `docs/intake/2026-08-31_resource-collections-and-actions.md`
+- Features: `docs/features/flow.md`、`docs/features/desktop.md`
+- Requirements: `docs/requirements/extensible-resource-platform.md`、
+  `docs/requirements/desktop-resource-workspace.md`
+- Specs: `docs/specs/resource-platform-v2.md`、`docs/specs/resource-collections-and-actions.md`、
+  `docs/specs/flow-vnext.md`、`docs/specs/desktop-schema-rendering.md`、
+  `docs/specs/desktop-resource-workspace-v3.md`
+- Decisions: `docs/decisions/2026-08-31_collection-resource-and-capability-actions.md`、
+  `docs/decisions/2026-08-28_extensible-resource-type-system-and-desktop-workspace.md`、
+  `docs/decisions/2026-08-30_provider-schema-desktop-renderer-ownership.md`
+- Lessons: none required yet; consult `observable-side-effects-and-generated-contracts.md` and
+  `windows-clean-checkout-eol-and-generated-drift.md` during execution.
 
-- `DOC01`, `SCHEMA01`, `RENDER01`, `VALUE01`, `OP01`, `LIVE01`, `VIEW01`, `QA01`
+#### Execution Scope After Approval
 
-#### Will Not Execute Now
+##### Will Execute
 
-- `REMOTE01`: deferred to a protocol workflow because owner-served definitions need wire discovery, trust, cache, compatibility, and invalidation rules.
-- `PLUGIN01`: remotely executable UI remains out of scope and is not implied by declarative schemas.
-- `DASH01`: no full Grafana-like query/history platform in this widget usability phase.
-- `ARC01`: only after implementation and tests pass, through an explicit `$m-archive` invocation.
-- `PUB01`: no remote/push/release authorization.
+- DOC01
+- COLL01
+- FLOW01
+- FS01
+- SDK01
+- DESK01
+- RENDER01
+- QA01
 
-### Task Details
+##### Will Not Execute Now
 
-#### DOC01 - Stabilize Schema-rendering Contracts
+- AUTHZ02 — generic member selector policy、filtered catalog/effective-capability discovery；needs separate policy/schema design.
+- CMD02 — migrate Management/Admission/Notification and every remaining endpoint-style Command；deferred by domain.
+- FS02 — filesystem write/delete、large-file download/session、virtual multi-root mounts；requires separate destructive/data-lane design.
+- MAIN02 — resolve the main checkout's concurrent uncommitted edit to
+  `docs/requirements/desktop-resource-workspace.md`；the original unmerged index entry has disappeared externally, but the
+  same-path overlap remains outside this worktree and must be resolved by its owning workflow before merge/archive.
+- PUB01 — push、release、publication；not authorized and no remote is assumed.
+
+#### Task Details
+
+##### DOC01 - Converge Stable Contracts And Current Feature Truth
 
 - Owner: primary agent
 - Worktree: current dedicated worktree
 - Plan Path: root `plan.md`
-- Goal: make the provider/display/user ownership model and phase boundary canonical before runtime changes.
-- Files / Modules: `docs/intake`, `docs/features/desktop.md`, `docs/requirements/desktop-resource-workspace.md`, new `docs/specs/desktop-schema-rendering.md`, related category indexes, new decision record.
-- Write Set: governed documentation only.
-- Acceptance: no competing truth; phase-1 wire non-change and future remote provider seam are explicit; all new leaves are indexed and cross-linked.
+- Goal: keep intake/requirements/spec/decision/indexes coherent, then update Flow/Desktop feature truth and protocol map when
+  implementation is real.
+- Files / Modules: `docs/intake`、`docs/features/flow.md`、`docs/features/desktop.md`、`docs/requirements`、
+  `docs/specs/resource-collections-and-actions.md`、`flow-vnext.md`、`protocol_map.md`、`docs/decisions` and indexes.
+- Write Set: governed docs only; no `docs/change` until archive.
+- Acceptance: implemented/current vs accepted/pending status is accurate; Flow capability table matches code; deferred AUTHZ02/
+  CMD02/FS02 remain explicit; all links resolve.
 - Test Points: Markdown link/path inspection and `git diff --check`.
-- Rollback: revert DOC01 files without affecting runtime.
+- Rollback: revert DOC01 docs without changing runtime.
 
-#### SCHEMA01 - Add Provider-owned Built-in Schema Metadata And Generation
-
-- Owner: primary agent
-- Worktree: current dedicated worktree
-- Plan Path: root `plan.md`
-- Goal: provide deterministic first-party data schemas keyed by existing protocol schema constants.
-- Files / Modules: `protocol/data_schema*.go`, protocol tests, `sdk/bindings/contract`, `sdk/bindings/cmd/mfh-bindgen`, generated Desktop schema artifact, `.gitattributes`, `scripts/mfh.ps1` generated tracking.
-- Write Set: declarative definitions, generator, generated artifact, and focused tests; no `SchemaDescriptorV2` wire change.
-- Acceptance: all schemas used by the canonical first-party binding manifest resolve or are explicitly classified as opaque/session-only; definitions are sorted, bounded, unique, and deterministic.
-- Test Points: protocol definition tests, representative valid/invalid fixtures, generator freshness, `check/generated`.
-- Rollback: remove the new definitions/output/generator extension; existing catalog and runtime remain unchanged.
-
-#### RENDER01 - Create Schema Resolver And Renderer Registry Domains
+##### COLL01 - Add Collection Protocol And Multi-capability Runtime Foundation
 
 - Owner: primary agent
 - Worktree: current dedicated worktree
 - Plan Path: root `plan.md`
-- Goal: separate schema resolution, validation, compatibility/ranking, and renderer settings from React transport components.
-- Files / Modules: `apps/desktop/frontend/src/rendering/schema/*`, `rendering/registry/*`, generated-schema loader, `types.ts`, focused unit tests.
-- Write Set: pure domain modules and tests.
-- Acceptance: deterministic provider lookup; bounded schema validation; stable renderer IDs/aliases; safe missing/invalid/incompatible results; settings reject unknown or unsafe state.
-- Test Points: resolver precedence, schema limits, compatibility matrix, default ranking, alias migration, settings round-trip/fallback.
-- Rollback: remove rendering domain and retain old `Renderer.tsx` dispatch until integration tasks land.
+- Goal: add bounded Collection schemas and a reusable Resource implementation that dispatches declared capabilities.
+- Files / Modules: `protocol/schema_catalog.go`、new `protocol/schema_collection.go`、`protocol/data_schema.go` and tests；
+  `runtime/resource` handler implementation/tests.
+- Write Set: protocol/runtime foundation and focused tests only; no product migration.
+- Acceptance: valid descriptors/pages pass; malformed/unsorted/oversized data fails; handlers exactly match declared operation
+  capabilities; Registry schema/size/copy/error behavior remains.
+- Test Points: protocol validation/generation fixtures, runtime handler dispatch, missing/extra handler, schema mismatch, payload
+  boundaries, concurrent read-only dispatch.
+- Rollback: remove new type/schema/helper; existing resource types remain unchanged.
 
-#### VALUE01 - Implement Generic Value Controls And Variable UX
-
-- Owner: primary agent
-- Worktree: current dedicated worktree
-- Plan Path: root `plan.md`
-- Goal: make scalar and common structured Variables useful while preserving revision and permission safety.
-- Files / Modules: resource controllers, value display/control primitives, Variable renderers, UI primitives/styles, component tests.
-- Write Set: React components/styles/tests; no server permission change.
-- Acceptance: bool/enum/number/string/date/object/array matrix works; bounded slider/stepper honors provider constraints; read-only is distinct; Reset/Apply and conflict draft preservation work; raw mode remains.
-- Test Points: pointer/keyboard bounds/step, invalid draft, read-only, successful write, Forbidden/conflict, unmount cleanup, renderer switch without API mutation.
-- Rollback: registry can route Variables to the legacy JSON renderer alias.
-
-#### OP01 - Implement Structured Operation And Result UX
+##### FLOW01 - Migrate Flow To Definitions/Runs Collections
 
 - Owner: primary agent
 - Worktree: current dedicated worktree
 - Plan Path: root `plan.md`
-- Goal: replace JSON-only Command/Topic publish/generic operation entry with generated forms and structured output.
-- Files / Modules: operation controller, form generator, result display, Advanced JSON mode, tests.
-- Write Set: frontend only.
-- Acceptance: labels/descriptions/required/enums/bounds/formats render; local errors associate with fields; Execute is explicit; server errors remain visible; opaque/unsupported fields use raw mode.
-- Test Points: form payload conversion, no submit-on-change, output schema rendering, error handling, size/unsupported fallback.
-- Rollback: route operations to the Advanced JSON renderer without changing API contracts.
+- Goal: replace endpoint-style Flow Commands/Variables/Stream with two Collection Resources while preserving business behavior.
+- Files / Modules: `protocol/schema_flow.go`、`feature/flow` and tests, relevant policy/integration fixtures.
+- Write Set: Flow constants/schemas/resource wrappers/controller wiring/tests; clean-break removal of old Flow endpoint Resources.
+- Acceptance: exact capability matrix in this plan; list/get paging; run events subscribe on runs; persistence/dedupe/limits/
+  initiator delegation/cancel/archive semantics preserved; old Resources absent and old grants inert.
+- Test Points: local and cross-node auth, grant per capability, downstream initiator policy, list/get pagination, event sequence,
+  dedupe/retry/concurrency/restart/archive/cancel/overflow.
+- Rollback: revert FLOW01 as one unit to old Flow Resources before SDK/Desktop migration is merged.
 
-#### LIVE01 - Implement Event, File, And First-party Structured Views
-
-- Owner: primary agent
-- Worktree: current dedicated worktree
-- Plan Path: root `plan.md`
-- Goal: provide bounded operational monitoring and useful schema-ID-specific views across existing first-party resources.
-- Files / Modules: event controller/renderers, specialized adapters, `apps/desktop/app.go`, frontend API facade/types, File renderer, tests/styles.
-- Write Set: frontend plus a narrow Wails native file-picker method and its generated binding output if public API changes.
-- Acceptance: event pause/resume/filter/clear/rate/autoscroll/gap states; native file selection/cancel; transfer progress/errors; catalog/topology/health/config/flow/audit/notification/file adapters selected only by schema/renderer ID.
-- Test Points: bounded event buffer/batching, gap/expired, subscription cleanup, picker cancellation/mock, schema-ID dispatch, detached/Forbidden/session failure.
-- Rollback: keep generic event/raw and typed-path File fallback while removing optional specialized registrations; no protocol rollback required.
-
-#### VIEW01 - Integrate Selection, Persistence, Responsiveness, And Accessibility
+##### FS01 - Add Opt-in Read-only Filesystem Collection Provider
 
 - Owner: primary agent
 - Worktree: current dedicated worktree
 - Plan Path: root `plan.md`
-- Goal: make renderer choice a first-class View behavior without changing layout version.
-- Files / Modules: `Workspace.tsx`, `App.tsx`, `store.ts`, `types.ts`, `views.go`, renderer settings integration, CSS, Workspace/App/Go tests.
-- Write Set: View/widget integration and validation; View document remains v3.
-- Acceptance: accessible selector appears only for multiple compatible choices; selection marks View dirty, persists, restores, and does not mutate data; legacy IDs auto-resolve; incompatible saved choice visibly falls back; compact/normal/expanded modes behave inside nested panes.
-- Test Points: save/reopen, legacy fixture, malformed settings, no resource API on switch, ResizeObserver batching, focus/keyboard labels, light/dark and narrow pane.
-- Rollback: retain stored values but map them through legacy aliases/raw fallback; no layout migration rollback.
+- Goal: let any Node product register one or more local roots as independent Collection Resources without Core/product coupling.
+- Files / Modules: new `feature/filesystem` package/tests and filesystem protocol/data-schema definitions.
+- Write Set: provider, config, safe locator resolver, list/get/read payloads and tests; no default product mount.
+- Acceptance: atomic multi-mount registration; no physical path in catalog; deterministic paged list; bounded metadata/read;
+  traversal, absolute path, symlink/junction escape and oversize fail closed; read-only contract exposes no mutation capability.
+- Test Points: three-root fixture, duplicate Resource name/root failure rollback, Unicode/case/path cases, empty/large directory,
+  symlink/junction, MIME sniff/invalid UTF-8/HTML/SVG/binary/size, caller policy grant per root.
+- Rollback: unregister/remove optional provider package; no persistent format migration.
 
-#### QA01 - Run Proportional Full Validation And GUI Evidence
+##### SDK01 - Add Typed Collection/Capability Clients And Regenerate Contracts
 
 - Owner: primary agent
 - Worktree: current dedicated worktree
 - Plan Path: root `plan.md`
-- Goal: prove renderer correctness, generated-contract freshness, regression safety, and packaged Desktop usability.
-- Files / Modules: focused tests, generated output, production `dist`; temporary visual evidence later routed by `$m-archive`.
-- Write Set: tests and deterministic build/generated outputs only.
-- Acceptance: all planned checks pass; no unreviewed generated diff; representative light/dark and multi-pane GUI scenarios are visually verified.
+- Goal: keep callers on the existing optimized Node operation path while removing per-endpoint Flow client calls.
+- Files / Modules: `sdk/go/client.go`、`sdk/go/features.go` and tests；`sdk/bindings/contract`、bindgen outputs、Desktop generated
+  schemas/contracts and freshness gates.
+- Write Set: typed payload helper, Collection client, Flow client migration, generated artifacts/tests; no new owning runtime.
+- Acceptance: typed list/get/Flow operations use ResourceID + CapabilityID; host-attached/direct SDK behavior is identical;
+  generic Wails/Android operation surface remains usable; generated outputs are deterministic and fresh.
+- Test Points: memory/TCP typed contract tests, wrong schema/Forbidden/unknown capability, generation coverage/freshness.
+- Rollback: revert SDK/generated outputs together with FLOW01; no persisted SDK state.
+
+##### DESK01 - Create Shared Resource Actions And Accessible Context Menu
+
+- Owner: primary agent
+- Worktree: current dedicated worktree
+- Plan Path: root `plan.md`
+- Goal: expose descriptor-supported actions consistently from Explorer, Inspector and Workspace without executing on visibility.
+- Files / Modules: `apps/desktop/frontend/src/lib/resource-actions*`、`components/Explorer.tsx`、Inspector/operation controller、
+  optional focused Radix context-menu primitive、styles/tests/types.
+- Write Set: pure action model, accessible menu, focused operation state and tests; no provider/path special casing.
+- Acceptance: real Resource only; pointer and Menu/Shift+F10; focus/Escape; add-to-View; input/mutating capability opens explicit
+  form and performs zero calls before Execute; Forbidden remains actionable.
+- Test Points: pure derivation, namespace exclusion, keyboard/focus restoration, menu close, stale descriptor, no-submit,
+  same operation payload/result/error across entry points.
+- Rollback: remove menu/action layer; existing select/add/Inspector and ResourceRenderer remain.
+
+##### RENDER01 - Add Collection Widgets, View Actions And Safe Content Renderers
+
+- Owner: primary agent
+- Worktree: current dedicated worktree
+- Plan Path: root `plan.md`
+- Goal: make Collections useful in Inspector/View and render filesystem member content by schema/content type.
+- Files / Modules: renderer registry/schema/controller modules、`Renderer.tsx` split as needed、`Workspace.tsx`、CSS/component tests.
+- Write Set: Collection controller/renderer, compact action buttons, text/code/JSON/raster-image/fallback views; View document
+  version remains 3.
+- Acceptance: paged list/detail/read, loading/empty/error/cancel states; buttons reuse shared action controller; no Resource-name
+  dispatch; no HTML/SVG execution; no file/member content or draft persisted; saved old Widgets remain readable/missing explicitly.
+- Test Points: list pagination, selection changes, text escaping, invalid UTF-8, JSON/code, safe raster Blob cleanup,
+  unsupported binary fallback, unmount/profile cleanup, narrow pane, light/dark, save/reopen no-content persistence.
+- Rollback: renderer registry falls back to generic operation/raw inspector; View layout/store unchanged.
+
+##### QA01 - Run Full Validation And Packaged Desktop Evidence
+
+- Owner: primary agent
+- Worktree: current dedicated worktree
+- Plan Path: root `plan.md`
+- Goal: prove protocol/runtime/provider/SDK/Desktop correctness and regression safety before archive.
+- Files / Modules: focused tests, deterministic generated outputs, frontend `dist`, temporary visual evidence later routed by
+  `$m-archive`.
+- Write Set: tests and deterministic generated/build artifacts only.
+- Acceptance: all scoped checks pass; old Flow endpoints absent; no unreviewed generated drift; representative packaged GUI
+  scenarios pass in light/dark and persist View layout without persisting content.
 - Test Points:
-  - `GOWORK=off go test ./protocol ./sdk/bindings ./apps/desktop/... -count=1`
-  - `GOWORK=off go test ./... -count=1`
-  - `npm ci`, `npm test`, `npm run build` in Desktop frontend
-  - `./scripts/mfh.ps1 -Action check -Target generated`
-  - `wails build -clean -trimpath -platform windows/amd64 -o mfh-desktop.exe`
-  - browser interaction for forms/renderer switching and real packaged Wails GUI smoke
-- Rollback: stop before merge/archive, revert failing task group to its prior passing checkpoint, and preserve evidence/error signature.
+  - focused `GOWORK=off go test` for protocol/runtime/resource/flow/filesystem/sdk/bindings;
+  - `GOWORK=off go test ./... -count=1`;
+  - generated contract check via canonical `scripts/mfh.ps1` target;
+  - `npm test` and `npm run build` in Desktop frontend;
+  - Windows `wails build -clean -trimpath -platform windows/amd64`;
+  - browser/component interaction plus real packaged Wails smoke for context menu, Flow capability, filesystem text preview,
+    View buttons, Forbidden, light/dark and restart restore.
+- Rollback: stop before archive/merge, revert to the last passing task checkpoint, preserve failure signature/evidence.
 
-### Dependencies
+#### Dependencies
 
 ```text
-DOC01 -> SCHEMA01 -> RENDER01 -> VALUE01 --+
-                              -> OP01 -----+-> VIEW01 -> QA01
-                              -> LIVE01 ---+
+DOC01 -> COLL01 -> FLOW01 -> SDK01 --+
+                 -> FS01 -----------+-> DESK01 -> RENDER01 -> QA01
 ```
 
-- `DOC01` fixes terminology and contracts used by all code tasks.
-- `SCHEMA01` provides the generated inputs for `RENDER01`.
-- `VALUE01`, `OP01`, and `LIVE01` may proceed independently after the registry contract is stable.
-- `VIEW01` integrates all renderer families before the full validation gate.
+- DOC01 establishes names and deferred boundaries used by code.
+- COLL01 is required by Flow and filesystem providers.
+- FLOW01 and FS01 may be developed independently after COLL01, but both update protocol schemas; sequential integration is
+  safer unless execution creates non-overlapping commits.
+- SDK01 consumes final Flow/filesystem contracts before Desktop integration.
+- DESK01 owns the shared action seam; RENDER01 reuses it rather than duplicating calls.
 
-### Risks And Notes
+#### Risks and notes
 
-- The largest risk is semantic drift between Go validation and declarative schemas; freshness, coverage, and parity tests are mandatory.
-- The second risk is scope explosion in nested/conditional forms; unsupported constructs must fall back rather than grow an incomplete schema engine.
-- The third risk is lifecycle duplication; transport stays in resource controllers, not presentation primitives.
-- No dependency should be added unless a focused comparison proves it smaller and safer than the bounded internal implementation. A full component/theme/dashboard package is disallowed.
-- Brand/icon work is not touched by this workflow.
-- Main-checkout unrelated changes remain protected.
+- Highest risk: Flow clean-break can leave stale policy grants and saved Widgets. Fail safely: no automatic permission widening,
+  old Widgets remain visibly missing, and docs call out regranting.
+- Filesystem path safety is platform-sensitive. Resolve canonical roots/targets, test Windows junction/symlink behavior, bound
+  reads, and keep provider opt-in/read-only.
+- Collection schema can become an accidental universal filesystem/database abstraction. Keep only list/page/member metadata
+  generic; domain payloads remain provider schemas.
+- Effective authorization discovery is not inferred from `Permission` strings. AUTHZ02 stays explicit and UI handles Forbidden.
+- Desktop operation code already exists in `Renderer.tsx`; refactor to a shared controller before adding entry points to avoid
+  three inconsistent execution paths.
+- No unrelated Metrics UI, Desktop Profile/Enrollment, NodeHost, Agent Gateway, brand, Android lifecycle or design-demo changes.
+- The main checkout no longer has the original unmerged index entry, but another concurrent workflow still has an ordinary
+  uncommitted modification to `docs/requirements/desktop-resource-workspace.md`, overlapping this worktree. It does not block
+  isolated implementation here, but merge/archive must stop if MAIN02 remains unresolved.
 
-### Parallelism Assessment
+#### Parallelism assessment
 
-- Planning and initialization are performed by the primary agent only.
-- No implementation sub-agent is dispatched before approval.
-- After approval, `VALUE01`, `OP01`, and `LIVE01` are conceptually parallel after `RENDER01`, but their shared registry/styles make sequential primary-agent execution the safer default unless the execution skill explicitly establishes non-overlapping write sets.
+- Initialization、docs routing 与 planning 已由 primary agent 完成；本节原有“尚未批准”判断已被用户明确批准的
+  `$m-go` 取代。
+- Implementation 按 Task ID 和依赖委派；FLOW01 与 FS01 只有在 COLL01 contract 稳定且 write set 不重叠时并行。
+- 共享 protocol/generated 文件的任务必须顺序收敛，不能用并行覆盖其他 worker 结果。
 
-### Issue List
+#### Issue list
 
-- No blocking prerequisite remains.
-- The user invoked `$m-execute`, approving `DOC01`–`QA01`; deferred tasks remain outside the write set.
+- No prerequisite blocks isolated implementation in this dedicated worktree.
+- External closeout issue: MAIN02 must be resolved before merge/archive; this plan does not authorize touching the concurrent
+  uncommitted main-checkout edit.
+- Approval gate 已通过；MAIN02 仍只阻塞 merge/archive，不阻塞当前隔离 worktree 的已批准实施。
 
-## Execute - Implementation Result
+### Stage 3.2 - Approved Delegated Execution
 
-- Completed: `DOC01`, `SCHEMA01`, `RENDER01`, `VALUE01`, `OP01`, `LIVE01`, `VIEW01`.
-- Completed before heavy validation: focused Go tests, 81 frontend tests, TypeScript/Vite production frontend build, deterministic regeneration, Wails binding generation, and `git diff --check`.
-- Mainline integration: merged `master` @ `67bf3c3` before closeout and extended the canonical generated schema set for its centralized admission/enrollment payloads; provider-owned constraints and sensitive input annotations remain enforced by the same generation/freshness gates.
-- File boundary: native picker and blocking upload state are implemented. The current upload binding exposes no transfer handle, so per-transfer cancel and byte progress are not fabricated; owner-reported `file/progress` and `file/transfers` remain available as independent Widgets.
-- Security boundary: remotely executable renderers remain excluded; phase-1 renderer settings allowlist is empty; sensitive write-only fields render as password inputs and are never displayed as output.
-- Parallelism result: no implementation sub-agent was used because schema, registry, renderer, Workspace, styles, and generated artifacts formed overlapping write sets and the user invoked `$m-execute`, not delegated `$m-go`.
-
-## Test - Heavy Validation Result
-
-- `GOWORK=off go test ./... -count=1`: all repository packages and integration tests passed.
-- `GOWORK=off .\scripts\mfh.ps1 -Action check -Target generated`: deterministic protocol/Desktop bindings remained fresh and the worktree stayed clean.
-- `npm test`: 13 files / 81 tests passed, including numeric bounds/step, renderer registry/fallback, command form, centralized admission UI, 10k Resource-tree budget, View persistence, nested layout, and WAI-ARIA navigation.
-- `npm run build`: TypeScript and Vite production build passed.
-- `wails build -clean -trimpath -platform windows/amd64 -o mfh-desktop.exe`: Windows production executable built successfully.
-- Real packaged Wails acceptance used an isolated default-deny Hub at `127.0.0.1:7443` and isolated Desktop config. The Profile completed one-use admission, loaded 2 Nodes / 24 root resources, and showed persistent `已连接` state.
-- After merging current `master`, a second packaged smoke used a fresh centralized Admission Authority state: the prepared device completed Enrollment Permit registration, received its Authority-assigned Node ID, restored the saved two-pane View, showed persistent `已连接`, and surfaced the intentionally ungranted topology read as explicit `Forbidden`.
-- Actual UI operations passed: `system/health` specialized display, switch to Raw JSON and back, `flow/create` schema-generated numeric/text/object/array controls, dynamic array rows, explicit invoke, actionable provider validation error, horizontal ratio drag, View save, restart restore, and light/dark themes.
-- Persisted View v3 retained renderer IDs and the dragged split weights `0.6484375 / 0.3515625`; operation draft and error state were not persisted.
-- Security inspection found no Permit, signature, or private key in settings/View JSON. The DPAPI identity remained protected, renderer settings stayed empty, and remotely executable UI remained excluded.
-- Evidence: `docs/change/verification/2026-08-30_desktop-schema-widgets-light.png` and `docs/change/verification/2026-08-30_desktop-schema-widgets-dark.png`.
-- Review result: passed. No severity-threshold issue or regression remains; `QA01` and rollback checkpoint `R5` are complete.
-
-## Archive - Documentation And Closeout
-
-- `$m-docs` impact review: intake/feature/requirements/spec/decision are already canonical and indexed; no new reusable lesson is justified beyond existing generated-contract, Wails-binding, and frontend preflight lessons.
-- Change record: `docs/change/2026-08-30_desktop-schema-driven-resource-widgets.md`.
-- Follow-up change record: `docs/change/2026-08-31_desktop-renderer-selector-titlebar-refinement.md`.
-- Plan snapshot: `docs/plan/plan_archive_2026-08-30_desktop-schema-driven-resource-widgets.md`.
-- Test evidence: two original governed screenshots plus `docs/change/verification/2026-08-31_desktop-renderer-selector-titlebar.png`.
-- Closeout policy: commit archive records, safely fast-forward local `master` while preserving unrelated main-checkout changes, remove this worktree/branch, and do not push or publish.
-- Brand boundary: no icon asset, brand decision, or platform icon was changed by this workflow.
-
-### 2026-08-31 Post-merge VIEW01 Follow-up
-
-- Moved the compatible renderer selector from Widget content into the title bar, removed redundant visible label/description text, and retained its accessible name.
-- Removed the selector's vertical divider and vertical focus accent; fallback/error explanations remain visible in content.
-- Validation passed: focused 7 tests, full 81 frontend tests, TypeScript/Vite production build, Windows Wails production build, actual renderer switching, computed-style inspection, and governed screenshot evidence.
-- Stable-doc impact: none; current feature/requirement/spec/decision documents already define title-area renderer selection and presentation-only persistence.
-- Closeout runs directly on local `master`; the original dedicated workflow worktree/branch was already merged and cleaned, so no second merge or worktree removal is applicable.
+- User approval: approved `DOC01, COLL01, FLOW01, FS01, SDK01, DESK01, RENDER01, QA01` for `$m-go`。
+- Blocked: no for isolated implementation in this worktree。
+- COLL01 completed: added bounded Collection schemas and descriptor-scoped member validation, plus generic exact-handler
+  dispatch. Focused protocol/runtime tests, race detector, vet and scoped diff check passed.
+- FS01 completed: added opt-in, independently authorized read-only filesystem Collections with atomic multi-mount registration,
+  bounded deterministic list/get/read behavior, canonical path containment and built-in filesystem data schemas. Focused
+  filesystem/protocol/Flow tests, filesystem race tests, vet and diff checks passed.
+- FS01 known residuals: portable path APIs cannot eliminate every check-to-use race, so target resolution is reinforced by
+  open-handle identity and post-read checks; Registry lacks atomic compare-and-remove, leaving an extremely narrow concurrent
+  replacement window between Registration Close's identity check and removal.
+- SDK01 completed: typed generic/Collection/Flow clients use the existing Node operation path；canonical binding/Desktop
+  schemas were regenerated deterministically and focused memory/TCP/binding/race/vet checks passed。Android binding ABI was
+  statically verified；Gradle could not start because the local JVM could not establish its loopback daemon connection，and
+  the optional canonical AAR was absent。The generated check completed generation/tests but its final HEAD diff guard reported
+  the two intentional uncommitted generated changes.
+- DESK01 completed: real Resource rows expose pointer and Menu/Shift+F10 context actions with Escape/focus restoration；pure
+  namespaces expose no Resource operation. Explorer、Inspector and Workspace reuse descriptor-derived action state and the
+  explicit operation panel, without treating Resource name、permission compatibility strings or presentation as dispatch.
+- RENDER01 completed: Inspector/View now share one descriptor-driven Collection browser with bounded pagination, stale-result
+  suppression, domain `get` detail rendering and member + Resource descriptor double-gated `list/get/read`；members without
+  `get` remain metadata-only with zero API calls. Text/JSON/raster/fallback rendering rejects
+  invalid encodings, never executes HTML/SVG, revokes Blob URLs, and keeps member/content/action drafts transient. Workspace
+  buttons reuse the DESK01 action model and explicit operation panel. A follow-up gate now keeps member-scoped `get` opt-in
+  and treats mixed operation/event descriptors as explicit operations, matching HandlerResource. Focused Collection/renderer/
+  workspace coverage plus the action-model checks, the final frontend 16-file/128-test suite, TypeScript/Vite build and scoped
+  diff checks passed；QA01 retained the final deterministic `dist` bundle.
+- DOC01 completed: the first contract/gate pass and final generated/code-backed Flow/Desktop current-truth pass are both
+  complete；stable specs now record current Collection/Flow/filesystem/SDK/Desktop behavior and keep product QA pending.
+- QA01 completed: focused/full Go tests, race, vet, canonical generated freshness, frontend 16-file/128-test suite and build,
+  Windows Wails package, dual-ABI Android AAR, offline Gradle unit/lint/assemble, real browser-mode interaction, and twice-launched
+  packaged GUI smoke all passed. No Android device was attached, so physical-device smoke is recorded as Unavailable rather than
+  passed. R5 is complete；temporary runtime/package artifacts were removed and final deterministic `dist` plus QA evidence remain.
+- Deferred unchanged: `AUTHZ02, CMD02, FS02, MAIN02, PUB01`。MAIN02 remains external and required before merge/archive；
+  PUB01 remains unauthorized。
 
 ## Approval Gate
 
-- Plan status: confirmed.
-- Approval status: `DOC01`–`QA01` approved by explicit `$m-execute` invocation.
-- Blocked: no.
-- `QA01` and rollback checkpoint `R5` passed; `$m-archive` and the 2026-08-31 follow-up closeout are complete locally.
-- Implementation sub-agents: not dispatched because the shared schema/registry/styles create overlapping write sets and `$m-go` delegation was not requested.
+- Plan status: approved for delegated execution.
+- Approved Task IDs: `DOC01, COLL01, FLOW01, FS01, SDK01, DESK01, RENDER01, QA01`.
+- Approval status: passed.
+- Blocked: no — isolated implementation may proceed.
+- Active phase: `$m-go` stage 3.2.
+- Archive/merge remains blocked by deferred `MAIN02`; push/release/publication remains unauthorized as `PUB01`.

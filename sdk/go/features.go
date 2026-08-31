@@ -23,6 +23,42 @@ func DecodeEvent(event Event, target protocol.ValidatedPayload) error {
 	return nil
 }
 
+// CollectionClient provides the standard Collection list/get operations for
+// one Resource. Domain-specific get payloads should use OperatePayload with
+// CapabilityGet instead of reinterpreting CollectionMemberV1.
+type CollectionClient struct {
+	client   *Client
+	resource protocol.ResourceID
+}
+
+func (c *Client) Collection(resourceID protocol.ResourceID) (*CollectionClient, error) {
+	if _, err := c.runtimeNode(); err != nil {
+		return nil, err
+	}
+	if err := resourceID.Validate(); err != nil {
+		return nil, fmt.Errorf("SDK collection resource: %w", err)
+	}
+	return &CollectionClient{client: c, resource: resourceID}, nil
+}
+
+func (c *CollectionClient) List(ctx context.Context, request protocol.CollectionListRequestV1) (protocol.CollectionPageV1, error) {
+	var response protocol.CollectionPageV1
+	if c == nil || c.client == nil {
+		return response, errors.New("SDK collection client is required")
+	}
+	err := c.client.OperatePayload(ctx, c.resource, protocol.CapabilityList, &request, &response)
+	return response, err
+}
+
+func (c *CollectionClient) Get(ctx context.Context, request protocol.CollectionMemberRequestV1) (protocol.CollectionMemberV1, error) {
+	var response protocol.CollectionMemberV1
+	if c == nil || c.client == nil {
+		return response, errors.New("SDK collection client is required")
+	}
+	err := c.client.OperatePayload(ctx, c.resource, protocol.CapabilityGet, &request, &response)
+	return response, err
+}
+
 type TopicClient struct {
 	client   *Client
 	resource protocol.ResourceID
@@ -270,8 +306,10 @@ func (c *FileClient) id(name string) protocol.ResourceID {
 }
 
 type FlowClient struct {
-	client *Client
-	owner  protocol.NodeID
+	client      *Client
+	owner       protocol.NodeID
+	definitions *CollectionClient
+	runs        *CollectionClient
 }
 
 func (c *Client) Flows(owner protocol.NodeID) (*FlowClient, error) {
@@ -281,52 +319,107 @@ func (c *Client) Flows(owner protocol.NodeID) (*FlowClient, error) {
 	if err := owner.Validate(); err != nil {
 		return nil, err
 	}
-	return &FlowClient{client: c, owner: owner}, nil
+	definitions, err := c.Collection(protocol.ResourceID{Owner: owner, Name: protocol.BuiltinFlowDefinitions})
+	if err != nil {
+		return nil, err
+	}
+	runs, err := c.Collection(protocol.ResourceID{Owner: owner, Name: protocol.BuiltinFlowRuns})
+	if err != nil {
+		return nil, err
+	}
+	return &FlowClient{client: c, owner: owner, definitions: definitions, runs: runs}, nil
 }
 
-func (c *FlowClient) Definitions(ctx context.Context) (protocol.FlowDefinitionsV1, error) {
-	var value protocol.FlowDefinitionsV1
-	err := c.client.DecodeSnapshot(ctx, c.id(protocol.BuiltinFlowDefinitions), &value)
-	return value, err
+func (c *FlowClient) ListDefinitions(ctx context.Context, request protocol.CollectionListRequestV1) (protocol.CollectionPageV1, error) {
+	if _, err := c.operationClient(); err != nil || c.definitions == nil {
+		return protocol.CollectionPageV1{}, errors.New("SDK Flow client is required")
+	}
+	return c.definitions.List(ctx, request)
 }
 
-func (c *FlowClient) Runs(ctx context.Context) (protocol.FlowRunsV1, error) {
-	var value protocol.FlowRunsV1
-	err := c.client.DecodeSnapshot(ctx, c.id(protocol.BuiltinFlowRuns), &value)
-	return value, err
+func (c *FlowClient) ListRuns(ctx context.Context, request protocol.CollectionListRequestV1) (protocol.CollectionPageV1, error) {
+	if _, err := c.operationClient(); err != nil || c.runs == nil {
+		return protocol.CollectionPageV1{}, errors.New("SDK Flow client is required")
+	}
+	return c.runs.List(ctx, request)
+}
+
+func (c *FlowClient) GetDefinition(ctx context.Context, request protocol.CollectionMemberRequestV1) (protocol.FlowDefinitionV1, error) {
+	var response protocol.FlowDefinitionV1
+	client, err := c.operationClient()
+	if err == nil {
+		err = client.OperatePayload(ctx, c.id(protocol.BuiltinFlowDefinitions), protocol.CapabilityGet, &request, &response)
+	}
+	return response, err
+}
+
+func (c *FlowClient) GetRun(ctx context.Context, request protocol.CollectionMemberRequestV1) (protocol.FlowRunSummaryV1, error) {
+	var response protocol.FlowRunSummaryV1
+	client, err := c.operationClient()
+	if err == nil {
+		err = client.OperatePayload(ctx, c.id(protocol.BuiltinFlowRuns), protocol.CapabilityGet, &request, &response)
+	}
+	return response, err
 }
 
 func (c *FlowClient) Events(ctx context.Context, lease time.Duration, queue int) (*Subscription, error) {
-	return c.client.Subscribe(ctx, c.id(protocol.BuiltinFlowEvents), lease, queue)
+	client, err := c.operationClient()
+	if err != nil {
+		return nil, err
+	}
+	return client.SubscribeCapability(ctx, c.id(protocol.BuiltinFlowRuns), protocol.CapabilitySubscribe, lease, queue)
 }
 
 func (c *FlowClient) Create(ctx context.Context, request protocol.FlowDefinitionV1) (protocol.FlowDefinitionV1, error) {
 	var response protocol.FlowDefinitionV1
-	err := c.client.InvokePayload(ctx, c.id(protocol.BuiltinFlowCreate), &request, &response)
+	client, err := c.operationClient()
+	if err == nil {
+		err = client.OperatePayload(ctx, c.id(protocol.BuiltinFlowDefinitions), protocol.CapabilityFlowCreate, &request, &response)
+	}
 	return response, err
 }
 
 func (c *FlowClient) Update(ctx context.Context, request protocol.FlowDefinitionV1) (protocol.FlowDefinitionV1, error) {
 	var response protocol.FlowDefinitionV1
-	err := c.client.InvokePayload(ctx, c.id(protocol.BuiltinFlowUpdate), &request, &response)
+	client, err := c.operationClient()
+	if err == nil {
+		err = client.OperatePayload(ctx, c.id(protocol.BuiltinFlowDefinitions), protocol.CapabilityFlowUpdate, &request, &response)
+	}
 	return response, err
 }
 
 func (c *FlowClient) Run(ctx context.Context, request protocol.FlowRunV1) (protocol.FlowRunSummaryV1, error) {
 	var response protocol.FlowRunSummaryV1
-	err := c.client.InvokePayload(ctx, c.id(protocol.BuiltinFlowRun), &request, &response)
+	client, err := c.operationClient()
+	if err == nil {
+		err = client.OperatePayload(ctx, c.id(protocol.BuiltinFlowDefinitions), protocol.CapabilityFlowRun, &request, &response)
+	}
 	return response, err
 }
 
 func (c *FlowClient) Cancel(ctx context.Context, request protocol.FlowCancelV1) (protocol.FlowRunSummaryV1, error) {
 	var response protocol.FlowRunSummaryV1
-	err := c.client.InvokePayload(ctx, c.id(protocol.BuiltinFlowCancel), &request, &response)
+	client, err := c.operationClient()
+	if err == nil {
+		err = client.OperatePayload(ctx, c.id(protocol.BuiltinFlowRuns), protocol.CapabilityFlowCancel, &request, &response)
+	}
 	return response, err
 }
 
 func (c *FlowClient) Archive(ctx context.Context, request protocol.FlowArchiveV1) error {
 	var response protocol.FlowArchiveV1
-	return c.client.InvokePayload(ctx, c.id(protocol.BuiltinFlowArchive), &request, &response)
+	client, err := c.operationClient()
+	if err != nil {
+		return err
+	}
+	return client.OperatePayload(ctx, c.id(protocol.BuiltinFlowDefinitions), protocol.CapabilityFlowArchive, &request, &response)
+}
+
+func (c *FlowClient) operationClient() (*Client, error) {
+	if c == nil || c.client == nil {
+		return nil, errors.New("SDK Flow client is required")
+	}
+	return c.client, nil
 }
 
 func (c *FlowClient) id(name string) protocol.ResourceID {

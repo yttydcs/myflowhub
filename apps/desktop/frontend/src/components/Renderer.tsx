@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import {
   AlertTriangle,
+  ArrowLeft,
   Braces,
   Check,
+  ChevronRight,
   CirclePause,
   CirclePlay,
   Eraser,
   FileUp,
+  FileText,
+  Folder,
   LoaderCircle,
   Pause,
   Play,
@@ -18,7 +22,24 @@ import {
   SquareTerminal,
 } from 'lucide-react'
 import type { DesktopAPI, OperationResult } from '../api'
+import { deriveResourceActions } from '../lib/resource-actions'
 import { errorText } from '../lib/utils'
+import {
+  appendCollectionPage,
+  COLLECTION_LIST_REQUEST_SCHEMA,
+  COLLECTION_MEMBER_REQUEST_SCHEMA,
+  COLLECTION_MEMBER_SCHEMA,
+  COLLECTION_PAGE_LIMIT,
+  COLLECTION_PAGE_SCHEMA,
+  FILESYSTEM_CONTENT_SCHEMA,
+  FILESYSTEM_READ_REQUEST_SCHEMA,
+  MAX_FILESYSTEM_READ_BYTES,
+  parseCollectionMember,
+  parseCollectionPage,
+  parseFilesystemContent,
+  type CollectionMember,
+  type SafeFilesystemContent,
+} from '../rendering/collection'
 import { selectResourceRenderer, type PaneDensity } from '../rendering/registry'
 import {
   defaultDataValue,
@@ -417,11 +438,20 @@ function EventRenderer({ api, resource, rendererID = 'mfh.event.timeline.v1', de
   </div>
 }
 
-function OperationRenderer({ api, resource, capabilityName = 'invoke', rendererID = 'mfh.operation.form.v1' }: RendererProps & { capabilityName?: string }) {
+export function ResourceOperationPanel({
+  api,
+  resource,
+  capabilityName = 'invoke',
+  rendererID = 'mfh.operation.form.v1',
+  disabledReason,
+  autoFocus = false,
+}: RendererProps & { capabilityName?: string; disabledReason?: string; autoFocus?: boolean }) {
   const descriptor = resource.capabilities.find((item) => item.name === capabilityName)
+  const action = deriveResourceActions(resource.capabilities).find((candidate) => candidate.capability === capabilityName)
   const inputResolution = resolveSchema(descriptor?.input_schema)
   const schema = inputResolution.status === 'resolved' ? inputResolution.schema : undefined
   const useRaw = rendererID.includes('json') || !schema
+  const panelRef = useRef<HTMLDivElement>(null)
   const [draft, setDraft] = useState<unknown>(() => schema ? defaultDataValue(schema) : {})
   const [rawDraft, setRawDraft] = useState(() => pretty(schema ? defaultDataValue(schema) : {}))
   const [validationErrors, setValidationErrors] = useState<DataValidationError[]>([])
@@ -431,8 +461,12 @@ function OperationRenderer({ api, resource, capabilityName = 'invoke', rendererI
   useEffect(() => {
     const next = schema ? defaultDataValue(schema) : {}
     setDraft(next); setRawDraft(pretty(next)); setValidationErrors([]); setResult(undefined); setError('')
-  }, [descriptor?.input_schema])
+  }, [capabilityName, descriptor?.input_schema, resource.id.name, resource.id.owner_node_id])
+  useEffect(() => {
+    if (autoFocus) panelRef.current?.focus()
+  }, [autoFocus, capabilityName, resource.id.name, resource.id.owner_node_id])
   const submit = async () => {
+    if (!descriptor || action?.mode !== 'operation' || disabledReason) return
     setBusy(true); setError('')
     try {
       const value = useRaw ? JSON.parse(rawDraft) : draft
@@ -446,13 +480,262 @@ function OperationRenderer({ api, resource, capabilityName = 'invoke', rendererI
     finally { setBusy(false) }
   }
   const outputResolution = result ? resolveSchema(result.schema || descriptor?.output_schema) : undefined
-  return <div className="operation-renderer">
+  if (!descriptor || !action) {
+    return <div ref={panelRef} className="operation-renderer" tabIndex={-1} aria-label={`${capabilityName} 操作面板`}><StateMessage kind="error">当前 descriptor 已不再声明 capability <code>{capabilityName}</code>；旧操作不能执行。</StateMessage></div>
+  }
+  if (action.mode === 'observe') {
+    return <div ref={panelRef} className="operation-renderer" tabIndex={-1} aria-label={`${capabilityName} 观察面板`}><p className="renderer-note"><Radio aria-hidden="true" size={14} />capability <code>{capabilityName}</code> 通过事件订阅通道观察，不调用普通 operate；请使用上方资源 renderer。</p></div>
+  }
+  if (action.mode === 'session') {
+    return <div ref={panelRef} className="operation-renderer" tabIndex={-1} aria-label={`${capabilityName} 会话面板`}><p className="renderer-note"><FileUp aria-hidden="true" size={14} />capability <code>{capabilityName}</code> 使用有界 session 通道，不调用普通 operate；请使用对应 session renderer。</p></div>
+  }
+  return <div ref={panelRef} className="operation-renderer" tabIndex={-1} aria-label={`${capabilityName} 操作面板`}>
     {inputResolution.status !== 'resolved' && <p className="renderer-note"><AlertTriangle aria-hidden="true" size={14} />{inputResolution.reason}，使用 Advanced JSON。</p>}
     {useRaw ? <label className="schema-field is-code">输入 · {descriptor?.input_schema || 'application/json'}<Textarea name={`${capabilityName}-input`} autoComplete="off" value={rawDraft} onChange={(event) => setRawDraft(event.target.value)} rows={7} spellCheck={false} /></label> : <SchemaEditor schema={schema!} value={draft} onChange={(next) => { setDraft(next); setRawDraft(pretty(next)); setValidationErrors(validateDataValue(schema!, next)) }} errors={validationErrors} />}
+    {disabledReason && <p className="renderer-note"><AlertTriangle aria-hidden="true" size={14} />{disabledReason}</p>}
     {error && <p className="form-error" role="alert" aria-live="polite">{error}</p>}
-    <Button size="sm" disabled={busy} onClick={() => void submit()}><Play aria-hidden="true" size={14} />{busy ? '执行中…' : `执行 ${capabilityName}`}</Button>
+    <Button size="sm" disabled={busy || !!disabledReason} onClick={() => void submit()}><Play aria-hidden="true" size={14} />{busy ? '执行中…' : `执行 ${capabilityName}`}</Button>
     {result !== undefined && <section className="operation-result"><h4>执行结果 <Badge>{result.schema || descriptor?.output_schema || 'raw'}</Badge></h4>{outputResolution?.status === 'resolved' ? <DataDisplay value={result.payload} schema={outputResolution.schema} /> : <pre className="result-block">{pretty(result.payload)}</pre>}</section>}
   </div>
+}
+
+type CollectionLocation = { key: string; label: string }
+type CollectionDetail = { payload: unknown; schemaID?: string }
+
+function FilesystemContentView({ content, label }: { content: SafeFilesystemContent; label: string }) {
+  const [imageURL, setImageURL] = useState('')
+  useEffect(() => {
+    if (content.mode !== 'image' || typeof URL.createObjectURL !== 'function') {
+      setImageURL('')
+      return
+    }
+    const next = URL.createObjectURL(new Blob([content.bytes.slice().buffer], { type: content.contentType }))
+    setImageURL(next)
+    return () => URL.revokeObjectURL(next)
+  }, [content])
+  return (
+    <section className="filesystem-content" aria-label={`文件内容 ${label}`}>
+      <header>
+        <strong>{content.contentType}</strong>
+        <small>{content.size} bytes · revision {content.revision}</small>
+      </header>
+      {content.warnings.map((warning) => <p className="renderer-note" key={warning}><AlertTriangle aria-hidden="true" size={14} />{warning}</p>)}
+      {content.mode === 'json' && (
+        <div className="safe-json-view">
+          <DataDisplay value={content.value} rendererID="mfh.variable.code.v1" />
+        </div>
+      )}
+      {content.mode === 'text' && <pre className="safe-text-view">{content.text}</pre>}
+      {content.mode === 'image' && (imageURL
+        ? <img className="safe-raster-preview" src={imageURL} alt={label} />
+        : <p className="renderer-note">当前环境无法创建安全的 Blob 图片预览。</p>)}
+      {content.mode === 'unsupported' && <div className="unsupported-content"><FileText aria-hidden="true" size={22} /><strong>内容未内联显示</strong><p>{content.reason}</p></div>}
+    </section>
+  )
+}
+
+function CollectionRenderer({ api, resource, density = 'normal' }: RendererProps) {
+  const listDescriptor = resource.capabilities.find((candidate) => candidate.name === 'list')
+  const getDescriptor = resource.capabilities.find((candidate) => candidate.name === 'get')
+  const readDescriptor = resource.capabilities.find((candidate) => candidate.name === 'read')
+  const descriptorKey = resource.capabilities.map((candidate) => [candidate.name, candidate.input_schema, candidate.output_schema, candidate.event_schema].join(':')).join('|')
+  const [locations, setLocations] = useState<CollectionLocation[]>([])
+  const parent = locations.at(-1)?.key || ''
+  const [members, setMembers] = useState<CollectionMember[]>([])
+  const [revision, setRevision] = useState(0)
+  const [nextCursor, setNextCursor] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [listError, setListError] = useState('')
+  const [reload, setReload] = useState(0)
+  const [selected, setSelected] = useState<CollectionMember>()
+  const [resolvedMember, setResolvedMember] = useState<CollectionMember>()
+  const [detail, setDetail] = useState<CollectionDetail>()
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailNotice, setDetailNotice] = useState('')
+  const [detailError, setDetailError] = useState('')
+  const [content, setContent] = useState<SafeFilesystemContent>()
+  const [contentLoading, setContentLoading] = useState(false)
+  const [contentError, setContentError] = useState('')
+  const listGeneration = useRef(0)
+  const detailGeneration = useRef(0)
+  const contentGeneration = useRef(0)
+  const compatibleList = listDescriptor?.input_schema === COLLECTION_LIST_REQUEST_SCHEMA && listDescriptor.output_schema === COLLECTION_PAGE_SCHEMA
+
+  useEffect(() => {
+    const generation = ++listGeneration.current
+    detailGeneration.current += 1
+    contentGeneration.current += 1
+    setMembers([]); setRevision(0); setNextCursor(''); setSelected(undefined); setResolvedMember(undefined); setDetail(undefined); setContent(undefined)
+    setDetailNotice(''); setDetailError(''); setContentError(''); setDetailLoading(false); setContentLoading(false); setLoadingMore(false); setLoading(true); setListError('')
+    if (!compatibleList) {
+      setLoading(false)
+      setListError('Collection list capability 必须声明 mfh.collection.list-request.v1 → mfh.collection.page.v1')
+      return () => { listGeneration.current += 1 }
+    }
+    void api.operate(resource.id.owner_node_id, resource.id.name, 'list', COLLECTION_LIST_REQUEST_SCHEMA, {
+      version: 1, parent, cursor: '', limit: COLLECTION_PAGE_LIMIT,
+    }).then((result) => {
+      if (listGeneration.current !== generation) return
+      const schemaID = result.schema || listDescriptor.output_schema
+      if (schemaID !== COLLECTION_PAGE_SCHEMA) throw new Error(`list 返回了不兼容 schema ${schemaID || '(empty)'}`)
+      const page = parseCollectionPage(result.payload, parent)
+      setMembers(page.members); setRevision(page.revision); setNextCursor(page.next_cursor)
+    }).catch((current) => {
+      if (listGeneration.current === generation) setListError(errorText(current))
+    }).finally(() => {
+      if (listGeneration.current === generation) setLoading(false)
+    })
+    return () => {
+      listGeneration.current += 1
+      detailGeneration.current += 1
+      contentGeneration.current += 1
+    }
+  }, [api, descriptorKey, parent, reload, resource.id.name, resource.id.owner_node_id])
+
+  const loadNextPage = async () => {
+    if (!compatibleList || !nextCursor || loadingMore) return
+    const generation = ++listGeneration.current
+    const cursor = nextCursor
+    setLoadingMore(true); setListError('')
+    try {
+      const result = await api.operate(resource.id.owner_node_id, resource.id.name, 'list', COLLECTION_LIST_REQUEST_SCHEMA, {
+        version: 1, parent, cursor, limit: COLLECTION_PAGE_LIMIT,
+      })
+      if (listGeneration.current !== generation) return
+      const schemaID = result.schema || listDescriptor.output_schema
+      if (schemaID !== COLLECTION_PAGE_SCHEMA) throw new Error(`list 返回了不兼容 schema ${schemaID || '(empty)'}`)
+      const page = parseCollectionPage(result.payload, parent)
+      if (page.revision !== revision) throw new Error('Collection revision 在分页过程中发生变化，请重试')
+      setMembers((current) => appendCollectionPage(current, page)); setNextCursor(page.next_cursor)
+    } catch (current) {
+      if (listGeneration.current === generation) setListError(errorText(current))
+    } finally {
+      if (listGeneration.current === generation) setLoadingMore(false)
+    }
+  }
+
+  const selectMember = async (member: CollectionMember) => {
+    const generation = ++detailGeneration.current
+    contentGeneration.current += 1
+    setSelected(member); setResolvedMember(undefined); setDetail(undefined); setDetailNotice(''); setDetailError(''); setDetailLoading(false); setContent(undefined); setContentError(''); setContentLoading(false)
+    if (!member.capabilities.includes('get')) {
+      setDetailNotice('此 member 未声明 get，仅展示列表 metadata。')
+      return
+    }
+    if (!getDescriptor) {
+      setDetailError('Resource descriptor 未声明 get capability')
+      return
+    }
+    if (getDescriptor.input_schema !== COLLECTION_MEMBER_REQUEST_SCHEMA) {
+      setDetailError(`get input schema ${getDescriptor.input_schema || '(empty)'} 与 Collection member request 不兼容`)
+      return
+    }
+    setDetailLoading(true)
+    try {
+      const result = await api.operate(resource.id.owner_node_id, resource.id.name, 'get', getDescriptor.input_schema, { version: 1, key: member.key })
+      if (detailGeneration.current !== generation) return
+      const schemaID = result.schema || getDescriptor.output_schema || member.schema
+      if (result.schema && getDescriptor.output_schema && result.schema !== getDescriptor.output_schema) {
+        throw new Error(`get 返回 schema ${result.schema} 与 descriptor ${getDescriptor.output_schema} 不一致`)
+      }
+      if (schemaID === COLLECTION_MEMBER_SCHEMA) {
+        const current = parseCollectionMember(result.payload)
+        if (current.key !== member.key) throw new Error('get 返回 member key 与所选成员不一致')
+        setResolvedMember(current)
+      }
+      setDetail({ payload: result.payload, schemaID })
+    } catch (current) {
+      if (detailGeneration.current === generation) setDetailError(errorText(current))
+    } finally {
+      if (detailGeneration.current === generation) setDetailLoading(false)
+    }
+  }
+
+  const currentMember = resolvedMember || selected
+  const canEnter = (member: CollectionMember) => member.kind === 'directory' && member.capabilities.includes('list') && compatibleList
+  const canRead = Boolean(
+    currentMember?.capabilities.includes('read')
+    && readDescriptor?.input_schema === FILESYSTEM_READ_REQUEST_SCHEMA
+    && readDescriptor.output_schema === FILESYSTEM_CONTENT_SCHEMA,
+  )
+  const readContent = async () => {
+    if (!currentMember || !readDescriptor || !canRead) return
+    const generation = ++contentGeneration.current
+    setContent(undefined); setContentError(''); setContentLoading(true)
+    const expectedRevision = currentMember.attributes?.revision
+    try {
+      const result = await api.operate(resource.id.owner_node_id, resource.id.name, 'read', FILESYSTEM_READ_REQUEST_SCHEMA, {
+        version: 1,
+        key: currentMember.key,
+        max_bytes: MAX_FILESYSTEM_READ_BYTES,
+        ...(expectedRevision ? { expected_revision: expectedRevision } : {}),
+      })
+      if (contentGeneration.current !== generation) return
+      const schemaID = result.schema || readDescriptor.output_schema
+      if (schemaID !== FILESYSTEM_CONTENT_SCHEMA) throw new Error(`read 返回了不兼容 schema ${schemaID || '(empty)'}`)
+      setContent(parseFilesystemContent(result.payload, {
+        key: currentMember.key,
+        contentType: currentMember.content_type,
+        revision: expectedRevision,
+      }))
+    } catch (current) {
+      if (contentGeneration.current === generation) setContentError(errorText(current))
+    } finally {
+      if (contentGeneration.current === generation) setContentLoading(false)
+    }
+  }
+
+  const enter = (member: CollectionMember) => {
+    if (!canEnter(member)) return
+    setLocations((current) => [...current, { key: member.key, label: member.label }])
+  }
+  const detailResolution = resolveSchema(detail?.schemaID || currentMember?.schema)
+  const memberMetadataResolution = resolveSchema(COLLECTION_MEMBER_SCHEMA)
+  return (
+    <div className={`collection-renderer density-${density}`}>
+      <nav className="collection-breadcrumb" aria-label="Collection 路径">
+        {locations.length > 0 && <Button variant="ghost" size="sm" onClick={() => setLocations((current) => current.slice(0, -1))}><ArrowLeft aria-hidden="true" size={13} />返回</Button>}
+        <button type="button" onClick={() => setLocations([])}>根目录</button>
+        {locations.map((location, index) => <span key={`${location.key}-${index}`}><ChevronRight aria-hidden="true" size={12} /><button type="button" onClick={() => setLocations((current) => current.slice(0, index + 1))}>{location.label}</button></span>)}
+        {revision > 0 && <Badge>r{revision}</Badge>}
+      </nav>
+      {loading && <StateMessage kind="loading">正在读取 Collection…</StateMessage>}
+      {!loading && listError && members.length === 0 && <StateMessage kind="error"><span>{listError}</span><Button variant="secondary" size="sm" onClick={() => setReload((current) => current + 1)}>重试</Button></StateMessage>}
+      {!loading && !listError && members.length === 0 && <p className="empty-copy">这个 Collection 位置没有成员</p>}
+      {members.length > 0 && (
+        <div className="collection-grid">
+          <div className="collection-members" role="list" aria-label="Collection 成员">
+            {members.map((member) => (
+              <div className={`collection-member ${selected?.key === member.key ? 'is-selected' : ''}`} role="listitem" key={member.key}>
+                <button type="button" className="collection-member-main" onClick={() => void selectMember(member)}>
+                  {member.kind === 'directory' ? <Folder aria-hidden="true" size={16} /> : <FileText aria-hidden="true" size={16} />}
+                  <span><strong>{member.label}</strong><small>{member.kind}{member.content_type ? ` · ${member.content_type}` : ''}</small></span>
+                </button>
+                {canEnter(member) && <button type="button" className="collection-enter" aria-label={`进入 ${member.label}`} onClick={() => enter(member)}><ChevronRight aria-hidden="true" size={15} /></button>}
+              </div>
+            ))}
+            {nextCursor && <Button variant="secondary" size="sm" disabled={loadingMore} onClick={() => void loadNextPage()}>{loadingMore ? '加载中…' : '加载下一页'}</Button>}
+            {listError && <p className="form-error" role="alert">{listError} <button type="button" onClick={() => setReload((current) => current + 1)}>重新加载</button></p>}
+          </div>
+          <section className="collection-detail" aria-label="Collection 成员详情">
+            {!selected && <p className="empty-copy">选择成员以读取详情</p>}
+            {selected && <header><strong>{selected.label}</strong><small>{selected.key}</small></header>}
+            {selected && <section className="collection-metadata"><h4>列表 metadata</h4><DataDisplay value={selected} schema={memberMetadataResolution.status === 'resolved' ? memberMetadataResolution.schema : undefined} density={density} /></section>}
+            {detailNotice && <p className="renderer-note">{detailNotice}</p>}
+            {detailLoading && <StateMessage kind="loading">正在读取成员详情…</StateMessage>}
+            {detailError && <StateMessage kind="error">{detailError}</StateMessage>}
+            {detail && (detailResolution.status === 'resolved'
+              ? <DataDisplay value={detail.payload} schema={detailResolution.schema} density={density} />
+              : <pre className="result-block">{pretty(detail.payload)}</pre>)}
+            {currentMember && canRead && <Button size="sm" disabled={detailLoading || contentLoading} onClick={() => void readContent()}>{contentLoading ? '读取中…' : '读取文件内容'}</Button>}
+            {contentError && <StateMessage kind="error">{contentError}</StateMessage>}
+            {content && <FilesystemContentView content={content} label={currentMember?.label || content.key} />}
+          </section>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function FileRenderer({ api, resource }: RendererProps) {
@@ -492,21 +775,44 @@ function UnknownRenderer({ resource }: RendererProps) {
   return <div className="unknown-renderer"><Braces aria-hidden="true" size={24} /><p>没有安装 <strong>{resource.type}</strong> 的专用 renderer。资源仍保持可发现。</p><pre>{pretty(resource)}</pre></div>
 }
 
-export function ResourceRenderer({ api, resource, rendererID, density = 'normal' }: RendererProps) {
+export function ResourceRenderer({
+  api,
+  resource,
+  rendererID,
+  density = 'normal',
+  focusedCapability,
+  focusedDisabledReason,
+}: RendererProps & { focusedCapability?: string; focusedDisabledReason?: string }) {
   const selection = selectResourceRenderer(resource, rendererID)
   const selectedID = selection.selected.id
+  if (focusedCapability) {
+    return (
+      <div className={`resource-renderer density-${density}`}>
+        <ResourceOperationPanel
+          api={api}
+          resource={resource}
+          capabilityName={focusedCapability}
+          rendererID="mfh.operation.form.v1"
+          density={density}
+          disabledReason={focusedDisabledReason}
+          autoFocus
+        />
+      </div>
+    )
+  }
   const publishable = resource.type === 'mfh.topic' && resource.capabilities.some((item) => item.name === 'publish')
-  const knownType = ['mfh.variable', 'mfh.stream', 'mfh.topic', 'mfh.command', 'mfh.file'].includes(resource.type)
+  const knownType = ['mfh.variable', 'mfh.stream', 'mfh.topic', 'mfh.command', 'mfh.file', 'mfh.collection'].includes(resource.type)
   const genericOperations = knownType ? [] : resource.capabilities.filter((item) => item.input_schema && item.name !== 'open')
   return <div className={`resource-renderer density-${density}`}>
     {selection.fallbackReason && <p className="renderer-note"><AlertTriangle aria-hidden="true" size={14} />{selection.fallbackReason}</p>}
-    {publishable && <details className="publish-box"><summary><Radio aria-hidden="true" size={14} />发布到 Topic</summary><OperationRenderer api={api} resource={resource} capabilityName="publish" rendererID="mfh.operation.form.v1" density={density} /></details>}
+    {publishable && <details className="publish-box"><summary><Radio aria-hidden="true" size={14} />发布到 Topic</summary><ResourceOperationPanel api={api} resource={resource} capabilityName="publish" rendererID="mfh.operation.form.v1" density={density} /></details>}
     {resource.type === 'mfh.variable' && <VariableRenderer api={api} resource={resource} rendererID={selectedID} density={density} />}
     {(resource.type === 'mfh.stream' || resource.type === 'mfh.topic') && <EventRenderer api={api} resource={resource} rendererID={selectedID} density={density} />}
-    {resource.type === 'mfh.command' && <OperationRenderer api={api} resource={resource} rendererID={selectedID} density={density} />}
+    {resource.type === 'mfh.command' && <ResourceOperationPanel api={api} resource={resource} rendererID={selectedID} density={density} />}
     {resource.type === 'mfh.file' && <FileRenderer api={api} resource={resource} rendererID={selectedID} density={density} />}
+    {resource.type === 'mfh.collection' && <CollectionRenderer key={`${resource.id.owner_node_id}/${resource.id.name}`} api={api} resource={resource} rendererID={selectedID} density={density} />}
     {!knownType && <UnknownRenderer api={api} resource={resource} rendererID={selectedID} density={density} />}
-    {genericOperations.map((descriptor) => <details className="publish-box" key={descriptor.name}><summary><Play aria-hidden="true" size={14} />通用操作 {descriptor.name}</summary><OperationRenderer api={api} resource={resource} capabilityName={descriptor.name} rendererID="mfh.operation.form.v1" density={density} /></details>)}
+    {genericOperations.map((descriptor) => <details className="publish-box" key={descriptor.name}><summary><Play aria-hidden="true" size={14} />通用操作 {descriptor.name}</summary><ResourceOperationPanel api={api} resource={resource} capabilityName={descriptor.name} rendererID="mfh.operation.form.v1" density={density} /></details>)}
   </div>
 }
 

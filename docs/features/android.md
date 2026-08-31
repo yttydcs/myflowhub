@@ -32,7 +32,7 @@ generated gomobile lifecycle wrapper
           └── attached bindings.Client（non-owning operation facade）
                         │
                         ▼
-authority tree + catalog + Variable / Stream / Command
+authority tree + catalog + node-owned Resources / Collections
 ```
 
 ## Client contract
@@ -43,7 +43,10 @@ wrapper 内部持有的通用 `bindings.Client` 才是 non-owning operation faca
 
 File 页面先通过 Android content resolver 把用户选定文档复制到随机 cache 文件，再由 SDK 执行 64 KiB 分块、逐块/最终 SHA-256、complete 和失败 cancel。临时文件在成功或失败后删除。
 
-Flow 页面读取 `flow/definitions`、`flow/runs`，并调用 create/update/run/cancel/archive Commands。MetricsNode、ClipboardNode 和未来节点应用通过相同 catalog/resource 页面接入，不硬编码旧 TopicBus/VarStore 协议。
+Flow sample 页面通过 generic `OperateJSON` 列出 `flow/definitions` 与 `flow/runs` Collections，在
+`flow/runs.subscribe` 上接收事件，并按 Resource + capability + schema 准备/执行 domain operation；不再调用旧
+Flow Commands。MetricsNode、ClipboardNode 和未来节点应用通过相同 catalog/resource 页面接入，不硬编码旧
+TopicBus/VarStore 协议。
 
 ## Local Hub Host
 
@@ -92,6 +95,10 @@ Gradle 缺少 AAR 时立即失败，不生成“可编译但运行时不可用�
 - JVM/Gradle：settings version/reset tests、Compose compile、assemble、lint；
 - artifact：双 ABI AAR/APK 原生库检查；
 - device：只有实际连接设备时才记录 install/TCP/RFCOMM socket smoke。没有设备时明确标为 unavailable，不用 host-side provider test 冒充设备证据。
+
+本轮 Flow Collection sample 的 Go/binding/generated contract、双 ABI AAR 与离线 JDK 21 Gradle
+`testDebugUnitTest/assembleDebug/lintDebug` 已验证。当前没有连接 Android 设备，因此 device smoke 明确记为
+unavailable，不能记为 pass；host-side provider test 也不替代设备证据。
 
 通用 Host 与移动平台 ownership 见 [NodeHost Runtime](../specs/node-host-runtime.md)。
 

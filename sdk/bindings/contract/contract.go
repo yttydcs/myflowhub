@@ -70,14 +70,20 @@ func Canonical() (Manifest, error) {
 			variable(protocol.BuiltinFileTransfers, protocol.SchemaFileTransfersV1),
 			stream(protocol.BuiltinFileProgress, protocol.SchemaFileProgressV1),
 			session(protocol.BuiltinFileUpload, protocol.SchemaFileOfferV1, protocol.SchemaFileProgressV1),
-			variable(protocol.BuiltinFlowDefinitions, protocol.SchemaFlowDefinitionsV1),
-			variable(protocol.BuiltinFlowRuns, protocol.SchemaFlowRunsV1),
-			stream(protocol.BuiltinFlowEvents, protocol.SchemaFlowEventV1),
-			command(protocol.BuiltinFlowCreate, protocol.SchemaFlowDefinitionV1, protocol.SchemaFlowDefinitionV1),
-			command(protocol.BuiltinFlowUpdate, protocol.SchemaFlowDefinitionV1, protocol.SchemaFlowDefinitionV1),
-			command(protocol.BuiltinFlowRun, protocol.SchemaFlowRunV1, protocol.SchemaFlowRunSummaryV1),
-			command(protocol.BuiltinFlowCancel, protocol.SchemaFlowCancelV1, protocol.SchemaFlowRunSummaryV1),
-			command(protocol.BuiltinFlowArchive, protocol.SchemaFlowArchiveV1, protocol.SchemaFlowArchiveV1),
+			collection(protocol.BuiltinFlowDefinitions,
+				capability(protocol.CapabilityList, protocol.SchemaCollectionListRequestV1, protocol.SchemaCollectionPageV1, ""),
+				capability(protocol.CapabilityGet, protocol.SchemaCollectionMemberRequestV1, protocol.SchemaFlowDefinitionV1, ""),
+				capability(protocol.CapabilityFlowCreate, protocol.SchemaFlowDefinitionV1, protocol.SchemaFlowDefinitionV1, ""),
+				capability(protocol.CapabilityFlowUpdate, protocol.SchemaFlowDefinitionV1, protocol.SchemaFlowDefinitionV1, ""),
+				capability(protocol.CapabilityFlowArchive, protocol.SchemaFlowArchiveV1, protocol.SchemaFlowArchiveV1, ""),
+				capability(protocol.CapabilityFlowRun, protocol.SchemaFlowRunV1, protocol.SchemaFlowRunSummaryV1, ""),
+			),
+			collection(protocol.BuiltinFlowRuns,
+				capability(protocol.CapabilityList, protocol.SchemaCollectionListRequestV1, protocol.SchemaCollectionPageV1, ""),
+				capability(protocol.CapabilityGet, protocol.SchemaCollectionMemberRequestV1, protocol.SchemaFlowRunSummaryV1, ""),
+				capability(protocol.CapabilitySubscribe, "", "", protocol.SchemaFlowEventV1),
+				capability(protocol.CapabilityFlowCancel, protocol.SchemaFlowCancelV1, protocol.SchemaFlowRunSummaryV1, ""),
+			),
 		},
 	}
 	sort.Strings(manifest.Methods)
@@ -117,4 +123,12 @@ func session(name, request, response string) Resource {
 	return Resource{Name: name, Type: string(protocol.ResourceTypeFile), Capabilities: []Capability{{
 		Name: string(protocol.CapabilityOpen), InputSchema: request, OutputSchema: response,
 	}}}
+}
+
+func collection(name string, capabilities ...Capability) Resource {
+	return Resource{Name: name, Type: string(protocol.ResourceTypeCollection), Capabilities: capabilities}
+}
+
+func capability(name protocol.CapabilityID, input, output, event string) Capability {
+	return Capability{Name: string(name), InputSchema: input, OutputSchema: output, EventSchema: event}
 }

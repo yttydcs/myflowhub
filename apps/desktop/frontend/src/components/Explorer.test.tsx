@@ -16,12 +16,12 @@ const topology: Topology = {
   ],
 }
 
-function resource(name: string, label: string): ResourceDescriptor {
+function resource(name: string, label: string, capabilities: ResourceDescriptor['capabilities'] = []): ResourceDescriptor {
   return {
     id: { owner_node_id: '3', name },
     type: 'mfh.variable',
     type_version: 1,
-    capabilities: [],
+    capabilities,
     limits: { max_payload_bytes: 1024 },
     presentation: { label },
   }
@@ -29,13 +29,16 @@ function resource(name: string, label: string): ResourceDescriptor {
 
 const resources = [
   resource('sensors/temperature', 'Temperature'),
-  resource('system/config', 'Config'),
+  resource('system/config', 'Config', [{ name: 'invoke', permission: 'ignored.invoke', input_schema: 'example.input.v1', output_schema: 'example.output.v1', max_payload_bytes: 1024 }]),
   resource('system/config/update', 'Update'),
   resource('system/health', 'Health'),
   resource('system/regions/eu/rack/temperature', 'Rack temperature'),
 ]
 
-function Harness({ onAdd = vi.fn() }: { onAdd?: (resource: ResourceDescriptor) => void }) {
+function Harness({ onAdd = vi.fn(), onAction = vi.fn() }: {
+  onAdd?: (resource: ResourceDescriptor) => void
+  onAction?: (resource: ResourceDescriptor, action: { capability: string }) => void
+}) {
   const [selection, setSelection] = useState<WorkspaceSelection>(null)
   const [expandedNodes, setExpandedNodes] = useState<string[] | undefined>()
   const [expandedResources, setExpandedResources] = useState<string[] | undefined>()
@@ -62,6 +65,7 @@ function Harness({ onAdd = vi.fn() }: { onAdd?: (resource: ResourceDescriptor) =
         onCollapsedPaneChange={setCollapsedPane}
         onSelect={setSelection}
         onAdd={onAdd}
+        onAction={onAction}
       />
     </DndContext>
   )
@@ -129,6 +133,51 @@ describe('split Node and Resource explorer', () => {
     await waitFor(() => expect(config).toHaveFocus())
     fireEvent.keyDown(config, { key: 'Enter' })
     expect(config).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('opens a descriptor-driven menu only for real Resources without selecting, adding, or operating', async () => {
+    const onAdd = vi.fn()
+    const onAction = vi.fn()
+    render(<Harness onAdd={onAdd} onAction={onAction} />)
+    const tree = await selectLeaf()
+    const namespace = treeItemByPath(tree, 'system')
+    fireEvent.contextMenu(namespace)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+
+    const config = within(tree).getByRole('treeitem', { name: /Config/ })
+    fireEvent.contextMenu(config)
+    const menu = await screen.findByRole('menu', { name: 'Config 操作菜单' })
+    expect(within(menu).getByRole('menuitem', { name: '查看和选择' })).toBeInTheDocument()
+    expect(within(menu).getByRole('menuitem', { name: '添加到当前 View' })).toBeInTheDocument()
+    expect(within(menu).getByRole('menuitem', { name: /操作 invoke/ })).toBeInTheDocument()
+    expect(onAdd).not.toHaveBeenCalled()
+    expect(onAction).not.toHaveBeenCalled()
+    fireEvent.click(within(menu).getByRole('menuitem', { name: /操作 invoke/ }))
+    expect(onAction).toHaveBeenCalledWith(resources[1], expect.objectContaining({ capability: 'invoke' }))
+    expect(onAdd).not.toHaveBeenCalled()
+    fireEvent.contextMenu(config)
+    const reopened = await screen.findByRole('menu', { name: 'Config 操作菜单' })
+    fireEvent.click(within(reopened).getByRole('menuitem', { name: '添加到当前 View' }))
+    expect(onAdd).toHaveBeenCalledWith(resources[1])
+    fireEvent.contextMenu(config)
+    const selectMenu = await screen.findByRole('menu', { name: 'Config 操作菜单' })
+    fireEvent.click(within(selectMenu).getByRole('menuitem', { name: '查看和选择' }))
+    expect(config).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it.each([
+    ['ContextMenu', false],
+    ['F10', true],
+  ])('opens with %s and returns focus to the treeitem on Escape', async (key, shiftKey) => {
+    render(<Harness />)
+    const tree = await selectLeaf()
+    const config = within(tree).getByRole('treeitem', { name: /Config/ })
+    config.focus()
+    fireEvent.keyDown(config, { key, shiftKey })
+    const menu = await screen.findByRole('menu', { name: 'Config 操作菜单' })
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    await waitFor(() => expect(menu).not.toBeInTheDocument())
+    await waitFor(() => expect(config).toHaveFocus())
   })
 
   it('shows matching Resource ancestors during search and restores saved expansion when cleared', async () => {

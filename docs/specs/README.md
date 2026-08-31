@@ -20,6 +20,8 @@
   - Coupled Seam canonical 几何、色彩、full/compact/tray 资产路由与平台派生边界
 - [resource-platform-v2.md](resource-platform-v2.md)
   - 可扩展 Resource descriptor/capability、通用操作、Topic 与目录的当前契约
+- [resource-collections-and-actions.md](resource-collections-and-actions.md)
+  - Collection/runtime、Flow/filesystem/SDK、Desktop actions 与 Collection/content renderer 的当前合同；完整产品 QA pending
 - [resource-sessions-v2.md](resource-sessions-v2.md)
   - 有界 control/data lane、session grant 与 File 数据面的当前契约
 - [desktop-resource-workspace-v3.md](desktop-resource-workspace-v3.md)
@@ -43,7 +45,7 @@
 - [file-transfer-vnext.md](file-transfer-vnext.md)
   - 历史 Command chunk 模型；data lane 以 `resource-sessions-v2.md` 为准
 - [flow-vnext.md](flow-vnext.md)
-  - Flow definition/status/run/cancel/archive 的资源组合与权限传播
+  - Flow definitions/runs Collections 的当前 runtime、schema、权限与 clean-break contract
 - [wire-protocol-vnext.md](wire-protocol-vnext.md)
   - MFH3 fixed operation 历史；MFH4 v2 generic operation/session 以新资源规格为准
 - [node-tree-link-resource-architecture.md](node-tree-link-resource-architecture.md)

@@ -95,6 +95,13 @@ object RuntimeBridge {
     }
 
     @Synchronized
+    fun operate(ownerNodeId: Long, name: String, capability: String, schema: String, requestJson: String) {
+        JSONObject(requestJson)
+        val raw = execute { it.operateJSON(ownerNodeId, name, capability, schema, requestJson, 15_000) }
+        mutableState.value = mutableState.value.copy(resultJson = pretty(raw), error = "")
+    }
+
+    @Synchronized
     fun subscribe(ownerNodeId: Long, name: String) {
         val value = requireClient()
         if (subscriptionId > 0) value.cancelSubscription(subscriptionId)

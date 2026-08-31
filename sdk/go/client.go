@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -284,22 +285,55 @@ func (c *Client) Operate(ctx context.Context, resourceID protocol.ResourceID, ca
 	return output, wrapError(err)
 }
 
-func (c *Client) InvokePayload(ctx context.Context, resourceID protocol.ResourceID, request, response protocol.ValidatedPayload) error {
-	if request == nil || response == nil {
-		return errors.New("SDK request and response payloads are required")
+// OperatePayload validates and encodes a typed request, performs one operation
+// through the client's existing Node path, then validates and decodes the
+// typed response. The descriptor remains authoritative for wire schemas, so
+// the request schema is intentionally left empty.
+func (c *Client) OperatePayload(ctx context.Context, resourceID protocol.ResourceID, capability protocol.CapabilityID, request, response protocol.ValidatedPayload) error {
+	if ctx == nil {
+		return errors.New("SDK operation context is required")
+	}
+	if c == nil {
+		return errors.New("SDK client is closed")
+	}
+	if err := resourceID.Validate(); err != nil {
+		return fmt.Errorf("SDK operation resource: %w", err)
+	}
+	if err := capability.Validate(); err != nil {
+		return fmt.Errorf("SDK operation capability: %w", err)
+	}
+	if isNilValidatedPayload(request) || isNilValidatedPayload(response) {
+		return errors.New("SDK operation request and response payloads are required")
 	}
 	input, err := protocol.EncodeJSONPayload(request, protocol.DefaultMaxPayload)
 	if err != nil {
-		return &Error{Code: protocol.CodeMalformed, Message: fmt.Sprintf("encode %s request: %v", resourceID.Name, err), cause: err}
+		return &Error{Code: protocol.CodeMalformed, Message: fmt.Sprintf("encode %s %s request: %v", resourceID.Name, capability, err), cause: err}
 	}
-	output, err := c.Invoke(ctx, resourceID, input)
+	output, err := c.Operate(ctx, resourceID, capability, "", input)
 	if err != nil {
 		return err
 	}
-	if err := protocol.DecodeJSONPayload(output, protocol.DefaultMaxPayload, response); err != nil {
-		return &Error{Code: protocol.CodeMalformed, Message: fmt.Sprintf("decode %s response: %v", resourceID.Name, err), cause: err}
+	if err := protocol.DecodeJSONPayload(output.Payload, protocol.DefaultMaxPayload, response); err != nil {
+		return &Error{Code: protocol.CodeMalformed, Message: fmt.Sprintf("decode %s %s response: %v", resourceID.Name, capability, err), cause: err}
 	}
 	return nil
+}
+
+func isNilValidatedPayload(value protocol.ValidatedPayload) bool {
+	if value == nil {
+		return true
+	}
+	reflected := reflect.ValueOf(value)
+	switch reflected.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflected.IsNil()
+	default:
+		return false
+	}
+}
+
+func (c *Client) InvokePayload(ctx context.Context, resourceID protocol.ResourceID, request, response protocol.ValidatedPayload) error {
+	return c.OperatePayload(ctx, resourceID, protocol.CapabilityInvoke, request, response)
 }
 
 func (c *Client) Close() error {

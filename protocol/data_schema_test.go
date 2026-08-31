@@ -2,6 +2,8 @@ package protocol
 
 import (
 	"bytes"
+	"encoding/base64"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -90,5 +92,80 @@ func TestBuiltinDataSchemaAnnotations(t *testing.T) {
 	startedAt := dataSchemaAtPath(&health, "started_at_unix_ms")
 	if startedAt == nil || startedAt.Format != "unix-ms" {
 		t.Fatal("unix millisecond timestamp annotation is missing")
+	}
+}
+
+func TestBuiltinFilesystemDataSchemaAnnotations(t *testing.T) {
+	definitions, err := BuiltinDataSchemas()
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := make(map[string]DataSchemaDefinition, len(definitions))
+	for _, definition := range definitions {
+		byID[definition.ID] = definition
+	}
+	request, ok := byID[SchemaFilesystemReadRequestV1]
+	if !ok {
+		t.Fatalf("missing filesystem request schema %q", SchemaFilesystemReadRequestV1)
+	}
+	content, ok := byID[SchemaFilesystemContentV1]
+	if !ok {
+		t.Fatalf("missing filesystem content schema %q", SchemaFilesystemContentV1)
+	}
+	for _, schemaID := range []string{SchemaCollectionPageV1, SchemaFlowDefinitionV1, SchemaFlowRunV1} {
+		if _, ok := byID[schemaID]; !ok {
+			t.Fatalf("existing schema %q regressed", schemaID)
+		}
+	}
+
+	assertMaxLength := func(schema *DataSchemaDefinition, path string, want int) {
+		t.Helper()
+		field := dataSchemaAtPath(schema, path)
+		if field == nil || field.MaxLength == nil || *field.MaxLength != want {
+			t.Fatalf("%s max length = %#v, want %d", path, field, want)
+		}
+	}
+	assertBounds := func(schema *DataSchemaDefinition, path string, minimum, maximum float64) {
+		t.Helper()
+		field := dataSchemaAtPath(schema, path)
+		if field == nil || field.Minimum == nil || *field.Minimum != minimum || field.Maximum == nil || *field.Maximum != maximum {
+			t.Fatalf("%s bounds = %#v, want %v..%v", path, field, minimum, maximum)
+		}
+	}
+
+	assertMaxLength(&request, "key", MaxCollectionMemberKeyBytes)
+	assertMaxLength(&request, "expected_revision", MaxFilesystemRevisionBytes)
+	if field := dataSchemaAtPath(&request, "expected_revision"); field.Minimum != nil {
+		t.Fatalf("string expected_revision has numeric minimum: %#v", field)
+	}
+	assertBounds(&request, "max_bytes", 1, MaxFilesystemReadBytes)
+
+	assertMaxLength(&content, "key", MaxCollectionMemberKeyBytes)
+	assertMaxLength(&content, "content_type", MaxContentTypeBytes)
+	assertMaxLength(&content, "revision", MaxFilesystemRevisionBytes)
+	if field := dataSchemaAtPath(&content, "revision"); field.Minimum != nil {
+		t.Fatalf("string revision has numeric minimum: %#v", field)
+	}
+	encoding := dataSchemaAtPath(&content, "encoding")
+	wantEncodings := []string{FilesystemEncodingBase64, FilesystemEncodingUTF8}
+	if encoding == nil || !reflect.DeepEqual(encoding.Enum, wantEncodings) {
+		t.Fatalf("filesystem encoding enum = %#v, want %v", encoding, wantEncodings)
+	}
+	data := dataSchemaAtPath(&content, "data")
+	wantDataLength := base64.StdEncoding.EncodedLen(MaxFilesystemReadBytes)
+	if data == nil || data.MaxLength == nil || *data.MaxLength < wantDataLength {
+		t.Fatalf("filesystem data max length = %#v, want at least %d", data, wantDataLength)
+	}
+	assertBounds(&content, "size", 0, MaxFilesystemReadBytes)
+	modified := dataSchemaAtPath(&content, "modified_unix_ms")
+	if modified == nil || modified.Minimum == nil || *modified.Minimum != 0 {
+		t.Fatalf("modified_unix_ms minimum = %#v, want 0", modified)
+	}
+	for _, schema := range []*DataSchemaDefinition{&request, &content} {
+		for _, forbidden := range []string{"root", "physical_path", "mount_config"} {
+			if dataSchemaAtPath(schema, forbidden) != nil {
+				t.Fatalf("filesystem wire schema exposes local field %q", forbidden)
+			}
+		}
 	}
 }

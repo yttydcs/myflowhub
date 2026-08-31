@@ -36,6 +36,8 @@
 - Topic：`publish`/`subscribe`；多个发布者和订阅者，按 publisher 分别排序，默认无持久化和回放。
 - Command：`invoke`；输入与输出 schema 独立声明，支持有界输入输出、deadline、dedupe 与 panic 隔离。
 - File：`open` session 和 progress observable；数据块不占普通控制消息队列。
+- Collection：通用 `list/get` 加 provider 声明的 domain capabilities；一个 Resource 管理有界 provider-scoped
+  members，member 默认不进入 catalog，也不形成第二棵权限树。
 
 新增类型只需注册 descriptor validator/handler，可选 Observable/Session 接口，以及可选 Desktop
 renderer；不得要求修改 Core type switch。
@@ -67,4 +69,5 @@ publisher-local sequence、timestamp、schema 与 payload。subscriber 慢消费
 ## Related
 
 - [NodeHost Runtime](node-host-runtime.md)
+- [Resource Collections and Actions](resource-collections-and-actions.md)
 - [统一节点运行时 requirement](../requirements/unified-node-runtime.md)

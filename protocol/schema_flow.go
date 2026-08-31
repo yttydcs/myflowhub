@@ -7,25 +7,25 @@ import (
 )
 
 const (
-	SchemaFlowDefinitionV1  = "mfh.flow.definition.v1"
-	SchemaFlowRunV1         = "mfh.flow.run.v1"
-	SchemaFlowRunSummaryV1  = "mfh.flow.run-summary.v1"
-	SchemaFlowCancelV1      = "mfh.flow.cancel.v1"
-	SchemaFlowEventV1       = "mfh.flow.event.v1"
-	SchemaFlowDefinitionsV1 = "mfh.flow.definitions.v1"
-	SchemaFlowRunsV1        = "mfh.flow.runs.v1"
-	SchemaFlowArchiveV1     = "mfh.flow.archive.v1"
-	MaxFlowNodes            = 256
-	MaxFlowEdges            = 1024
-	MaxFlowNodeConfigBytes  = 16 << 10
-	BuiltinFlowDefinitions  = "flow/definitions"
-	BuiltinFlowRuns         = "flow/runs"
-	BuiltinFlowEvents       = "flow/events"
-	BuiltinFlowCreate       = "flow/create"
-	BuiltinFlowUpdate       = "flow/update"
-	BuiltinFlowRun          = "flow/run"
-	BuiltinFlowCancel       = "flow/cancel"
-	BuiltinFlowArchive      = "flow/archive"
+	SchemaFlowDefinitionV1 = "mfh.flow.definition.v1"
+	SchemaFlowRunV1        = "mfh.flow.run.v1"
+	SchemaFlowRunSummaryV1 = "mfh.flow.run-summary.v1"
+	SchemaFlowCancelV1     = "mfh.flow.cancel.v1"
+	SchemaFlowEventV1      = "mfh.flow.event.v1"
+	SchemaFlowArchiveV1    = "mfh.flow.archive.v1"
+	MaxFlowNodes           = 256
+	MaxFlowEdges           = 1024
+	MaxFlowNodeConfigBytes = 16 << 10
+	BuiltinFlowDefinitions = "flow/definitions"
+	BuiltinFlowRuns        = "flow/runs"
+)
+
+const (
+	CapabilityFlowCreate  CapabilityID = "create"
+	CapabilityFlowUpdate  CapabilityID = "update"
+	CapabilityFlowArchive CapabilityID = "archive"
+	CapabilityFlowRun     CapabilityID = "run"
+	CapabilityFlowCancel  CapabilityID = "cancel"
 )
 
 type FlowResourceRefV1 struct {
@@ -240,48 +240,6 @@ func (e FlowEventV1) Validate() error {
 	return validateAttributes(e.Summary)
 }
 
-type FlowDefinitionSummaryV1 struct {
-	FlowID    string `json:"flow_id"`
-	Revision  uint64 `json:"revision"`
-	Name      string `json:"name"`
-	NodeCount int    `json:"node_count"`
-	EdgeCount int    `json:"edge_count"`
-}
-
-func (s FlowDefinitionSummaryV1) Validate() error {
-	if err := validateHexID("flow_id", s.FlowID, 16); err != nil {
-		return err
-	}
-	if s.Revision == 0 || s.NodeCount < 1 || s.NodeCount > MaxFlowNodes || s.EdgeCount < 0 || s.EdgeCount > MaxFlowEdges {
-		return errors.New("flow definition summary counters are invalid")
-	}
-	return validateText("flow name", s.Name, MaxLabelBytes, true)
-}
-
-type FlowDefinitionsV1 struct {
-	Version     int                       `json:"version"`
-	Revision    uint64                    `json:"revision"`
-	Definitions []FlowDefinitionSummaryV1 `json:"definitions"`
-}
-
-func (d FlowDefinitionsV1) Validate() error {
-	if err := validateVersion(d.Version); err != nil {
-		return err
-	}
-	if d.Revision == 0 || len(d.Definitions) > MaxItems {
-		return errors.New("flow definitions revision or count is invalid")
-	}
-	for index, definition := range d.Definitions {
-		if err := definition.Validate(); err != nil {
-			return fmt.Errorf("definitions[%d]: %w", index, err)
-		}
-		if index > 0 && d.Definitions[index-1].FlowID >= definition.FlowID {
-			return errors.New("flow definitions must be strictly sorted by flow_id")
-		}
-	}
-	return nil
-}
-
 type FlowRunSummaryV1 struct {
 	RunID          string `json:"run_id"`
 	FlowID         string `json:"flow_id"`
@@ -318,30 +276,6 @@ func (r FlowRunSummaryV1) Validate() error {
 		return errors.New("flow run terminal state and finish time disagree")
 	}
 	return validateText("error", r.Error, 2048, false)
-}
-
-type FlowRunsV1 struct {
-	Version  int                `json:"version"`
-	Revision uint64             `json:"revision"`
-	Runs     []FlowRunSummaryV1 `json:"runs"`
-}
-
-func (r FlowRunsV1) Validate() error {
-	if err := validateVersion(r.Version); err != nil {
-		return err
-	}
-	if r.Revision == 0 || len(r.Runs) > MaxItems {
-		return errors.New("flow runs revision or count is invalid")
-	}
-	for index, run := range r.Runs {
-		if err := run.Validate(); err != nil {
-			return fmt.Errorf("runs[%d]: %w", index, err)
-		}
-		if index > 0 && r.Runs[index-1].RunID >= run.RunID {
-			return errors.New("flow runs must be strictly sorted by run_id")
-		}
-	}
-	return nil
 }
 
 type FlowArchiveV1 struct {

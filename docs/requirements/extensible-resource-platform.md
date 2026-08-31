@@ -15,6 +15,8 @@
 - Resource descriptor 声明版本化 type、capabilities、schemas、permissions、limits 和 presentation hints。
 - 第一阶段基础类型：Variable、Stream、Topic、Command。
 - File 使用 session-oriented 扩展类型迁移现有分块传输。
+- Collection 作为 Resource contract 表达文件目录、对象集合、Flow definitions/runs 等动态成员集合；
+  member 默认不逐项进入全局 catalog。
 - Media 能被 descriptor/session contract 表达；生产级实时音视频数据面单独交付。
 - 未知类型必须保持可发现，并能够通过通用 inspector 查看描述和执行被授权的通用操作。
 
@@ -24,13 +26,17 @@
 - 客户端发现一个 owner-originated Stream，订阅有序事件并显式处理 gap。
 - 多个获授权 Node 向一个 Node-owned Topic 发布，多个订阅者接收事件。
 - 客户端发现一个 Command，按照 descriptor schema 调用并接收结果。
+- 客户端发现一个 Collection，按 provider 约束的 member locator 枚举和操作内部成员，而不需要把每个成员
+  注册为全局 Resource。
+- Flow 客户端在 definitions Collection 创建、更新、归档或执行定义，并在 runs Collection 查询、订阅或取消运行实例。
 - 文件发送方打开 File session，在独立有界数据 lane 上传内容，同时订阅进度。
 - Desktop 遇到未来新增的 Resource type 时仍能展示 descriptor，而不需要升级 Core 才能看见资源。
 
 ## Functional Requirements
 
 1. Resource descriptor 必须包含稳定 ResourceID、type ID、type version 和显式 capability 列表。
-2. 每个 capability 必须声明独立权限、输入/输出或事件 schema、大小/速率边界以及允许的交互模式。
+2. 每个 capability 必须声明输入/输出或事件 schema、大小/速率边界以及允许的交互模式；网络授权继续使用
+   exact `subject + ResourceID + CapabilityID`，descriptor `Permission` 兼容字段不得形成第二个授权 key。
 3. 客户端不能通过伪造 capability 或 permission 名称绕过 owner、route 或 policy 裁决。
 4. Variable 必须保留当前值、revision、snapshot-first subscription 和条件写入语义。
 5. Stream 必须保留 owner-originated sequence、bounded delivery 和 explicit gap 语义。
@@ -41,6 +47,16 @@
 10. catalog 必须版本化、确定性排序，并能表达未知类型；catalog presentation hint 不构成权限或行为事实。
 11. 删除或替换 type/capability 时，既有 subscription、pending operation 和 session 必须显式完成、取消或过期。
 12. 新模型是 clean break，不保留旧固定 kind wire、SubProto 或 TopicBus compatibility bridge。
+13. 对已有 Resource 的行为必须优先声明为该 Resource 的 capability；只有操作自身形成独立寻址、schema、
+    权限、生命周期和审计边界时，才注册独立 Command Resource。
+14. Collection 必须保持单一 Resource identity，并用有界、可验证的 member locator 管理内部成员；
+    presentation namespace 和 provider 物理存储位置不得成为第二棵资源、路由或权限树。
+15. Collection member operation 必须同时通过 Collection Resource capability 授权和 owner 的 member scope
+    校验；member 只有在需要独立全局治理时才提升为 catalog Resource。
+16. 第一阶段 Collection 通用能力只固定 `list/get`；member descriptor 不得携带 owner/ResourceID，必须使用
+    bounded opaque key、deterministic order、sorted unique capability subset 和 bounded attributes。
+17. 通用 member selector policy、filtered/effective capability discovery 不得由客户端或 provider 猜测，
+    作为独立 `AUTHZ02` 设计。
 
 ## Non-functional Requirements
 
@@ -65,6 +81,8 @@
 - Variable、Stream、Topic、Command 在 memory 与 TCP 跨子树测试中通过发现、权限、操作和撤权门禁。
 - Topic 至少覆盖两个 publisher、两个 subscriber、拒绝未授权 publish/subscribe、断线恢复与默认无 replay。
 - 未知 Resource type 可以出现在 catalog 和 Desktop generic inspector 中，不能被错误调用。
+- filesystem fixture 可以把多个本地 root 注册为可分别授权的 Collection Resources，拒绝越界 member locator；
+  Flow fixture 通过 definitions/runs Collections 完成执行与运行管理，不再要求每个普通操作成为独立 Resource。
 - File 迁移后保持 offer/cancel/checksum/atomic completion，并证明大传输期间控制消息仍可及时处理。
 - 固定三类型的 Core switch、旧 wire operation 和兼容桥从 canonical build 中移除。
 - `go test ./...`、`go vet ./...`、生成契约和全产品门禁通过。
@@ -76,12 +94,14 @@
 
 ## Related Specs
 
-- [当前 Resource Model vNext](../specs/resource-model-vnext.md)
+- [Resource Platform v2](../specs/resource-platform-v2.md)
+- [Resource Collections and Actions](../specs/resource-collections-and-actions.md)
 - [节点树、链路与资源架构规范](../specs/node-tree-link-resource-architecture.md)
 
 ## Related Decisions
 
 - [可扩展 Resource type system 与 Desktop workspace](../decisions/2026-08-28_extensible-resource-type-system-and-desktop-workspace.md)
+- [Collection Resource 与 Capability Action](../decisions/2026-08-31_collection-resource-and-capability-actions.md)
 
 ## Related Intake
 

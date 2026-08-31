@@ -63,8 +63,6 @@ type Controller struct {
 	runs             map[string]protocol.FlowRunSummaryV1
 	dedupe           map[string]string
 	controls         map[string]*runControl
-	definitionFeed   *resource.Variable
-	runFeed          *resource.Variable
 	events           *resource.Stream
 }
 
@@ -107,51 +105,12 @@ func Register(config Config) (*Controller, error) {
 		cancel()
 		return nil, err
 	}
-	definitionsPayload, err := value.definitionsPayloadLocked()
+	definitions, runs, err := value.buildResources()
 	if err != nil {
 		cancel()
 		return nil, err
 	}
-	runsPayload, err := value.runsPayloadLocked()
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	owner := config.Node.ID()
-	value.definitionFeed, err = resource.NewVariable(resource.VariableDescriptor(protocol.ResourceID{Owner: owner, Name: protocol.BuiltinFlowDefinitions}, "application/json", protocol.SchemaFlowDefinitionsV1, "flow.read", protocol.DefaultMaxPayload), definitionsPayload)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	value.runFeed, err = resource.NewVariable(resource.VariableDescriptor(protocol.ResourceID{Owner: owner, Name: protocol.BuiltinFlowRuns}, "application/json", protocol.SchemaFlowRunsV1, "flow.read", protocol.DefaultMaxPayload), runsPayload)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	value.events, err = resource.NewStream(resource.StreamDescriptor(protocol.ResourceID{Owner: owner, Name: protocol.BuiltinFlowEvents}, "application/json", protocol.SchemaFlowEventV1, "flow.read", protocol.DefaultMaxPayload))
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	commands := []struct {
-		name, inputSchema, outputSchema, permission string
-		handler                                     resource.CommandHandler
-	}{
-		{protocol.BuiltinFlowCreate, protocol.SchemaFlowDefinitionV1, protocol.SchemaFlowDefinitionV1, "flow.write", value.create},
-		{protocol.BuiltinFlowUpdate, protocol.SchemaFlowDefinitionV1, protocol.SchemaFlowDefinitionV1, "flow.write", value.update},
-		{protocol.BuiltinFlowRun, protocol.SchemaFlowRunV1, protocol.SchemaFlowRunSummaryV1, "flow.run", value.run},
-		{protocol.BuiltinFlowCancel, protocol.SchemaFlowCancelV1, protocol.SchemaFlowRunSummaryV1, "flow.cancel", value.cancelRun},
-		{protocol.BuiltinFlowArchive, protocol.SchemaFlowArchiveV1, protocol.SchemaFlowArchiveV1, "flow.write", value.archive},
-	}
-	resources := []resource.Resource{value.definitionFeed, value.runFeed, value.events}
-	for _, definition := range commands {
-		current, err := resource.NewCommand(resource.CommandDescriptorSchemas(protocol.ResourceID{Owner: owner, Name: definition.name}, "application/json", definition.inputSchema, definition.outputSchema, definition.permission, protocol.DefaultMaxPayload), definition.handler)
-		if err != nil {
-			cancel()
-			return nil, err
-		}
-		resources = append(resources, current)
-	}
+	resources := []resource.Resource{definitions, runs}
 	registered := make([]protocol.ResourceID, 0, len(resources))
 	for _, current := range resources {
 		if err := config.Node.Registry().Register(current); err != nil {
@@ -548,7 +507,7 @@ func (c *Controller) load() error {
 	if err != nil {
 		return fmt.Errorf("load flow state: %w", err)
 	}
-	if state.Version != 1 || state.Revision == 0 || len(state.Definitions) > c.maxDefinitions || len(state.Runs) > c.maxRuns {
+	if state.Version != 1 || state.Revision == 0 || state.Revision > protocol.MaxCollectionRevision || len(state.Definitions) > c.maxDefinitions || len(state.Runs) > c.maxRuns {
 		return errors.New("load flow state: unsupported version, revision, or count")
 	}
 	for _, definition := range state.Definitions {
@@ -581,6 +540,9 @@ func (c *Controller) load() error {
 	c.revision = state.Revision
 	if !found || changed {
 		if changed {
+			if c.revision >= protocol.MaxCollectionRevision {
+				return errors.New("initialize flow state: revision exhausted")
+			}
 			c.revision++
 		}
 		if err := c.saveLocked(); err != nil {
@@ -591,31 +553,13 @@ func (c *Controller) load() error {
 }
 
 func (c *Controller) commitLocked() error {
-	if c.revision == ^uint64(0) {
+	if c.revision >= protocol.MaxCollectionRevision {
 		return errors.New("flow state revision exhausted")
 	}
 	c.revision++
 	if err := c.saveLocked(); err != nil {
 		c.revision--
 		return fmt.Errorf("persist flow state: %w", err)
-	}
-	definitions, err := c.definitionsPayloadLocked()
-	if err != nil {
-		return err
-	}
-	runs, err := c.runsPayloadLocked()
-	if err != nil {
-		return err
-	}
-	if c.definitionFeed != nil {
-		if _, err := c.definitionFeed.Set(definitions); err != nil {
-			return err
-		}
-	}
-	if c.runFeed != nil {
-		if _, err := c.runFeed.Set(runs); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -631,24 +575,6 @@ func (c *Controller) saveLocked() error {
 	sort.Slice(state.Definitions, func(i, j int) bool { return state.Definitions[i].FlowID < state.Definitions[j].FlowID })
 	sort.Slice(state.Runs, func(i, j int) bool { return state.Runs[i].RunID < state.Runs[j].RunID })
 	return c.store.Save("flow.json", state)
-}
-
-func (c *Controller) definitionsPayloadLocked() ([]byte, error) {
-	definitions := make([]protocol.FlowDefinitionSummaryV1, 0, len(c.definitions))
-	for _, definition := range c.definitions {
-		definitions = append(definitions, protocol.FlowDefinitionSummaryV1{FlowID: definition.FlowID, Revision: definition.Revision, Name: definition.Name, NodeCount: len(definition.Nodes), EdgeCount: len(definition.Edges)})
-	}
-	sort.Slice(definitions, func(i, j int) bool { return definitions[i].FlowID < definitions[j].FlowID })
-	return protocol.EncodeJSONPayload(&protocol.FlowDefinitionsV1{Version: 1, Revision: c.revision, Definitions: definitions}, protocol.DefaultMaxPayload)
-}
-
-func (c *Controller) runsPayloadLocked() ([]byte, error) {
-	runs := make([]protocol.FlowRunSummaryV1, 0, len(c.runs))
-	for _, run := range c.runs {
-		runs = append(runs, run)
-	}
-	sort.Slice(runs, func(i, j int) bool { return runs[i].RunID < runs[j].RunID })
-	return protocol.EncodeJSONPayload(&protocol.FlowRunsV1{Version: 1, Revision: c.revision, Runs: runs}, protocol.DefaultMaxPayload)
 }
 
 func (c *Controller) makeRunCapacityLocked() error {

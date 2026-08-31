@@ -18,11 +18,12 @@ const (
 type ResourceTypeID string
 
 const (
-	ResourceTypeVariable ResourceTypeID = "mfh.variable"
-	ResourceTypeStream   ResourceTypeID = "mfh.stream"
-	ResourceTypeTopic    ResourceTypeID = "mfh.topic"
-	ResourceTypeCommand  ResourceTypeID = "mfh.command"
-	ResourceTypeFile     ResourceTypeID = "mfh.file"
+	ResourceTypeVariable   ResourceTypeID = "mfh.variable"
+	ResourceTypeStream     ResourceTypeID = "mfh.stream"
+	ResourceTypeTopic      ResourceTypeID = "mfh.topic"
+	ResourceTypeCommand    ResourceTypeID = "mfh.command"
+	ResourceTypeFile       ResourceTypeID = "mfh.file"
+	ResourceTypeCollection ResourceTypeID = "mfh.collection"
 )
 
 func (id ResourceTypeID) Validate() error {
@@ -38,6 +39,8 @@ const (
 	CapabilityPublish   CapabilityID = "publish"
 	CapabilityInvoke    CapabilityID = "invoke"
 	CapabilityOpen      CapabilityID = "open"
+	CapabilityList      CapabilityID = "list"
+	CapabilityGet       CapabilityID = "get"
 )
 
 func (id CapabilityID) Validate() error {

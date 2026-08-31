@@ -10,7 +10,7 @@ export type RendererChoice = {
   description: string
 }
 
-const legacyAliases = new Set(['mfh.variable', 'mfh.stream', 'mfh.topic', 'mfh.command', 'mfh.file', 'mfh.auto'])
+const legacyAliases = new Set(['mfh.variable', 'mfh.stream', 'mfh.topic', 'mfh.command', 'mfh.file', 'mfh.collection', 'mfh.auto'])
 
 export type RendererSettingsValidation = { settings?: Record<string, never>; reason?: string }
 
@@ -28,8 +28,6 @@ const specialized: Record<string, RendererChoice> = {
   'mfh.management.health.v1': { id: 'mfh.structured.health.v1', label: '健康状态', description: '突出运行状态与组件检查' },
   'mfh.file.transfers.v1': { id: 'mfh.structured.transfers.v1', label: '传输列表', description: '展示文件传输状态与进度' },
   'mfh.file.progress.v1': { id: 'mfh.event.progress.v1', label: '传输进度', description: '按传输展示进度事件' },
-  'mfh.flow.definitions.v1': { id: 'mfh.structured.flow-definitions.v1', label: '流程定义', description: '以表格查看流程定义' },
-  'mfh.flow.runs.v1': { id: 'mfh.structured.flow-runs.v1', label: '运行列表', description: '以表格查看流程运行' },
 }
 
 function scalarChoices(schema: DataSchema, writable: boolean): RendererChoice[] {
@@ -67,11 +65,19 @@ function unique(choices: RendererChoice[]): RendererChoice[] {
 
 export function resourceSchemaUse(resource: ResourceDescriptor): SchemaUse {
   if (resource.type === 'mfh.stream' || resource.type === 'mfh.topic') return 'event'
+  if (resource.type === 'mfh.collection') return 'operation-output'
   if (resource.type === 'mfh.command') return 'operation-input'
   return 'value'
 }
 
 export function rendererChoices(resource: ResourceDescriptor, resolution: SchemaResolution): RendererChoice[] {
+  if (resource.type === 'mfh.collection') {
+    const list = resource.capabilities.find((candidate) => candidate.name === 'list')
+    if (list?.input_schema === 'mfh.collection.list-request.v1' && list.output_schema === 'mfh.collection.page.v1') {
+      return [{ id: 'mfh.collection.browser.v1', label: 'Collection', description: '分页浏览并查看 Collection 成员' }]
+    }
+    return [{ id: 'mfh.collection.unsupported.v1', label: 'Collection descriptor', description: 'list capability schema 与 Collection v1 不兼容' }]
+  }
   if (resource.type === 'mfh.file') return [{ id: 'mfh.file.transfer.v1', label: '文件传输', description: '选择本地文件并通过 session 上传' }]
   if (resource.type === 'mfh.command') {
     const result = resolution.status === 'resolved'

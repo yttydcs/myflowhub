@@ -20,6 +20,7 @@ import { Settings as DesktopSettings } from './components/Settings'
 import { ViewManager, Workspace, type WorkspaceDockPreview } from './components/Workspace'
 import { Button } from './components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
+import { focusResourceAction, type FocusedResourceAction, type ResourceAction } from './lib/resource-actions'
 import { errorText } from './lib/utils'
 import { defaultUIPreferences, loadUIPreferences, saveUIPreferences, type Theme, type UIPreferences } from './preferences'
 import { defaultRenderer, nextWidgetID } from './store'
@@ -52,6 +53,11 @@ type WorkspaceDropData = {
   insertionIndex?: number
   beforeWidgetID?: string
   afterWidgetID?: string
+}
+
+type InspectorState = {
+  selection: WorkspaceSelection
+  focusedAction: FocusedResourceAction | null
 }
 
 const workspaceCollisionDetection: CollisionDetection = (args) => {
@@ -134,7 +140,8 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const [status, setStatus] = useState<ConnectionStatus>({ state: 'signed_out' })
   const [topology, setTopology] = useState<Topology>(emptyTopology)
   const [resources, setResources] = useState<ResourceDescriptor[]>([])
-  const [selection, setSelection] = useState<WorkspaceSelection>(null)
+  const [inspector, setInspector] = useState<InspectorState>({ selection: null, focusedAction: null })
+  const { selection, focusedAction: focusedResourceAction } = inspector
   const [views, setViews] = useState<ViewDefinition[]>([])
   const [view, setView] = useState<ViewDefinition>(newView())
   const [activeContent, setActiveContent] = useState<'workspace' | 'settings'>('workspace')
@@ -180,6 +187,12 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     document.documentElement.style.colorScheme = preferences.theme
   }, [preferences.theme])
 
+  useEffect(() => {
+    if (activeContent !== 'workspace' || !selection || selection.kind !== 'resource') {
+      setInspector((current) => current.focusedAction ? { ...current, focusedAction: null } : current)
+    }
+  }, [activeContent, selection])
+
   const loadViews = useCallback(async () => {
     const document = await api.views()
     if (document.version !== 3) throw new Error(`不支持的视图文档版本：${document.version}`)
@@ -201,7 +214,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     if (nextStatus.state !== 'connected') {
       setTopology(emptyTopology)
       setResources([])
-      setSelection(null)
+      setInspector({ selection: null, focusedAction: null })
       return
     }
     const nextTopology = await api.topology(profile.parent_node_id)
@@ -209,17 +222,22 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     const nextResources = catalogs.flatMap((result) => result.status === 'fulfilled' ? result.value.resources : [])
     setTopology(nextTopology)
     setResources(nextResources)
-    setSelection((current) => {
-      if (current?.kind === 'node') {
-        return nextTopology.nodes.some((node) => node.node_id === current.node.node_id) ? current : null
+    setInspector((current) => {
+      const selected = current.selection
+      if (selected?.kind === 'node') {
+        const selection = nextTopology.nodes.some((node) => node.node_id === selected.node.node_id) ? selected : null
+        return { selection, focusedAction: null }
       }
-      if (current?.kind === 'resource') {
-        return nextResources.some((resource) => (
-          resource.id.owner_node_id === current.resource.id.owner_node_id
-          && resource.id.name === current.resource.id.name
-        )) ? current : null
+      if (selected?.kind === 'resource') {
+        const refreshed = nextResources.find((resource) => (
+          resource.id.owner_node_id === selected.resource.id.owner_node_id
+          && resource.id.name === selected.resource.id.name
+        ))
+        return refreshed
+          ? { selection: { kind: 'resource', resource: refreshed }, focusedAction: current.focusedAction }
+          : { selection: null, focusedAction: null }
       }
-      return current
+      return { selection: selected, focusedAction: null }
     })
     const failures = catalogs.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
     const firstFailure = failures[0]
@@ -258,7 +276,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
       const nextProfile = next.profiles.find((item) => item.id === next.active_profile_id) || saved
       await Promise.all([refreshPlatform(nextProfile), loadViews()])
       setActiveContent('workspace')
-      setSelection(null)
+      setInspector({ selection: null, focusedAction: null })
       return true
     } catch (current) {
       setError(errorText(current))
@@ -291,7 +309,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
       const saved = await api.saveProfile(profile)
       const next = await api.settings()
       setSettings(next)
-      setSelection(null)
+      setInspector({ selection: null, focusedAction: null })
       await Promise.all([refreshPlatform(saved, false), loadViews()])
       return true
     } catch (current) {
@@ -313,7 +331,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
       setSettings(next)
       const profile = next.profiles.find((item) => item.id === profileID)
       if (profile) await Promise.all([refreshPlatform(profile), loadViews()])
-      setSelection(null)
+      setInspector({ selection: null, focusedAction: null })
     } catch (current) {
       setError(errorText(current))
     } finally {
@@ -337,7 +355,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
         setView(newView())
         setDirty(false)
       }
-      setSelection(null)
+      setInspector({ selection: null, focusedAction: null })
     } catch (current) {
       setError(errorText(current))
     } finally {
@@ -366,7 +384,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
       setStatus(await api.status())
       setTopology(emptyTopology)
       setResources([])
-      setSelection(null)
+      setInspector({ selection: null, focusedAction: null })
     } catch (current) {
       setError(errorText(current))
     } finally {
@@ -402,6 +420,22 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     } catch (current) {
       setError(errorText(current))
     }
+  }
+  const selectWorkspaceItem = (next: WorkspaceSelection) => {
+    setInspector({ selection: next, focusedAction: null })
+  }
+  const focusResourceCapability = (resource: ResourceDescriptor, action: ResourceAction) => {
+    setActiveContent('workspace')
+    setInspector({
+      selection: { kind: 'resource', resource },
+      focusedAction: focusResourceAction(resource, action.capability),
+    })
+  }
+  const closeInspector = () => {
+    setInspector({ selection: null, focusedAction: null })
+  }
+  const clearFocusedResourceAction = () => {
+    setInspector((current) => current.focusedAction ? { ...current, focusedAction: null } : current)
   }
   const activeDrag = (event: DragStartEvent | DragMoveEvent | DragEndEvent): ActiveWorkspaceDrag | null => {
     const data = event.active.data.current as {
@@ -595,8 +629,9 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                   onFocusedNodeIDChange={(focusedNodeID) => updatePreferences({ focused_node_id: focusedNodeID })}
                   onSplitRatioChange={(splitRatio) => updatePreferences({ explorer_split_ratio: splitRatio })}
                   onCollapsedPaneChange={(collapsedPane) => updatePreferences({ collapsed_explorer_pane: collapsedPane })}
-                  onSelect={setSelection}
+                  onSelect={selectWorkspaceItem}
                   onAdd={addResource}
+                  onAction={focusResourceCapability}
                 />
               </TabsContent>
               <TabsContent className="tabs-content" value="views">
@@ -665,7 +700,9 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
               api={api}
               selection={selection}
               resources={resources}
-              onClose={() => setSelection(null)}
+              focusedAction={focusedResourceAction}
+              onClose={closeInspector}
+              onClearAction={clearFocusedResourceAction}
               onAdd={addResource}
               onFocusNode={(nodeID) => updatePreferences({
                 focused_node_id: nodeID,

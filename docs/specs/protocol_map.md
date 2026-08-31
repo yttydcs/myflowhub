@@ -1,54 +1,126 @@
 # MFH4 v2 Protocol And Resource Mapping
 
-本文是当前协议与资源模型的人工速查入口。机器真相位于 `protocol/`，跨语言公开面由
-`sdk/bindings/generated/contracts.json` 生成并接受架构测试校验。
+本文是当前协议与资源模型的人工速查入口。机器真相位于 `protocol/`；第一方 Resource manifest 位于
+`sdk/bindings/generated/contracts.json`，数据 schema 位于 Desktop generated schema artifact，并由生成门禁校验。
 
 ## Envelope operations
 
 | 语义 | Operation | Phase | Resource/capability |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 建立父子关系 | `Join` / `JoinAck` | request / response | 无 |
 | 发布或撤销子树路由 | `RouteAnnounce` / `RouteWithdraw` | event | 无 |
-| 建立或取消观察关系 | `Subscribe` / `Unsubscribe` / `SubscribeAck` | request/control/response | 任意 observable capability |
+| 建立或取消观察关系 | `Subscribe` / `Unsubscribe` / `SubscribeAck` | request/control/response | descriptor 声明的 observable capability |
 | 资源事件与缺口 | `ResourceEvent` / `ResourceGap` | response/event | 原 subscription capability |
-| 通用资源操作 | `Operate` / `OperateResult` | request/control/response | `read`、`write`、`publish`、`invoke` 或扩展 capability |
+| 通用资源操作 | `Operate` / `OperateResult` | request/control/response | descriptor 声明的任意 capability |
 | 打开会话 | `SessionOpen` / `SessionOpenResult` | request/control/response | session-oriented `open` capability |
 | 会话数据与关闭 | `SessionData` / `SessionClose` | request/control/response | 与 grant 相同的 Resource/capability |
 | 显式错误 | `Error` | response | 关联原请求 |
 | 链路保活 | `Heartbeat` | event | 无 |
 
-frame magic 为 `MFH4`、major version 为 2。`Source` 表示当前发送 Node，`Principal` 在合法委托时保留
-原始行为主体，`Target` 表示 Resource owner；权限使用 `Envelope.Subject()` 与 exact capability，不能把
-中继 Node 当成授权主体。Join/ack/permit 的签名 domain 同步使用 MFH4。
+frame magic 为 `MFH4`、major version 为 2。`Source` 表示当前发送 Node，`Principal` 只在合法委托时保留原始
+行为主体，`Target` 表示 Resource owner。权限使用 `Envelope.Subject()`、完整 ResourceID 与 exact
+CapabilityID；中继 Node 不是授权主体。Join/ack/permit 的签名 domain 同步使用 MFH4。
+
+## Descriptor and authorization boundary
+
+`ResourceDescriptorV2` 声明 ResourceID、可扩展 type/type version、排序 capability 列表、引用的 schemas、limits
+与 presentation。每个 capability 声明 `name`、required `permission` compatibility string、input/output/event
+schema 与最大 payload。
+
+`permission` 仍保留在 v2 catalog 以兼容现有 descriptor/provider，并可描述领域意图；它不会进入 Envelope 成为
+第二个授权 selector。runtime policy 把 `Action` 规范化为当前 CapabilityID，并按 subject + ResourceID +
+CapabilityID 裁决。因此两个 capabilities 即使都写 `flow.read`，grant 也不互相继承。presentation、UI
+namespace、物理 path 与产品名同样不构成权限。
 
 ## Resource types
 
-| Type | 基础 capability | 关键语义 |
-|---|---|---|
+| Type | Capability shape | Current semantics |
+| --- | --- | --- |
 | `mfh.variable` | `read`、可选 `write`、`subscribe` | snapshot-first、revision、expected-revision 条件写 |
 | `mfh.stream` | `subscribe` | owner sequence、有界 delivery、explicit gap |
 | `mfh.topic` | `publish`、`subscribe` | Node-owned broker、多 publisher、per-publisher sequence、默认无 replay |
 | `mfh.command` | `invoke` | 独立 input/output schema、deadline、dedupe、panic isolation |
 | `mfh.file` | `open` | subject/link/policy-bound session、有界 data lane、checksum/atomic commit |
+| `mfh.collection` | 通用 `list/get` 加 provider 声明的 capability 子集 | 一个 Resource 管理有界 provider-scoped members；member 默认不进入 catalog |
 
-类型 ID 与 capability 是受限的可扩展字符串。未知 type 仍能进入 catalog 与 Desktop inspector；未声明的
-capability、schema mismatch 或未知 major 明确失败。Core 通过 `Resource`、`Observable` 与
-`SessionResource` 接口扩展，不维护产品 type switch。
+类型 ID 与 CapabilityID 都是受限的可扩展字符串。未知 type 仍能进入 catalog 与 generic inspector；未声明的
+capability、schema mismatch 或未知 major 明确失败。Core 通过 `Resource`、`Observable`、`SessionResource`
+与 exact-handler Resource 扩展，不维护产品 type switch。
 
-## Built-in resources
+## Collection and filesystem schemas
 
-| 资源族 | Observable state/events | Operations/sessions |
-|---|---|---|
-| system | `system/catalog`、`system/config`、`system/health`、`system/topology`、`system/audit` | admission、config update、node revoke、policy grant/revoke |
-| notifications | `notifications/events` | `notifications/publish` invoke |
-| file | `file/transfers`、`file/progress` | `file/upload` open session |
-| flow | `flow/definitions`、`flow/runs`、`flow/events` | create、update、run、cancel、archive invoke |
+| Schema | Direction | Stable fields and bounds |
+| --- | --- | --- |
+| `mfh.collection.list-request.v1` | request | version、optional parent ≤1024 bytes、opaque cursor ≤1024 bytes、limit `1..256` |
+| `mfh.collection.member-request.v1` | request | version、non-empty provider-scoped key ≤1024 bytes |
+| `mfh.collection.member.v1` | response/member | key、kind、label、optional content/schema、sorted capability subset、bounded attributes；无 owner/ResourceID |
+| `mfh.collection.page.v1` | response | version、JSON-safe revision `1..9007199254740991`、parent、最多 256 个有序 members、next cursor ≤1024 bytes |
+| `mfh.filesystem.read-request.v1` | request | key ≤1024 bytes、max bytes `1..131072`、optional expected revision ≤128 bytes |
+| `mfh.filesystem.content.v1` | response | key、content type ≤127 bytes、`utf-8|base64` data、size、modified time、revision ≤128 bytes；最大 decoded size 128 KiB |
 
-第一方 Metrics 与 Clipboard 也只注册 Node-owned descriptor/capability，不建立旁路 dispatcher。
+filesystem schemas 是 canonical built-in data schemas，但 filesystem Resource 不是固定 built-in manifest：产品必须
+显式调用 provider 注册 mount。物理 root/config 不在 wire、catalog 或正常错误中；每个 root 是一个独立
+`mfh.collection`，只声明 `get/list/read`。
+
+| Filesystem capability | Permission compatibility field | Input | Output |
+| --- | --- | --- | --- |
+| `get` | `filesystem.get` | `mfh.collection.member-request.v1` | `mfh.collection.member.v1` |
+| `list` | `filesystem.list` | `mfh.collection.list-request.v1` | `mfh.collection.page.v1` |
+| `read` | `filesystem.read` | `mfh.filesystem.read-request.v1` | `mfh.filesystem.content.v1` |
+
+## Flow domain schemas and Resources
+
+| Schema | Use |
+| --- | --- |
+| `mfh.flow.definition.v1` | definition create/update/get |
+| `mfh.flow.run.v1` | start-run request |
+| `mfh.flow.run-summary.v1` | run/get/cancel result 与 persisted run summary |
+| `mfh.flow.cancel.v1` | cancel request |
+| `mfh.flow.event.v1` | `flow/runs.subscribe` event |
+| `mfh.flow.archive.v1` | archive request/result |
+
+| Resource | Type | Exact capabilities |
+| --- | --- | --- |
+| `flow/definitions` | `mfh.collection` | `archive/create/get/list/run/update` |
+| `flow/runs` | `mfh.collection` | `cancel/get/list/subscribe` |
+
+canonical runtime/binding/generated catalog 不再包含 `flow/create`、`flow/update`、`flow/run`、`flow/cancel`、
+`flow/archive` 或 `flow/events`；旧 `mfh.flow.definitions.v1` / `mfh.flow.runs.v1` aggregate schemas 也已从
+canonical built-in data schemas 移除。旧 Resource grant 不映射到新 capability grant。
+
+## Other built-in Resource families
+
+| Resource family | Current surface |
+| --- | --- |
+| system | `system/catalog`、config/health/topology/audit 以及现有 admission/config/node/policy Resources |
+| notifications | `notifications/events` Stream、`notifications/publish` Command |
+| file | `file/transfers` Variable、`file/progress` Stream、`file/upload` File session |
+
+Management、Admission 与 Notification 中仍存在的 endpoint-style Commands 保持 current；全量 capability 迁移属于
+延期的 `CMD02`，本文不把目标形态伪装成现状。
+
+## Current SDK and binding surface
+
+- Go SDK `OperatePayload` 在既有 Node optimized operation path 上完成 typed request/response 校验；
+- `CollectionClient` 提供通用 list/get，`FlowClient` 提供 definitions/runs 的 typed operations 与 subscription；
+- generic bindings 公开 `OperateJSON` 与 `SubscribeCapability`，Desktop/Android 不需要恢复 endpoint wrappers；
+- Android sample 已使用两个 Flow Collections 和 generic capability API；当前机器的 Android Gradle loopback gate
+  尚未验证，因此 Gradle/设备状态仍是 pending。
+
+## Deferred and delivery boundary
+
+- `AUTHZ02`：member selector policy、filtered catalog 与 authoritative effective-capability discovery；
+- `CMD02`：其余 endpoint-style Command Resources 的领域迁移；
+- `FS02`：filesystem write/delete、virtual multi-root 与 large-file download/session；
+- `MAIN02`：主 checkout 已无原 unmerged index entry，但同路径仍有并发未提交修改，只阻塞 merge/archive；
+- `PUB01`：push、release 与 publication 未授权。
+
+Desktop Collection/content renderer 已实现并通过 focused/full frontend tests 与 TypeScript/Vite build；完整 Wails
+package 与 GUI evidence 仍等待 `QA01`，不能从 component/build evidence 推导为 packaged UI 已完成。
 
 ## Maintenance
 
-1. 先修改 `protocol/` 中的版本化类型与 schema。
-2. 运行 `./scripts/mfh.ps1 -Action generate -Target generated` 刷新公开 contract。
-3. 更新受影响的 current spec/feature，而不是从旧仓复制协议文档。
-4. 运行协议、架构、bindings、Embedded fixture 与 generated drift 门禁。
+1. 先修改 `protocol/` 的版本化类型、Validate 与 built-in data schema annotation。
+2. 修改 canonical binding manifest 后运行生成门禁，确认 contract 与 data schema artifact deterministic/fresh。
+3. 更新受影响的 current spec/feature，不从旧仓或已退役 endpoint 文档复制现状。
+4. 运行协议、runtime、SDK、bindings、产品构建与 generated drift 门禁；未执行的产品 gate 必须保持 pending。

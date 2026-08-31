@@ -1293,6 +1293,271 @@
       ]
     },
     {
+      "id": "mfh.collection.list-request.v1",
+      "type": "object",
+      "title": "List collection members",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "parent",
+          "schema": {
+            "type": "string",
+            "title": "Parent",
+            "max_length": 1024
+          }
+        },
+        {
+          "name": "cursor",
+          "schema": {
+            "type": "string",
+            "title": "Cursor",
+            "max_length": 1024
+          }
+        },
+        {
+          "name": "limit",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Limit",
+            "minimum": 1,
+            "maximum": 256,
+            "multiple_of": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.collection.member-request.v1",
+      "type": "object",
+      "title": "Get collection member",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "key",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Key",
+            "max_length": 1024
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.collection.member.v1",
+      "type": "object",
+      "title": "Collection member",
+      "properties": [
+        {
+          "name": "key",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Key",
+            "max_length": 1024
+          }
+        },
+        {
+          "name": "kind",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Kind",
+            "max_length": 128
+          }
+        },
+        {
+          "name": "label",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Label",
+            "max_length": 255
+          }
+        },
+        {
+          "name": "content_type",
+          "schema": {
+            "type": "string",
+            "title": "Content Type",
+            "max_length": 127
+          }
+        },
+        {
+          "name": "schema",
+          "schema": {
+            "type": "string",
+            "title": "Schema",
+            "max_length": 255
+          }
+        },
+        {
+          "name": "capabilities",
+          "schema": {
+            "type": "array",
+            "title": "Capabilities",
+            "max_items": 64,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "attributes",
+          "schema": {
+            "type": "object",
+            "title": "Attributes",
+            "additional_properties": {
+              "type": "string",
+              "max_length": 1024
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.collection.page.v1",
+      "type": "object",
+      "title": "Collection page",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "revision",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Revision",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "parent",
+          "schema": {
+            "type": "string",
+            "title": "Parent",
+            "max_length": 1024
+          }
+        },
+        {
+          "name": "members",
+          "required": true,
+          "schema": {
+            "type": "array",
+            "title": "Members",
+            "max_items": 256,
+            "items": {
+              "type": "object",
+              "properties": [
+                {
+                  "name": "key",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Key",
+                    "max_length": 1024
+                  }
+                },
+                {
+                  "name": "kind",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Kind",
+                    "max_length": 128
+                  }
+                },
+                {
+                  "name": "label",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Label",
+                    "max_length": 255
+                  }
+                },
+                {
+                  "name": "content_type",
+                  "schema": {
+                    "type": "string",
+                    "title": "Content Type",
+                    "max_length": 127
+                  }
+                },
+                {
+                  "name": "schema",
+                  "schema": {
+                    "type": "string",
+                    "title": "Schema",
+                    "max_length": 255
+                  }
+                },
+                {
+                  "name": "capabilities",
+                  "schema": {
+                    "type": "array",
+                    "title": "Capabilities",
+                    "max_items": 64,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                {
+                  "name": "attributes",
+                  "schema": {
+                    "type": "object",
+                    "title": "Attributes",
+                    "additional_properties": {
+                      "type": "string",
+                      "max_length": 1024
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "next_cursor",
+          "schema": {
+            "type": "string",
+            "title": "Next Cursor",
+            "max_length": 1024
+          }
+        }
+      ]
+    },
+    {
       "id": "mfh.enrollment.challenge.v1",
       "type": "object",
       "title": "Enrollment challenge",
@@ -2266,6 +2531,138 @@
       ]
     },
     {
+      "id": "mfh.filesystem.content.v1",
+      "type": "object",
+      "title": "Filesystem member content",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "key",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Key",
+            "max_length": 1024
+          }
+        },
+        {
+          "name": "content_type",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Content Type",
+            "max_length": 127
+          }
+        },
+        {
+          "name": "encoding",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Encoding",
+            "enum": [
+              "base64",
+              "utf-8"
+            ]
+          }
+        },
+        {
+          "name": "data",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Data",
+            "max_length": 174764
+          }
+        },
+        {
+          "name": "size",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Size",
+            "minimum": 0,
+            "maximum": 131072,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "modified_unix_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Modified Unix Ms",
+            "unit": "ms",
+            "minimum": 0,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "revision",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Revision",
+            "max_length": 128
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.filesystem.read-request.v1",
+      "type": "object",
+      "title": "Read filesystem member",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "key",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Key",
+            "max_length": 1024
+          }
+        },
+        {
+          "name": "max_bytes",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Max Bytes",
+            "minimum": 1,
+            "maximum": 131072,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "expected_revision",
+          "schema": {
+            "type": "string",
+            "title": "Expected Revision",
+            "max_length": 128
+          }
+        }
+      ]
+    },
+    {
       "id": "mfh.flow.archive.v1",
       "type": "object",
       "title": "Flow archive",
@@ -2482,91 +2879,6 @@
             "title": "Inputs",
             "additional_properties": {
               "type": "string"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "mfh.flow.definitions.v1",
-      "type": "object",
-      "title": "Flow definitions",
-      "properties": [
-        {
-          "name": "version",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "title": "Version",
-            "minimum": 1,
-            "multiple_of": 1
-          }
-        },
-        {
-          "name": "revision",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "title": "Revision",
-            "minimum": 1,
-            "multiple_of": 1
-          }
-        },
-        {
-          "name": "definitions",
-          "required": true,
-          "schema": {
-            "type": "array",
-            "title": "Definitions",
-            "max_items": 4096,
-            "items": {
-              "type": "object",
-              "properties": [
-                {
-                  "name": "flow_id",
-                  "required": true,
-                  "schema": {
-                    "type": "string",
-                    "title": "Flow Id"
-                  }
-                },
-                {
-                  "name": "revision",
-                  "required": true,
-                  "schema": {
-                    "type": "integer",
-                    "title": "Revision",
-                    "minimum": 0,
-                    "multiple_of": 1
-                  }
-                },
-                {
-                  "name": "name",
-                  "required": true,
-                  "schema": {
-                    "type": "string",
-                    "title": "Name"
-                  }
-                },
-                {
-                  "name": "node_count",
-                  "required": true,
-                  "schema": {
-                    "type": "integer",
-                    "title": "Node Count",
-                    "multiple_of": 1
-                  }
-                },
-                {
-                  "name": "edge_count",
-                  "required": true,
-                  "schema": {
-                    "type": "integer",
-                    "title": "Edge Count",
-                    "multiple_of": 1
-                  }
-                }
-              ]
             }
           }
         }
@@ -2791,123 +3103,6 @@
             "title": "Inputs",
             "additional_properties": {
               "type": "string"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "mfh.flow.runs.v1",
-      "type": "object",
-      "title": "Flow runs",
-      "properties": [
-        {
-          "name": "version",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "title": "Version",
-            "minimum": 1,
-            "multiple_of": 1
-          }
-        },
-        {
-          "name": "revision",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "title": "Revision",
-            "minimum": 1,
-            "multiple_of": 1
-          }
-        },
-        {
-          "name": "runs",
-          "required": true,
-          "schema": {
-            "type": "array",
-            "title": "Runs",
-            "max_items": 4096,
-            "items": {
-              "type": "object",
-              "properties": [
-                {
-                  "name": "run_id",
-                  "required": true,
-                  "schema": {
-                    "type": "string",
-                    "title": "Run Id"
-                  }
-                },
-                {
-                  "name": "flow_id",
-                  "required": true,
-                  "schema": {
-                    "type": "string",
-                    "title": "Flow Id"
-                  }
-                },
-                {
-                  "name": "flow_revision",
-                  "required": true,
-                  "schema": {
-                    "type": "integer",
-                    "title": "Flow Revision",
-                    "minimum": 0,
-                    "multiple_of": 1
-                  }
-                },
-                {
-                  "name": "initiator",
-                  "required": true,
-                  "schema": {
-                    "type": "string",
-                    "title": "Initiator"
-                  }
-                },
-                {
-                  "name": "dedupe_key",
-                  "required": true,
-                  "schema": {
-                    "type": "string",
-                    "title": "Dedupe Key"
-                  }
-                },
-                {
-                  "name": "state",
-                  "required": true,
-                  "schema": {
-                    "type": "string",
-                    "title": "State"
-                  }
-                },
-                {
-                  "name": "started_unix_ms",
-                  "required": true,
-                  "schema": {
-                    "type": "integer",
-                    "title": "Started Unix Ms",
-                    "unit": "ms",
-                    "multiple_of": 1
-                  }
-                },
-                {
-                  "name": "finished_unix_ms",
-                  "schema": {
-                    "type": "integer",
-                    "title": "Finished Unix Ms",
-                    "unit": "ms",
-                    "multiple_of": 1
-                  }
-                },
-                {
-                  "name": "error",
-                  "schema": {
-                    "type": "string",
-                    "title": "Error"
-                  }
-                }
-              ]
             }
           }
         }

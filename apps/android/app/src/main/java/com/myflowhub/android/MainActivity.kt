@@ -216,19 +216,44 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun FlowPage(runtime: RuntimeState) {
         var owner by remember { mutableStateOf("1") }
-        var command by remember { mutableStateOf("flow/run") }
-        var request by remember { mutableStateOf("{\"version\":1,\"flow_id\":\"example\",\"input\":{}}") }
-        CardPanel("Flow feature") {
+        var resource by remember { mutableStateOf("flow/definitions") }
+        var capability by remember { mutableStateOf("list") }
+        var schema by remember { mutableStateOf("mfh.collection.list-request.v1") }
+        var request by remember { mutableStateOf("{\"version\":1,\"limit\":50}") }
+        CardPanel("Flow Collections") {
             Input("Owner NodeID", owner, { owner = it })
-            Input("Flow Command", command, { command = it })
+            Input("Collection Resource", resource, { resource = it })
+            Input("Capability", capability, { capability = it })
+            Input("请求 Schema", schema, { schema = it })
             Input("请求 JSON", request, { request = it }, 6)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { runIO { RuntimeBridge.snapshot(owner.toLong(), "flow/definitions") } }) { Text("定义") }
-                Button(onClick = { runIO { RuntimeBridge.snapshot(owner.toLong(), "flow/runs") } }) { Text("运行") }
-                Button(onClick = { runIO { RuntimeBridge.invoke(owner.toLong(), command, request) } }) { Text("执行") }
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { runIO {
+                    RuntimeBridge.operate(owner.toLong(), "flow/definitions", "list", "mfh.collection.list-request.v1", "{\"version\":1,\"limit\":50}")
+                } }) { Text("定义列表") }
+                Button(onClick = { runIO {
+                    RuntimeBridge.operate(owner.toLong(), "flow/runs", "list", "mfh.collection.list-request.v1", "{\"version\":1,\"limit\":50}")
+                } }) { Text("运行列表") }
+                Button(onClick = { runIO { RuntimeBridge.subscribe(owner.toLong(), "flow/runs") } }) { Text("订阅运行") }
+                Button(onClick = {
+                    resource = "flow/definitions"
+                    capability = "run"
+                    schema = "mfh.flow.run.v1"
+                    request = """
+                        {
+                          "version": 1,
+                          "run_id": "10112233445566778899aabbccddeeff",
+                          "flow_id": "00112233445566778899aabbccddeeff",
+                          "flow_revision": 1,
+                          "dedupe_key": "android-sample",
+                          "deadline_unix_ms": ${System.currentTimeMillis() + 300_000}
+                        }
+                    """.trimIndent()
+                }) { Text("准备运行") }
             }
+            Button(onClick = { runIO { RuntimeBridge.operate(owner.toLong(), resource, capability, schema, request) } }) { Text("执行 Capability") }
         }
         JsonCard("Flow 结果", runtime.resultJson)
+        if (runtime.lastEventJson.isNotBlank()) JsonCard("Flow 事件", runtime.lastEventJson)
     }
 
     @Composable

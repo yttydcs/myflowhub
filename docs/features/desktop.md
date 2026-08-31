@@ -61,6 +61,13 @@ backup 和 rename 提交。损坏或不兼容的 settings/View 不会被静默�
   通过路径面包屑返回完整树；
 - View Manager：创建、打开和删除当前 Profile 的本地 Views。
 
+Resource path tree 只在真实 Resource 行上提供上下文菜单，纯 namespace 没有 Resource 操作。菜单可由指针右键、
+`Menu` 或 `Shift+F10` 打开，`Escape` 关闭后焦点回到原 tree item；查看/选择、添加到当前 View 和 capability
+actions 都有键盘路径。action 列表只从当前 descriptor 的 capabilities 派生：`open` 是 session，只有声明
+event schema 且没有 input/output schema 的纯 event-only capability 是 observe，其余（包括 event + operation
+混合 capability）都进入显式 operation。Resource name、`permission` compatibility string 和 presentation metadata
+都不参与动作分派；input/output schema 只进入共享操作面板的表单/result 路径，打开菜单或选择动作不会发起 operation。
+
 左下角固定显示当前 Profile 和连接状态，点击进入主区 Settings Tab。Settings 铺满可用主区并隐藏右侧
 Inspector，包含 Connection、Authority 准入管理、Profile 和 Appearance 设置；准入页把 Permit、Pending 请求和 Enrollment 统一路由到 Profile 绑定的 Authority，Profile 切换、编辑、删除和连接动作继续经过
 Wails boundary。主区顶部使用可关闭的内容 Tab；Settings 是其中一种内容，不弹出第二个设置窗口。
@@ -74,11 +81,12 @@ Wails boundary。主区顶部使用可关闭的内容 Tab；Settings 是其中�
 View 使用任意深度的 n 元 horizontal/vertical split tree。所有相邻 pane 之间的 separator 都可通过指针
 连续调整或通过键盘细调；拖动期间只预览，释放后提交。拓扑、顺序与权重随 View 保存，删除或移动后自动
 折叠空/单子节点并合并同轴 split。可用空间不足时 Workspace 滚动，不静默重排已保存布局。View 只保存
-资源引用、renderer、布局和局部设置；资源暂不可用时保留 leaf 并显示 detached 状态。
+资源引用、renderer、布局和 allowlisted 局部设置；当前 View document 保持 version 3，Collection member 选择、
+已读取内容和 operation draft 都只存在于组件内存中，不进入 View。资源暂不可用时保留 leaf 并显示 detached 状态。
 
 ## Renderer
 
-renderer 由 descriptor 的 type、capability、schema 和 presentation hint 驱动：
+renderer 由 descriptor 的 type、capability、schema、operation result schema 和 content type 驱动：
 
 - Resource provider 通过 schema 定义值类型、范围、步长、枚举、格式、字段和校验约束；Desktop 不从
   Resource name 猜测这些语义；
@@ -89,15 +97,34 @@ renderer 由 descriptor 的 type、capability、schema 和 presentation hint 驱
 - Stream/Topic：使用有界 log/table/timeline，支持 pause、clear、filter、autoscroll，并明确显示
   publisher/sequence、gap、expired 和 subscription state；Topic publish 复用 schema form；
 - Command/通用 operation：支持 schema form、显式 Execute、typed result 和 Advanced JSON fallback；
+- Resource action：Explorer、Inspector 与 View Widget 复用同一个 `ResourceOperationPanel`。选择 operation 只打开
+  表单/Advanced JSON，显式 Execute 后才调用；只有纯 event-only observe 与 `open` session 不走普通 operate，
+  混合 event + input/output capability 仍要求显式 Execute。descriptor 更新后若 capability 消失，旧选择会明确
+  失效而不是继续执行；
+- Collection：只有 `mfh.collection` 且 list schema 为 `mfh.collection.list-request.v1` →
+  `mfh.collection.page.v1` 时进入 browser。browser 支持有界分页、opaque cursor、revision 一致性、目录面包屑/
+  返回、member selection、通用 member get 和 domain-specific detail。member-scoped `list/get/read` 分别要求
+  member capability 与 Resource descriptor 双侧声明：无 `get` 的 member 只展示 list metadata 且不发起 API；
+  目录进入还要求兼容的 Collection list schemas，文件读取还要求兼容的 filesystem read/content schemas；
+- Filesystem content：单次 decoded payload 上限 128 KiB。JSON 使用安全结构化视图，其他文本进入转义后的
+  `<pre>`，allowlisted PNG/JPEG/GIF/WebP 通过 Blob URL 展示，未知/不支持 binary 明确 fallback；HTML 只作为
+  转义文本，SVG 不嵌入，二者都不会执行。异步 list/get/read 使用 generation token 丢弃过期结果，raster
+  内容替换和组件卸载都会 revoke Blob URL；
 - File：通过原生文件选择、目标路径、in-flight/error 状态完成上传；owner 提供的 `file/progress` 与
   `file/transfers` 可作为独立 Widget 展示实际进度。当前阻塞式上传 binding 尚不提供单次 transfer cancel；
 - first-party catalog/topology/health/config/flow/audit/notification/file payload 使用 schema ID 选择结构化
   table/status/timeline/progress adapter；
 - unknown/unsupported：说明缺少或不支持的 schema，完整保留 descriptor、JSON tree/raw 数据和安全 fallback。
 
-provider presentation metadata 只能作为默认 hint，不能指定可执行组件或放宽数据约束。View 只保存版本化
+provider presentation metadata 只能在通过 type/schema/capability 兼容性过滤后作为默认 renderer hint，不能参与
+operation 分派、指定可执行组件或放宽数据约束。View 只保存版本化
 renderer ID 与 allowlisted 非秘密显示设置；不保存 value、draft、operation payload、event body、文件内容、
 permission 或 credential。旧 `mfh.variable/stream/topic/command/file` renderer ID 作为 automatic alias 继续可读。
+
+View Widget 按 pane density 暴露有界数量的 compact action buttons，其余动作进入可访问 overflow；按钮与菜单
+一样只聚焦共享操作面板，不在可见、展开或切换时产生网络请求。在 `AUTHZ02` 的 authoritative effective-capability
+discovery 落地前，Desktop 只能展示 descriptor 声明的“受支持操作”；最终授权仍以 server/Resource owner 返回的
+`Forbidden` 为准，UI 可见性和 `permission` 字符串都不是授权结论。
 
 加载、空、离线、Forbidden、订阅失败、缺失资源和未知 renderer 都会明确呈现。拖放具有独立键盘
 激活手柄和添加按钮等价路径；Node tree 与 Resource path tree 都使用 roving focus，并实现 Arrow

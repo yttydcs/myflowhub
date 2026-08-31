@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { useDraggable } from '@dnd-kit/core'
+import * as ContextMenu from '@radix-ui/react-context-menu'
 import {
   ChevronDown,
   ChevronLeft,
@@ -10,6 +11,7 @@ import {
   FolderTree,
   Gauge,
   GripVertical,
+  Eye,
   Layers3,
   Network,
   Plus,
@@ -31,6 +33,7 @@ import {
   type ResourceTreeRow,
 } from '../lib/resource-tree'
 import type { ExplorerCollapsedPane } from '../preferences'
+import { deriveResourceActions, type ResourceAction } from '../lib/resource-actions'
 import type { ResourceDescriptor, Topology, TopologyNode, WorkspaceSelection } from '../types'
 import { ExplorerSplitPane } from './ExplorerSplitPane'
 import { Input } from './ui/input'
@@ -52,6 +55,7 @@ type Props = {
   onCollapsedPaneChange(pane?: ExplorerCollapsedPane): void
   onSelect(selection: WorkspaceSelection): void
   onAdd(resource: ResourceDescriptor): void
+  onAction(resource: ResourceDescriptor, action: ResourceAction): void
 }
 
 const resourceIcons: Record<string, typeof Variable> = {
@@ -129,24 +133,27 @@ type ResourceRowProps = {
   onToggle(key: string): void
   onSelect(resource: ResourceDescriptor): void
   onAdd(resource: ResourceDescriptor): void
+  onAction(resource: ResourceDescriptor, action: ResourceAction): void
 }
 
 function ResourceRow(props: ResourceRowProps) {
   const { node } = props.row
   const resource = node.resource
+  const mainRef = useRef<HTMLButtonElement | null>(null)
   const draggable = useDraggable({
     id: node.key,
     data: { kind: 'resource', resource },
     disabled: !resource,
   })
   const Icon = resource ? resourceIcons[resource.type] ?? Layers3 : FolderTree
+  const actions = resource ? deriveResourceActions(resource.capabilities) : []
   const style = {
     ...rowIndent(props.row.depth),
     ...(draggable.transform
       ? { transform: `translate3d(${draggable.transform.x}px, ${draggable.transform.y}px, 0)` }
       : {}),
   }
-  return (
+  const row = (
     <div
       ref={draggable.setNodeRef}
       className={`tree-row-shell resource-row ${props.selected ? 'is-selected' : ''} ${draggable.isDragging ? 'is-dragging' : ''}`}
@@ -179,7 +186,10 @@ function ResourceRow(props: ResourceRowProps) {
           )
         : <span className="drag-placeholder" aria-hidden="true" />}
       <button
-        ref={(element) => props.setRef(node.key, element)}
+        ref={(element) => {
+          mainRef.current = element
+          props.setRef(node.key, element)
+        }}
         className="tree-main"
         role="treeitem"
         aria-level={props.row.depth}
@@ -191,7 +201,22 @@ function ResourceRow(props: ResourceRowProps) {
         onFocus={() => props.onFocus(node.key)}
         onClick={() => resource ? props.onSelect(resource) : props.onToggle(node.key)}
         onDoubleClick={() => props.expandable && props.onToggle(node.key)}
-        onKeyDown={(event) => props.onKeyDown(event, props.row)}
+        onKeyDown={(event) => {
+          if (resource && (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey))) {
+            event.preventDefault()
+            event.stopPropagation()
+            const bounds = mainRef.current?.getBoundingClientRect()
+            mainRef.current?.dispatchEvent(new MouseEvent('contextmenu', {
+              bubbles: true,
+              cancelable: true,
+              button: 2,
+              clientX: bounds ? bounds.left + Math.min(bounds.width / 2, 24) : 0,
+              clientY: bounds ? bounds.top + bounds.height / 2 : 0,
+            }))
+            return
+          }
+          props.onKeyDown(event, props.row)
+        }}
       >
         <Icon aria-hidden="true" size={14} />
         <span className="tree-label">
@@ -207,6 +232,41 @@ function ResourceRow(props: ResourceRowProps) {
           )
         : <span aria-hidden="true" />}
     </div>
+  )
+  if (!resource) return row
+  const label = resource.presentation?.label || resource.id.name
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>{row}</ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content
+          className="resource-context-menu"
+          aria-label={`${label} 操作菜单`}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            requestAnimationFrame(() => mainRef.current?.focus())
+          }}
+        >
+          <ContextMenu.Label className="resource-context-label">{label}</ContextMenu.Label>
+          <ContextMenu.Item className="resource-context-item" onSelect={() => props.onSelect(resource)}><Eye aria-hidden="true" size={13} />查看和选择</ContextMenu.Item>
+          <ContextMenu.Item className="resource-context-item" onSelect={() => props.onAdd(resource)}><Plus aria-hidden="true" size={13} />添加到当前 View</ContextMenu.Item>
+          {actions.length > 0 && <ContextMenu.Separator className="resource-context-separator" />}
+          {actions.map((action) => (
+            <ContextMenu.Item
+              className="resource-context-item"
+              key={action.capability}
+              disabled={action.disabled}
+              title={action.disabledReason}
+              onSelect={() => props.onAction(resource, action)}
+            >
+              {action.mode === 'observe' ? <Radio aria-hidden="true" size={13} /> : action.mode === 'session' ? <FileUp aria-hidden="true" size={13} /> : <Command aria-hidden="true" size={13} />}
+              <span>{action.label}</span>
+              {(action.mutating || action.unsafe) && <small>{action.unsafe ? '谨慎' : '显式'}</small>}
+            </ContextMenu.Item>
+          ))}
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
   )
 }
 
@@ -510,6 +570,7 @@ export function Explorer(props: Props) {
                 onToggle={toggleResource}
                 onSelect={(selected) => props.onSelect({ kind: 'resource', resource: selected })}
                 onAdd={props.onAdd}
+                onAction={props.onAction}
               />
             ))}
           </div>

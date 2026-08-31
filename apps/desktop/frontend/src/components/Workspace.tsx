@@ -9,8 +9,9 @@ import {
   type PointerEvent,
   type ReactNode,
 } from 'react'
-import { GripVertical, Grid2X2, Plus, Save, Trash2 } from 'lucide-react'
+import { GripVertical, Grid2X2, Plus, Save, Trash2, X } from 'lucide-react'
 import type { DesktopAPI } from '../api'
+import { deriveResourceActions } from '../lib/resource-actions'
 import { resourceKey } from '../lib/utils'
 import type { ResourceDescriptor, ViewDefinition, ViewLayoutNode, ViewWidget } from '../types'
 import type { PaneDensity } from '../rendering/registry'
@@ -85,6 +86,7 @@ function WorkspaceWidgetPane({ api, resource, widget, onRemove, onRendererChange
   })
   const paneRef = useRef<HTMLElement | null>(null)
   const [density, setDensity] = useState<PaneDensity>('normal')
+  const [focusedCapability, setFocusedCapability] = useState<string>()
   const setNodeRef = (node: HTMLElement | null) => {
     paneRef.current = node
     draggable.setNodeRef(node)
@@ -110,7 +112,12 @@ function WorkspaceWidgetPane({ api, resource, widget, onRemove, onRendererChange
       if (frame !== undefined) window.cancelAnimationFrame(frame)
     }
   }, [])
+  useEffect(() => setFocusedCapability(undefined), [resource?.id.name, resource?.id.owner_node_id, widget.id])
   const label = widgetLabel(widget, resource)
+  const actions = resource ? deriveResourceActions(resource.capabilities).sort((left, right) => Number(left.mutating) - Number(right.mutating) || left.capability.localeCompare(right.capability)) : []
+  const visibleActionCount = density === 'compact' ? 2 : density === 'expanded' ? 5 : 3
+  const visibleActions = actions.slice(0, visibleActionCount)
+  const overflowActions = actions.slice(visibleActionCount)
   return (
     <article
       id={paneDOMID(widget.id)}
@@ -133,13 +140,20 @@ function WorkspaceWidgetPane({ api, resource, widget, onRemove, onRendererChange
           <small>{widget.owner_node_id} / {widget.resource_name}</small>
         </div>
         {resource && <ResourceRendererSelector resource={resource} rendererID={widget.renderer} onRendererChange={onRendererChange} />}
+        {resource && actions.length > 0 && (
+          <div className="widget-actions" aria-label="Resource actions">
+            {visibleActions.map((action) => <button type="button" className={focusedCapability === action.capability ? 'is-active' : ''} disabled={action.disabled} title={action.label} aria-label={action.label} key={action.capability} onClick={() => setFocusedCapability(action.capability)}>{action.capability}</button>)}
+            {overflowActions.length > 0 && <details><summary aria-label="更多 Resource actions">+{overflowActions.length}</summary><div>{overflowActions.map((action) => <button type="button" disabled={action.disabled} title={action.label} key={action.capability} onClick={() => setFocusedCapability(action.capability)}>{action.capability}</button>)}</div></details>}
+          </div>
+        )}
         <div className="widget-controls">
           <button aria-label="移除组件" onClick={onRemove}><Trash2 aria-hidden="true" size={13} /></button>
         </div>
       </header>
       <div className="widget-body">
+        {resource && focusedCapability && <div className="widget-action-focusbar"><strong>{focusedCapability}</strong><button type="button" aria-label="关闭操作面板" onClick={() => setFocusedCapability(undefined)}><X aria-hidden="true" size={13} /></button></div>}
         {resource
-          ? <ResourceRenderer api={api} resource={resource} rendererID={widget.renderer} density={density} />
+          ? <ResourceRenderer api={api} resource={resource} rendererID={widget.renderer} density={density} focusedCapability={focusedCapability} />
           : (
             <div className="missing-resource">
               <strong>资源暂不可用</strong>

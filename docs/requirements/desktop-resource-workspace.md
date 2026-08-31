@@ -26,6 +26,9 @@
 - 在上方 Node tree 中搜索/展开 Node，在下方当前 Node Resource path tree 中独立搜索；单击 Node 查看概览，
   单击 Resource 查看预览，按需要收起任一分区或调整两区高度。
 - 通过拖放、按钮或键盘把 Resource 添加到当前 View。
+- 在真实 Resource 上通过右键菜单或键盘等价入口快速执行获授权操作，或添加到当前 View。
+- 在 View 中使用匹配 Resource type/schema/capability/content type 的专用展示，并通过 Widget 上的常用按钮
+  触发同一 Resource capability。
 - 单个 Widget 默认占满工作区；直接新增 Widget 默认在整个工作区右侧分栏；拖到目标 pane、divider 或
   工作区外缘可形成任意深度的左右/上下结构、精确插入位置，并连续调整任意相邻面板比例。
 - 调整 Widget 顺序和尺寸，保存、重命名、复制、删除并重新打开 View。
@@ -70,6 +73,13 @@
     draft 不得被静默丢弃。
 16. 左下角必须显示 active Profile 与 Connection state，并打开铺满主区的 Settings Tab；Settings 至少包含
    Connection、Profile、Appearance，顶栏不得重复 Profile 或 Connection。
+17. Resource Explorer 必须为真实 Resource 提供上下文菜单和键盘等价入口，列出 descriptor 声明的受支持
+    快捷操作与“添加到当前 View”；纯 presentation namespace 不得出现 Resource 操作。若已有权威授权状态可
+    隐藏/禁用，尚无 effective-capability discovery 时必须允许 authority 返回并明确显示 Forbidden。菜单不得
+    自行授予权限，所有触发仍经过统一 SDK、policy、schema validation、错误和审计路径。
+18. Resource Widget 可以把常用 capabilities 展示为按钮，但按钮状态只反映 descriptor 与可选的已知权威
+    授权状态，不能取代 owner 裁决。Renderer 必须按 type、schema、capability、content type 和 pane 条件匹配专用展示，
+    例如文件文本/代码、图片或 metadata fallback，不得按 Resource name 特判内容语义。
 
 ## Non-functional Requirements
 
@@ -110,6 +120,9 @@
 - Resource Explorer 上方仅展示跨子树 Node，下方仅展示当前 Node Resources 的任意深度 path tree；两区
   可独立搜索/滚动和收起/展开，通过鼠标与键盘完成切换、预览、添加和有界高度调整。`system/config`
   与 `system/config/update` 同时存在时，前者既可操作又可展开。Profile/Connection footer 不随内容滚走。
+- 真实 Resource 的右键菜单及键盘入口展示 descriptor-supported operations；在 `AUTHZ02` 落地前不猜测
+  effective authorization，并明确呈现 authority 的 Forbidden。同一操作从菜单、Inspector 或 View Widget
+  触发时使用一致的权限、输入校验、错误和审计路径，纯 namespace 不出现操作菜单。
 - 至少 6 层 Node fixture 可展开、搜索、聚焦并用 breadcrumb 返回；Arrow/Home/End/Enter/Space 键盘门禁通过。
 - 首个 Resource 加入后占满工作区，直接添加后续 Resource 默认在 root 右侧；拖拽可生成
   `A | C | B`、`A | (B / C)` 和 `(A | B | C) / D`，无布局/交换按钮。任意嵌套 separator
@@ -146,6 +159,7 @@
 ## Related Specs
 
 - [Desktop Resource Workspace v3](../specs/desktop-resource-workspace-v3.md)
+- [Resource Collections and Actions](../specs/resource-collections-and-actions.md)
 
 ## Related Intake
 

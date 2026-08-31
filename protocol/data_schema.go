@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -179,6 +180,12 @@ type dataSchemaType struct {
 func BuiltinDataSchemas() ([]DataSchemaDefinition, error) {
 	types := []dataSchemaType{
 		{SchemaResourceCatalogV2, "Resource catalog", reflect.TypeOf(ResourceCatalogV2{})},
+		{SchemaCollectionListRequestV1, "List collection members", reflect.TypeOf(CollectionListRequestV1{})},
+		{SchemaCollectionMemberRequestV1, "Get collection member", reflect.TypeOf(CollectionMemberRequestV1{})},
+		{SchemaCollectionMemberV1, "Collection member", reflect.TypeOf(CollectionMemberV1{})},
+		{SchemaCollectionPageV1, "Collection page", reflect.TypeOf(CollectionPageV1{})},
+		{SchemaFilesystemReadRequestV1, "Read filesystem member", reflect.TypeOf(FilesystemReadRequestV1{})},
+		{SchemaFilesystemContentV1, "Filesystem member content", reflect.TypeOf(FilesystemContentV1{})},
 		{SchemaAdmissionStatusV1, "Admission status", reflect.TypeOf(AdmissionStatusV1{})},
 		{SchemaAdmissionListV1, "List admission records", reflect.TypeOf(AdmissionListV1{})},
 		{SchemaAdmissionIssuePermitV1, "Issue admission permit", reflect.TypeOf(AdmissionIssuePermitV1{})},
@@ -209,8 +216,6 @@ func BuiltinDataSchemas() ([]DataSchemaDefinition, error) {
 		{SchemaFlowRunSummaryV1, "Flow run", reflect.TypeOf(FlowRunSummaryV1{})},
 		{SchemaFlowCancelV1, "Cancel flow run", reflect.TypeOf(FlowCancelV1{})},
 		{SchemaFlowEventV1, "Flow event", reflect.TypeOf(FlowEventV1{})},
-		{SchemaFlowDefinitionsV1, "Flow definitions", reflect.TypeOf(FlowDefinitionsV1{})},
-		{SchemaFlowRunsV1, "Flow runs", reflect.TypeOf(FlowRunsV1{})},
 		{SchemaFlowArchiveV1, "Flow archive", reflect.TypeOf(FlowArchiveV1{})},
 		{SchemaManagementTopologyV1, "Node topology", reflect.TypeOf(ManagementTopologyV1{})},
 		{SchemaManagementHealthV1, "Hub health", reflect.TypeOf(ManagementHealthV1{})},
@@ -341,6 +346,39 @@ func annotateBuiltinDataSchema(schema *DataSchemaDefinition) {
 		setDataSchemaMinimum(schema, path, 1)
 	}
 	switch schema.ID {
+	case SchemaCollectionListRequestV1:
+		setDataSchemaMinimum(schema, "limit", 1)
+		setDataSchemaMaximum(schema, "limit", MaxCollectionPageMembers)
+		setDataSchemaMaxLength(schema, "parent", MaxCollectionParentBytes)
+		setDataSchemaMaxLength(schema, "cursor", MaxCollectionCursorBytes)
+	case SchemaCollectionMemberRequestV1:
+		setDataSchemaMaxLength(schema, "key", MaxCollectionMemberKeyBytes)
+	case SchemaCollectionMemberV1:
+		annotateCollectionMemberDataSchema(schema)
+	case SchemaCollectionPageV1:
+		setDataSchemaMaximum(schema, "revision", float64(MaxCollectionRevision))
+		setDataSchemaMaxLength(schema, "parent", MaxCollectionParentBytes)
+		setDataSchemaMaxLength(schema, "next_cursor", MaxCollectionCursorBytes)
+		setDataSchemaMaxItems(schema, "members", MaxCollectionPageMembers)
+		if members := dataSchemaAtPath(schema, "members"); members != nil && members.Items != nil {
+			annotateCollectionMemberDataSchema(members.Items)
+		}
+	case SchemaFilesystemReadRequestV1:
+		setDataSchemaMaxLength(schema, "key", MaxCollectionMemberKeyBytes)
+		setDataSchemaMinimum(schema, "max_bytes", 1)
+		setDataSchemaMaximum(schema, "max_bytes", MaxFilesystemReadBytes)
+		setDataSchemaMaxLength(schema, "expected_revision", MaxFilesystemRevisionBytes)
+		clearDataSchemaMinimum(schema, "expected_revision")
+	case SchemaFilesystemContentV1:
+		setDataSchemaMaxLength(schema, "key", MaxCollectionMemberKeyBytes)
+		setDataSchemaMaxLength(schema, "content_type", MaxContentTypeBytes)
+		setDataSchemaEnum(schema, "encoding", FilesystemEncodingUTF8, FilesystemEncodingBase64)
+		setDataSchemaMaxLength(schema, "data", base64.StdEncoding.EncodedLen(MaxFilesystemReadBytes))
+		setDataSchemaMinimum(schema, "size", 0)
+		setDataSchemaMaximum(schema, "size", MaxFilesystemReadBytes)
+		setDataSchemaMinimum(schema, "modified_unix_ms", 0)
+		setDataSchemaMaxLength(schema, "revision", MaxFilesystemRevisionBytes)
+		clearDataSchemaMinimum(schema, "revision")
 	case SchemaAdmissionStatusV1:
 		for _, path := range []string{"permits", "pending_requests", "enrollments", "revocations"} {
 			setDataSchemaMinimum(schema, path, 0)
@@ -373,6 +411,19 @@ func annotateBuiltinDataSchema(schema *DataSchemaDefinition) {
 	}
 }
 
+func annotateCollectionMemberDataSchema(schema *DataSchemaDefinition) {
+	setDataSchemaMaxLength(schema, "key", MaxCollectionMemberKeyBytes)
+	setDataSchemaMaxLength(schema, "kind", MaxCollectionMemberKindBytes)
+	setDataSchemaMaxLength(schema, "label", MaxLabelBytes)
+	setDataSchemaMaxLength(schema, "content_type", MaxContentTypeBytes)
+	setDataSchemaMaxLength(schema, "schema", MaxSchemaBytes)
+	setDataSchemaMaxItems(schema, "capabilities", MaxCapabilities)
+	if attributes := dataSchemaAtPath(schema, "attributes"); attributes != nil && attributes.AdditionalProperties != nil {
+		maximum := MaxAttributeValueBytes
+		attributes.AdditionalProperties.MaxLength = &maximum
+	}
+}
+
 func dataSchemaAtPath(schema *DataSchemaDefinition, path string) *DataSchemaDefinition {
 	current := schema
 	for _, segment := range strings.Split(path, ".") {
@@ -397,6 +448,12 @@ func setDataSchemaMinimum(schema *DataSchemaDefinition, path string, value float
 	}
 }
 
+func clearDataSchemaMinimum(schema *DataSchemaDefinition, path string) {
+	if field := dataSchemaAtPath(schema, path); field != nil {
+		field.Minimum = nil
+	}
+}
+
 func setDataSchemaMaximum(schema *DataSchemaDefinition, path string, value float64) {
 	if field := dataSchemaAtPath(schema, path); field != nil {
 		field.Maximum = &value
@@ -406,6 +463,12 @@ func setDataSchemaMaximum(schema *DataSchemaDefinition, path string, value float
 func setDataSchemaMaxLength(schema *DataSchemaDefinition, path string, value int) {
 	if field := dataSchemaAtPath(schema, path); field != nil {
 		field.MaxLength = &value
+	}
+}
+
+func setDataSchemaMaxItems(schema *DataSchemaDefinition, path string, value int) {
+	if field := dataSchemaAtPath(schema, path); field != nil {
+		field.MaxItems = &value
 	}
 }
 

@@ -16,6 +16,22 @@ const resource: ResourceDescriptor = {
   limits: { max_payload_bytes: 1024 }, presentation: { label: 'CPU', renderer: 'mfh.variable' },
 }
 
+const allowedFiles: ResourceDescriptor = {
+  id: { owner_node_id: '1', name: 'storage/allowed-files' },
+  type: 'mfh.collection',
+  type_version: 1,
+  capabilities: [
+    { name: 'get', permission: 'filesystem.get', input_schema: 'mfh.collection.member-request.v1', output_schema: 'mfh.collection.member.v1', max_payload_bytes: 4096 },
+    { name: 'list', permission: 'filesystem.list', input_schema: 'mfh.collection.list-request.v1', output_schema: 'mfh.collection.page.v1', max_payload_bytes: 4096 },
+  ],
+  limits: { max_payload_bytes: 4096 },
+  presentation: { label: 'Allowed files' },
+}
+
+function emptyCollectionPage() {
+  return { schema: 'mfh.collection.page.v1', payload: { version: 1, revision: 1, parent: '', members: [], next_cursor: '' } }
+}
+
 function mockAPI(settings: Settings): DesktopAPI {
   return {
     settings: vi.fn().mockResolvedValue(settings),
@@ -79,6 +95,97 @@ describe('desktop resource workspace', () => {
     vi.mocked(api.catalog).mockResolvedValue({ version: 2, revision: 2, resources: [] })
     fireEvent.click(screen.getByRole('button', { name: '刷新节点树' }))
     await waitFor(() => expect(screen.queryByRole('complementary', { name: 'CPU 预览' })).not.toBeInTheDocument())
+  })
+
+  it('focuses a descriptor capability without API calls, executes explicitly, and fails stale after refresh', async () => {
+    const settings: Settings = { version: 2, active_profile_id: profile.id, profiles: [profile], updated_at_unix_ms: 1, credential_mode: 'session-only' }
+    const actionResource: ResourceDescriptor = {
+      id: { owner_node_id: '1', name: 'actions/example' },
+      type: 'mfh.collection',
+      type_version: 1,
+      capabilities: [{ name: 'invoke', permission: 'ignored.invoke', max_payload_bytes: 1024 }],
+      limits: { max_payload_bytes: 1024 },
+      presentation: { label: 'Example actions' },
+    }
+    const api = mockAPI(settings)
+    vi.mocked(api.catalog).mockResolvedValue({ version: 2, revision: 1, resources: [actionResource] })
+    vi.mocked(api.operate).mockResolvedValue({ schema: 'example.result.v1', payload: { accepted: true } })
+    render(<App api={api} />)
+
+    const resourceItem = await screen.findByRole('treeitem', { name: /Example actions/ })
+    fireEvent.contextMenu(resourceItem)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /操作 invoke/ }))
+    expect(await screen.findByLabelText('已聚焦 capability invoke')).toBeInTheDocument()
+    expect(api.operate).not.toHaveBeenCalled()
+    expect(api.snapshot).not.toHaveBeenCalled()
+    expect(api.subscribe).not.toHaveBeenCalled()
+
+    const draft = screen.getByRole('textbox', { name: /输入/ })
+    fireEvent.change(draft, { target: { value: '{"request":1}' } })
+    expect(api.operate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '执行 invoke' }))
+    await waitFor(() => expect(api.operate).toHaveBeenCalledWith('1', 'actions/example', 'invoke', '', { request: 1 }))
+
+    vi.mocked(api.catalog).mockResolvedValue({ version: 2, revision: 2, resources: [{ ...actionResource, capabilities: [] }] })
+    fireEvent.click(screen.getByRole('button', { name: '刷新节点树' }))
+    expect(await screen.findByText(/当前 descriptor 已移除此 capability/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '执行 invoke' })).not.toBeInTheDocument()
+    expect(api.operate).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns from a focused Collection action to the Resource preview', async () => {
+    const settings: Settings = { version: 2, active_profile_id: profile.id, profiles: [profile], updated_at_unix_ms: 1, credential_mode: 'session-only' }
+    const api = mockAPI(settings)
+    vi.mocked(api.catalog).mockResolvedValue({ version: 2, revision: 1, resources: [allowedFiles] })
+    vi.mocked(api.operate).mockResolvedValue(emptyCollectionPage())
+    render(<App api={api} />)
+
+    const item = await screen.findByRole('treeitem', { name: /Allowed files/ })
+    fireEvent.contextMenu(item)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /操作 list/ }))
+    expect(await screen.findByLabelText('已聚焦 capability list')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '返回资源预览' }))
+
+    await waitFor(() => expect(screen.queryByLabelText('已聚焦 capability list')).not.toBeInTheDocument())
+    expect(await screen.findByText('这个 Collection 位置没有成员')).toBeInTheDocument()
+    expect(api.operate).toHaveBeenCalledWith('1', 'storage/allowed-files', 'list', 'mfh.collection.list-request.v1', { version: 1, parent: '', cursor: '', limit: 64 })
+  })
+
+  it('does not restore a stale action after closing and reselecting the same Resource', async () => {
+    const settings: Settings = { version: 2, active_profile_id: profile.id, profiles: [profile], updated_at_unix_ms: 1, credential_mode: 'session-only' }
+    const api = mockAPI(settings)
+    vi.mocked(api.catalog).mockResolvedValue({ version: 2, revision: 1, resources: [allowedFiles] })
+    vi.mocked(api.operate).mockResolvedValue(emptyCollectionPage())
+    render(<App api={api} />)
+
+    const item = await screen.findByRole('treeitem', { name: /Allowed files/ })
+    fireEvent.contextMenu(item)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /操作 list/ }))
+    expect(await screen.findByLabelText('已聚焦 capability list')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '关闭预览' }))
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Allowed files 预览' })).not.toBeInTheDocument())
+    fireEvent.click(item)
+
+    expect(await screen.findByRole('complementary', { name: 'Allowed files 预览' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('已聚焦 capability list')).not.toBeInTheDocument()
+    expect(await screen.findByText('这个 Collection 位置没有成员')).toBeInTheDocument()
+  })
+
+  it('clears a focused action when selecting a different Resource', async () => {
+    const settings: Settings = { version: 2, active_profile_id: profile.id, profiles: [profile], updated_at_unix_ms: 1, credential_mode: 'session-only' }
+    const api = mockAPI(settings)
+    vi.mocked(api.catalog).mockResolvedValue({ version: 2, revision: 1, resources: [allowedFiles, resource] })
+    render(<App api={api} />)
+
+    const filesItem = await screen.findByRole('treeitem', { name: /Allowed files/ })
+    fireEvent.contextMenu(filesItem)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /操作 list/ }))
+    expect(await screen.findByLabelText('已聚焦 capability list')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('treeitem', { name: /CPU/ }))
+
+    expect(await screen.findByRole('complementary', { name: 'CPU 预览' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('已聚焦 capability list')).not.toBeInTheDocument()
+    await waitFor(() => expect(api.snapshot).toHaveBeenCalledWith('1', 'metrics/cpu'))
   })
 
   it('creates and deletes profiles from the full settings tab', async () => {
