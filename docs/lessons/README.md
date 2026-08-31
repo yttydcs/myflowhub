@@ -13,6 +13,7 @@
 
 ## Runtime And Architecture
 
+- [collection-browser-cross-runtime-contract-boundaries.md](collection-browser-cross-runtime-contract-boundaries.md)：Collection browser 跨 Go/JSON/JavaScript/Wails 时的原子状态、JSON 安全 revision、opaque cursor 与 envelope/content 分层。
 - [credential-status-inspection-must-be-read-only.md](credential-status-inspection-must-be-read-only.md)：Profile 状态列表与诊断必须使用非创建、fail-closed、secret-allowlist 的 credential 检查路径。
 - [desktop-binding-reconnect-and-admission-diagnostics.md](desktop-binding-reconnect-and-admission-diagnostics.md)：Desktop binding 重试必须重建单次生命周期 client，并在超时、permit 与准入失败之间保留可操作诊断。
 - [authority-routing-and-subscription-state.md](authority-routing-and-subscription-state.md)：desired/attached 状态、relay 字段、pending 返程和 generation 边界。

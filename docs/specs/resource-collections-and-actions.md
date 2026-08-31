@@ -187,3 +187,5 @@ Forbidden 的最终反馈；UI 可见性不是授权。
 - [Desktop Schema Rendering](desktop-schema-rendering.md)
 - [可扩展资源平台 requirement](../requirements/extensible-resource-platform.md)
 - [Desktop 资源工作区 requirement](../requirements/desktop-resource-workspace.md)
+- [实现与验证归档](../change/2026-08-31_resource-collections-and-capability-actions.md)
+- [Collection browser 的跨运行时契约边界](../lessons/collection-browser-cross-runtime-contract-boundaries.md)

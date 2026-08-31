@@ -64,3 +64,4 @@ contract、第一方迁移和 Desktop 交互，而不是恢复 SubProto 或第�
 - [Resource Platform v2](../specs/resource-platform-v2.md)
 - [Flow vNext](../specs/flow-vnext.md)
 - [Desktop Schema Rendering](../specs/desktop-schema-rendering.md)
+- [实现与验证归档](../change/2026-08-31_resource-collections-and-capability-actions.md)

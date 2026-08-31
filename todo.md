@@ -21,14 +21,14 @@
 - [x] DESK01 — add shared Resource actions and accessible context menu.
 - [x] RENDER01 — add Collection widgets, View actions and safe content renderers.
 - [x] QA01 — run full tests, generated/build gates and packaged Desktop evidence.
+- [x] MAIN02 — merge latest master and reconcile concurrent Profile/Resource docs and UI state without discarding either contract.
+- [x] ARC01 — archive change/plan/lesson/evidence and perform local integration/cleanup.
 
 ## Will Not Execute In The Next Phase
 
 - [ ] AUTHZ02 — member selector policy and filtered/effective-capability discovery; separate protocol/policy design.
 - [ ] CMD02 — migrate remaining Management/Admission/Notification endpoint Commands; deferred by domain.
 - [ ] FS02 — filesystem write/delete, virtual multi-root mounts and large-file download sessions; separate destructive/data-lane design.
-- [ ] MAIN02 — resolve the main checkout's concurrent uncommitted overlap on
-  `docs/requirements/desktop-resource-workspace.md`; the original unmerged index entry is gone, but safe merge/archive remains blocked.
 - [ ] PUB01 — push/release/publication; not authorized.
 
 ## Acceptance Checklist
@@ -56,11 +56,12 @@
 ## Current Gate
 
 - Approved Task IDs: `DOC01, COLL01, FLOW01, FS01, SDK01, DESK01, RENDER01, QA01`.
-- Blocked: no — isolated implementation may proceed.
-- Active phase: `$m-go` stage 3.2 delegated execution complete；QA01/R5 passed.
-- Deferred: `AUTHZ02, CMD02, FS02, MAIN02, PUB01`.
-- `MAIN02` blocks merge/archive only：the original unmerged index entry is gone, but the main checkout still has an
-  uncommitted edit on the same requirement path；`PUB01` remains unauthorized.
+- Blocked: no.
+- Active phase: `$m-archive`；archive docs prepared，local integration/cleanup in progress.
+- Deferred: `AUTHZ02, CMD02, FS02, PUB01`.
+- `MAIN02` is complete：latest master、Profile entry/deactivation、Resource Inspector state 与并行资源方案已语义合并；
+  `PUB01` remains unauthorized.
 - DOC01/DESK01/RENDER01/QA01 are complete；final frontend 16 files/128 tests、TypeScript/Vite build、full Go/race/vet、
   generated freshness、Windows Wails package、dual-ABI Android AAR、offline Gradle unit/lint/assemble and real browser/packaged
-  GUI smoke pass. No Android device was attached, so physical-device smoke is Unavailable. MAIN02 still blocks merge/archive.
+  GUI smoke pass. No Android device was attached, so physical-device smoke is Unavailable. Post-mainline full Go/vet/generated
+  and frontend 17-file/134-test/build gates also pass.

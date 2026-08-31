@@ -42,4 +42,4 @@ data lane 作为显式后续任务，不在本阶段伪装完成。
 - [Resource Collections and Actions spec](../specs/resource-collections-and-actions.md)
 - [Flow vNext spec](../specs/flow-vnext.md)
 - [Collection Resource 与 Capability Action 决策](../decisions/2026-08-31_collection-resource-and-capability-actions.md)
-
+- [实现与验证归档](../change/2026-08-31_resource-collections-and-capability-actions.md)
