@@ -57,7 +57,7 @@
 
 - Approved Task IDs: `DOC01, COLL01, FLOW01, FS01, SDK01, DESK01, RENDER01, QA01`.
 - Blocked: no.
-- Active phase: `$m-archive`；archive docs prepared，local integration/cleanup in progress.
+- Active phase: complete；`$m-archive` local integration/cleanup finished.
 - Deferred: `AUTHZ02, CMD02, FS02, PUB01`.
 - `MAIN02` is complete：latest master、Profile entry/deactivation、Resource Inspector state 与并行资源方案已语义合并；
   `PUB01` remains unauthorized.

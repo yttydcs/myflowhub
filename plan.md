@@ -11,8 +11,8 @@
 - Worktree: `D:\project\MyFlowHub3\worktrees\resource-collections-actions`
 - Participating Modules: `protocol`、`runtime/resource`、`feature/flow`、新 `feature/filesystem`、`sdk/go`、
   `sdk/bindings`、`apps/desktop`、`apps/desktop/frontend`、canonical `docs/`
-- Current Stage: `$m-archive`；`DOC01, COLL01, FLOW01, FS01, SDK01, DESK01, RENDER01, QA01, MAIN02` 已完成，
-  archive docs 已生成，local integration/cleanup in progress
+- Current Stage: `$m-archive` complete；`DOC01, COLL01, FLOW01, FS01, SDK01, DESK01, RENDER01, QA01, MAIN02, ARC01`
+  已完成，local master 已集成，用户修改已恢复，功能 worktree/branch 已清理
 - Publication: local-only；未授权 remote、push、release 或 publication
 
 ## Stage Records
@@ -595,8 +595,10 @@ DOC01 -> COLL01 -> FLOW01 -> SDK01 --+
 - `$m-docs` impact complete：intake/features/requirements/specs/decision 已收敛并交叉链接，新增 change、lesson 与 plan snapshot。
 - Governed QA evidence copied with SHA-256 equality into
   `docs/change/verification/2026-08-31_resource-collections-actions/`。
-- Product commit：`46da972 feat: 引入资源集合与能力操作`；mainline merge commit：`946fc40`。
-- Control-plane local integration、主检出用户改动恢复与 worktree/branch cleanup 由 ARC01 最后步骤处理。
+- Product commit：`46da972 feat: 引入资源集合与能力操作`；mainline merge commit：`946fc40`；archive commit：`cd9fa7c`；
+  accepted-design preservation commit：`b3e3970`。
+- ARC01 complete：local master integrated；tracked 用户修改按预演 tree 恢复为未暂存状态；同名旧 spec 已进入 plan
+  snapshot；临时 stash、预演/功能 worktree、功能分支、QA 临时副本与可逆备份均已清理。
 
 ## Approval Gate
 
@@ -604,5 +606,5 @@ DOC01 -> COLL01 -> FLOW01 -> SDK01 --+
 - Approved Task IDs: `DOC01, COLL01, FLOW01, FS01, SDK01, DESK01, RENDER01, QA01`.
 - Approval status: passed.
 - Blocked: no.
-- Active phase: `$m-archive` local integration/cleanup.
+- Active phase: complete；no further stage for this workflow.
 - MAIN02 is complete；push/release/publication remains unauthorized as `PUB01`.

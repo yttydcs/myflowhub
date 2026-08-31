@@ -168,10 +168,12 @@ Desktop 也缺少从真实 Resource 统一触发操作和展示内容的入口�
 ## Closeout status
 
 - Archive docs：完成；change/plan/lesson、21 个真实 UI 证据文件与实施前 accepted-design 草案均已进入受治理目录。
-- Feature commits：`46da972 feat: 引入资源集合与能力操作`、`946fc40 Merge branch 'master' into feat/resource-collections-actions`。
+- Feature commits：`46da972 feat: 引入资源集合与能力操作`、`946fc40 Merge branch 'master' into feat/resource-collections-actions`、
+  `cd9fa7c docs: 归档资源集合与能力操作`；`b3e3970` 在 master 保存实施前 accepted-design 草案。
 - Master integration：`master` 从 `00bd333` fast-forward 到 `cd9fa7c`；主检出 tracked 快照在临时 detached worktree
   预演后重放，实际 tree `3f7f7d7` 与预演逐字节一致。
 - Preservation：8 个实质 tracked 用户修改恢复为未暂存状态；其余原状态项只有 EOL/index normalization、没有内容差异。
   其他 untracked 文件保持原位；同名旧 spec 已归档为 accepted-design 快照，未用旧草案覆盖 current contract。
-- Cleanup：tracked stash、临时预演 worktree、功能 worktree/branch 与可逆备份将在本归档提交后清理并复核。
+- Cleanup：本 workflow 的 tracked stash、临时预演 worktree、功能 worktree/branch、临时 QA evidence 与可逆备份均已
+  删除并复核；仓库原有的其他 stash、分支、untracked 文件未改动。
 - Publication：local-only；未授权 push、release、publish 或 deployment。
