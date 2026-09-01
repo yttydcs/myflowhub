@@ -24,7 +24,7 @@
 - [ ] MOBL02 — migrate Android/Embedded Enrollment; separate product/platform scope.
 - [ ] SETV3 — remove authority identity cache fields from settings; requires persisted-schema migration.
 - [ ] MAIN01 — reconcile/integrate main checkout concurrent docs/design edits; archive phase only.
-- [ ] ARC01 — explicit `$m-archive` received; documentation/commits, merge and cleanup complete only after the control-plane closeout succeeds.
+- [x] ARC01 — governed archive, local commits, master integration, user-dirt restoration and worktree/branch cleanup completed.
 - [ ] PUB01 — push/release/publish/deploy; unauthorized.
 
 ## Dependency Order
@@ -38,13 +38,15 @@
 
 ## Current Status
 
-- Phase: `$m-archive` documentation complete; archive commit and control-plane integration are in progress.
+- Phase: `$m-archive` complete; local master integrated and feature worktree/branch cleaned.
 - Blocked: no.
 - Runtime/business logic changes: credential source, credential-backed NodeHost, narrow Enrollment bootstrap, Desktop bootstrap-to-Host handoff and regression guards implemented.
 - Validation: full Go/vet, focused race, generated freshness, Desktop frontend tests/build, Wails build, real Hub TCP paths, and packaged GUI Permit/Pending/approval/restart paths passed.
 - Test iteration 1: product startup passed but GUI control was blocked by the host runtime.
 - Test iteration 2: supported GUI control recovered; both independent Profile paths, authority approval, default deny, Enrollment-owned identity, reconnect and restart auto-connect passed without a code repair iteration.
-- Archive boundary: raw iteration-2 credentials, Permit and policy state were removed before staging and must not be published; `ARC01` remains unchecked until merge and cleanup succeed.
-- Archive invocation: explicit `$m-archive` received; raw QA state was removed before staging, and feature commit `b94fe34` was created.
-- Integration boundary: preserve all unrelated dirty/untracked main-checkout files before merge; `ARC01` remains unchecked until merge and cleanup succeed.
+- Archive boundary: raw iteration-2 credentials, Permit and policy state were removed before staging and were not published.
+- Archive commits: `b94fe34` implementation and `a0c2fe7` governed archive; final closeout state is recorded by the subsequent master closeout commit.
+- Integration: local `master` fast-forward completed; detached preview, feature worktree and merged feature branch were removed.
+- Preservation: 8 tracked modifications and 24 untracked user docs/design files remain unstaged; exact replay checks passed and the transient stash was dropped. Two pre-existing stashes remain untouched.
+- Publication: local-only; no push, release, publication or deployment was performed.
 - Implementation agents dispatched: none.

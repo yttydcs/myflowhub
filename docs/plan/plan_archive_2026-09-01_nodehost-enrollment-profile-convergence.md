@@ -6,10 +6,11 @@
 - Branch: `refactor/nodehost-enrollment-convergence`
 - Base: `master@a9eb27001438029ef772ea9f71d66e896407654e`
 - Project Root: `D:\project\MyFlowHub3`
-- Docs Root: `D:\project\MyFlowHub3\worktrees\nodehost-enrollment-convergence\docs`
+- Docs Root: canonical `D:\project\MyFlowHub3\repo\MyFlowHub\docs`（实施期间位于 sibling worktree）
 - Code Repos: canonical monorepo `MyFlowHub`
-- Worktree: `D:\project\MyFlowHub3\worktrees\nodehost-enrollment-convergence`
-- Current Stage: `$m-archive` documentation complete and feature commits in progress; `QA01` passed, governed change/plan/lesson artifacts are prepared, and control-plane integration remains pending.
+- Worktree: `D:\project\MyFlowHub3\worktrees\nodehost-enrollment-convergence`（已清理）
+- Current Stage: `$m-archive` complete; `DOC01, AUTH01, HOST01, BOOT01, DESK01, REG01, QA01, ARC01` passed, local master is integrated, unrelated user dirt is restored, and the feature worktree/branch are removed.
+- Publication: local-only; no push, release, publication or deployment was authorized.
 
 ## Stage Records
 
@@ -429,5 +430,10 @@ DOC01 ─┬─ AUTH01 ─ HOST01 ─┐
 - Lessons: existing Desktop reconnect diagnostics and Windows frontend/PowerShell preflight entries now cover the reusable lifecycle, control-runtime and shell-output failure signatures.
 - Sensitive QA material: the exact untracked `artifacts/qa01-gui/` directory was dry-run verified and removed before staging; Permit, DPAPI test credentials, isolated policy state, logs and screenshots were not committed.
 - Implementation commit: `b94fe34 refactor: 收敛 Enrollment 与 NodeHost 生命周期`.
-- Integration: pending archive commit, preservation of unrelated main-checkout dirt, local master merge, closeout record update and safe worktree/branch cleanup.
+- Archive commit: `a0c2fe7 docs: 归档 NodeHost Enrollment 生命周期收敛`.
+- Integration: local `master` fast-forwarded from `a9eb270` to `a0c2fe7`; the final closeout state is recorded by the subsequent master closeout commit.
+- Preservation: unrelated main-checkout dirt was stashed, replayed successfully in a detached preview, then replayed on master. Four non-overlapping tracked files and 24 untracked files matched blob-for-blob; four overlapping docs retained identical user delta counts with no unmerged paths.
+- Remaining user state: eight tracked modifications and 24 untracked docs/design files remain unstaged in the control checkout and were not included in workflow commits. The transient preservation stash was dropped after verification; two pre-existing stashes remain untouched.
+- Cleanup: the detached preview, feature worktree and merged feature branch were removed and worktree metadata pruned.
+- Outcome: `ARC01` complete; no blocker remains.
 - Publication: local-only; no push, release, publication or deployment authorization.

@@ -140,5 +140,9 @@ Desktop 的 Legacy Profile 已经使用 Parent-only NodeHost，但 authority Pro
 ## Closeout status
 
 - Implementation commit：`b94fe34 refactor: 收敛 Enrollment 与 NodeHost 生命周期`。
-- Archive commit、master integration、用户修改恢复与 worktree/branch cleanup：待本次 `$m-archive` 后续步骤完成后回填。
+- Archive commit：`a0c2fe7 docs: 归档 NodeHost Enrollment 生命周期收敛`。
+- Master integration：`master` 从 `a9eb270` fast-forward 到 `a0c2fe7`；本记录与最终控制状态由后续 closeout commit 固化。
+- Preservation：主检出修改先保存为临时 stash `58e8bb8`，在 detached preview worktree 上重放成功；4 个非重叠 tracked 文件与 24 个 untracked 文件逐 blob 一致，4 个重叠文档的增删计数一致且无冲突。master 重放后再次得到相同结果，临时 stash 已删除；两个既有 stash 未触碰。
+- Remaining local state：用户的 8 个 tracked 修改和 24 个 untracked 文档/设计文件仍以未暂存状态保留在主检出，没有进入本 workflow 提交。
+- Cleanup：preview worktree、`worktrees/nodehost-enrollment-convergence` 和已合并的 `refactor/nodehost-enrollment-convergence` 分支均已删除。
 - Publication：local-only；未授权 push、release 或 publish。
