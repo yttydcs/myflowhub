@@ -178,6 +178,7 @@ wails build -clean
 - [NodeHost Runtime](../specs/node-host-runtime.md)
 - [Credential 状态检查必须是只读路径](../lessons/credential-status-inspection-must-be-read-only.md)
 - [Desktop Profile 入口生产化归档](../change/2026-08-31_desktop-profile-entry-production.md)
+- [NodeHost、Enrollment 与 Profile 生命周期收敛](../change/2026-09-01_nodehost-enrollment-profile-convergence.md)
 - [Explorer Resource tree 变更归档](../change/2026-08-30_desktop-explorer-collapsible-resource-tree.md)
 
 ## 明确移除

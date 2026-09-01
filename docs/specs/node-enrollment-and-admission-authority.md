@@ -110,4 +110,5 @@ Enrollment bootstrap 只暴露状态检查、Enroll 和 Close。它不能 Catalo
 - [权威节点树与链路架构](node-tree-link-resource-architecture.md)
 - [运行生命周期](operational-lifecycle.md)
 - [集中式 Admission Authority 决策](../decisions/2026-08-30_centralized-admission-authority.md)
+- [NodeHost、Enrollment 与 Profile 生命周期收敛](../change/2026-09-01_nodehost-enrollment-profile-convergence.md)
 - [实施与验证归档](../change/2026-08-30_node-enrollment-admission-authority.md)

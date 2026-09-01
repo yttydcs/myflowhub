@@ -145,4 +145,5 @@ Android in-process Hub、现有 `host/hub` 和 ClipboardNode 不在首批迁移�
 - [通用 NodeHost、非 owning SDK Client 与薄平台适配 ADR](../decisions/2026-08-30_generic-node-host-and-non-owning-sdk-client.md)
 - [本轮讨论 intake](../intake/2026-08-30_node-host-runtime-and-product-boundaries.md)
 - [NodeHost runtime 与产品边界收敛 change](../change/2026-08-31_nodehost-runtime-and-product-boundaries.md)
+- [NodeHost、Enrollment 与 Profile 生命周期收敛](../change/2026-09-01_nodehost-enrollment-profile-convergence.md)
 - [Android Gradle daemon loopback 不可用 lesson](../lessons/android-gradle-loopback-daemon-unavailable.md)

@@ -68,3 +68,4 @@ Desktop、MetricsNode、Android bindings 和其他第一方入口已经共享 pr
 - [统一节点运行时 requirement](../requirements/unified-node-runtime.md)
 - [本轮讨论 intake](../intake/2026-08-30_node-host-runtime-and-product-boundaries.md)
 - [NodeHost runtime 与产品边界收敛 change](../change/2026-08-31_nodehost-runtime-and-product-boundaries.md)
+- [NodeHost、Enrollment 与 Profile 生命周期收敛](../change/2026-09-01_nodehost-enrollment-profile-convergence.md)

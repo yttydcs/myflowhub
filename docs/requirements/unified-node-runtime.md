@@ -147,4 +147,5 @@ MyFlowHub 曾通过多个 Git 仓库、多个 Go module 和多个 SubProto 分�
 
 ## Related Changes
 
+- [NodeHost、Enrollment 与 Profile 生命周期收敛](../change/2026-09-01_nodehost-enrollment-profile-convergence.md)
 - [Canonical Monorepo 与统一节点运行时第一阶段](../change/2026-08-27_canonical-monorepo-unified-node-runtime.md)

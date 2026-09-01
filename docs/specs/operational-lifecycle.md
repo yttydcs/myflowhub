@@ -42,3 +42,4 @@ Host 是 Node、ParentSupervisor、Listeners 和后台任务的 owner。`Host.Cl
 - [Command vNext](command-vnext.md)
 - [Hub feature dossier](../features/hub.md)
 - [NodeHost Runtime](node-host-runtime.md)
+- [NodeHost、Enrollment 与 Profile 生命周期收敛](../change/2026-09-01_nodehost-enrollment-profile-convergence.md)

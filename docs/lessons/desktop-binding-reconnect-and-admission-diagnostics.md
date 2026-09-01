@@ -50,3 +50,4 @@ Enrollment bootstrap 是 Grant 前的单次生命周期对象，NodeHost 则拥�
 - [Resource sessions v2](../specs/resource-sessions-v2.md)
 - [Auth-controlled admission](../requirements/auth-controlled-admission.md)
 - [2026-08-29 resource platform and Desktop closeout](../change/2026-08-29_extensible-resource-platform-desktop-workspace.md)
+- [NodeHost、Enrollment 与 Profile 生命周期收敛](../change/2026-09-01_nodehost-enrollment-profile-convergence.md)

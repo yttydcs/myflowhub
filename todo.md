@@ -1,67 +1,50 @@
-# Todo - Resource Collections、Capability Actions 与 Desktop 交互
+# Todo - NodeHost Enrollment Profile Convergence
 
-## Approval
+## Approval Gate
 
-- [x] `$m-discuss` completed and stable direction recorded.
-- [x] Dedicated branch/worktree and canonical docs root confirmed.
-- [x] `$m-docs` routing, indexes and stable-doc impact recorded.
-- [x] `$m-plan` drafted.
-- [x] User explicitly approves `DOC01, COLL01, FLOW01, FS01, SDK01, DESK01, RENDER01, QA01`.
-- [x] `$m-go` entry gate passes；stage 3.2 delegated execution started.
+- [x] User explicitly approves `DOC01, AUTH01, HOST01, BOOT01, DESK01, REG01, QA01`.
+- [x] User selects `$m-execute` after approval.
+- [x] Dedicated branch/worktree created from `master@a9eb270`.
+- [x] Main checkout user changes identified and left untouched.
+- [x] `$m-docs` routing and stable-doc impact recorded.
 
-## Approved Execution Scope
+## Will Execute After Approval
 
-- [x] DOC01 — converge stable docs, feature truth and protocol map.
-  - [x] First pass：approved contract、deferred boundary 与 plan/todo gate convergence.
-  - [x] Final pass：implementation 后更新 Flow/Desktop current feature truth 与 generated-backed protocol map.
-- [x] COLL01 — add Collection protocol and multi-capability runtime foundation.
-- [x] FLOW01 — migrate Flow to definitions/runs Collections.
-- [x] FS01 — add opt-in read-only filesystem Collection provider.
-- [x] SDK01 — add typed Collection/capability clients and regenerate contracts.
-- [x] DESK01 — add shared Resource actions and accessible context menu.
-- [x] RENDER01 — add Collection widgets, View actions and safe content renderers.
-- [x] QA01 — run full tests, generated/build gates and packaged Desktop evidence.
-- [x] MAIN02 — merge latest master and reconcile concurrent Profile/Resource docs and UI state without discarding either contract.
-- [x] ARC01 — archive change/plan/lesson/evidence and perform local integration/cleanup.
+- [x] DOC01 — converge stable contracts and add the exception-removal ADR.
+- [x] AUTH01 — add fail-closed enrolled Node credential source.
+- [x] HOST01 — add credential-backed mode to the neutral NodeHost.
+- [x] BOOT01 — split narrow Enrollment bootstrap from post-Grant runtime ownership.
+- [x] DESK01 — hand authority Profiles from bootstrap to Parent-only NodeHost.
+- [x] REG01 — add ownership/idempotency/migration/architecture regression guards.
+- [x] QA01 — automated generated/build/race and real TCP gates plus packaged GUI Permit, Pending/approval, reconnect and restart evidence passed.
 
-## Will Not Execute In The Next Phase
+## Will Not Execute Now
 
-- [ ] AUTHZ02 — member selector policy and filtered/effective-capability discovery; separate protocol/policy design.
-- [ ] CMD02 — migrate remaining Management/Admission/Notification endpoint Commands; deferred by domain.
-- [ ] FS02 — filesystem write/delete, virtual multi-root mounts and large-file download sessions; separate destructive/data-lane design.
-- [ ] PUB01 — push/release/publication; not authorized.
+- [ ] LEGACY02 — remove all deprecated owning SDK/binding APIs; deferred pending downstream inventory and breaking-change approval.
+- [ ] MOBL02 — migrate Android/Embedded Enrollment; separate product/platform scope.
+- [ ] SETV3 — remove authority identity cache fields from settings; requires persisted-schema migration.
+- [ ] MAIN01 — reconcile/integrate main checkout concurrent docs/design edits; archive phase only.
+- [ ] ARC01 — explicit `$m-archive` received; documentation/commits, merge and cleanup complete only after the control-plane closeout succeeds.
+- [ ] PUB01 — push/release/publish/deploy; unauthorized.
 
-## Acceptance Checklist
+## Dependency Order
 
-- [x] Collection type/list/page/member schemas are bounded, deterministic and generated.
-- [x] Multi-capability Resource dispatch preserves Registry schema/size/copy/error rules.
-- [x] Flow catalog exposes only definitions/runs Collections and all first-party callers use capabilities.
-- [x] Filesystem three-root fixture registers independently authorized Resources without leaking physical paths.
-- [x] Filesystem traversal/symlink/junction/oversize and unsafe content cases fail closed.
-- [x] Real Resource context menu and keyboard entry work; pure namespaces expose no Resource operations.
-- [x] Input/mutating actions do not execute before explicit Execute.
-- [x] View actions and Collection/text/code/raster/fallback renderers share the same operation path.
-- [x] No content/draft/credential/permission decision is persisted in View settings.
-- [x] Focused/full Go, generated, frontend, Wails build and packaged GUI gates pass.
+- [x] DOC01 completes contract naming.
+- [x] AUTH01 and BOOT01 may run in parallel.
+- [x] HOST01 consumes AUTH01.
+- [x] DESK01 consumes AUTH01 + HOST01 + BOOT01.
+- [x] REG01 follows DESK01.
+- [x] QA01 is the final execution gate.
 
-## Rollback Checkpoints
+## Current Status
 
-- [x] R0 — planning/stable-doc-only checkpoint.
-- [x] R1 — COLL01 protocol/runtime checkpoint.
-- [x] R2 — FLOW01/FS01 provider checkpoint.
-- [x] R3 — SDK01 generated contract checkpoint.
-- [x] R4 — DESK01/RENDER01 Desktop integration checkpoint.
-- [x] R5 — QA01 verified archive-ready checkpoint.
-
-## Current Gate
-
-- Approved Task IDs: `DOC01, COLL01, FLOW01, FS01, SDK01, DESK01, RENDER01, QA01`.
+- Phase: `$m-archive` documentation complete; archive commit and control-plane integration are in progress.
 - Blocked: no.
-- Active phase: complete；`$m-archive` local integration/cleanup finished.
-- Deferred: `AUTHZ02, CMD02, FS02, PUB01`.
-- `MAIN02` is complete：latest master、Profile entry/deactivation、Resource Inspector state 与并行资源方案已语义合并；
-  `PUB01` remains unauthorized.
-- DOC01/DESK01/RENDER01/QA01 are complete；final frontend 16 files/128 tests、TypeScript/Vite build、full Go/race/vet、
-  generated freshness、Windows Wails package、dual-ABI Android AAR、offline Gradle unit/lint/assemble and real browser/packaged
-  GUI smoke pass. No Android device was attached, so physical-device smoke is Unavailable. Post-mainline full Go/vet/generated
-  and frontend 17-file/134-test/build gates also pass.
+- Runtime/business logic changes: credential source, credential-backed NodeHost, narrow Enrollment bootstrap, Desktop bootstrap-to-Host handoff and regression guards implemented.
+- Validation: full Go/vet, focused race, generated freshness, Desktop frontend tests/build, Wails build, real Hub TCP paths, and packaged GUI Permit/Pending/approval/restart paths passed.
+- Test iteration 1: product startup passed but GUI control was blocked by the host runtime.
+- Test iteration 2: supported GUI control recovered; both independent Profile paths, authority approval, default deny, Enrollment-owned identity, reconnect and restart auto-connect passed without a code repair iteration.
+- Archive boundary: raw iteration-2 credentials, Permit and policy state were removed before staging and must not be published; `ARC01` remains unchecked until merge and cleanup succeed.
+- Archive invocation: explicit `$m-archive` received; raw QA state was removed before staging, and feature commit `b94fe34` was created.
+- Integration boundary: preserve all unrelated dirty/untracked main-checkout files before merge; `ARC01` remains unchecked until merge and cleanup succeed.
+- Implementation agents dispatched: none.

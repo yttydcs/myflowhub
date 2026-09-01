@@ -32,7 +32,7 @@
 - [embedded-esp32s3-ws2812-board-smoke.md](embedded-esp32s3-ws2812-board-smoke.md)：串口、固件、Wi-Fi、WS2812 与真板 smoke。
 - [micropython-edge-local-auth-persistence-restore.md](micropython-edge-local-auth-persistence-restore.md)：边缘节点 local auth 恢复与 child route 索引。
 - [flutter-windows-sdk-shared-bat-git.md](flutter-windows-sdk-shared-bat-git.md)：Flutter Windows `shared.bat`、`$git` 与启动卡死。
-- [frontend-and-powershell-preflight.md](frontend-and-powershell-preflight.md)：npm、Vitest、Wails、PowerShell 自动变量与编码陷阱。
+- [frontend-and-powershell-preflight.md](frontend-and-powershell-preflight.md)：npm、Vitest、Wails 控制 runtime、PowerShell profile 输出污染、自动变量与编码陷阱。
 - [frontend-build-empty-node-modules.md](frontend-build-empty-node-modules.md)：空或残缺 `node_modules` 导致 Vite/Wails 构建失败。
 - [frontend-worktree-wailsjs-missing.md](frontend-worktree-wailsjs-missing.md)：新 worktree 缺 canonical Wails bindings。
 - [wails-binding-proto-drift.md](wails-binding-proto-drift.md)：schema、facade、TypeScript 与机器 contract 一致性。

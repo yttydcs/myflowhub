@@ -35,3 +35,4 @@ MFHE、MFH4、集中式 Authority、Permit/Pending、DPAPI、Desktop settings v2
 - [NodeHost Runtime](../specs/node-host-runtime.md)
 - [Node Enrollment 与 Admission Authority](../specs/node-enrollment-and-admission-authority.md)
 - [Desktop Profile 入口](../specs/desktop-profile-entry.md)
+- [NodeHost、Enrollment 与 Profile 生命周期收敛](../change/2026-09-01_nodehost-enrollment-profile-convergence.md)

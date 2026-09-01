@@ -54,3 +54,6 @@
 - Blocking：无。
 - Deferred：旧 runtime-owning binding 的全量删除、Android/Embedded Enrollment 迁移、Desktop settings v3 与多 Authority/reparent。
 
+## Related Changes
+
+- [NodeHost、Enrollment 与 Profile 生命周期收敛](../change/2026-09-01_nodehost-enrollment-profile-convergence.md)

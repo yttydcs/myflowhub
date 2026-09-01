@@ -88,4 +88,5 @@
 
 ## Related Changes
 
+- [NodeHost、Enrollment 与 Profile 生命周期收敛](../change/2026-09-01_nodehost-enrollment-profile-convergence.md)
 - [Node Enrollment 与集中式 Admission Authority](../change/2026-08-30_node-enrollment-admission-authority.md)
