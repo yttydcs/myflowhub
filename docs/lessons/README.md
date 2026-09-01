@@ -13,6 +13,7 @@
 
 ## Runtime And Architecture
 
+- [scoped-policy-state-migration-and-live-proof.md](scoped-policy-state-migration-and-live-proof.md)：exact Grants 升级为 scoped Definitions/Bindings 时的无损迁移、停机 bootstrap、权威树 scope 与 effective-source 真实证明。
 - [collection-browser-cross-runtime-contract-boundaries.md](collection-browser-cross-runtime-contract-boundaries.md)：Collection browser 跨 Go/JSON/JavaScript/Wails 时的原子状态、JSON 安全 revision、opaque cursor 与 envelope/content 分层。
 - [credential-status-inspection-must-be-read-only.md](credential-status-inspection-must-be-read-only.md)：Profile 状态列表与诊断必须使用非创建、fail-closed、secret-allowlist 的 credential 检查路径。
 - [desktop-binding-reconnect-and-admission-diagnostics.md](desktop-binding-reconnect-and-admission-diagnostics.md)：Desktop binding 重试必须重建单次生命周期 client，并在超时、permit 与准入失败之间保留可操作诊断。

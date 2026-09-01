@@ -43,3 +43,11 @@ Hub 预置的是未绑定、不可变的 `superadmin` Definition，不预置超�
 ## Acceptance
 
 重启身份稳定；多 listener 可用；allow/deny/revoke 可重复验证；损坏配置显式失败；优雅关闭不遗留会话或 pending 请求。
+
+## Related Docs
+
+- [Scoped Policy Authorization](../requirements/scoped-policy-authorization.md)
+- [Scoped Policy Authorization Spec](../specs/scoped-policy-authorization.md)
+- [作用域 Binding ADR](../decisions/2026-09-01_scoped-policy-bindings-over-product-privilege.md)
+- [作用域策略定义与 Authority 权限绑定](../change/2026-09-01_scoped-policy-authority.md)
+- [策略状态迁移与真实授权证明](../lessons/scoped-policy-state-migration-and-live-proof.md)

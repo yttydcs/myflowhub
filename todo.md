@@ -46,7 +46,7 @@
 
 ## Current Status
 
-- Phase: `$m-execute` complete; awaiting optional `$m-test` or explicit `$m-archive`.
+- Phase: `$m-archive` active; governed archive artifacts are complete and local integration/cleanup is pending.
 - Blocked: no.
 - Runtime/business logic changes: policy state v2, scoped Definition/Binding evaluation, topology resolver, management Collections, SDK, Desktop console and bootstrap CLI implemented.
 - Live policy mutation: Subject 41 has persistent Binding `b3df4b135fdf4f3589f9c66aece5ce6a` to `superadmin` over `authority-domain:1`; policy generation 77; 70 legacy exact grants retained.

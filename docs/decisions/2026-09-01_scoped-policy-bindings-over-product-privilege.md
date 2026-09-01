@@ -26,3 +26,10 @@
 - Policy mutation 有严格 bootstrap：全新 Authority 必须停机显式建立第一个管理员 Binding。
 - Desktop、CLI、Android 与 Agent Gateway 可以共享 protocol/generic SDK，不共享默认权限。
 - phase one 暂不提供 deny、继承、groups、delegation ceiling 或 federation；后续增加时必须定义 precedence 和 Authority 边界。
+
+## Related Docs
+
+- [作用域策略需求](../requirements/scoped-policy-authorization.md)
+- [作用域策略技术合同](../specs/scoped-policy-authorization.md)
+- [作用域策略变更归档](../change/2026-09-01_scoped-policy-authority.md)
+- [策略状态迁移与真实授权证明](../lessons/scoped-policy-state-migration-and-live-proof.md)

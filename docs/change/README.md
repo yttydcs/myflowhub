@@ -25,6 +25,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-09-01_scoped-policy-authority.md](2026-09-01_scoped-policy-authority.md)
 - [2026-09-01_nodehost-enrollment-profile-convergence.md](2026-09-01_nodehost-enrollment-profile-convergence.md)
 - [2026-08-31_resource-collections-and-capability-actions.md](2026-08-31_resource-collections-and-capability-actions.md)
 - [2026-08-31_desktop-profile-entry-production.md](2026-08-31_desktop-profile-entry-production.md)

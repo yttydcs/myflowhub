@@ -181,6 +181,9 @@ wails build -clean
 - [Credential 状态检查必须是只读路径](../lessons/credential-status-inspection-must-be-read-only.md)
 - [Desktop Profile 入口生产化归档](../change/2026-08-31_desktop-profile-entry-production.md)
 - [NodeHost、Enrollment 与 Profile 生命周期收敛](../change/2026-09-01_nodehost-enrollment-profile-convergence.md)
+- [Scoped Policy Authorization](../requirements/scoped-policy-authorization.md)
+- [作用域策略定义与 Authority 权限绑定](../change/2026-09-01_scoped-policy-authority.md)
+- [策略状态迁移与真实授权证明](../lessons/scoped-policy-state-migration-and-live-proof.md)
 - [Explorer Resource tree 变更归档](../change/2026-08-30_desktop-explorer-collapsible-resource-tree.md)
 
 ## 明确移除

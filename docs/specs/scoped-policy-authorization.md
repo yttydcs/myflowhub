@@ -80,3 +80,10 @@ mfh-hub -id 1 -state <dir> -policy revoke-binding -binding-id <id>
 ## Deferred
 
 Explicit deny、Definition 继承、Subject groups、非 superadmin 有界 delegation、跨 Authority federation 和 Android 专用管理 UI 不属于 phase one。
+
+## Related Docs
+
+- [作用域策略需求](../requirements/scoped-policy-authorization.md)
+- [作用域 Binding ADR](../decisions/2026-09-01_scoped-policy-bindings-over-product-privilege.md)
+- [作用域策略变更归档](../change/2026-09-01_scoped-policy-authority.md)
+- [策略状态迁移与真实授权证明](../lessons/scoped-policy-state-migration-and-live-proof.md)

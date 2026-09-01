@@ -36,3 +36,8 @@ MyFlowHub 的权限必须属于网络中的明确 Subject，而不是属于 Desk
 ## Canonical Contract
 
 技术模型、wire schemas、Resources、迁移与 bootstrap 见 [Scoped Policy Authorization Spec](../specs/scoped-policy-authorization.md)。首次身份注册与权限分配保持分离，见 [Auth Controlled Admission](auth-controlled-admission.md)。
+
+## Related Change And Lesson
+
+- [作用域策略定义与 Authority 权限绑定](../change/2026-09-01_scoped-policy-authority.md)
+- [策略状态迁移与真实授权证明](../lessons/scoped-policy-state-migration-and-live-proof.md)

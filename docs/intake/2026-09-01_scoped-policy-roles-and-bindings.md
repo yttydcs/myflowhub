@@ -242,8 +242,8 @@ Desktop 的 Access Policy 视图可以恢复为“角色 / 主体绑定 / 精确
 
 ## Related Changes
 
-- 尚未实施；本记录仅作为讨论结果和下一阶段规划输入。
+- [作用域策略定义与 Authority 权限绑定](../change/2026-09-01_scoped-policy-authority.md)
 
 ## Routed Plan
 
-- [Active plan](../../plan.md)
+- [Archived plan](../plan/plan_archive_2026-09-01_scoped-policy-authority.md)
