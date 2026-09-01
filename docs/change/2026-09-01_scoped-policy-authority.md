@@ -144,6 +144,10 @@
 ## Closeout status
 
 - Implementation commit：`408afb5 feat: 引入作用域策略定义与权限绑定`。
-- Archive commit：将在本归档文件与索引完成后创建。
-- Master integration / cleanup：待 archive commit 后从 canonical control checkout 执行。
+- Archive commit：`4213452 docs: 归档作用域策略权限模型`。
+- Master integration：local `master` 从 `70add9b` fast-forward 到 `4213452`；最终 closeout 状态由后续 master closeout commit 固化。
+- Preservation：主检出的用户修改先保存为临时 stash `b264835b`，在 detached preview 和合并后的 master 上分别无冲突重放；tracked patch-id `e7a908c85f8a48082e4e983ed0cc84b4461a7822` 两次一致，24 个未跟踪文件逐 SHA-256 一致。临时 stash 已删除，两个既有 stash 未触碰。
+- Remaining user state：用户的 8 个 tracked 修改和 24 个 untracked 文档/设计文件仍以未暂存状态保留在主检出，没有进入本 workflow 提交。
+- Cleanup：preview worktree、`worktrees/scoped-policy-authority` 与已合并的 `refactor/scoped-policy-authority` 分支均已删除；worktree metadata 已 prune。
+- Live state：持久 Binding `b3df4b135fdf4f3589f9c66aece5ce6a` 继续位于用户 Hub state；Hub、Metrics 与 Desktop 已从独立 artifact 工作目录重新启动，避免锁定已清理 worktree。
 - Publication：local-only；仓库无 remote，未授权 push、release、publication 或 deployment。

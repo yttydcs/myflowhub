@@ -20,6 +20,7 @@
 - [x] BOOT01 — stopped-Hub Binding inspection/bootstrap CLI.
 - [x] QA01 — automated, race, generated, build and isolated integration gates.
 - [x] LIVE01 — persist Node 41 Authority-domain superadmin Binding and real restart smoke.
+- [x] ARC01 — governed archive, local master integration and worktree/branch cleanup.
 
 ## Will Not Execute Now
 
@@ -28,7 +29,6 @@
 - [ ] FED02 — cross-Authority policy federation; out of scope.
 - [ ] MOBL02 — Android/Embedded policy management UI; separate product scope.
 - [ ] CLEAN02 — remove Node 41 legacy exact grants; deferred for rollback safety.
-- [ ] ARC01 — archive/merge/worktree cleanup; later explicit `$m-archive`.
 - [ ] PUB01 — push/release/sign/publish/deploy; unauthorized.
 
 ## Dependency Order
@@ -46,12 +46,13 @@
 
 ## Current Status
 
-- Phase: `$m-archive` active; governed archive artifacts are complete and local integration/cleanup is pending.
+- Phase: `$m-archive` complete; local master integrated, user dirt restored, feature worktree/branch removed.
 - Blocked: no.
 - Runtime/business logic changes: policy state v2, scoped Definition/Binding evaluation, topology resolver, management Collections, SDK, Desktop console and bootstrap CLI implemented.
 - Live policy mutation: Subject 41 has persistent Binding `b3df4b135fdf4f3589f9c66aece5ce6a` to `superadmin` over `authority-domain:1`; policy generation 77; 70 legacy exact grants retained.
 - Docs: requirement, specification, ADR, feature docs, protocol map and indexes updated.
 - Implementation agents dispatched: none.
+- Publication: local-only; repository has no remote and no push/release/publication was performed.
 
 ## Execution Evidence
 

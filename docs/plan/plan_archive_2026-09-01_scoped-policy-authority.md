@@ -8,8 +8,8 @@
 - Project Root: `D:\project\MyFlowHub3`
 - Docs Root: canonical repository `docs/` in the active worktree
 - Code Repos: canonical monorepo `MyFlowHub`
-- Worktree: `D:\project\MyFlowHub3\worktrees\scoped-policy-authority`
-- Current Stage: `$m-archive` active; implementation and validation passed, archive artifacts are being finalized before local integration and cleanup
+- Worktree: `D:\project\MyFlowHub3\worktrees\scoped-policy-authority`（已清理）
+- Current Stage: `$m-archive` complete; implementation, validation, governed archive, local master integration and worktree/branch cleanup passed; unrelated user dirt is restored
 - Publication: local-only; no push, release, publication or deployment is authorized
 
 ## Stage Records
@@ -449,5 +449,9 @@ PROTO01 → AUTH01 → TREE01 → MGMT01 → SDK01 → DESK01 ─┐
 - `$m-docs` routing: canonical docs root remains repository `docs/`; intake, Hub/Desktop features, scoped authorization/admission requirements, Policy spec/protocol map and ADR were updated before the change archive.
 - Archive targets: `docs/change/2026-09-01_scoped-policy-authority.md`, `docs/plan/plan_archive_2026-09-01_scoped-policy-authority.md` and `docs/lessons/scoped-policy-state-migration-and-live-proof.md`; affected indexes are updated.
 - Implementation commit: `408afb5 feat: 引入作用域策略定义与权限绑定`.
-- Integration safety: canonical master contains unrelated user-owned tracked/untracked changes, including overlapping docs; closeout will preserve them through a recoverable stash and verify their replay before deleting the worktree/branch.
+- Archive commit: `4213452 docs: 归档作用域策略权限模型`.
+- Integration: local master fast-forwarded from `70add9b` to `4213452`; unrelated user changes were replayed with matching patch-id and 24 matching untracked-file hashes.
+- Cleanup: detached preview, feature worktree and merged feature branch were removed; live Hub/Metrics/Desktop were restarted from the independent artifact working directory.
+- Remaining state: eight user-owned tracked modifications and 24 user-owned untracked files remain unstaged; two pre-existing stashes remain untouched.
+- Outcome: `ARC01` complete; no blocker remains.
 - Publication: local-only; no remote/push/release/publication/deployment authorization.
