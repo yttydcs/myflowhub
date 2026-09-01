@@ -41,6 +41,11 @@ type options struct {
 	action           string
 	resourceNode     uint64
 	resource         string
+	definition       string
+	bindingID        string
+	policyScope      string
+	policyScopeNode  uint64
+	policyExpiry     time.Duration
 }
 
 func main() {
@@ -58,11 +63,16 @@ func main() {
 	flag.Uint64Var(&opts.authorityID, "admission-authority-id", 0, "Admission Authority Node ID; zero or this Hub uses the local Authority")
 	flag.StringVar(&opts.authorityKey, "admission-authority-key", "", "remote Admission Authority raw-base64 Ed25519 public key")
 	flag.DurationVar(&opts.permitTTL, "permit-ttl", time.Hour, "offline admission permit lifetime")
-	flag.StringVar(&opts.policy, "policy", "", "offline policy mutation: grant or revoke")
+	flag.StringVar(&opts.policy, "policy", "", "offline policy operation: show, bind, revoke-binding, grant, or revoke")
 	flag.Uint64Var(&opts.subject, "subject", 0, "policy subject node ID")
 	flag.StringVar(&opts.action, "action", "", "policy action: subscribe or invoke")
 	flag.Uint64Var(&opts.resourceNode, "resource-node", 0, "policy resource owner node ID")
 	flag.StringVar(&opts.resource, "resource", "", "policy resource name")
+	flag.StringVar(&opts.definition, "definition", "", "policy Definition ID for bind")
+	flag.StringVar(&opts.bindingID, "binding-id", "", "16-byte lowercase hex Binding ID; generated for bind when omitted")
+	flag.StringVar(&opts.policyScope, "policy-scope", protocol.PolicyScopeAuthorityDomain, "Binding owner scope: owner, subtree, or authority-domain")
+	flag.Uint64Var(&opts.policyScopeNode, "policy-scope-node", 0, "Binding owner scope anchor Node ID (defaults to this Hub)")
+	flag.DurationVar(&opts.policyExpiry, "policy-expiry", 0, "optional Binding lifetime; zero means no expiry")
 	flag.Parse()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -86,6 +96,9 @@ func run(ctx context.Context, opts options, output io.Writer) error {
 	if opts.stateDirectory == "" {
 		return errors.New("Hub state directory is required")
 	}
+	if opts.policyScope == "" {
+		opts.policyScope = protocol.PolicyScopeAuthorityDomain
+	}
 
 	offlineModes := 0
 	if opts.identityOnly {
@@ -108,6 +121,7 @@ func run(ctx context.Context, opts options, output io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("open Hub state: %w", err)
 		}
+		defer state.Policy.Close()
 		switch {
 		case opts.identityOnly:
 			return json.NewEncoder(output).Encode(struct {
@@ -115,14 +129,14 @@ func run(ctx context.Context, opts options, output io.Writer) error {
 				PublicKey string          `json:"public_key"`
 			}{NodeID: state.Identity.NodeID, PublicKey: base64.RawStdEncoding.EncodeToString(state.Identity.PublicKey)})
 		case opts.policy != "":
-			return mutatePolicy(state.Policy, opts, output)
+			return operatePolicy(state, opts, output)
 		default:
 			return issuePermit(state, opts, output)
 		}
 	}
 
-	if opts.subject != 0 || opts.action != "" || opts.resourceNode != 0 || opts.resource != "" {
-		return errors.New("policy fields require -policy grant or -policy revoke")
+	if opts.subject != 0 || opts.action != "" || opts.resourceNode != 0 || opts.resource != "" || opts.definition != "" || opts.bindingID != "" || opts.policyScopeNode != 0 || opts.policyExpiry != 0 || opts.policyScope != protocol.PolicyScopeAuthorityDomain {
+		return errors.New("policy fields require an offline -policy operation")
 	}
 	if opts.address == "" {
 		return errors.New("Hub listen address is required")
@@ -214,9 +228,89 @@ func issuePermit(state *hostconfig.Runtime, opts options, output io.Writer) erro
 	return nil
 }
 
-func mutatePolicy(policy *auth.PolicyState, opts options, output io.Writer) error {
-	if opts.policy != "grant" && opts.policy != "revoke" {
-		return errors.New("policy must be grant or revoke")
+func operatePolicy(state *hostconfig.Runtime, opts options, output io.Writer) error {
+	if state == nil || state.Policy == nil {
+		return errors.New("Hub policy state is required")
+	}
+	policy := state.Policy
+	switch opts.policy {
+	case "show":
+		if opts.subject != 0 || opts.action != "" || opts.resourceNode != 0 || opts.resource != "" || opts.definition != "" || opts.bindingID != "" || opts.policyScopeNode != 0 || opts.policyExpiry != 0 || opts.policyScope != protocol.PolicyScopeAuthorityDomain {
+			return errors.New("policy show does not accept mutation fields")
+		}
+		return json.NewEncoder(output).Encode(struct {
+			Version     int                           `json:"version"`
+			Generation  uint64                        `json:"generation"`
+			Definitions []protocol.PolicyDefinitionV1 `json:"definitions"`
+			Bindings    []protocol.PolicyBindingV1    `json:"bindings"`
+			Grants      []protocol.PolicyGrantV1      `json:"grants"`
+		}{Version: 1, Generation: policy.Generation(), Definitions: policy.Definitions(), Bindings: policy.Bindings(), Grants: policyGrantRecords(policy.Grants())})
+	case "bind":
+		return bindPolicy(state, opts, output)
+	case "revoke-binding":
+		if opts.bindingID == "" {
+			return errors.New("policy revoke-binding requires -binding-id")
+		}
+		if opts.subject != 0 || opts.action != "" || opts.resourceNode != 0 || opts.resource != "" || opts.definition != "" || opts.policyScopeNode != 0 || opts.policyExpiry != 0 || opts.policyScope != protocol.PolicyScopeAuthorityDomain {
+			return errors.New("policy revoke-binding only accepts -binding-id")
+		}
+		if err := policy.RevokeBinding(opts.bindingID); err != nil {
+			return fmt.Errorf("revoke policy Binding: %w", err)
+		}
+		return writePolicyOperationResult(output, opts.bindingID, policy.Generation(), "revoked")
+	case "grant", "revoke":
+		return mutateExactPolicy(policy, opts, output)
+	default:
+		return errors.New("policy must be show, bind, revoke-binding, grant, or revoke")
+	}
+}
+
+func bindPolicy(state *hostconfig.Runtime, opts options, output io.Writer) error {
+	if opts.definition == "" {
+		return errors.New("policy bind requires -definition")
+	}
+	subject := protocol.NodeID(opts.subject)
+	if err := subject.Validate(); err != nil {
+		return fmt.Errorf("policy Binding subject: %w", err)
+	}
+	if opts.action != "" || opts.resourceNode != 0 || opts.resource != "" {
+		return errors.New("exact grant fields cannot be combined with policy bind")
+	}
+	anchor := protocol.NodeID(opts.policyScopeNode)
+	if anchor == 0 {
+		anchor = state.Identity.NodeID
+	}
+	if anchor != state.Identity.NodeID {
+		return errors.New("offline policy Binding scope anchor must be this Hub; child topology is not durable while the Hub is stopped")
+	}
+	if opts.policyExpiry < 0 {
+		return errors.New("policy-expiry must not be negative")
+	}
+	bindingID := opts.bindingID
+	if bindingID == "" {
+		generated, err := protocol.NewMessageID()
+		if err != nil {
+			return err
+		}
+		bindingID = generated.String()
+	}
+	var expiresAt int64
+	if opts.policyExpiry > 0 {
+		expiresAt = time.Now().UTC().Add(opts.policyExpiry).UnixMilli()
+	}
+	binding, err := state.Policy.CreateBinding(protocol.PolicyBindingCreateV1{
+		Version: 1, BindingID: bindingID, Subject: fmt.Sprint(subject), DefinitionID: opts.definition,
+		Scope: protocol.PolicyOwnerScopeV1{Kind: opts.policyScope, NodeID: fmt.Sprint(anchor)}, ExpiresAtUnixMS: expiresAt,
+	}, state.Identity.NodeID)
+	if err != nil {
+		return fmt.Errorf("create policy Binding: %w", err)
+	}
+	return writePolicyOperationResult(output, binding.BindingID, state.Policy.Generation(), "active")
+}
+
+func mutateExactPolicy(policy *auth.PolicyState, opts options, output io.Writer) error {
+	if opts.definition != "" || opts.bindingID != "" || opts.policyScopeNode != 0 || opts.policyExpiry != 0 || opts.policyScope != protocol.PolicyScopeAuthorityDomain {
+		return errors.New("Binding fields cannot be combined with an exact policy grant operation")
 	}
 	subject := protocol.NodeID(opts.subject)
 	if err := subject.Validate(); err != nil {
@@ -246,6 +340,33 @@ func mutatePolicy(policy *auth.PolicyState, opts options, output io.Writer) erro
 	}
 	if err := json.NewEncoder(output).Encode(protocol.ManagementResultV1{Version: 1, Status: "ok"}); err != nil {
 		return fmt.Errorf("write policy result: %w", err)
+	}
+	return nil
+}
+
+func policyGrantRecords(values []auth.Request) []protocol.PolicyGrantV1 {
+	result := make([]protocol.PolicyGrantV1, 0, len(values))
+	for _, value := range values {
+		capability := value.Capability
+		if capability == "" {
+			capability = protocol.CapabilityID(value.Action)
+		}
+		result = append(result, protocol.PolicyGrantV1{
+			Version: 1, Subject: fmt.Sprint(value.Subject), Capability: string(capability),
+			ResourceNode: fmt.Sprint(value.Resource.Owner), ResourceName: value.Resource.Name,
+		})
+	}
+	return result
+}
+
+func writePolicyOperationResult(output io.Writer, bindingID string, generation uint64, status string) error {
+	if err := json.NewEncoder(output).Encode(struct {
+		Version    int    `json:"version"`
+		Status     string `json:"status"`
+		BindingID  string `json:"binding_id"`
+		Generation uint64 `json:"generation"`
+	}{Version: 1, Status: status, BindingID: bindingID, Generation: generation}); err != nil {
+		return fmt.Errorf("write policy Binding result: %w", err)
 	}
 	return nil
 }

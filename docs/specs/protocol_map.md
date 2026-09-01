@@ -92,17 +92,30 @@ canonical built-in data schemas 移除。旧 Resource grant 不映射到新 capa
 
 | Resource family | Current surface |
 | --- | --- |
-| system | `system/catalog`、config/health/topology/audit 以及现有 admission/config/node/policy Resources |
+| system | `system/catalog`、config/health/topology/audit、admission，以及 policy Definitions/Bindings/Grants Collections |
 | notifications | `notifications/events` Stream、`notifications/publish` Command |
 | file | `file/transfers` Variable、`file/progress` Stream、`file/upload` File session |
 
 Management、Admission 与 Notification 中仍存在的 endpoint-style Commands 保持 current；全量 capability 迁移属于
 延期的 `CMD02`，本文不把目标形态伪装成现状。
 
+## Policy schemas and Resources
+
+| Resource | Exact capabilities | Primary schemas |
+| --- | --- | --- |
+| `system/policy/definitions` | `create/delete/get/list/update` | `mfh.policy.definition*.v1`、Collection request/page |
+| `system/policy/bindings` | `create/evaluate/get/list/revoke` | `mfh.policy.binding*.v1`、`mfh.policy.evaluate*.v1`、Collection request/page |
+| `system/policy/grants` | `create/get/list/revoke` | `mfh.policy.grant.v1`、Collection request/page |
+
+runtime 先匹配 exact Grant，再按 Subject Binding、当前原子 topology scope 和 Definition rules 匹配；默认拒绝。`superadmin`
+是不可变 all/all Definition，但默认无 Binding。legacy `system/policy/grant/revoke` Commands 保留为精确 Grant compatibility aliases；
+全部在线 mutation 还要求调用 Subject 有本 Authority-domain superadmin Binding。完整契约见
+[Scoped Policy Authorization](scoped-policy-authorization.md)。
+
 ## Current SDK and binding surface
 
 - Go SDK `OperatePayload` 在既有 Node optimized operation path 上完成 typed request/response 校验；
-- `CollectionClient` 提供通用 list/get，`FlowClient` 提供 definitions/runs 的 typed operations 与 subscription；
+- `CollectionClient` 提供通用 list/get，`FlowClient` 提供 definitions/runs，`PolicyClient` 提供 Authority policy Collections 的 typed operations；
 - generic bindings 公开 `OperateJSON` 与 `SubscribeCapability`，Desktop/Android 不需要恢复 endpoint wrappers；
 - Android sample 已使用两个 Flow Collections 和 generic capability API；当前机器的 Android Gradle loopback gate
   尚未验证，因此 Gradle/设备状态仍是 pending。

@@ -711,6 +711,25 @@ pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .first-connection-form .login-profile-fields > .settings-field-grid { grid-template-columns: minmax(0, 1fr); }
 .compact-admission-methods { margin: 0; }
 .compact-admission-methods legend { margin-bottom: 6px; color: var(--text-muted); font-size: 9px; font-weight: 650; }
+
+.policy-console { width: min(980px, 100%); gap: 18px; }
+.policy-console > header > div { display: grid; gap: 3px; }
+.policy-console > header p { margin: 0; color: var(--text-faint); font-size: 9px; }
+.policy-neutrality { display: flex; align-items: center; gap: 7px; margin: 0; padding: 9px 10px; border: 1px solid var(--accent-line); border-radius: 4px; background: var(--accent-soft); color: var(--text-muted); font-size: 9px; }
+.policy-form { display: grid; gap: 9px; padding: 12px; border-top: 1px solid var(--border); }
+.policy-form label { display: grid; gap: 5px; color: var(--text-muted); font-size: 9px; font-weight: 620; }
+.policy-form select, .policy-form textarea { width: 100%; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); color: var(--text); font: inherit; }
+.policy-form select { min-height: 29px; padding: 0 7px; }
+.policy-form textarea { min-height: 132px; padding: 8px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 9px; line-height: 1.45; resize: vertical; }
+.policy-rules { grid-column: 1 / -1; }
+.policy-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; }
+.policy-grid > button { justify-self: start; }
+.policy-evaluation { display: flex; gap: 8px; align-items: flex-start; margin: 0 12px 12px; padding: 10px; border: 1px solid var(--border); border-radius: 4px; }
+.policy-evaluation.is-allowed { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent-strong); }
+.policy-evaluation.is-denied { border-color: color-mix(in srgb, var(--danger), var(--border) 55%); color: var(--danger); }
+.policy-evaluation strong { font-size: 10px; }
+.policy-evaluation p { margin: 3px 0 0; color: var(--text-muted); font-size: 9px; }
+@media (max-width: 900px) { .policy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .permit-entry { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-subtle); }
 .permit-entry .identity-action > span { color: var(--text-muted); font-size: 9.5px; }
 .pending-profile-note { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-left: 2px solid var(--warning); background: color-mix(in srgb, var(--warning), transparent 93%); color: var(--warning); }

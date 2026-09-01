@@ -120,6 +120,12 @@ func New(ctx context.Context, config Config) (*Host, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open node host state: %w", err)
 	}
+	stateOwned := true
+	defer func() {
+		if stateOwned {
+			_ = state.Policy.Close()
+		}
+	}()
 	if config.Parent != nil {
 		if err := validateParentState(*config.Parent, state); err != nil {
 			return nil, fmt.Errorf("validate node host parent: %w", err)
@@ -147,6 +153,7 @@ func New(ctx context.Context, config Config) (*Host, error) {
 		closeDone: make(chan struct{}), releaseStateDirectory: release,
 	}
 	succeeded = true
+	stateOwned = false
 	return host, nil
 }
 
@@ -220,6 +227,11 @@ func (h *Host) Close() error {
 		h.cancel()
 		if err := h.node.Close(); err != nil {
 			failures = append(failures, fmt.Errorf("close node host runtime: %w", err))
+		}
+		if h.state != nil && h.state.Policy != nil {
+			if err := h.state.Policy.Close(); err != nil {
+				failures = append(failures, fmt.Errorf("close node host policy: %w", err))
+			}
 		}
 		h.lifecycle = LifecycleStopped
 		h.closeErr = errors.Join(failures...)
@@ -393,6 +405,11 @@ func (h *Host) failStart(startErr error) error {
 	h.cancel()
 	if err := h.node.Close(); err != nil {
 		failures = append(failures, fmt.Errorf("rollback node host runtime: %w", err))
+	}
+	if h.state != nil && h.state.Policy != nil {
+		if err := h.state.Policy.Close(); err != nil {
+			failures = append(failures, fmt.Errorf("rollback node host policy: %w", err))
+		}
 	}
 	h.lifecycle = LifecycleFailed
 	h.releaseStateDirectory()

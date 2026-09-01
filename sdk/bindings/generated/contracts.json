@@ -350,12 +350,100 @@
       ]
     },
     {
+      "name": "system/policy/bindings",
+      "type": "mfh.collection",
+      "capabilities": [
+        {
+          "name": "create",
+          "input_schema": "mfh.policy.binding-create.v1",
+          "output_schema": "mfh.policy.binding.v1"
+        },
+        {
+          "name": "evaluate",
+          "input_schema": "mfh.policy.evaluate-request.v1",
+          "output_schema": "mfh.policy.evaluation.v1"
+        },
+        {
+          "name": "get",
+          "input_schema": "mfh.collection.member-request.v1",
+          "output_schema": "mfh.policy.binding.v1"
+        },
+        {
+          "name": "list",
+          "input_schema": "mfh.collection.list-request.v1",
+          "output_schema": "mfh.collection.page.v1"
+        },
+        {
+          "name": "revoke",
+          "input_schema": "mfh.policy.binding-revoke.v1",
+          "output_schema": "mfh.management.result.v1"
+        }
+      ]
+    },
+    {
+      "name": "system/policy/definitions",
+      "type": "mfh.collection",
+      "capabilities": [
+        {
+          "name": "create",
+          "input_schema": "mfh.policy.definition-put.v1",
+          "output_schema": "mfh.policy.definition.v1"
+        },
+        {
+          "name": "delete",
+          "input_schema": "mfh.policy.definition-delete.v1",
+          "output_schema": "mfh.management.result.v1"
+        },
+        {
+          "name": "get",
+          "input_schema": "mfh.collection.member-request.v1",
+          "output_schema": "mfh.policy.definition.v1"
+        },
+        {
+          "name": "list",
+          "input_schema": "mfh.collection.list-request.v1",
+          "output_schema": "mfh.collection.page.v1"
+        },
+        {
+          "name": "update",
+          "input_schema": "mfh.policy.definition-put.v1",
+          "output_schema": "mfh.policy.definition.v1"
+        }
+      ]
+    },
+    {
       "name": "system/policy/grant",
       "type": "mfh.command",
       "capabilities": [
         {
           "name": "invoke",
           "input_schema": "mfh.management.policy-rule.v1",
+          "output_schema": "mfh.management.result.v1"
+        }
+      ]
+    },
+    {
+      "name": "system/policy/grants",
+      "type": "mfh.collection",
+      "capabilities": [
+        {
+          "name": "create",
+          "input_schema": "mfh.policy.grant.v1",
+          "output_schema": "mfh.policy.grant.v1"
+        },
+        {
+          "name": "get",
+          "input_schema": "mfh.collection.member-request.v1",
+          "output_schema": "mfh.policy.grant.v1"
+        },
+        {
+          "name": "list",
+          "input_schema": "mfh.collection.list-request.v1",
+          "output_schema": "mfh.collection.page.v1"
+        },
+        {
+          "name": "revoke",
+          "input_schema": "mfh.policy.grant.v1",
           "output_schema": "mfh.management.result.v1"
         }
       ]

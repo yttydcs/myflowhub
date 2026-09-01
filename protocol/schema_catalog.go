@@ -41,6 +41,11 @@ const (
 	CapabilityOpen      CapabilityID = "open"
 	CapabilityList      CapabilityID = "list"
 	CapabilityGet       CapabilityID = "get"
+	CapabilityCreate    CapabilityID = "create"
+	CapabilityUpdate    CapabilityID = "update"
+	CapabilityDelete    CapabilityID = "delete"
+	CapabilityRevoke    CapabilityID = "revoke"
+	CapabilityEvaluate  CapabilityID = "evaluate"
 )
 
 func (id CapabilityID) Validate() error {

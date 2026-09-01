@@ -24,6 +24,8 @@
   - 设备管理中的节点显示名需求、范围与验收口径。
 - [auth-controlled-admission.md](auth-controlled-admission.md)
   - 无 Node ID 首次注册、Permit/Pending 双路径、集中式 Authority、撤销与兼容 Join 的长期需求。
+- [scoped-policy-authorization.md](scoped-policy-authorization.md)
+  - 产品无特权、可复用 Policy Definition、精确 Subject Binding、拓扑作用域与安全 bootstrap 的长期需求。
 
 ## Rules
 - 使用稳定文件名，不使用日期前缀。

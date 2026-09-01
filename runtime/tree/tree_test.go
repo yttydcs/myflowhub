@@ -156,3 +156,27 @@ func TestRelationsPreserveImmediateParentsAndRejectForgedParent(t *testing.T) {
 		t.Fatalf("unexpected parent for node 4: %d, %v", parent, ok)
 	}
 }
+
+func TestScopeContainsUsesCurrentAtomicMembership(t *testing.T) {
+	state, err := New(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := state.AttachChild(2, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.AnnounceWithParent(2, 3, 2, 1); err != nil {
+		t.Fatal(err)
+	}
+	matched, epoch, err := state.ScopeContains(2, 3)
+	if err != nil || !matched || epoch == 0 {
+		t.Fatalf("subtree membership = %v at %d, err %v", matched, epoch, err)
+	}
+	if matched, sameEpoch, err := state.ScopeContains(3, 2); err != nil || matched || sameEpoch != epoch {
+		t.Fatalf("reverse membership = %v at %d, err %v", matched, sameEpoch, err)
+	}
+	state.WithdrawChild(2)
+	if matched, nextEpoch, err := state.ScopeContains(2, 3); err != nil || matched || nextEpoch <= epoch {
+		t.Fatalf("detached membership = %v at %d, want epoch > %d, err %v", matched, nextEpoch, epoch, err)
+	}
+}

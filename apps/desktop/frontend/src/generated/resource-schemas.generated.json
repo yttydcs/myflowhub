@@ -3801,6 +3801,671 @@
       ]
     },
     {
+      "id": "mfh.policy.binding-create.v1",
+      "type": "object",
+      "title": "Create policy binding",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "binding_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Binding Id"
+          }
+        },
+        {
+          "name": "subject",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Subject"
+          }
+        },
+        {
+          "name": "definition_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Definition Id"
+          }
+        },
+        {
+          "name": "scope",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "title": "Scope",
+            "properties": [
+              {
+                "name": "kind",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Kind"
+                }
+              },
+              {
+                "name": "node_id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Node Id"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "expires_at_unix_ms",
+          "schema": {
+            "type": "integer",
+            "title": "Expires At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.policy.binding-revoke.v1",
+      "type": "object",
+      "title": "Revoke policy binding",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "binding_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Binding Id"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.policy.binding.v1",
+      "type": "object",
+      "title": "Policy binding",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "binding_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Binding Id"
+          }
+        },
+        {
+          "name": "subject",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Subject"
+          }
+        },
+        {
+          "name": "definition_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Definition Id"
+          }
+        },
+        {
+          "name": "scope",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "title": "Scope",
+            "properties": [
+              {
+                "name": "kind",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Kind"
+                }
+              },
+              {
+                "name": "node_id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Node Id"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "created_by",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Created By"
+          }
+        },
+        {
+          "name": "created_at_unix_ms",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Created At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "expires_at_unix_ms",
+          "schema": {
+            "type": "integer",
+            "title": "Expires At Unix Ms",
+            "format": "unix-ms",
+            "multiple_of": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.policy.definition-delete.v1",
+      "type": "object",
+      "title": "Delete policy definition",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        {
+          "name": "expected_revision",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Expected Revision",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.policy.definition-put.v1",
+      "type": "object",
+      "title": "Put policy definition",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        {
+          "name": "label",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        {
+          "name": "expected_revision",
+          "schema": {
+            "type": "integer",
+            "title": "Expected Revision",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "rules",
+          "required": true,
+          "schema": {
+            "type": "array",
+            "title": "Rules",
+            "max_items": 4096,
+            "items": {
+              "type": "object",
+              "properties": [
+                {
+                  "name": "resource",
+                  "required": true,
+                  "schema": {
+                    "type": "object",
+                    "title": "Resource",
+                    "properties": [
+                      {
+                        "name": "kind",
+                        "required": true,
+                        "schema": {
+                          "type": "string",
+                          "title": "Kind"
+                        }
+                      },
+                      {
+                        "name": "value",
+                        "schema": {
+                          "type": "string",
+                          "title": "Value"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "capability",
+                  "required": true,
+                  "schema": {
+                    "type": "object",
+                    "title": "Capability",
+                    "properties": [
+                      {
+                        "name": "kind",
+                        "required": true,
+                        "schema": {
+                          "type": "string",
+                          "title": "Kind"
+                        }
+                      },
+                      {
+                        "name": "values",
+                        "schema": {
+                          "type": "array",
+                          "title": "Values",
+                          "max_items": 4096,
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.policy.definition.v1",
+      "type": "object",
+      "title": "Policy definition",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        {
+          "name": "label",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        {
+          "name": "revision",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Revision",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "immutable",
+          "schema": {
+            "type": "boolean",
+            "title": "Immutable"
+          }
+        },
+        {
+          "name": "rules",
+          "required": true,
+          "schema": {
+            "type": "array",
+            "title": "Rules",
+            "max_items": 4096,
+            "items": {
+              "type": "object",
+              "properties": [
+                {
+                  "name": "resource",
+                  "required": true,
+                  "schema": {
+                    "type": "object",
+                    "title": "Resource",
+                    "properties": [
+                      {
+                        "name": "kind",
+                        "required": true,
+                        "schema": {
+                          "type": "string",
+                          "title": "Kind"
+                        }
+                      },
+                      {
+                        "name": "value",
+                        "schema": {
+                          "type": "string",
+                          "title": "Value"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "capability",
+                  "required": true,
+                  "schema": {
+                    "type": "object",
+                    "title": "Capability",
+                    "properties": [
+                      {
+                        "name": "kind",
+                        "required": true,
+                        "schema": {
+                          "type": "string",
+                          "title": "Kind"
+                        }
+                      },
+                      {
+                        "name": "values",
+                        "schema": {
+                          "type": "array",
+                          "title": "Values",
+                          "max_items": 4096,
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.policy.evaluate-request.v1",
+      "type": "object",
+      "title": "Evaluate policy",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "subject",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Subject"
+          }
+        },
+        {
+          "name": "capability",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Capability"
+          }
+        },
+        {
+          "name": "resource_node",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Resource Node"
+          }
+        },
+        {
+          "name": "resource_name",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Resource Name"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.policy.evaluation.v1",
+      "type": "object",
+      "title": "Policy evaluation",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "allowed",
+          "required": true,
+          "schema": {
+            "type": "boolean",
+            "title": "Allowed"
+          }
+        },
+        {
+          "name": "source",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        {
+          "name": "policy_generation",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Policy Generation",
+            "minimum": 0,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "topology_epoch",
+          "schema": {
+            "type": "integer",
+            "title": "Topology Epoch",
+            "minimum": 0,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "binding_id",
+          "schema": {
+            "type": "string",
+            "title": "Binding Id"
+          }
+        },
+        {
+          "name": "definition_id",
+          "schema": {
+            "type": "string",
+            "title": "Definition Id"
+          }
+        },
+        {
+          "name": "definition_revision",
+          "schema": {
+            "type": "integer",
+            "title": "Definition Revision",
+            "minimum": 0,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "rule_index",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Rule Index",
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "scope",
+          "schema": {
+            "type": "object",
+            "title": "Scope",
+            "properties": [
+              {
+                "name": "kind",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Kind"
+                }
+              },
+              {
+                "name": "node_id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "title": "Node Id"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.policy.grant.v1",
+      "type": "object",
+      "title": "Exact policy grant",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "subject",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Subject"
+          }
+        },
+        {
+          "name": "capability",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Capability"
+          }
+        },
+        {
+          "name": "resource_node",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Resource Node"
+          }
+        },
+        {
+          "name": "resource_name",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Resource Name"
+          }
+        }
+      ]
+    },
+    {
       "id": "mfh.provisioning.permit.v1",
       "type": "object",
       "title": "Provisioning permit",

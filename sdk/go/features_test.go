@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -243,6 +244,83 @@ func TestFlowClientTypedTCPContract(t *testing.T) {
 	page, err := flows.ListDefinitions(ctx, protocol.CollectionListRequestV1{Version: 1, Limit: 1})
 	if err != nil || len(page.Members) != 1 || page.Members[0].Key != definition.FlowID {
 		t.Fatalf("unexpected TCP typed page: %+v (%v)", page, err)
+	}
+}
+
+func TestPolicyClientUsesAttachedNodePath(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	directory := t.TempDir()
+	bootstrap, err := hostconfig.Open(directory, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bootstrap.Policy.CreateBinding(protocol.PolicyBindingCreateV1{
+		Version: 1, BindingID: strings.Repeat("d", 32), Subject: "2", DefinitionID: protocol.BuiltinPolicySuperadmin,
+		Scope: protocol.PolicyOwnerScopeV1{Kind: protocol.PolicyScopeAuthorityDomain, NodeID: "1"},
+	}, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := bootstrap.Policy.Close(); err != nil {
+		t.Fatal(err)
+	}
+	network := memory.NewNetwork()
+	defer network.Close()
+	root, err := hub.StartPersistent(ctx, hub.PersistentConfig{
+		StateDirectory: directory, NodeID: 1,
+		Listeners: []hub.ListenerConfig{{Driver: network, Endpoint: "sdk-policy"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	childState, err := hostconfig.Open(t.TempDir(), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer childState.Policy.Close()
+	if err := childState.Trust.Add(1, root.Runtime.Identity.PublicKey); err != nil {
+		t.Fatal(err)
+	}
+	permit, err := root.Runtime.Admission.Issue(2, childState.Identity.PublicKey, "sdk-policy", time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	child, err := node.New(ctx, node.Config{Identity: childState.Identity, Trust: childState.Trust, Policy: childState.Policy, JoinPermit: &permit})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewClient(child)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	if err := client.Connect(ctx, network, root.Endpoint, 1); err != nil {
+		t.Fatal(err)
+	}
+	policies, err := client.Policies(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := policies.ListDefinitions(ctx, protocol.CollectionListRequestV1{Version: 1, Limit: 10})
+	if err != nil || len(page.Members) != 1 || page.Members[0].Key != protocol.BuiltinPolicySuperadmin {
+		t.Fatalf("unexpected initial policy page: %+v (%v)", page, err)
+	}
+	created, err := policies.CreateDefinition(ctx, protocol.PolicyDefinitionPutV1{
+		Version: 1, ID: "health-reader", Label: "Health reader",
+		Rules: []protocol.PolicyRuleV1{{
+			Resource:   protocol.PolicyResourceSelectorV1{Kind: protocol.PolicySelectorExact, Value: protocol.BuiltinManagementHealth},
+			Capability: protocol.PolicyCapabilitySelectorV1{Kind: protocol.PolicySelectorExact, Values: []protocol.CapabilityID{protocol.CapabilityRead}},
+		}},
+	})
+	if err != nil || created.Revision != 1 {
+		t.Fatalf("typed create definition: %+v (%v)", created, err)
+	}
+	decision, err := policies.Evaluate(ctx, protocol.PolicyEvaluateRequestV1{
+		Version: 1, Subject: "2", Capability: "read", ResourceNode: "1", ResourceName: protocol.BuiltinManagementHealth,
+	})
+	if err != nil || !decision.Allowed || decision.DefinitionID != protocol.BuiltinPolicySuperadmin {
+		t.Fatalf("typed policy evaluation: %+v (%v)", decision, err)
 	}
 }
 

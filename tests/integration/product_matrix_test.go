@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -145,12 +146,112 @@ func TestCanonicalProductMatrixSharesAuthoritativeTree(t *testing.T) {
 	waitSubscriptionCount(t, clipboardNode, 0)
 }
 
+func TestScopedBindingCoversCurrentAndFutureMetricsNodes(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	network := memory.NewNetwork()
+	defer network.Close()
+	root, err := hub.StartPersistent(ctx, hub.PersistentConfig{
+		StateDirectory: t.TempDir(), NodeID: 1,
+		Listeners: []hub.ListenerConfig{{Driver: network, Endpoint: "scoped-product-matrix"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	_, clientNode := joinProductNode(t, ctx, root, 41)
+	client, err := sdk.NewClient(clientNode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	metricsState, metricsNode := joinProductNode(t, ctx, root, 42)
+	defer metricsNode.Close()
+	metricsController, err := metrics.Register(metrics.ControllerConfig{Node: metricsNode, Store: metricsState.Store, Platform: "windows"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer metricsController.Close()
+	for _, child := range []*node.Node{clientNode, metricsNode} {
+		if err := child.ConnectParent(ctx, network, root.Endpoint, 1); err != nil {
+			t.Fatal(err)
+		}
+		waitDownRoute(t, root.Node.Tree(), child.ID())
+	}
+	firstMetric := protocol.ResourceID{Owner: 42, Name: metrics.ResourceName(metrics.CPUPercent)}
+	if denied, err := client.Subscribe(ctx, firstMetric, time.Minute, 8); !isSDKCode(err, protocol.CodeForbidden) {
+		if denied != nil {
+			denied.Cancel()
+		}
+		t.Fatalf("unbound Desktop-like client accessed Metrics: %v", err)
+	}
+	definition, err := root.Runtime.Policy.PutDefinition(protocol.PolicyDefinitionPutV1{
+		Version: 1, ID: "metrics-observer", Label: "Metrics observer",
+		Rules: []protocol.PolicyRuleV1{{
+			Resource:   protocol.PolicyResourceSelectorV1{Kind: protocol.PolicySelectorPrefix, Value: "metrics"},
+			Capability: protocol.PolicyCapabilitySelectorV1{Kind: protocol.PolicySelectorExact, Values: []protocol.CapabilityID{protocol.CapabilityRead, protocol.CapabilitySubscribe}},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindingID := strings.Repeat("e", 32)
+	if _, err := root.Runtime.Policy.CreateBinding(protocol.PolicyBindingCreateV1{
+		Version: 1, BindingID: bindingID, Subject: "41", DefinitionID: definition.ID,
+		Scope: protocol.PolicyOwnerScopeV1{Kind: protocol.PolicyScopeAuthorityDomain, NodeID: "1"},
+	}, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := metricsController.Update(metrics.CPUPercent, "42", nil); err != nil {
+		t.Fatal(err)
+	}
+	firstSubscription, err := client.Subscribe(ctx, firstMetric, time.Minute, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer firstSubscription.Cancel()
+	assertMetricEvent(t, receiveProductEvent(t, ctx, firstSubscription), "42")
+
+	futureState, futureNode := joinProductNode(t, ctx, root, 43)
+	defer futureNode.Close()
+	futureController, err := metrics.Register(metrics.ControllerConfig{Node: futureNode, Store: futureState.Store, Platform: "windows"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer futureController.Close()
+	if err := futureNode.ConnectParent(ctx, network, root.Endpoint, 1); err != nil {
+		t.Fatal(err)
+	}
+	waitDownRoute(t, root.Node.Tree(), futureNode.ID())
+	if err := futureController.Update(metrics.CPUPercent, "43", nil); err != nil {
+		t.Fatal(err)
+	}
+	futureMetric := protocol.ResourceID{Owner: 43, Name: metrics.ResourceName(metrics.CPUPercent)}
+	futureSubscription, err := client.Subscribe(ctx, futureMetric, time.Minute, 8)
+	if err != nil {
+		t.Fatalf("scoped Binding did not cover future Metrics Node: %v", err)
+	}
+	defer futureSubscription.Cancel()
+	assertMetricEvent(t, receiveProductEvent(t, ctx, futureSubscription), "43")
+
+	if err := root.Runtime.Policy.RevokeBinding(bindingID); err != nil {
+		t.Fatal(err)
+	}
+	for name, subscription := range map[string]*sdk.Subscription{"current": firstSubscription, "future": futureSubscription} {
+		if err := receiveProductError(t, ctx, subscription); !isSDKCode(err, protocol.CodeExpired) {
+			t.Fatalf("%s scoped subscription survived Binding revoke: %v", name, err)
+		}
+	}
+}
+
 func joinProductNode(t *testing.T, ctx context.Context, root *hub.Hub, id protocol.NodeID) (*auth.State, *node.Node) {
 	t.Helper()
 	state, err := auth.OpenState(t.TempDir(), id)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = state.Policy.Close() })
 	if err := state.Trust.Add(root.Node.ID(), root.Runtime.Identity.PublicKey); err != nil {
 		t.Fatal(err)
 	}

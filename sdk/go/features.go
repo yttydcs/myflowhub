@@ -160,6 +160,136 @@ func (c *ManagementClient) id(name string) protocol.ResourceID {
 	return protocol.ResourceID{Owner: c.owner, Name: name}
 }
 
+// PolicyClient is a typed facade over the Authority-owned policy Collections.
+// It uses the same attached Client and Node routing path as generic Operate.
+type PolicyClient struct {
+	client      *Client
+	owner       protocol.NodeID
+	definitions *CollectionClient
+	bindings    *CollectionClient
+	grants      *CollectionClient
+}
+
+func (c *Client) Policies(owner protocol.NodeID) (*PolicyClient, error) {
+	if _, err := c.runtimeNode(); err != nil {
+		return nil, err
+	}
+	if err := owner.Validate(); err != nil {
+		return nil, fmt.Errorf("SDK policy owner: %w", err)
+	}
+	definitions, err := c.Collection(protocol.ResourceID{Owner: owner, Name: protocol.BuiltinPolicyDefinitions})
+	if err != nil {
+		return nil, err
+	}
+	bindings, err := c.Collection(protocol.ResourceID{Owner: owner, Name: protocol.BuiltinPolicyBindings})
+	if err != nil {
+		return nil, err
+	}
+	grants, err := c.Collection(protocol.ResourceID{Owner: owner, Name: protocol.BuiltinPolicyGrants})
+	if err != nil {
+		return nil, err
+	}
+	return &PolicyClient{client: c, owner: owner, definitions: definitions, bindings: bindings, grants: grants}, nil
+}
+
+func (c *PolicyClient) ListDefinitions(ctx context.Context, request protocol.CollectionListRequestV1) (protocol.CollectionPageV1, error) {
+	if err := c.validate(); err != nil {
+		return protocol.CollectionPageV1{}, err
+	}
+	return c.definitions.List(ctx, request)
+}
+
+func (c *PolicyClient) ListBindings(ctx context.Context, request protocol.CollectionListRequestV1) (protocol.CollectionPageV1, error) {
+	if err := c.validate(); err != nil {
+		return protocol.CollectionPageV1{}, err
+	}
+	return c.bindings.List(ctx, request)
+}
+
+func (c *PolicyClient) ListGrants(ctx context.Context, request protocol.CollectionListRequestV1) (protocol.CollectionPageV1, error) {
+	if err := c.validate(); err != nil {
+		return protocol.CollectionPageV1{}, err
+	}
+	return c.grants.List(ctx, request)
+}
+
+func (c *PolicyClient) GetDefinition(ctx context.Context, request protocol.CollectionMemberRequestV1) (protocol.PolicyDefinitionV1, error) {
+	var response protocol.PolicyDefinitionV1
+	err := c.operate(ctx, protocol.BuiltinPolicyDefinitions, protocol.CapabilityGet, &request, &response)
+	return response, err
+}
+
+func (c *PolicyClient) CreateDefinition(ctx context.Context, request protocol.PolicyDefinitionPutV1) (protocol.PolicyDefinitionV1, error) {
+	var response protocol.PolicyDefinitionV1
+	err := c.operate(ctx, protocol.BuiltinPolicyDefinitions, protocol.CapabilityCreate, &request, &response)
+	return response, err
+}
+
+func (c *PolicyClient) UpdateDefinition(ctx context.Context, request protocol.PolicyDefinitionPutV1) (protocol.PolicyDefinitionV1, error) {
+	var response protocol.PolicyDefinitionV1
+	err := c.operate(ctx, protocol.BuiltinPolicyDefinitions, protocol.CapabilityUpdate, &request, &response)
+	return response, err
+}
+
+func (c *PolicyClient) DeleteDefinition(ctx context.Context, request protocol.PolicyDefinitionDeleteV1) error {
+	var response protocol.ManagementResultV1
+	return c.operate(ctx, protocol.BuiltinPolicyDefinitions, protocol.CapabilityDelete, &request, &response)
+}
+
+func (c *PolicyClient) GetBinding(ctx context.Context, request protocol.CollectionMemberRequestV1) (protocol.PolicyBindingV1, error) {
+	var response protocol.PolicyBindingV1
+	err := c.operate(ctx, protocol.BuiltinPolicyBindings, protocol.CapabilityGet, &request, &response)
+	return response, err
+}
+
+func (c *PolicyClient) CreateBinding(ctx context.Context, request protocol.PolicyBindingCreateV1) (protocol.PolicyBindingV1, error) {
+	var response protocol.PolicyBindingV1
+	err := c.operate(ctx, protocol.BuiltinPolicyBindings, protocol.CapabilityCreate, &request, &response)
+	return response, err
+}
+
+func (c *PolicyClient) RevokeBinding(ctx context.Context, request protocol.PolicyBindingRevokeV1) error {
+	var response protocol.ManagementResultV1
+	return c.operate(ctx, protocol.BuiltinPolicyBindings, protocol.CapabilityRevoke, &request, &response)
+}
+
+func (c *PolicyClient) Evaluate(ctx context.Context, request protocol.PolicyEvaluateRequestV1) (protocol.PolicyEvaluationV1, error) {
+	var response protocol.PolicyEvaluationV1
+	err := c.operate(ctx, protocol.BuiltinPolicyBindings, protocol.CapabilityEvaluate, &request, &response)
+	return response, err
+}
+
+func (c *PolicyClient) GetGrant(ctx context.Context, request protocol.CollectionMemberRequestV1) (protocol.PolicyGrantV1, error) {
+	var response protocol.PolicyGrantV1
+	err := c.operate(ctx, protocol.BuiltinPolicyGrants, protocol.CapabilityGet, &request, &response)
+	return response, err
+}
+
+func (c *PolicyClient) CreateGrant(ctx context.Context, request protocol.PolicyGrantV1) (protocol.PolicyGrantV1, error) {
+	var response protocol.PolicyGrantV1
+	err := c.operate(ctx, protocol.BuiltinPolicyGrants, protocol.CapabilityCreate, &request, &response)
+	return response, err
+}
+
+func (c *PolicyClient) RevokeGrant(ctx context.Context, request protocol.PolicyGrantV1) error {
+	var response protocol.ManagementResultV1
+	return c.operate(ctx, protocol.BuiltinPolicyGrants, protocol.CapabilityRevoke, &request, &response)
+}
+
+func (c *PolicyClient) operate(ctx context.Context, name string, capability protocol.CapabilityID, request, response protocol.ValidatedPayload) error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	return c.client.OperatePayload(ctx, protocol.ResourceID{Owner: c.owner, Name: name}, capability, request, response)
+}
+
+func (c *PolicyClient) validate() error {
+	if c == nil || c.client == nil || c.definitions == nil || c.bindings == nil || c.grants == nil {
+		return errors.New("SDK policy client is required")
+	}
+	return nil
+}
+
 type NotificationClient struct {
 	client *Client
 	owner  protocol.NodeID

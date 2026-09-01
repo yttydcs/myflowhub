@@ -4,6 +4,7 @@
 
 ## Current Records
 
+- [作用域策略角色与持久绑定](2026-09-01_scoped-policy-roles-and-bindings.md)
 - [NodeHost、Enrollment 与 Profile 生命周期收敛](2026-09-01_nodehost-enrollment-profile-convergence.md)
 - [Resource Collection、Capability 与 Desktop 操作入口](2026-08-31_resource-collections-and-actions.md)
 - [Desktop Profile 入口生产化](2026-08-31_desktop-profile-entry-production.md)

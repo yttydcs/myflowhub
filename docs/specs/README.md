@@ -18,6 +18,8 @@
   - 纯 Go NodeHost、Parent/Listeners 角色组合、attached SDK ownership、资源注册和薄平台适配契约
 - [node-enrollment-and-admission-authority.md](node-enrollment-and-admission-authority.md)
   - 首次 Enrollment、Permit/Pending、Authority、Node ID 分配、撤销和兼容 Join 的当前契约
+- [scoped-policy-authorization.md](scoped-policy-authorization.md)
+  - PolicyState v2、Definitions/Bindings、owner scopes、管理 Collections、SDK/Desktop 与离线 bootstrap 契约
 - [brand-identity-assets.md](brand-identity-assets.md)
   - Coupled Seam canonical 几何、色彩、full/compact/tray 资产路由与平台派生边界
 - [resource-platform-v2.md](resource-platform-v2.md)

@@ -177,15 +177,12 @@ func (c *Controller) buildResources() ([]resource.Resource, error) {
 	if err != nil {
 		return nil, err
 	}
-	grantPolicy, err := c.command(protocol.BuiltinManagementPolicyGrant, protocol.SchemaManagementPolicyRuleV1, protocol.SchemaManagementResultV1, "management.policy.write", c.grantPolicy)
+	resources := []resource.Resource{topology, health, configVariable, auditFeed, issue, revokePermit, revokeNode, updateConfig}
+	policyResources, err := c.buildPolicyResources()
 	if err != nil {
 		return nil, err
 	}
-	revokePolicy, err := c.command(protocol.BuiltinManagementPolicyRevoke, protocol.SchemaManagementPolicyRuleV1, protocol.SchemaManagementResultV1, "management.policy.write", c.revokePolicy)
-	if err != nil {
-		return nil, err
-	}
-	resources := []resource.Resource{topology, health, configVariable, auditFeed, issue, revokePermit, revokeNode, updateConfig, grantPolicy, revokePolicy}
+	resources = append(resources, policyResources...)
 	admissionResources, err := c.buildEnrollmentAuthorityResources()
 	if err != nil {
 		return nil, err
@@ -289,28 +286,6 @@ func (c *Controller) updateConfig(_ context.Context, input []byte) ([]byte, erro
 		return nil, err
 	}
 	return protocol.EncodeJSONPayload(&next, protocol.DefaultMaxPayload)
-}
-
-func (c *Controller) grantPolicy(_ context.Context, input []byte) ([]byte, error) {
-	rule, err := decodePolicyRule(input)
-	if err != nil {
-		return nil, err
-	}
-	if err := c.policy.Grant(rule); err != nil {
-		return nil, err
-	}
-	return managementOK()
-}
-
-func (c *Controller) revokePolicy(_ context.Context, input []byte) ([]byte, error) {
-	rule, err := decodePolicyRule(input)
-	if err != nil {
-		return nil, err
-	}
-	if err := c.policy.Revoke(rule); err != nil {
-		return nil, err
-	}
-	return managementOK()
 }
 
 func decodePolicyRule(input []byte) (auth.Request, error) {

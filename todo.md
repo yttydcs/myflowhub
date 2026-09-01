@@ -1,52 +1,65 @@
-# Todo - NodeHost Enrollment Profile Convergence
+# Todo - Scoped Policy Definitions And Authority Bindings
 
 ## Approval Gate
 
-- [x] User explicitly approves `DOC01, AUTH01, HOST01, BOOT01, DESK01, REG01, QA01`.
+- [x] User explicitly approves `DOC01, PROTO01, AUTH01, TREE01, MGMT01, SDK01, DESK01, BOOT01, QA01, LIVE01`.
 - [x] User selects `$m-execute` after approval.
-- [x] Dedicated branch/worktree created from `master@a9eb270`.
-- [x] Main checkout user changes identified and left untouched.
-- [x] `$m-docs` routing and stable-doc impact recorded.
+- [x] Dedicated branch/worktree exists from `master@70add9b`.
+- [x] Main checkout user changes are identified and untouched.
+- [x] `$m-discuss` brief and `$m-docs` routing/stable-doc impact are recorded.
 
-## Will Execute After Approval
+## Approved Execution
 
-- [x] DOC01 — converge stable contracts and add the exception-removal ADR.
-- [x] AUTH01 — add fail-closed enrolled Node credential source.
-- [x] HOST01 — add credential-backed mode to the neutral NodeHost.
-- [x] BOOT01 — split narrow Enrollment bootstrap from post-Grant runtime ownership.
-- [x] DESK01 — hand authority Profiles from bootstrap to Parent-only NodeHost.
-- [x] REG01 — add ownership/idempotency/migration/architecture regression guards.
-- [x] QA01 — automated generated/build/race and real TCP gates plus packaged GUI Permit, Pending/approval, reconnect and restart evidence passed.
+- [x] DOC01 — stable requirement/spec/ADR and product documentation.
+- [x] PROTO01 — bounded policy protocol schemas/selectors/capabilities.
+- [x] AUTH01 — policy state v2, migration, Definitions/Bindings and evaluator.
+- [x] TREE01 — authoritative topology scope resolver and Hub attachment.
+- [x] MGMT01 — policy Collections, superadmin mutation guard and audit.
+- [x] SDK01 — typed SDK helpers and generated contracts.
+- [x] DESK01 — Authority-backed Desktop Policy console.
+- [x] BOOT01 — stopped-Hub Binding inspection/bootstrap CLI.
+- [x] QA01 — automated, race, generated, build and isolated integration gates.
+- [x] LIVE01 — persist Node 41 Authority-domain superadmin Binding and real restart smoke.
 
 ## Will Not Execute Now
 
-- [ ] LEGACY02 — remove all deprecated owning SDK/binding APIs; deferred pending downstream inventory and breaking-change approval.
-- [ ] MOBL02 — migrate Android/Embedded Enrollment; separate product/platform scope.
-- [ ] SETV3 — remove authority identity cache fields from settings; requires persisted-schema migration.
-- [ ] MAIN01 — reconcile/integrate main checkout concurrent docs/design edits; archive phase only.
-- [x] ARC01 — governed archive, local commits, master integration, user-dirt restoration and worktree/branch cleanup completed.
-- [ ] PUB01 — push/release/publish/deploy; unauthorized.
+- [ ] DENY02 — explicit deny, inheritance and Subject groups; deferred.
+- [ ] DELEG02 — bounded non-superadmin delegation; deferred.
+- [ ] FED02 — cross-Authority policy federation; out of scope.
+- [ ] MOBL02 — Android/Embedded policy management UI; separate product scope.
+- [ ] CLEAN02 — remove Node 41 legacy exact grants; deferred for rollback safety.
+- [ ] ARC01 — archive/merge/worktree cleanup; later explicit `$m-archive`.
+- [ ] PUB01 — push/release/sign/publish/deploy; unauthorized.
 
 ## Dependency Order
 
-- [x] DOC01 completes contract naming.
-- [x] AUTH01 and BOOT01 may run in parallel.
-- [x] HOST01 consumes AUTH01.
-- [x] DESK01 consumes AUTH01 + HOST01 + BOOT01.
-- [x] REG01 follows DESK01.
-- [x] QA01 is the final execution gate.
+- [x] DOC01 freezes stable terminology and boundaries.
+- [x] PROTO01 freezes wire/schema contracts.
+- [x] AUTH01 consumes PROTO01.
+- [x] TREE01 attaches current-topology matching to AUTH01.
+- [x] MGMT01 consumes PROTO01 + AUTH01 + TREE01.
+- [x] SDK01 consumes protocol and management Resource contracts.
+- [x] DESK01 consumes SDK/generated schemas and management Resources.
+- [x] BOOT01 consumes AUTH01 and can complete before Desktop.
+- [x] QA01 follows all implementation tasks.
+- [x] LIVE01 runs only after QA01 passes.
 
 ## Current Status
 
-- Phase: `$m-archive` complete; local master integrated and feature worktree/branch cleaned.
+- Phase: `$m-execute` complete; awaiting optional `$m-test` or explicit `$m-archive`.
 - Blocked: no.
-- Runtime/business logic changes: credential source, credential-backed NodeHost, narrow Enrollment bootstrap, Desktop bootstrap-to-Host handoff and regression guards implemented.
-- Validation: full Go/vet, focused race, generated freshness, Desktop frontend tests/build, Wails build, real Hub TCP paths, and packaged GUI Permit/Pending/approval/restart paths passed.
-- Test iteration 1: product startup passed but GUI control was blocked by the host runtime.
-- Test iteration 2: supported GUI control recovered; both independent Profile paths, authority approval, default deny, Enrollment-owned identity, reconnect and restart auto-connect passed without a code repair iteration.
-- Archive boundary: raw iteration-2 credentials, Permit and policy state were removed before staging and were not published.
-- Archive commits: `b94fe34` implementation and `a0c2fe7` governed archive; final closeout state is recorded by the subsequent master closeout commit.
-- Integration: local `master` fast-forward completed; detached preview, feature worktree and merged feature branch were removed.
-- Preservation: 8 tracked modifications and 24 untracked user docs/design files remain unstaged; exact replay checks passed and the transient stash was dropped. Two pre-existing stashes remain untouched.
-- Publication: local-only; no push, release, publication or deployment was performed.
+- Runtime/business logic changes: policy state v2, scoped Definition/Binding evaluation, topology resolver, management Collections, SDK, Desktop console and bootstrap CLI implemented.
+- Live policy mutation: Subject 41 has persistent Binding `b3df4b135fdf4f3589f9c66aece5ce6a` to `superadmin` over `authority-domain:1`; policy generation 77; 70 legacy exact grants retained.
+- Docs: requirement, specification, ADR, feature docs, protocol map and indexes updated.
 - Implementation agents dispatched: none.
+
+## Execution Evidence
+
+- `GOWORK=off go test ./... -count=1` passed.
+- `go vet ./...` passed.
+- Focused race tests across protocol/auth/tree/management/Hub/SDK passed.
+- Generated SDK binding freshness check passed.
+- Desktop frontend passed 18 files / 136 tests and production build.
+- Desktop Windows Wails production build passed.
+- Isolated current/future Metrics Node scoped-binding integration passed.
+- Live Hub + Metrics + Desktop restart passed: existing Desktop Profile auto-connected without Permit, Metrics read/subscribe succeeded, effective evaluation identified the Binding, unauthorized Subject remained denied, and a second stopped-Hub inspection confirmed persistence.

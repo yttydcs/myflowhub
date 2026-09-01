@@ -8,6 +8,8 @@ Desktop 是 Node/Resource 平台的通用工作台，不是另一套 Hub 或业�
 
 Desktop 与 MetricsNode 完全独立：二者使用不同 Node identity、state、进程、Resource owner 和安装包。共享 NodeHost/SDK package 不会让 Desktop 拥有 Metrics 资源，也不会赋予 Desktop 默认 Listener、中继或网络特权。
 
+Settings 中的 Policy Console 是 Authority Resources 的普通调用方：它读取 Definitions、Subject Bindings、exact Grants 和 effective preview，并可在 Authority 允许时创建/更新/撤销记录。UI 会警告 all/superadmin 的未来能力覆盖，但不会因为当前产品是 Desktop 而推断允许；服务端 Forbidden 始终是最终结果。
+
 源码边界：
 
 - `apps/desktop`：Wails host、Profile/CredentialStore、View store 和 React 工作区；

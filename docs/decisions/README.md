@@ -4,6 +4,7 @@
 
 ## Current Decisions
 
+- [使用作用域 Policy Binding，而不是产品特权](2026-09-01_scoped-policy-bindings-over-product-privilege.md)
 - [Enrollment bootstrap → NodeHost handoff](2026-09-01_enrollment-bootstrap-nodehost-handoff.md)
 - [使用 Collection Resource 管理成员，以 Capability 表达普通操作](2026-08-31_collection-resource-and-capability-actions.md)
 - [Provider 拥有数据 Schema，Desktop 拥有 Renderer 选择](2026-08-30_provider-schema-desktop-renderer-ownership.md)

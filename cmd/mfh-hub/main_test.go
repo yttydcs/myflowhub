@@ -114,6 +114,70 @@ func TestOfflineModesAreMutuallyExclusive(t *testing.T) {
 	}
 }
 
+func TestOfflinePolicyBindingShowIdempotencyAndRevoke(t *testing.T) {
+	directory := t.TempDir()
+	bindingID := strings.Repeat("a", 32)
+	bind := options{
+		id: 1, stateDirectory: directory, policy: "bind", subject: 41,
+		definition: protocol.BuiltinPolicySuperadmin, bindingID: bindingID,
+		policyScope: protocol.PolicyScopeAuthorityDomain,
+	}
+	var first bytes.Buffer
+	if err := run(context.Background(), bind, &first); err != nil {
+		t.Fatal(err)
+	}
+	var result struct {
+		BindingID  string `json:"binding_id"`
+		Generation uint64 `json:"generation"`
+	}
+	if err := json.Unmarshal(first.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.BindingID != bindingID || result.Generation == 0 {
+		t.Fatalf("unexpected bind result: %+v", result)
+	}
+	var retry bytes.Buffer
+	if err := run(context.Background(), bind, &retry); err != nil {
+		t.Fatal(err)
+	}
+	var retryResult struct {
+		Generation uint64 `json:"generation"`
+	}
+	if err := json.Unmarshal(retry.Bytes(), &retryResult); err != nil {
+		t.Fatal(err)
+	}
+	if retryResult.Generation != result.Generation {
+		t.Fatalf("idempotent retry changed generation: %d -> %d", result.Generation, retryResult.Generation)
+	}
+
+	var show bytes.Buffer
+	if err := run(context.Background(), options{id: 1, stateDirectory: directory, policy: "show"}, &show); err != nil {
+		t.Fatal(err)
+	}
+	var snapshot struct {
+		Definitions []protocol.PolicyDefinitionV1 `json:"definitions"`
+		Bindings    []protocol.PolicyBindingV1    `json:"bindings"`
+	}
+	if err := json.Unmarshal(show.Bytes(), &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Definitions) != 1 || snapshot.Definitions[0].ID != protocol.BuiltinPolicySuperadmin || len(snapshot.Bindings) != 1 || snapshot.Bindings[0].Subject != "41" {
+		t.Fatalf("unexpected policy snapshot: %+v", snapshot)
+	}
+
+	if err := run(context.Background(), options{id: 1, stateDirectory: directory, policy: "revoke-binding", bindingID: bindingID}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	state, err := hostconfig.Open(directory, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer state.Policy.Close()
+	if len(state.Policy.Bindings()) != 0 {
+		t.Fatal("offline revoke-binding did not persist")
+	}
+}
+
 func TestOfflineEnrollmentPermitDoesNotRequireChildNodeID(t *testing.T) {
 	directory := t.TempDir()
 	device, err := auth.GenerateDeviceIdentity()

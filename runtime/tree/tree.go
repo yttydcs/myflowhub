@@ -40,13 +40,14 @@ type Route struct {
 }
 
 type State struct {
-	mu       sync.RWMutex
-	local    protocol.NodeID
-	parent   *Edge
-	children map[protocol.NodeID]Edge
-	routes   map[protocol.NodeID]protocol.NodeID
-	parents  map[protocol.NodeID]protocol.NodeID
-	epoch    uint64
+	mu              sync.RWMutex
+	local           protocol.NodeID
+	parent          *Edge
+	children        map[protocol.NodeID]Edge
+	routes          map[protocol.NodeID]protocol.NodeID
+	parents         map[protocol.NodeID]protocol.NodeID
+	epoch           uint64
+	membershipEpoch uint64
 }
 
 func New(local protocol.NodeID) (*State, error) {
@@ -54,10 +55,11 @@ func New(local protocol.NodeID) (*State, error) {
 		return nil, fmt.Errorf("create tree: %w", err)
 	}
 	return &State{
-		local:    local,
-		children: make(map[protocol.NodeID]Edge),
-		routes:   make(map[protocol.NodeID]protocol.NodeID),
-		parents:  make(map[protocol.NodeID]protocol.NodeID),
+		local:           local,
+		children:        make(map[protocol.NodeID]Edge),
+		routes:          make(map[protocol.NodeID]protocol.NodeID),
+		parents:         make(map[protocol.NodeID]protocol.NodeID),
+		membershipEpoch: 1,
 	}, nil
 }
 
@@ -98,6 +100,7 @@ func (s *State) AttachParent(parent protocol.NodeID) (uint64, error) {
 	}
 	s.epoch++
 	s.parent = &Edge{Node: parent, Epoch: s.epoch}
+	s.bumpMembershipEpochLocked()
 	return s.epoch, nil
 }
 
@@ -112,6 +115,7 @@ func (s *State) Reparent(parent protocol.NodeID) (uint64, error) {
 	}
 	s.epoch++
 	s.parent = &Edge{Node: parent, Epoch: s.epoch}
+	s.bumpMembershipEpochLocked()
 	return s.epoch, nil
 }
 
@@ -132,6 +136,7 @@ func (s *State) ActivateParent(parent protocol.NodeID, epoch uint64) error {
 	}
 	s.epoch = epoch
 	s.parent = &Edge{Node: parent, Epoch: epoch}
+	s.bumpMembershipEpochLocked()
 	return nil
 }
 
@@ -149,6 +154,7 @@ func (s *State) ReattachChild(child protocol.NodeID, epoch uint64) error {
 		return ErrStaleEpoch
 	}
 	s.children[child] = Edge{Node: child, Epoch: epoch}
+	s.bumpMembershipEpochLocked()
 	return nil
 }
 
@@ -160,6 +166,7 @@ func (s *State) DetachParent(parent protocol.NodeID) bool {
 	}
 	s.epoch++
 	s.parent = nil
+	s.bumpMembershipEpochLocked()
 	return true
 }
 
@@ -171,6 +178,7 @@ func (s *State) DetachParentEpoch(parent protocol.NodeID, epoch uint64) bool {
 	}
 	s.epoch++
 	s.parent = nil
+	s.bumpMembershipEpochLocked()
 	return true
 }
 
@@ -195,6 +203,7 @@ func (s *State) AttachChild(child protocol.NodeID, epoch uint64) error {
 	s.children[child] = Edge{Node: child, Epoch: epoch}
 	s.routes[child] = child
 	s.parents[child] = s.local
+	s.bumpMembershipEpochLocked()
 	return nil
 }
 
@@ -239,6 +248,7 @@ func (s *State) AnnounceWithParent(via, descendant, parent protocol.NodeID, edge
 	}
 	s.routes[descendant] = via
 	s.parents[descendant] = parent
+	s.bumpMembershipEpochLocked()
 	return nil
 }
 
@@ -272,6 +282,7 @@ func (s *State) withdrawChildLocked(child protocol.NodeID) []protocol.NodeID {
 			delete(s.parents, target)
 		}
 	}
+	s.bumpMembershipEpochLocked()
 	return removed
 }
 
@@ -293,7 +304,50 @@ func (s *State) WithdrawRoute(via, descendant protocol.NodeID, edgeEpoch uint64)
 	}
 	delete(s.routes, descendant)
 	delete(s.parents, descendant)
+	s.bumpMembershipEpochLocked()
 	return nil
+}
+
+// ScopeContains evaluates one ancestor relation against a single locked tree
+// snapshot. The returned epoch changes whenever membership or parentage changes.
+// Unknown or detached nodes are a non-match rather than a route through the
+// local node's parent.
+func (s *State) ScopeContains(anchor, candidate protocol.NodeID) (bool, uint64, error) {
+	if err := anchor.Validate(); err != nil {
+		return false, 0, fmt.Errorf("scope anchor: %w", err)
+	}
+	if err := candidate.Validate(); err != nil {
+		return false, 0, fmt.Errorf("scope candidate: %w", err)
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	epoch := s.membershipEpoch
+	if !s.reachableLocked(anchor) || !s.reachableLocked(candidate) {
+		return false, epoch, nil
+	}
+	for current := candidate; ; {
+		if current == anchor {
+			return true, epoch, nil
+		}
+		if current == s.local {
+			return false, epoch, nil
+		}
+		parent := s.parents[current]
+		if parent == 0 || parent == current {
+			return false, epoch, nil
+		}
+		current = parent
+	}
+}
+
+func (s *State) reachableLocked(node protocol.NodeID) bool {
+	return node == s.local || s.routes[node] != 0
+}
+
+func (s *State) bumpMembershipEpochLocked() {
+	if s.membershipEpoch != ^uint64(0) {
+		s.membershipEpoch++
+	}
 }
 
 func (s *State) ValidateSource(via, source protocol.NodeID, edgeEpoch uint64) error {

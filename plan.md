@@ -1,439 +1,444 @@
-# Plan - NodeHost Enrollment Profile Convergence
+# Plan - Scoped Policy Definitions And Authority Bindings
 
 ## Workflow Information
 
 - Repo: `D:\project\MyFlowHub3\repo\MyFlowHub`
-- Branch: `refactor/nodehost-enrollment-convergence`
-- Base: `master@a9eb27001438029ef772ea9f71d66e896407654e`
+- Branch: `refactor/scoped-policy-authority`
+- Base: `master@70add9b3ac436ff509e77f2b13d64a265f5e2fee`
 - Project Root: `D:\project\MyFlowHub3`
-- Docs Root: canonical `D:\project\MyFlowHub3\repo\MyFlowHub\docs`（实施期间位于 sibling worktree）
+- Docs Root: canonical repository `docs/` in the active worktree
 - Code Repos: canonical monorepo `MyFlowHub`
-- Worktree: `D:\project\MyFlowHub3\worktrees\nodehost-enrollment-convergence`（已清理）
-- Current Stage: `$m-archive` complete; `DOC01, AUTH01, HOST01, BOOT01, DESK01, REG01, QA01, ARC01` passed, local master is integrated, unrelated user dirt is restored, and the feature worktree/branch are removed.
-- Publication: local-only; no push, release, publication or deployment was authorized.
+- Worktree: `D:\project\MyFlowHub3\worktrees\scoped-policy-authority`
+- Current Stage: `$m-execute` active; approved Task IDs are being implemented in dependency order
+- Publication: local-only; no push, release, publication or deployment is authorized
 
 ## Stage Records
 
 ### Initialization
 
-- `guide.md` read: canonical protocol/runtime docs live in repository `docs/`; worktrees must live under project sibling `worktrees/`; commits use Chinese messages.
-- Owning repo confirmed: `D:\project\MyFlowHub3\repo\MyFlowHub`.
-- Governed docs root confirmed: the canonical monorepo `docs/` in the active worktree.
-- Main checkout is control-plane only and contains unrelated user-owned docs/design changes. They remain untouched.
-- Dedicated branch/worktree created from `master@a9eb270`.
+- `guide.md` read: canonical docs live in repository `docs/`; worktrees stay under project-level `worktrees/`; canonical commands use `GOWORK=off`; commits use Chinese messages.
+- Owning repo, docs root and dedicated branch/worktree are confirmed.
+- Main checkout contains unrelated user-owned changes and remains untouched.
+- Repository has no remote.
 
 ### Discuss - Discovery And Requirements Shaping
 
 #### Goal
 
-Remove the documented Desktop authority Enrollment owning-runtime exception so every granted Desktop node runs through the same NodeHost and attached SDK path, without changing Enrollment wire or requiring re-enrollment.
+Restore reusable, persistent permission groups on top of the current Resource owner + Capability authorization model so Desktop Node 41 can be explicitly granted full authority-domain access without making Desktop a privileged product.
 
-#### Scope
+#### Current State
 
-- Runtime auth adapter from protected Enrollment Grant to a validated Node credential source.
-- Generic NodeHost consumption of resolved credentials without creating a duplicate identity.
-- Enrollment-only bootstrap facade that cannot own ordinary Node operations after Grant.
-- Desktop Profile bootstrap → NodeHost handoff, idempotent connect, failure rollback and state projection.
-- Stable documentation, architecture guards, regression tests and packaged Desktop/Hub integration evidence.
-
-#### Assumptions
-
-- One logical Admission Authority and the current MFHE/MFH4 contracts remain authoritative.
-- The protected Enrollment credential remains the canonical source for authority identity, Grant, parent anchor and Authority anchor.
-- Legacy version 2 Profiles remain supported through their existing NodeID/IdentityStore path.
-- Existing public owning binding APIs remain deprecated compatibility surface unless a separate cleanup task is approved.
-
-#### Options Considered
-
-1. Keep authority Profiles on owning binding: rejected; preserves two lifecycle and send-ownership models.
-2. Let NodeHost run with Node ID zero during Enrollment: rejected; violates MFH4 identity invariants and conflates pre-auth with ordinary Node runtime.
-3. Copy the granted identity into `identity.dpapi`: rejected; creates two persistent identity truths and a cross-file atomicity problem.
-4. Add an `EnrollmentHost` or `nodeclient` wrapper: rejected; user direction and existing architecture require one neutral Host.
-5. Inject a validated credential source into the existing NodeHost: selected; Enrollment stays pre-Node, while granted nodes share one runtime model.
+- `runtime/auth.PolicyState` stores only exact `(Subject, Capability, Resource Owner, Resource Name)` grants.
+- `AllowAll` is an in-process Policy implementation, not a persistent subject role.
+- Current management exposes only exact `system/policy/grant` and `system/policy/revoke` Commands.
+- Desktop has generic Resource operation support and an Admission console, but no current Policy Definition/Binding console.
+- Pre-vNext history had `superadmin:*`, `admin`, `node`, role editing and node overrides; those legacy permission strings do not carry current owner/topology/generation semantics.
 
 #### Recommended Direction
 
-```text
-Profile preparation
-        ↓
-Enrollment bootstrap (Device / Pending; no Node)
-        ↓ signed Grant persisted atomically
-Validated enrolled credential source
-        ↓ identity + parent anchor
-NodeHost.New → register resources → Start
-        ↓
-Host.Client attached operation path
-```
+- Keep every product and runtime as an ordinary Node.
+- Add named Policy Definitions containing bounded Resource-name and Capability selectors.
+- Add persistent Policy Bindings from one exact Subject NodeID to one Definition and one owner scope.
+- Retain exact grants as a compatibility/minimum-permission layer.
+- Evaluate dynamic scopes against the current authoritative topology; do not create a second permissions tree.
+- Explicitly bind Desktop Node 41 to immutable `superadmin` within `authority-domain:1`.
+- Do not auto-bind the first Enrollment, the first Desktop, a product name or a fixed NodeID during migration.
 
-#### Research Summary
+#### Rejected Options
 
-Local Git and code audit found no recent overwrite. The exception was introduced deliberately in `19b4cfe` and documented by `350e733`. Focused NodeHost/auth/enrollment/Desktop Go tests pass. The current frontend checkout has stale `node_modules`, while the same HEAD previously passed the complete clean frontend gate.
+- Expand exact grants whenever catalog changes: rejected as race-prone and unbounded.
+- Add selectors without reusable Definitions: rejected as repetitive and hard to audit/manage.
+- Special-case Desktop, Node 41 or an installation package as `AllowAll`: rejected because it creates product privilege.
+- Restore legacy `auth.role_perms` strings: rejected because they lose Resource owner, topology and generation semantics.
+
+#### Discussion Artifact
+
+- `docs/intake/2026-09-01_scoped-policy-roles-and-bindings.md`
 
 #### Issue List
 
-- No blocking requirement question.
-- Main checkout has concurrent docs changes; integration must reconcile rather than overwrite them.
+- Blocking architecture questions: none.
+- Approval is still required before runtime, protocol, SDK, UI, tests or live policy state are changed.
 
 ### Plan - Requirements And Architecture
 
-#### Discussion Summary
-
-The user confirmed that NodeHost is the single ordinary-node runtime and that Enrollment only exists because a new device has no Node ID yet. Once the Authority Grant exists, continued use of an owning binding is no longer justified. Profile activation and network Enrollment must be separate concepts even if one Wails action orchestrates them for UI compatibility.
-
-#### Accepted / Rejected Requirements
-
-Accepted:
-
-- Grant-before-Host ordering; no ordinary Node before a persisted Grant.
-- One Parent-only NodeHost for both Legacy and enrolled authority Profiles.
-- Grant-derived identity and parent trust; no second persisted identity file.
-- Idempotent Connect over one Host supervisor.
-- Existing authority Profiles reconnect without Permit or re-enrollment.
-- Full credential/Profile consistency diagnostics and secret-safe projection.
-- MFHE/MFH4, DPAPI, settings v2 and Legacy behavior remain compatible.
-
-Rejected or deferred:
-
-- Breaking removal of every owning SDK API, mobile/embedded Enrollment migration, settings v3, reparent/rekey and multi-Authority work.
-
 #### Requirements Analysis
 
-##### Functional Requirements
+##### Accepted Requirements
 
-1. A missing/device/pending credential cannot create a NodeHost and cannot obtain a Node ID locally.
-2. A signed enrolled credential yields exactly one validated Node identity and the Grant-bound parent anchor.
-3. NodeHost must accept a credential source without using load-or-create identity behavior; missing/corrupt/mismatched credentials fail closed before external work.
-4. Explicit NodeID/IdentityStore and credential-source modes are mutually exclusive or must match exactly; ambiguity is an error.
-5. The Enrollment bootstrap exposes only status and Enroll operations; it does not expose Catalog/Operate/Subscribe or own the post-Grant Parent runtime.
-6. Desktop closes the bootstrap before opening the granted Profile Host, preventing concurrent writers to the Profile state root.
-7. Existing enrolled Profiles skip Enrollment and open NodeHost directly from the protected credential.
-8. Repeated Connect while the Host is running or connecting waits for the existing supervisor instead of calling Start twice.
-9. Profile settings never override credential-derived NodeID, parent or Authority truth. Any compatibility cache mismatch is explicit and secret-safe.
-10. Candidate creation, failed login, Profile switching, deactivation, delete and shutdown preserve current atomic replacement and cleanup semantics.
+1. Policy Definition is a reusable rule collection, not a Node/network role.
+2. Policy Binding is the Authority-owned persistent fact assigning a Definition to an exact Subject and owner scope.
+3. Owner scopes in phase one are `owner`, `subtree` and `authority-domain`.
+4. Resource selectors support exact, segment-safe prefix and all; Capability selectors support exact sorted sets and all.
+5. Exact grants and v1 `policy.json` survive migration without semantic loss.
+6. Default deny remains the fallback; phase one has no explicit deny or role inheritance.
+7. Any effective policy mutation increments policy generation and invalidates old generation-bound sessions/subscriptions.
+8. Dynamic scope membership uses one atomic current topology snapshot; reparent cannot retain stale scope membership.
+9. Only an effective Authority-domain `superadmin` Binding may mutate Definitions, Bindings or exact grants online in phase one.
+10. The immutable built-in `superadmin` Definition exists after initialization/migration but has no automatic Binding.
+11. Desktop, SDK and CLI consume the same policy Resources; Desktop does not hold a local authorization bypass.
+12. Node 41 receives one explicit persistent `superadmin + authority-domain:1` Binding after automated gates pass.
 
 ##### Non-functional Requirements
 
-- No private key, Permit, Grant signature or full public-key body enters settings, logs, frontend state or test artifacts.
-- Credential reads clone sensitive buffers and do not mutate or create credential state.
-- No duplicate runtime, Parent supervisor, SDK queue or state-directory writer is introduced.
-- Existing public API and persisted formats remain backward compatible unless explicitly deprecated.
-- Error messages distinguish missing/pending/corrupt credential, Grant mismatch, parent mismatch and lifecycle state.
+- Fail closed on missing topology resolver, corrupt policy state, unknown Definition, invalid selector, scope outside the local Authority domain, revision conflict or exhausted generation.
+- Persist atomically before publishing in-memory state or generation notifications.
+- Bound selectors, Definition/rule counts, Binding/grant counts, page size, text length and evaluation cost; no regex or arbitrary policy language.
+- Keep compiled indexes by Subject and Definition so common evaluation is exact-map lookup plus that Subject's bounded bindings/rules.
+- Policy list/effective responses and audit events contain no keys, permits, credentials or payload bodies.
+- Schema, contract and Wails/generated outputs must remain reproducible.
+- Existing non-policy NodeHost, routing, Resource, Metrics and Enrollment behavior remains compatible.
+
+##### Use Cases
+
+- Desktop Node 41 accesses current Metrics Resources through an Authority-domain superadmin Binding.
+- A new Node joins under Authority 1 and its new Resources become accessible to Node 41 without new exact grants.
+- A narrower custom Definition can later be created and bound to another Desktop, CLI or Agent Gateway Node.
+- Revoking a Binding removes access and expires generation-bound subscriptions.
+- Reparenting a Resource owner outside a scoped subtree removes scope membership immediately under the new topology epoch.
+- Existing exact grants continue to authorize their exact tuples after policy state migration.
 
 ##### Inputs / Outputs
 
-- Input: protected `EnrollmentCredentialStore`, Profile endpoint/preferences, optional single-use Enrollment Permit/TOFU choice.
-- Bootstrap output: `pending` outcome or atomically persisted signed Grant.
-- Credential-source output: validated Node identity plus parent/Authority metadata; only identity and parent trust enter NodeHost.
-- Runtime output: Parent-only NodeHost and attached Desktop operation facade.
+- Definition input: stable ID, display label, expected revision for update, ordered validated rules.
+- Rule input: Resource selector and Capability selector; owner is not embedded in the Definition.
+- Binding input: stable/idempotent Binding ID, Subject NodeID, Definition ID, owner scope, optional expiry.
+- Exact grant input: current Subject/Capability/ResourceID tuple.
+- Evaluation output: allow/deny plus matched exact grant or Binding/Definition/rule/scope metadata suitable for safe UI explanation.
+- Collection output: generation-backed bounded pages for Definitions, Bindings and exact grants.
 
 ##### Edge Cases
 
-- Grant becomes durable but settings save fails.
-- Existing Profile cache disagrees with Grant NodeID, parent or Authority.
-- Bootstrap closes while Enrollment is blocked or returns pending.
-- Duplicate Connect, auto-connect/manual-connect sequencing, and disconnect during connect.
-- DPAPI credential is unreadable under another Windows user.
-- Parent endpoint changes while the signed parent identity remains the same.
-- Same Profile state root is already reserved by a Host.
-- Deprecated owning API callers continue to compile while Desktop no longer uses them.
+- v1 state has grants but no Definitions/Bindings.
+- A Definition update races with another update or affects active Bindings.
+- Built-in `superadmin` is edited or deleted.
+- Definition deletion is requested while active Bindings reference it.
+- Binding creation is retried with the same ID and same/different payload.
+- Binding expires while a subscription is active.
+- Scope anchor is unknown, detached or outside the local Authority domain.
+- Resource prefix `metrics/` must not match `metrics-evil/...`.
+- A caller has exact invoke/create permission on policy Resources but lacks a superadmin Binding.
+- Topology changes during scope evaluation.
+- Node 41 identity changes while an old Binding remains.
+- Live Hub is running when an offline bootstrap mutation is attempted.
 
 ##### Acceptance Criteria
 
-- After a successful authority login, `profileRuntime.host` is non-nil, RoleLeaf, listener-free, and its facade is attached/non-owning.
-- Reopening an enrolled Profile creates NodeHost directly, uses the same Node ID/public key and does not call Enrollment or require Permit/TOFU.
-- Repeated Connect succeeds or waits on the existing Parent supervisor; it never returns `binding client is already started`.
-- No `identity.dpapi` or plaintext identity is created for an authority Profile; the protected Enrollment credential remains canonical.
-- Pending and failed Enrollment create no ordinary Node, release bootstrap resources, preserve stable request/trust observation and remain retryable.
-- Full Go/race/vet, generated freshness, Desktop frontend/build/Wails gates and real Hub + Desktop enrollment/restart smoke pass.
+- A migrated v1 `policy.json` reopens as v2 with all exact grants intact and an unbound immutable `superadmin` Definition.
+- No Subject gains access solely because the binary or state schema was upgraded.
+- Node 41 with `superadmin + authority-domain:1` can read/subscribe/invoke current and later-added Resources in that Authority domain.
+- A future Node/Resource requires no grant expansion; a Node outside the scope remains forbidden.
+- Revocation and Definition change increase generation and expire old subscriptions/sessions.
+- Reparent and stale topology tests prove scope membership follows current tree state.
+- Policy mutation by a caller that only has exact access to the management Resource is rejected.
+- Desktop provides a real Policy console backed by Authority Resources and shows the effective Node 41 Binding after restart.
+- Hub + Desktop + Metrics real smoke passes with the persistent Desktop profile and no repeated Permit/enrollment.
 
 #### Architecture Design
 
-##### Overall Solution
+##### Domain Model
 
-Add a small runtime/auth credential-source contract that loads a complete, already-enrolled Node credential from `EnrollmentCredentialStore`. The source validates the signed Grant and derives the Node identity from the original Device key without persisting another identity. NodeHost accepts that source as an alternative to its legacy NodeID + IdentityStore load-or-create path, initializes the normal trust/policy/admission state, and verifies/fills the configured parent identity from the Grant.
-
-A narrow Enrollment bootstrap facade owns only the pre-auth handshake and credential mutation. Desktop uses it only while state is missing/device/pending. When state becomes enrolled, Desktop closes bootstrap, reopens the credential through NodeHost and installs a normal attached Desktop client. All active Profile runtimes therefore have the same ownership shape.
-
-##### Interface Drafts
-
-The implementation may adjust exported names to project conventions, but must preserve these contracts:
+The implementation may refine names to match project style, but must preserve these boundaries:
 
 ```go
-type NodeCredential struct {
-    Identity           Identity
-    ParentNodeID       protocol.NodeID
-    ParentPublicKey    ed25519.PublicKey
-    AuthorityNodeID    protocol.NodeID
-    AuthorityPublicKey ed25519.PublicKey
-    EnrollmentID       string
+type PolicyDefinition struct {
+    ID        string
+    Revision  uint64
+    Immutable bool
+    Rules     []PolicyRule
 }
 
-type NodeCredentialSource interface {
-    LoadNodeCredential() (NodeCredential, error)
+type PolicyRule struct {
+    Resource   ResourceSelector // exact, prefix, all
+    Capability CapabilitySelector // sorted exact set, all
+}
+
+type PolicyBinding struct {
+    ID           string
+    Subject      protocol.NodeID
+    DefinitionID string
+    Scope        OwnerScope // owner, subtree, authority-domain
+    CreatedBy    protocol.NodeID
+    CreatedAtMS  int64
+    ExpiresAtMS  int64
 }
 ```
 
-`auth.EnrollmentCredentialSource` is read-only and fail-closed. `nodehost.Config` accepts either the existing legacy identity inputs or a `NodeCredentialSource`; the credential source derives the effective local Node ID and parent identity, while endpoint/Driver remain product configuration. Authority identity validates provenance but is not automatically promoted to arbitrary Resource permission.
+- Bindings reference the current Definition by ID; Definition revision is used for optimistic updates and explanation, not to pin stale rule copies.
+- `superadmin` is a canonical immutable Definition with all Resource names and Capabilities, but it remains inert until bound.
+- Selectors are separate validated types; `*` is never accepted as a ResourceID or CapabilityID.
 
-##### Module Responsibilities
+##### Evaluation Flow
 
-- `runtime/auth`: validate/derive enrolled credential; open normal state from a resolved identity without create-on-missing behavior.
-- `host/nodehost`: own the single post-Grant Node/runtime/Parent/client lifecycle; reject contradictory credential and Parent inputs.
-- `sdk/bindings`: provide a narrow Enrollment bootstrap; retain deprecated owning API only as compatibility surface.
-- `apps/desktop`: orchestrate Profile preparation, bootstrap, handoff, activation, retry/rollback and safe status projection.
-- `sdk/bindings/desktop`: remain an attached JSON/subscription facade for active runtime operations.
+```text
+Request(Subject, Resource Owner/Name, Capability)
+        ↓ normalize and validate
+exact grant lookup ── matched ──→ allow
+        ↓ no match
+Subject Binding index
+        ↓
+current topology scope resolver
+        ↓ owner in owner/subtree/authority-domain?
+Definition rule match
+        ↓
+allow with explanation / default deny
+```
 
-##### Error Handling And Safety
+- `PolicyState` owns persistent policy facts and compiled indexes.
+- `runtime/tree.State` remains the sole topology fact source and exposes an atomic scope-membership query.
+- Hub attaches a read-only topology scope resolver to `PolicyState` exactly once before opening external listeners.
+- A binding-dependent authorization with no resolver fails closed; exact grants remain evaluable.
+- Topology epoch handles membership changes; policy generation handles policy fact changes.
 
-- Credential source errors are terminal until user repairs/deletes the Profile; they never generate a replacement identity.
-- Grant/Node/parent/Authority mismatches report the mismatched category without exposing key bodies or signatures.
-- Bootstrap is always closed before Host creation; failed Host creation releases state-directory reservation and leaves the Grant durable.
-- Candidate replacement keeps the previous active Host until the new Profile can be opened, except same-Profile exclusive-state replacement, which retains the existing rollback/reopen rule.
+##### Persistent State And Migration
 
-##### Performance And Testing Strategy
+- Give policy state its own version constant instead of raising the auth package's shared identity/trust/admission version.
+- v2 contains generation, exact grants, Definitions and Bindings.
+- v1 load validates and normalizes all grants, inserts canonical `superadmin`, atomically writes v2 and does not create a Binding.
+- Mutation is copy/validate/persist/swap/notify; persistence failure leaves memory and generation unchanged.
+- Duplicate IDs, unknown Definition references, invalid revisions, expired/invalid times and non-canonical ordering fail explicitly.
 
-- Credential load occurs at Profile open/activation, not per SDK operation.
-- No additional message serialization, queues or network connection are added.
-- Tests cover runtime/auth contracts, Host modes, binding ownership, Desktop end-to-end enrollment/restart, race cleanup and packaged GUI behavior.
+##### Management Resource Model
 
-##### Extensibility Design Points
+Use Collection Resources so policy records are members and operations are Capabilities:
 
-- The credential-source seam can later support platform Keystore/Secure Enclave without changing NodeHost roles.
-- Android/Embedded may adopt the same Grant → Host handoff later while keeping platform lifecycle facades.
-- Settings v3 may remove authority cache fields after a separate migration decision.
+- `system/policy/definitions`: `list`, `get`, `create`, `update`, `delete`.
+- `system/policy/bindings`: `list`, `get`, `create`, `revoke`, `evaluate`.
+- `system/policy/grants`: `list`, `get`, `create`, `revoke`.
+- Existing `system/policy/grant` and `system/policy/revoke` stay as exact-grant compatibility aliases.
+
+Handlers use `resource.OperationRequest.Subject`; all policy mutations re-check an effective Authority-domain `superadmin` Binding server-side. An exact grant to a policy mutation capability alone is insufficient. Built-in Definition mutation and deletion of referenced Definitions return explicit Forbidden/Conflict errors.
+
+List/get/evaluate remain independently authorizable Resource Capabilities. Pages use policy generation as collection revision and reject stale/repeated cursors. Mutation outcomes record actor, target Definition/Binding/grant key and status without payload contents.
+
+##### SDK And Desktop
+
+- Canonical Go SDK gains typed policy collection helpers; generic Operate remains the cross-platform base.
+- Binding contract and generated Desktop schemas expose every new Resource/capability/schema and reject drift.
+- Desktop adds a Policy section next to Admission under Authority-backed settings.
+- Policy UI shows Definitions, Subject Bindings, exact grants and effective preview; immutable/all selectors and superadmin changes receive explicit warnings.
+- UI never infers authorization from product type, descriptor visibility or local Profile fields; Authority Forbidden is displayed as the final result.
+
+##### Bootstrap And Live State
+
+- Extend the stopped-Hub offline CLI with policy show/bind/revoke-binding operations while keeping legacy exact grant/revoke flags compatible.
+- Offline binding reports the stable Binding ID and resulting generation for audit and rollback.
+- No migration path guesses the Desktop identity. The live step resolves the active persistent Hub state and Desktop NodeID, confirms Node 41, stops Hub, creates the one Binding, then restarts Hub/Metrics/Desktop.
+- Existing exact grants remain intact in this workflow; cleanup is deferred so rollback only requires revoking the new Binding.
+
+##### Error Handling
+
+- Invalid selector/schema/state: `malformed` or startup error with field context.
+- Missing record: `not_found`.
+- Revision/idempotency/reference conflict: `conflict`.
+- Missing scope resolver, detached anchor or stale topology: fail closed; wire maps to `forbidden` or `stale_epoch` as appropriate.
+- Non-superadmin mutation and out-of-scope management: `forbidden`.
+- Generation exhaustion or persistence failure: explicit internal/startup error; never partial success.
+
+##### Performance And Test Strategy
+
+- Exact grants remain O(1).
+- Bindings are indexed by Subject; Definitions by ID; prefix matching is bounded by configured rule counts and path-segment checks.
+- No catalog expansion, per-new-node policy writes, regex engine or network call occurs inside authorization.
+- Unit tests cover validation, migration, indexing, mutation atomicity, generation and topology matching.
+- Integration tests cover future Node/Resource, reparent, revoke, subscription expiry, management escalation denial and SDK paths.
+- Product gates cover generated freshness, Go/race/vet, Desktop tests/build/Wails and real Hub + Desktop + Metrics restart.
+
+##### Extensibility Points
+
+- Custom `network-admin` and `observer` Definitions can be created without runtime changes.
+- Explicit deny, role inheritance, Subject groups, bounded delegation and cross-Authority federation require later decisions.
+- Android/Agent Gateway can use the same generic/typed SDK contract without becoming privileged products.
 
 #### Issue List
 
-- Blocking: none.
-- Approval required before any runtime, SDK, Desktop, test or stable-contract implementation edit.
+- Technical blocker: none.
+- Execution blocker: explicit approval of the Will Execute Task IDs.
 
 ### Stage 3.1 - Planning
 
-#### Project Goal and Current State
-
-Current code has one complete NodeHost but two Desktop runtime ownership paths. This workflow converges enrolled authority Profiles onto NodeHost while preserving registration and persistence behavior.
-
 #### Docs Governance Routing Decision
 
-- Docs root: `D:\project\MyFlowHub3\worktrees\nodehost-enrollment-convergence\docs`.
-- Original request evidence: new intake record created during planning and indexed.
-- Current user-visible truth: `docs/features/desktop.md` will change only after approval as part of DOC01.
-- Durable intent: existing unified runtime, admission and Desktop requirements will be clarified.
-- Technical contracts: NodeHost, Enrollment, Desktop Profile and operational lifecycle specs will be updated.
-- Architecture decision: add a dated ADR that removes the Desktop authority owning-runtime exception without replacing centralized Authority.
-- Reusable lesson: update the existing Desktop binding reconnect/admission lesson; do not create a duplicate lesson unless execution reveals a distinct failure pattern.
+- Docs root: `D:\project\MyFlowHub3\worktrees\scoped-policy-authority\docs`.
+- Intake impact: add — discussion record exists and is indexed; active plan link is added during planning.
+- Feature impact: clarify after approval — Hub and Desktop current behavior will gain persistent role/binding management.
+- Requirements impact: add/clarify after approval — add scoped policy authorization requirement and preserve admission separation.
+- Specs impact: add/clarify after approval — add policy contract and update topology/resource/protocol maps.
+- Decision impact: add after approval — scoped bindings are selected over product privilege and catalog expansion.
+- Lessons impact: clarify after execution if tests confirm new escalation/topology diagnostics; reuse `authority-local-admin-actions.md` rather than create a duplicate prematurely.
+- Root `plan.md`/`todo.md` are active workflow control-plane exceptions; archive belongs in `docs/plan`/`docs/change` during `$m-archive`.
 
-#### Related Intake / Features / Requirements / Specs / Decisions / Lessons
+#### Related Docs
 
-- Intake: `docs/intake/2026-09-01_nodehost-enrollment-profile-convergence.md`.
-- Feature: `docs/features/desktop.md`.
-- Requirements: `unified-node-runtime.md`, `auth-controlled-admission.md`, `desktop-resource-workspace.md`.
-- Specs: `node-host-runtime.md`, `node-enrollment-and-admission-authority.md`, `desktop-profile-entry.md`, `operational-lifecycle.md`.
-- Decisions: `2026-08-30_generic-node-host-and-non-owning-sdk-client.md`, `2026-08-30_centralized-admission-authority.md`.
-- Lesson: `desktop-binding-reconnect-and-admission-diagnostics.md`.
-
-#### Stable Docs Impact
-
-- Intake impact: add — completed for source evidence during planning.
-- Feature impact: clarify — authority Profile current runtime changes from owning binding to NodeHost.
-- Requirements impact: clarify — Grant → Host convergence and canonical fact-source acceptance.
-- Specs impact: clarify — credential-source contract, bootstrap handoff and idempotent Connect.
-- Decision impact: add — close the explicit compatibility exception; centralized Authority decision remains unchanged.
-- Lessons impact: clarify — owning binding retry guidance becomes bootstrap-only; active runtime guidance becomes Host-owned.
+- Intake: `docs/intake/2026-09-01_scoped-policy-roles-and-bindings.md`.
+- Features: `docs/features/hub.md`, `docs/features/desktop.md`.
+- Requirements: `docs/requirements/auth-controlled-admission.md`, `docs/requirements/unified-node-runtime.md`.
+- Specs: `docs/specs/node-tree-link-resource-architecture.md`, `docs/specs/resource-collections-and-actions.md`, `docs/specs/operational-lifecycle.md`, `docs/specs/protocol_map.md`.
+- Decisions: `docs/decisions/2026-08-27_authoritative-node-tree-and-pluggable-links.md`, `docs/decisions/2026-08-31_collection-resource-and-capability-actions.md`, `docs/decisions/2026-08-30_generic-node-host-and-non-owning-sdk-client.md`.
+- Lesson: `docs/lessons/authority-local-admin-actions.md`.
 
 #### Executable Task List
 
-- `DOC01` — converge stable contracts and record the exception removal decision.
-- `AUTH01` — add enrolled Node credential source and state-opening contract.
-- `HOST01` — let the neutral NodeHost consume resolved credentials safely.
-- `BOOT01` — split narrow Enrollment bootstrap from post-Grant runtime ownership.
-- `DESK01` — hand Desktop authority Profiles from bootstrap to NodeHost.
-- `REG01` — add ownership, idempotency, migration and architecture regression guards.
-- `QA01` — run full generated/build/race and real enrollment/restart integration gates.
+- `DOC01` — freeze stable policy requirement/spec/ADR and current-product documentation.
+- `PROTO01` — add bounded policy protocol schemas, selectors and generic capabilities.
+- `AUTH01` — implement policy state v2, exact-grant migration, Definitions/Bindings and evaluator.
+- `TREE01` — add atomic topology scope resolution and attach it at Hub authority startup.
+- `MGMT01` — expose policy Collections, harden mutations and audit outcomes.
+- `SDK01` — add typed SDK helpers and regenerate canonical binding/schema contracts.
+- `DESK01` — implement the Authority-backed Desktop Policy console.
+- `BOOT01` — add safe stopped-Hub policy inspection and Binding bootstrap CLI.
+- `QA01` — run unit, race, generated, build and isolated integration gates.
+- `LIVE01` — persist Node 41's Authority-domain superadmin Binding and run real Hub + Desktop + Metrics restart smoke.
 
 #### Execution Scope After Approval
 
 ##### Will Execute
 
-- `DOC01`, `AUTH01`, `HOST01`, `BOOT01`, `DESK01`, `REG01`, `QA01`.
+- `DOC01`, `PROTO01`, `AUTH01`, `TREE01`, `MGMT01`, `SDK01`, `DESK01`, `BOOT01`, `QA01`, `LIVE01`.
 
 ##### Will Not Execute Now
 
-- `LEGACY02` — remove all deprecated runtime-owning SDK/binding APIs; deferred pending downstream inventory and separate breaking-change approval.
-- `MOBL02` — Android/Embedded MFHE Enrollment and Grant → Host migration; deferred because product/platform scope is separate.
-- `SETV3` — remove authority Node/parent/Authority cache fields from Desktop settings; deferred to an explicit persisted-schema migration.
-- `MAIN01` — reconcile and integrate with the main checkout's concurrent user docs/design edits; archive/integration phase only.
-- `ARC01` — archive docs, merge and worktree cleanup; requires a later explicit `$m-archive` after QA passes.
-- `PUB01` — push, release, publish or deploy; unauthorized and out of scope.
+- `DENY02` — explicit deny, role inheritance and Subject groups; deferred pending a separate precedence model decision.
+- `DELEG02` — bounded delegation ceiling for non-superadmins; phase one intentionally uses the conservative superadmin-only mutation gate.
+- `FED02` — cross-Authority federation or replicated policy state; outside the current single logical Authority model.
+- `MOBL02` — Android/Embedded product-specific policy management UI; generic SDK/protocol compatibility is included, platform UI is separate.
+- `CLEAN02` — delete Node 41's existing exact grants; deferred to preserve rollback and avoid unrelated policy cleanup.
+- `ARC01` — archive, local merge and worktree cleanup; requires a later explicit `$m-archive` after QA/live evidence passes.
+- `PUB01` — push, release, sign, publish or deploy; unauthorized and repository has no remote.
 
 #### Task Details
 
-##### DOC01 - Converge Stable Contracts
+##### DOC01 - Stable Policy Contracts
 
-- Owner: execution worker assigned after approval.
+- Owner: execution worker after approval.
 - Worktree: active worktree.
 - Plan Path: root `plan.md`.
-- Goal: make Grant → NodeHost handoff and bootstrap-only Enrollment the durable documented contract.
-- Files / Modules: Desktop feature; unified runtime/admission/Desktop requirements; NodeHost/Enrollment/Profile/lifecycle specs; NodeHost ADR and decision index; existing reconnect lesson and affected indexes.
-- Write Set: `docs/features/desktop.md`, the listed `docs/requirements/*`, `docs/specs/*`, new `docs/decisions/2026-09-01_enrollment-bootstrap-nodehost-handoff.md`, the existing NodeHost ADR, `docs/lessons/desktop-binding-reconnect-and-admission-diagnostics.md`, nearest indexes.
-- Acceptance: no stable doc still describes post-Grant authority reconnect through owning binding; wire and Legacy compatibility remain explicit.
-- Test Points: relative-link check, index check, terminology search for stale exception text.
-- Rollback: revert DOC01 docs without changing runtime.
+- Goal: make scoped Definitions/Bindings the durable contract without documenting unshipped behavior as already available.
+- Files / Modules: `docs/features/{hub,desktop}.md`, new `docs/requirements/scoped-policy-authorization.md`, `auth-controlled-admission.md`, new `docs/specs/scoped-policy-authorization.md`, topology/resource/protocol specs, new ADR, affected indexes and existing authority admin lesson if warranted.
+- Write Set: governed docs and nearest indexes only.
+- Acceptance: docs explicitly separate identity/admission/authorization, ordinary Nodes/product neutrality, exact-grant compatibility, superadmin bootstrap and scope/generation semantics.
+- Test Points: relative-link/index check and stale searches for “only exact triples”/automatic superuser claims.
+- Rollback: revert DOC01 documentation independently.
 
-##### AUTH01 - Enrolled Node Credential Source
+##### PROTO01 - Policy Protocol And Selector Schemas
 
-- Owner: execution worker assigned after approval.
-- Worktree: active worktree.
-- Plan Path: root `plan.md`.
-- Goal: derive a complete post-Grant Node credential from protected Enrollment state without create-on-missing or duplicate persistence.
-- Files / Modules: `runtime/auth/enrollment_client_store.go`, `runtime/auth/state.go`, new focused auth file if appropriate, auth tests.
-- Write Set: `runtime/auth/*enrollment*`, the minimal state-opening seam, focused `_test.go` files.
-- Acceptance: enrolled state yields cloned validated identity/parent metadata; missing/device/pending/corrupt/mismatched state fails closed and does not write files.
-- Test Points: Grant signature, Node/key/parent/Authority mismatch, immutability, no identity file, concurrent read safety.
-- Rollback: remove the source/seam; existing Enrollment store remains readable and unchanged.
+- Owner: execution worker after approval.
+- Goal: define bounded wire payloads and collection capabilities for Definitions, Bindings, grants and effective evaluation.
+- Files / Modules: `protocol/schema_policy.go` or project-consistent equivalent, `schema_catalog.go`, `data_schema.go`, focused protocol tests.
+- Write Set: protocol schemas/constants/validation/tests; no runtime behavior.
+- Acceptance: all structs validate version, IDs, canonical ordering, count/length/time bounds, segment-safe prefixes, scope kinds and optimistic revisions.
+- Test Points: malformed/all/exact/prefix, duplicate capabilities/rules, invalid scope, JS-safe revisions, payload size.
+- Rollback: remove new schemas/constants while old exact schemas remain.
 
-##### HOST01 - Credential-backed Neutral NodeHost
+##### AUTH01 - Persistent Policy Definitions, Bindings And Evaluator
 
-- Owner: execution worker assigned after approval.
-- Worktree: active worktree.
-- Plan Path: root `plan.md`.
-- Goal: let the existing Host open a resolved credential while preserving one Node, one Parent supervisor and one attached Client.
-- Files / Modules: `host/nodehost/config.go`, `host/nodehost/host.go`, `host/nodehost/host_test.go` and focused config tests.
-- Write Set: `host/nodehost/**` plus only the auth seam required by AUTH01.
-- Acceptance: legacy and credential-source modes are unambiguous; credential derives NodeID/parent, contradictions fail before listeners/dials, and Host lifecycle remains unchanged.
-- Test Points: leaf role, pointer identity, no Listener, duplicate state-root reservation, failure rollback, Start/Close race, parent mismatch.
-- Rollback: revert credential-source branch while retaining the original NodeID/IdentityStore mode.
+- Owner: execution worker after approval.
+- Goal: upgrade PolicyState without losing exact grants or auto-granting any Subject.
+- Files / Modules: `runtime/auth/policy.go`, `policy_store.go`, new focused policy model/index files and tests.
+- Write Set: runtime auth policy implementation and focused tests.
+- Acceptance: v1→v2 migration is atomic/lossless; immutable unbound superadmin exists; union evaluation, expiry, idempotency, revision conflicts, generation watches and corrupt-state failure work.
+- Test Points: exact O(1), subject binding index, prefix boundary, no resolver fail-closed, persistence failure rollback, concurrent mutation/race, generation exhaustion.
+- Rollback: restore v1 code; migrated state requires the documented v2→v1 export/rollback fixture before downgrading.
 
-##### BOOT01 - Narrow Enrollment Bootstrap
+##### TREE01 - Authoritative Topology Scope Resolver
 
-- Owner: execution worker assigned after approval.
-- Worktree: active worktree.
-- Plan Path: root `plan.md`.
-- Goal: expose status/Enroll/Close without allowing the bootstrap to become the post-Grant operation runtime.
-- Files / Modules: `sdk/bindings/enrollment.go`, minimal Desktop binding adapter if required, binding tests.
-- Write Set: Enrollment binding files and their tests; no NodeHost or Desktop app files.
-- Acceptance: narrow bootstrap cannot Catalog/Operate/Subscribe/Start ordinary Parent runtime; deprecated APIs remain source-compatible but are not canonical.
-- Test Points: device/pending/granted flows, idempotent retry, Close cancellation, no Node before Grant, no secret JSON.
-- Rollback: Desktop can temporarily remain on the old compatibility entry; credential format is unchanged.
+- Owner: execution worker after approval.
+- Goal: evaluate owner/subtree/authority-domain scopes from the single current Node tree.
+- Files / Modules: `runtime/tree`, Hub startup wiring in `host/hub`, focused tree/Hub/node policy tests.
+- Write Set: atomic read-only tree query, small auth resolver adapter/wiring, tests.
+- Acceptance: self/descendant/domain matches are atomic; detached/unknown/outside owners deny; reparent changes membership under the new epoch; resolver is attached before listeners.
+- Test Points: concurrent announce/withdraw/reparent, cycle/forged relation guard, root and relay cases, missing resolver.
+- Rollback: remove resolver wiring; exact grants continue as before.
 
-##### DESK01 - Desktop Bootstrap To NodeHost Handoff
+##### MGMT01 - Policy Collections, Mutation Guard And Audit
 
-- Owner: execution worker assigned after approval.
-- Worktree: active worktree.
-- Plan Path: root `plan.md`.
-- Goal: make every active/granted Desktop Profile own a Parent-only NodeHost and attached client.
-- Files / Modules: `apps/desktop/app.go`, `config.go`, credential adapters, `sdk/bindings/desktop`, Wails boundary/generated files only if signatures change.
-- Write Set: Desktop Go composition/profile runtime and minimal generated binding outputs; no frontend redesign.
-- Acceptance: bootstrap closes before Host opens; enrolled restart skips Enrollment; repeated Connect is idempotent; legacy, pending, switch/deactivate/delete and rollback remain compatible.
-- Test Points: permit and pending paths, persisted Grant restart, same/different Profile replacement, full cache mismatch diagnostics, DPAPI, no duplicate identity, no Permit/settings/log leakage.
-- Rollback: revert composition to the documented compatibility path without deleting Enrollment credentials or Profile state.
+- Owner: execution worker after approval.
+- Goal: provide network-manageable policy records without one Resource per CRUD operation or payload escalation.
+- Files / Modules: `feature/management`, `runtime/resource.HandlerResource` usage, management tests.
+- Write Set: policy Collection resources/handlers, legacy command adapters, audit helpers and tests.
+- Acceptance: definitions/bindings/grants list/get/mutate/evaluate operate through capabilities; legacy exact commands remain compatible; every mutation requires effective superadmin and records safe outcome metadata.
+- Test Points: pagination/generation, stale revision, referenced immutable definition, idempotent Binding, exact-invoke escalation denial, remote Principal preservation, audit redaction.
+- Rollback: unregister new Collections and restore legacy handler path; state data remains readable by AUTH01.
 
-##### REG01 - Regression And Architecture Guards
+##### SDK01 - Typed Clients And Generated Contracts
 
-- Owner: execution worker assigned after approval.
-- Worktree: active worktree.
-- Plan Path: root `plan.md`.
-- Goal: prevent a future merge from restoring the owning authority runtime or split fact sources.
-- Files / Modules: auth/NodeHost/binding/Desktop tests, `internal/archtest` if the repository's architecture gate owns this rule, frontend Profile tests where behavior is visible.
-- Write Set: focused test files and architecture assertions; production changes only if a test exposes an approved-scope defect.
-- Acceptance: tests prove authority active runtime has a Host, Desktop production code does not call `StartEnrolledTCP`, Connect twice succeeds, and Profile state projection is credential-backed.
-- Test Points: Go unit/integration/race, frontend existing/pending/enrolled flows, grep/import architecture guard, generated freshness.
-- Rollback: remove individual guards only with the matching production rollback.
+- Owner: execution worker after approval.
+- Goal: make the new APIs convenient from Host-attached Go SDK and discoverable to all bindings.
+- Files / Modules: `sdk/go/features.go`, `sdk/bindings/contract`, generated contracts/Desktop schemas, SDK/binding tests.
+- Write Set: typed policy clients, contract declarations, generated outputs and tests.
+- Acceptance: typed list/get/create/update/delete/bind/revoke/evaluate paths use the same attached Client; generic Operate remains valid; generated freshness passes.
+- Test Points: owner validation, payload/result decode, pagination, error propagation, contract regeneration equality.
+- Rollback: remove typed helpers/contracts; runtime Resources remain reachable through generic Operate.
 
-##### QA01 - Full Validation And Product Evidence
+##### DESK01 - Authority Policy Console
 
-- Owner: execution tester assigned after implementation.
-- Worktree: active worktree and clean detached validation worktree when needed.
-- Plan Path: root `plan.md`.
-- Goal: validate the entire registration → NodeHost → restart path and detect unrelated regressions.
-- Files / Modules: no planned production writes; evidence under governed change verification at archive time or project artifacts during testing.
-- Write Set: test/evidence outputs only; any repair returns to its owning Task ID.
-- Acceptance: full Go/vet/race, canonical generated check, Desktop npm/test/build/Wails, Hub + packaged Desktop Permit and Pending enrollment, repeat Connect, restart without Permit, Profile switch/deactivate, and secret scan pass.
-- Test Points: `scripts/mfh.ps1 -Action check/test -Target core`, generated check, Desktop target test/build, focused race, real GUI/TCP smoke.
-- Rollback: no runtime rollback; failing signatures route to AUTH01/HOST01/BOOT01/DESK01/REG01.
+- Owner: execution worker after approval.
+- Goal: ensure a real caller uses the APIs and can inspect/manage persistent permissions.
+- Files / Modules: `apps/desktop/frontend/src/components/PolicyConsole.tsx`, Settings navigation, API/types/styles and focused frontend tests; Wails bindings only if exported Go surface changes.
+- Write Set: Desktop frontend and focused tests/generated Wails outputs when necessary.
+- Acceptance: role Definitions, Subject Bindings, exact grants and effective preview load from Authority; superadmin/all warnings, loading/empty/Forbidden/conflict states and revoke confirmation are explicit.
+- Test Points: Node 41 effective result, create/update custom Definition, create/revoke Binding, unauthorized view, stale revision, keyboard/accessibility and no product-name inference.
+- Rollback: remove Policy section; generic Resource operation remains available.
+
+##### BOOT01 - Offline Superadmin Bootstrap
+
+- Owner: execution worker after approval.
+- Goal: create/revoke/inspect the first persistent Binding without weakening online authorization.
+- Files / Modules: `cmd/mfh-hub`, README/run-dev help and focused CLI tests.
+- Write Set: offline CLI flags/handlers/tests/docs; legacy exact grant/revoke flags remain.
+- Acceptance: stopped-Hub show/bind/revoke-binding is atomic and outputs Binding ID/generation; invalid or duplicate/conflicting input fails; no automatic Subject selection.
+- Test Points: fresh state, migrated state, idempotent retry, immutable Definition, rollback by Binding ID, running-state safety where supported by existing state ownership.
+- Rollback: revoke the Binding before reverting CLI; keep legacy exact CLI.
+
+##### QA01 - Automated And Isolated Integration Gates
+
+- Owner: execution worker after approval.
+- Goal: prove the model across protocol, runtime, management, SDK, Desktop and products before touching the user's live policy.
+- Files / Modules: focused tests plus `tests/integration`; test fixtures only.
+- Write Set: regression/integration tests and non-secret evidence; implementation repairs remain inside approved task write sets.
+- Acceptance: default deny → scoped allow → future Node/Resource allow → revoke/expiry; reparent/out-of-domain deny; exact migration compatibility; policy management escalation denial; all build/generated gates pass.
+- Test Points: `GOWORK=off go test ./...`, focused `-race`, `go vet ./...`, generated freshness, Desktop frontend tests/build, Wails production build, isolated TCP Hub + Desktop/SDK + Metrics test.
+- Rollback: remove test-only fixtures; never relax assertions to obtain a pass.
+
+##### LIVE01 - Persist Node 41 Binding And Real Product Smoke
+
+- Owner: execution worker after QA01 passes.
+- Goal: apply the user-requested persistent superadmin Binding to the current local Authority and verify it survives restart.
+- Files / Modules: resolved local Hub policy state and runtime processes; no source file cleanup.
+- Write Set: one `superadmin + authority-domain:1` Binding for Subject 41 plus secret-free local evidence.
+- Acceptance: Hub stopped before mutation; Binding ID/generation captured; Hub, Metrics and Desktop restart; existing Profile auto-connects without Permit; Metrics read/subscribe succeeds; effective preview identifies the Binding; restart preserves it.
+- Test Points: verify a Resource not covered by prior exact grants in an isolated/future-node path; verify an out-of-domain/unauthorized Subject remains denied; inspect logs for secrets and errors.
+- Rollback: stop Hub, revoke the recorded Binding ID, restart; existing exact grants are left untouched.
 
 #### Dependencies
 
 ```text
-DOC01 ─┬─ AUTH01 ─ HOST01 ─┐
-       └─ BOOT01 ──────────┼─ DESK01 ─ REG01 ─ QA01
-                           ┘
+DOC01 ─┐
+PROTO01 → AUTH01 → TREE01 → MGMT01 → SDK01 → DESK01 ─┐
+                    └──────────────→ BOOT01 ──────────┤
+                                                     ↓
+                                                   QA01 → LIVE01
 ```
 
-- DOC01 fixes names and invariants first.
-- AUTH01 and BOOT01 may execute in parallel because their production write sets are disjoint.
-- HOST01 depends on AUTH01's credential contract.
-- DESK01 depends on AUTH01, HOST01 and BOOT01.
-- REG01 follows production convergence; QA01 is the final gate.
+#### Risks And Notes
 
-#### Risks and Notes
-
-- Highest risk is creating two identity truths or a non-atomic Grant/identity migration; prohibited by design.
-- Parent and Authority are different concepts. Only the Grant-bound direct parent becomes NodeHost parent trust; Authority provenance does not grant Resource permission.
-- Public owning APIs may have unknown downstream consumers; Desktop stops using them, but deletion is deferred.
-- Wails generated files must be regenerated deterministically if exported methods change.
-- Main checkout docs have concurrent user changes overlapping likely DOC01 indexes/feature files; MAIN01 must use semantic merge and preservation checks.
-- Worktree frontend must run `npm ci`; the main checkout's partial `node_modules` is not valid test evidence.
+- `superadmin` all-Capability semantics intentionally cover future Capabilities; UI and bootstrap output must make that explicit.
+- Mutation authorization must inspect the real routed Subject; `CommandHandler` paths that discard `OperationRequest.Subject` cannot be reused unchanged.
+- Policy state needs its own schema version; changing shared `stateVersion` would incorrectly invalidate identity/trust/admission files.
+- Scope resolution must not reconstruct topology from asynchronously refreshed management snapshots.
+- LIVE01 changes user runtime policy and therefore runs only after automated gates and exact target/state checks.
+- Old exact grants remain as rollback protection, so the live proof must use effective explanation and a not-previously-granted future Resource path.
 
 #### Parallelism Assessment
 
-- No sub-agent is dispatched during planning.
-- After explicit approval, AUTH01 and BOOT01 are safe parallel candidates with disjoint write sets.
-- HOST01 starts after AUTH01; DESK01 and REG01 remain sequential because they touch shared lifecycle contracts/tests.
-- Any execution worker must receive: this plan, the new intake, relevant stable docs, repository `AGENTS.md`/`guide.md`, exact write set, and the instruction to preserve main-checkout user changes.
+- Protocol/docs and some UI scaffolding are technically parallelizable after contract freeze, but this session has no explicit user authorization for sub-agent delegation.
+- Execution should proceed in dependency order in one agent unless the user separately authorizes delegated workers.
+- Shared files `protocol/data_schema.go`, `feature/management/controller.go`, generated contracts and docs indexes must remain single-writer even if delegation is later approved.
 
-#### Issue List
+#### Approval Gate
 
-- Blocking: none for implementation.
-- `DOC01`, `AUTH01`, `HOST01`, `BOOT01`, `DESK01`, and `REG01` are complete.
-- `QA01` automated validation passed; actual packaged GUI operation and screenshot evidence remain in the heavy test phase.
-- Approved execution remains limited to `DOC01`, `AUTH01`, `HOST01`, `BOOT01`, `DESK01`, `REG01`, and `QA01`.
-
-### Execute - Implementation And Lightweight Validation
-
-- `DOC01`: stable feature/requirement/spec/lesson contracts now define Enrollment as bootstrap-only and record the exception-removal ADR.
-- `AUTH01`: protected Enrollment state exposes a read-only, cloned, fail-closed `NodeCredentialSource`; resolved identities can open normal auth state without identity persistence.
-- `HOST01`: neutral NodeHost accepts credential-backed mode, resolves Node/Parent truth before external work, rejects ambiguous or conflicting configuration, and preserves Legacy mode.
-- `BOOT01`: `EnrollmentBootstrap` exposes only status, Enroll and Close; Close cancels active handshakes. Deprecated owning APIs remain compatible.
-- `DESK01`: authority Profiles close bootstrap before opening a Parent-only Host; enrolled restart and repeated Connect use the Host-owned supervisor and attached Client.
-- `REG01`: tests cover missing/pending/corrupt credentials, cloned key material, no duplicate identity, ownership shape, full Profile cache mismatch, Permit/Pending handoff, restart, repeated Connect, cancellation and production architecture markers.
-- Automated evidence: `go test ./...`, `go vet ./...`, focused `-race`, generated freshness, 134 Desktop frontend tests, Vite production build and Wails Windows production build passed.
-- Heavy evidence remaining: launch and operate the packaged Desktop GUI against Hub, capture screenshots, and review the user-visible login/restart path under `$m-test`.
-
-### Continue - Test Iteration 1
-
-- Recovered state: `validation-needed`; all implementation Task IDs remain complete and mapped.
-- Product startup evidence: a fresh Hub state started successfully at `127.0.0.1:17431`; the packaged `mfh-desktop.exe` started with an isolated `MFH_DESKTOP_CONFIG_DIR`; both processes were responsive before controlled shutdown.
-- UI operation result: blocked before the first interaction. Windows application control failed once, then failed again after its prescribed kernel reset. The supported browser-control fallback failed with the same signature.
-- Normalized failure signature: `QA01 / missing UI operation and screenshot evidence / control runtime initialization / failed to write kernel assets (os error 3)`.
-- Progress evidence: new production-startup evidence exists, but no valid packaged-GUI interaction or screenshot evidence was produced.
-- Hard blocker: the host UI-control runtime must be repaired or made available. Creating a custom UI automation bypass is outside the approved workflow and would not satisfy the required evidence gate.
-- Test states and logs are isolated under `artifacts/qa01-gui/`; generated credential state must not be published or archived as evidence.
-
-### Continue - Test Iteration 2
-
-- Recovered state: `validation-needed`; implementation Task IDs remained complete and the previously unavailable supported Windows GUI-control runtime was available.
-- Permit path: the packaged Desktop created a Profile, submitted an offline-issued one-time Permit, handed the granted credential to NodeHost, disconnected/reconnected without another Permit, and auto-connected after a production-process restart.
-- Pending path: a second independent Profile submitted an approval request, remained outside the ordinary workspace while pending, was approved from the packaged Desktop admission UI, then connected on approval polling without another trust prompt and auto-connected after restart.
-- Authority boundary: the test authority received only four admission-management permissions in the isolated Hub state. Both enrolled Profiles were still denied `system/topology`, confirming that Enrollment does not imply resource access.
-- Ownership evidence: both Profiles persisted protected Enrollment credentials, resolved their granted Node/Parent identities, and had no `identity.dpapi`; the Enrollment credential remained the single identity fact source.
-- Product screenshots and the sanitized run record are under `artifacts/qa01-gui/iteration-2/iteration-2.md`. Raw state and the one-time Permit in that directory are sensitive test material and must not be published or archived.
-- A first-form Permit submission was rejected because PowerShell startup text contaminated the harness value. The GUI's bounded-JSON rejection was correct; secure field replacement passed without a product-code repair.
-- Shutdown evidence: the packaged Desktop and Hub exited and port `17432` was released.
-- Outcome: `QA01` passed after two test iterations across `$m-continue` invocations; iteration 2 required no code repair loop. The next permitted phase is a later explicit `$m-archive`.
-
-### Archive - Documentation And Integration
-
-- Entry gate: execution complete, QA/code review passed, Task IDs and changed files known, active plan current.
-- `$m-docs` routing: canonical docs root remains repository `docs/`; intake, Desktop feature, admission/runtime requirements, Profile/Enrollment/NodeHost/lifecycle specs and ADR were updated before the change archive.
-- Archive artifacts: `docs/change/2026-09-01_nodehost-enrollment-profile-convergence.md` and `docs/plan/plan_archive_2026-09-01_nodehost-enrollment-profile-convergence.md`; affected indexes are updated.
-- Lessons: existing Desktop reconnect diagnostics and Windows frontend/PowerShell preflight entries now cover the reusable lifecycle, control-runtime and shell-output failure signatures.
-- Sensitive QA material: the exact untracked `artifacts/qa01-gui/` directory was dry-run verified and removed before staging; Permit, DPAPI test credentials, isolated policy state, logs and screenshots were not committed.
-- Implementation commit: `b94fe34 refactor: 收敛 Enrollment 与 NodeHost 生命周期`.
-- Archive commit: `a0c2fe7 docs: 归档 NodeHost Enrollment 生命周期收敛`.
-- Integration: local `master` fast-forwarded from `a9eb270` to `a0c2fe7`; the final closeout state is recorded by the subsequent master closeout commit.
-- Preservation: unrelated main-checkout dirt was stashed, replayed successfully in a detached preview, then replayed on master. Four non-overlapping tracked files and 24 untracked files matched blob-for-blob; four overlapping docs retained identical user delta counts with no unmerged paths.
-- Remaining user state: eight tracked modifications and 24 untracked docs/design files remain unstaged in the control checkout and were not included in workflow commits. The transient preservation stash was dropped after verification; two pre-existing stashes remain untouched.
-- Cleanup: the detached preview, feature worktree and merged feature branch were removed and worktree metadata pruned.
-- Outcome: `ARC01` complete; no blocker remains.
-- Publication: local-only; no push, release, publication or deployment authorization.
+- Approved: `DOC01, PROTO01, AUTH01, TREE01, MGMT01, SDK01, DESK01, BOOT01, QA01, LIVE01`.
+- Blocking: no.
+- Implementation is complete; QA01 and LIVE01 passed. Archive/merge remains gated on a later explicit `$m-archive`.
+- No implementation sub-agents are dispatched because user authorization for delegation is absent.

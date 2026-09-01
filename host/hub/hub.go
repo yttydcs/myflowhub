@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -104,6 +105,12 @@ func StartPersistent(ctx context.Context, config PersistentConfig) (*Hub, error)
 	if err != nil {
 		return nil, err
 	}
+	stateOwned := true
+	defer func() {
+		if stateOwned {
+			_ = state.Policy.Close()
+		}
+	}()
 	audit := management.NewAuditLog(nil, 256)
 	var runtimeRef *node.Node
 	var authority *auth.EnrollmentAuthority
@@ -152,6 +159,11 @@ func StartPersistent(ctx context.Context, config PersistentConfig) (*Hub, error)
 		return nil, err
 	}
 	runtimeRef = runtime
+	if err := state.Policy.BindScopeResolver(policyScopeResolver{tree: runtime.Tree(), authority: runtime.ID()}); err != nil {
+		_ = runtime.Close()
+		_ = state.Policy.Close()
+		return nil, fmt.Errorf("attach policy topology resolver: %w", err)
+	}
 	if remoteBroker != nil {
 		remoteBroker.Node = runtime
 	}
@@ -228,6 +240,7 @@ func StartPersistent(ctx context.Context, config PersistentConfig) (*Hub, error)
 			}
 		}
 	}()
+	stateOwned = false
 	return hub, nil
 }
 
@@ -275,8 +288,44 @@ func (h *Hub) Close() error {
 		if err := h.Node.Close(); err != nil && closeErr == nil {
 			closeErr = err
 		}
+		if h.Runtime != nil && h.Runtime.Policy != nil {
+			if err := h.Runtime.Policy.Close(); err != nil && closeErr == nil {
+				closeErr = err
+			}
+		}
 	})
 	return closeErr
+}
+
+type policyScopeResolver struct {
+	tree interface {
+		ScopeContains(protocol.NodeID, protocol.NodeID) (bool, uint64, error)
+	}
+	authority protocol.NodeID
+}
+
+func (r policyScopeResolver) MatchOwnerScope(scope protocol.PolicyOwnerScopeV1, owner protocol.NodeID) (bool, uint64, error) {
+	parsed, err := strconv.ParseUint(scope.NodeID, 10, 64)
+	if err != nil {
+		return false, 0, fmt.Errorf("parse policy scope node: %w", err)
+	}
+	anchor := protocol.NodeID(parsed)
+	switch scope.Kind {
+	case protocol.PolicyScopeOwner:
+		if anchor != owner {
+			return false, 0, nil
+		}
+		return r.tree.ScopeContains(anchor, owner)
+	case protocol.PolicyScopeSubtree:
+		return r.tree.ScopeContains(anchor, owner)
+	case protocol.PolicyScopeAuthorityDomain:
+		if anchor != r.authority {
+			return false, 0, nil
+		}
+		return r.tree.ScopeContains(r.authority, owner)
+	default:
+		return false, 0, fmt.Errorf("unsupported policy owner scope %q", scope.Kind)
+	}
 }
 
 func listenerConfigs(config Config) ([]ListenerConfig, error) {

@@ -42,6 +42,15 @@ func newFixture(t *testing.T) fixture {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = runtime.Close() })
+	if err := state.Policy.BindScopeResolver(testPolicyScopeResolver{runtime: runtime}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := state.Policy.CreateBinding(protocol.PolicyBindingCreateV1{
+		Version: 1, BindingID: strings.Repeat("1", 32), Subject: "1", DefinitionID: protocol.BuiltinPolicySuperadmin,
+		Scope: protocol.PolicyOwnerScopeV1{Kind: protocol.PolicyScopeAuthorityDomain, NodeID: "1"},
+	}, 1); err != nil {
+		t.Fatal(err)
+	}
 	controller, err := management.Register(management.Config{Node: runtime, Admission: state.Admission, EnrollmentAuthority: authority, Trust: state.Trust, Policy: state.Policy, Settings: state.Settings, RevokeNode: state.RevokeNode, Audit: audit})
 	if err != nil {
 		t.Fatal(err)
@@ -62,6 +71,9 @@ func TestManagementCatalogAndTopologyUseCanonicalTree(t *testing.T) {
 		protocol.BuiltinManagementHealth,
 		protocol.BuiltinManagementPolicyGrant,
 		protocol.BuiltinManagementPolicyRevoke,
+		protocol.BuiltinPolicyDefinitions,
+		protocol.BuiltinPolicyBindings,
+		protocol.BuiltinPolicyGrants,
 		protocol.BuiltinManagementRevokeNode,
 		protocol.BuiltinManagementRevokePermit,
 		protocol.BuiltinManagementTopology,
@@ -300,6 +312,74 @@ func TestManagementPolicyGrantAndRevokeCommands(t *testing.T) {
 	}
 }
 
+func TestPolicyCollectionsCreateListGetAndEvaluate(t *testing.T) {
+	value := newFixture(t)
+	definitionInput := protocol.PolicyDefinitionPutV1{
+		Version: 1, ID: "metrics-reader", Label: "Metrics reader",
+		Rules: []protocol.PolicyRuleV1{{
+			Resource:   protocol.PolicyResourceSelectorV1{Kind: protocol.PolicySelectorPrefix, Value: "metrics"},
+			Capability: protocol.PolicyCapabilitySelectorV1{Kind: protocol.PolicySelectorExact, Values: []protocol.CapabilityID{protocol.CapabilityRead}},
+		}},
+	}
+	definitionResource, _ := value.node.Registry().Resolve(protocol.ResourceID{Owner: 1, Name: protocol.BuiltinPolicyDefinitions})
+	created, err := definitionResource.Operate(context.Background(), resource.OperationRequest{
+		Subject: 1, Capability: protocol.CapabilityCreate, Payload: encode(t, &definitionInput),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var definition protocol.PolicyDefinitionV1
+	decode(t, created.Payload, &definition)
+	if definition.ID != definitionInput.ID || definition.Revision != 1 {
+		t.Fatalf("unexpected created definition: %+v", definition)
+	}
+	listed, err := definitionResource.Operate(context.Background(), resource.OperationRequest{
+		Subject: 1, Capability: protocol.CapabilityList,
+		Payload: encode(t, &protocol.CollectionListRequestV1{Version: 1, Limit: 10}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var page protocol.CollectionPageV1
+	decode(t, listed.Payload, &page)
+	if len(page.Members) != 2 || page.Members[0].Key != "metrics-reader" || page.Members[1].Key != protocol.BuiltinPolicySuperadmin {
+		t.Fatalf("unexpected policy definitions page: %+v", page.Members)
+	}
+
+	bindingResource, _ := value.node.Registry().Resolve(protocol.ResourceID{Owner: 1, Name: protocol.BuiltinPolicyBindings})
+	evaluated, err := bindingResource.Operate(context.Background(), resource.OperationRequest{
+		Subject: 1, Capability: protocol.CapabilityEvaluate,
+		Payload: encode(t, &protocol.PolicyEvaluateRequestV1{Version: 1, Subject: "1", Capability: "read", ResourceNode: "1", ResourceName: "system/health"}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decision protocol.PolicyEvaluationV1
+	decode(t, evaluated.Payload, &decision)
+	if !decision.Allowed || decision.DefinitionID != protocol.BuiltinPolicySuperadmin {
+		t.Fatalf("unexpected effective decision: %+v", decision)
+	}
+}
+
+func TestPolicyMutationGuardRejectsExactCapabilityWithoutSuperadminBinding(t *testing.T) {
+	value := newFixture(t)
+	resourceID := protocol.ResourceID{Owner: 1, Name: protocol.BuiltinPolicyDefinitions}
+	if err := value.state.Policy.Grant(auth.Request{Subject: 2, Capability: protocol.CapabilityCreate, Resource: resourceID}); err != nil {
+		t.Fatal(err)
+	}
+	policyResource, _ := value.node.Registry().Resolve(resourceID)
+	input := protocol.PolicyDefinitionPutV1{
+		Version: 1, ID: "escalation", Label: "Escalation",
+		Rules: []protocol.PolicyRuleV1{{Resource: protocol.PolicyResourceSelectorV1{Kind: protocol.PolicySelectorAll}, Capability: protocol.PolicyCapabilitySelectorV1{Kind: protocol.PolicySelectorAll}}},
+	}
+	if _, err := policyResource.Operate(context.Background(), resource.OperationRequest{Subject: 2, Capability: protocol.CapabilityCreate, Payload: encode(t, &input)}); !errors.Is(err, auth.ErrForbidden) {
+		t.Fatalf("exact management capability bypassed superadmin guard: %v", err)
+	}
+	if _, ok := value.state.Policy.Definition(input.ID); ok {
+		t.Fatal("rejected escalation still created a definition")
+	}
+}
+
 func TestAuditPolicyRecordsDenyAndAllowWithoutPayload(t *testing.T) {
 	value := newFixture(t)
 	auditResource, ok := value.node.Registry().Resolve(protocol.ResourceID{Owner: value.node.ID(), Name: protocol.BuiltinManagementAudit})
@@ -435,11 +515,27 @@ func invoke(t *testing.T, runtime *node.Node, name string, input []byte) []byte 
 	if !ok {
 		t.Fatalf("command %s missing", name)
 	}
-	output, err := value.(*resource.Command).Invoke(context.Background(), input)
+	output, err := value.Operate(context.Background(), resource.OperationRequest{Subject: runtime.ID(), Capability: protocol.CapabilityInvoke, Payload: input})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return output
+	return output.Payload
+}
+
+type testPolicyScopeResolver struct{ runtime *node.Node }
+
+func (r testPolicyScopeResolver) MatchOwnerScope(scope protocol.PolicyOwnerScopeV1, owner protocol.NodeID) (bool, uint64, error) {
+	anchor, err := strconv.ParseUint(scope.NodeID, 10, 64)
+	if err != nil {
+		return false, 0, err
+	}
+	if scope.Kind == protocol.PolicyScopeOwner && protocol.NodeID(anchor) != owner {
+		return false, 0, nil
+	}
+	if scope.Kind == protocol.PolicyScopeAuthorityDomain && protocol.NodeID(anchor) != r.runtime.ID() {
+		return false, 0, nil
+	}
+	return r.runtime.Tree().ScopeContains(protocol.NodeID(anchor), owner)
 }
 
 func decodeVariable(t *testing.T, runtime *node.Node, name string, target protocol.ValidatedPayload) {

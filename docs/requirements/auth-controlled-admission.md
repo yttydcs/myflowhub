@@ -44,7 +44,7 @@
 - Node ID 只能由 Authority 使用密码学安全随机源生成，为非零正 63 位整数，并与 active、revoked、tombstone 唯一索引检查。
 - Authority 必须原子提交 Node ID、Enrollment、Pending 终态以及 Permit 消费状态；重试同一请求必须返回同一 Grant。
 - Grant 必须绑定 Node ID、设备公钥、直接父节点、admission profile、Authority epoch，并由 Authority 签名。
-- admission profile 不得自动赋予业务 Resource 权限；访问仍受显式 policy 控制。
+- admission profile 不得自动赋予业务 Resource 权限；访问仍受显式 exact Grant 或 Policy Definition/Binding 控制，首个 Enrollment、Desktop 产品名和分配到的 Node ID 都不产生自动 Binding。
 - Permit、Pending、Enrollment 和撤销管理动作必须分别受显式权限点保护；状态变更审计摘要至少记录操作者 Node ID、目标 ID 和结果状态。
 - 撤销 Enrollment 必须保留 Node ID tombstone，并使对应父节点信任与活动会话明确失效。
 
