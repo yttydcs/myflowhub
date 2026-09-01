@@ -4,6 +4,7 @@
 
 ## Current Records
 
+- [NodeHost、Enrollment 与 Profile 生命周期收敛](2026-09-01_nodehost-enrollment-profile-convergence.md)
 - [Resource Collection、Capability 与 Desktop 操作入口](2026-08-31_resource-collections-and-actions.md)
 - [Desktop Profile 入口生产化](2026-08-31_desktop-profile-entry-production.md)
 - [Metrics 对齐 Desktop 视觉语言的独立界面](2026-08-30_metrics-desktop-aligned-interface.md)

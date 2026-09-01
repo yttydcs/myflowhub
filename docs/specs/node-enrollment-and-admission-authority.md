@@ -17,7 +17,7 @@
 1. **Device**：客户端首次启动只生成 Ed25519 密钥对和稳定设备公钥指纹，不具有 Node ID。
 2. **Pending**：父节点完成链路挑战后向 Authority 提交申请；Authority 返回稳定 request ID。重复提交同一设备、目标父节点和挑战上下文必须幂等。
 3. **Enrolled**：Authority 批准申请或消费有效 Permit，分配随机正 63 位 Node ID，并返回签名 Grant。
-4. **Joined**：客户端持久化 Grant 后使用既有 MFH4 Join。父节点用 Grant 缓存建立的信任校验 Node ID、公钥和签名。
+4. **Joined**：客户端原子持久化 Grant、关闭 Enrollment bootstrap，再由普通 NodeHost 读取同一 credential 并使用既有 MFH4 Join。父节点用 Grant 缓存建立的信任校验 Node ID、公钥和签名。
 5. **Revoked**：Authority 保留 enrollment 与 Node ID tombstone。被撤销 ID 不得重新分配；相关父节点信任和活动会话必须失效。
 
 未成功获得并原子持久化 Grant 的客户端仍处于 Device/Pending 状态，不得自行选择 Node ID。
@@ -81,7 +81,9 @@ Authority 通过受策略保护的管理资源提供：
 
 ## Persistence And Recovery
 
-Authority 状态使用版本化文件和原子 replace 提交，损坏、未知版本或签名密钥不匹配必须阻止 Authority 启动，不能静默重建。Grant 先在 Authority 持久化，再返回父节点和客户端。客户端必须原子保存 Device private key、Grant 与 Node ID 后才进入已注册状态。
+Authority 状态使用版本化文件和原子 replace 提交，损坏、未知版本或签名密钥不匹配必须阻止 Authority 启动，不能静默重建。Grant 先在 Authority 持久化，再返回父节点和客户端。客户端必须原子保存 Device private key、Grant 与 Node ID 后才进入已注册状态。该 credential 是 Node identity、直接父锚点与 Authority provenance 的唯一事实源；NodeHost 从中派生运行身份，不得另外生成、迁移或覆盖一份 identity。
+
+Enrollment bootstrap 只暴露状态检查、Enroll 和 Close。它不能 Catalog、Operate、Subscribe 或启动普通 Parent runtime。Grant 保存后必须先关闭 bootstrap，再创建 NodeHost；若 Host 创建失败，Grant 仍保持 durable，下一次打开直接从 credential 重试 Host，不重新消费 Permit 或再次 Enrollment。
 
 父节点缓存 Authority Grant 以支持 Authority 暂时不可用时的已注册 Join。新 Enroll、审批、签发、消费与撤销在 Authority 不可达时 fail closed；不得降级成本地随机 ID 或无签名信任。
 

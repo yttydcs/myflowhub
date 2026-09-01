@@ -30,7 +30,7 @@ Authority Profile 的生命周期唯一来自该 Profile 的受保护 `Enrollmen
 
 Desktop 只向前端投影 allowlist 字段：Profile ID、状态、可选 request ID、Node ID、父 Node ID、Authority Node ID 和可操作错误。不得输出私钥、Permit、Grant 签名、完整凭据或公钥正文。
 
-`settings.json` 不复制 `device/pending/enrolled` 状态。已 Enrollment 但尚未来得及把 Node ID 回写 Profile 的凭据仍显示为 `enrolled`；若 Profile 已有非空 Node ID 且与 Grant 冲突，则显示 `error`。
+`settings.json` 不复制 `device/pending/enrolled` 状态。已 Enrollment 但尚未来得及把 Node ID 回写 Profile 的凭据仍显示为 `enrolled`；若 Profile 已有非空 Node ID、父 Node ID、父公钥、Authority Node ID 或 Authority 公钥与 Grant 冲突，则显示 `error`。诊断只指出冲突类别，不回显公钥或签名正文。
 
 ## 首次连接
 
@@ -38,6 +38,8 @@ Desktop 只向前端投影 allowlist 字段：Profile ID、状态、可选 reque
 - 审批模式在没有预置或已观察信任锚时要求一次显式 TOFU；进入 `pending` 后重试复用同一 request ID 和信任观察，不再次要求 TOFU。
 - Permit 模式可先准备/复用受保护设备身份并展示可复制的设备公钥，然后只在本次 `LoginJSON` 调用中传入 Permit。Permit 不持久化。
 - 高级设置可承载预置父节点/Authority pin 与 Legacy 兼容字段，但普通 Authority 流程不要求它们。
+- `missing/device/pending` 只打开可取消的 Enrollment bootstrap。收到并保存 `granted` 后先关闭 bootstrap，再创建 Parent-only NodeHost 和 attached Desktop Client；`enrolled` Profile 重启时直接创建 Host，不发 MFHE、不要求 Permit。
+- 同一活动 Profile 的重复连接只启动或等待 Host 的现有 ParentSupervisor，不调用 owning binding Start，也不创建第二个 SDK queue。authority Profile 的受保护 credential 不复制成 Legacy identity 文件。
 
 ## 返回 Profile 选择
 

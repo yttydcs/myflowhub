@@ -1,6 +1,7 @@
 package nodehost
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"encoding/base64"
 	"errors"
@@ -20,12 +21,13 @@ import (
 // Config describes one complete Go node runtime. Parent and Listeners determine
 // the node's topology role; product names do not.
 type Config struct {
-	StateDirectory string
-	NodeID         protocol.NodeID
-	IdentityStore  auth.IdentityStore
-	Runtime        RuntimeConfig
-	Parent         *ParentConfig
-	Listeners      []ListenerConfig
+	StateDirectory   string
+	NodeID           protocol.NodeID
+	IdentityStore    auth.IdentityStore
+	CredentialSource auth.NodeCredentialSource
+	Runtime          RuntimeConfig
+	Parent           *ParentConfig
+	Listeners        []ListenerConfig
 }
 
 // RuntimeConfig exposes only the non-owning limits and mechanics from
@@ -59,10 +61,24 @@ func validateConfig(config Config) error {
 	if strings.TrimSpace(config.StateDirectory) == "" {
 		return errors.New("node host state directory is required")
 	}
-	if err := config.NodeID.Validate(); err != nil {
-		return fmt.Errorf("node host node ID: %w", err)
+	if config.CredentialSource == nil {
+		if err := config.NodeID.Validate(); err != nil {
+			return fmt.Errorf("node host node ID: %w", err)
+		}
+	} else {
+		if config.IdentityStore != nil {
+			return errors.New("node host credential source and identity store are mutually exclusive")
+		}
+		if config.NodeID != 0 {
+			if err := config.NodeID.Validate(); err != nil {
+				return fmt.Errorf("node host node ID: %w", err)
+			}
+		}
+		if config.Parent == nil {
+			return errors.New("node host credential source requires a parent configuration")
+		}
 	}
-	if config.Runtime.Session.LocalNode != 0 && config.Runtime.Session.LocalNode != config.NodeID {
+	if config.NodeID != 0 && config.Runtime.Session.LocalNode != 0 && config.Runtime.Session.LocalNode != config.NodeID {
 		return fmt.Errorf("node host runtime session local node %d conflicts with node ID %d", config.Runtime.Session.LocalNode, config.NodeID)
 	}
 	if config.Runtime.Commands.Authorizer != nil {
@@ -74,10 +90,10 @@ func validateConfig(config Config) error {
 		}
 	}
 	if config.Parent != nil {
-		if err := validateParentShape(*config.Parent); err != nil {
+		if err := validateParentShape(*config.Parent, config.CredentialSource != nil); err != nil {
 			return fmt.Errorf("node host parent: %w", err)
 		}
-		if config.Parent.NodeID == config.NodeID {
+		if config.NodeID != 0 && config.Parent.NodeID != 0 && config.Parent.NodeID == config.NodeID {
 			return errors.New("node host parent cannot be the local node")
 		}
 	}
@@ -94,9 +110,14 @@ func validateListener(config ListenerConfig) error {
 	return nil
 }
 
-func validateParentShape(config ParentConfig) error {
-	if err := config.NodeID.Validate(); err != nil {
-		return fmt.Errorf("node ID: %w", err)
+func validateParentShape(config ParentConfig, allowCredentialDefaults bool) error {
+	if config.NodeID == 0 && !allowCredentialDefaults {
+		return errors.New("node ID must be configured")
+	}
+	if config.NodeID != 0 {
+		if err := config.NodeID.Validate(); err != nil {
+			return fmt.Errorf("node ID: %w", err)
+		}
 	}
 	if err := link.ValidateDriver(config.Driver); err != nil {
 		return err
@@ -114,6 +135,52 @@ func validateParentShape(config ParentConfig) error {
 		if err := config.Permit.Validate(); err != nil {
 			return fmt.Errorf("permit: %w", err)
 		}
+	}
+	return nil
+}
+
+func applyNodeCredential(config *Config, credential auth.NodeCredential) error {
+	if config == nil || config.CredentialSource == nil {
+		return errors.New("node host credential source is required")
+	}
+	if err := credential.Identity.Validate(); err != nil {
+		return fmt.Errorf("node host credential identity: %w", err)
+	}
+	if err := credential.ParentNodeID.Validate(); err != nil {
+		return fmt.Errorf("node host credential parent: %w", err)
+	}
+	if len(credential.ParentPublicKey) != ed25519.PublicKeySize {
+		return errors.New("node host credential parent public key must be Ed25519")
+	}
+	if err := credential.AuthorityNodeID.Validate(); err != nil {
+		return fmt.Errorf("node host credential Authority: %w", err)
+	}
+	if len(credential.AuthorityPublicKey) != ed25519.PublicKeySize {
+		return errors.New("node host credential Authority public key must be Ed25519")
+	}
+	if strings.TrimSpace(credential.EnrollmentID) == "" {
+		return errors.New("node host credential Enrollment ID is required")
+	}
+	if config.NodeID != 0 && config.NodeID != credential.Identity.NodeID {
+		return fmt.Errorf("node host configured NodeID %d conflicts with credential NodeID %d", config.NodeID, credential.Identity.NodeID)
+	}
+	if config.Parent == nil {
+		return errors.New("node host credential source requires a parent configuration")
+	}
+	if config.Parent.NodeID != 0 && config.Parent.NodeID != credential.ParentNodeID {
+		return fmt.Errorf("node host configured parent NodeID %d conflicts with credential parent NodeID %d", config.Parent.NodeID, credential.ParentNodeID)
+	}
+	if len(config.Parent.PublicKey) != 0 && !bytes.Equal(config.Parent.PublicKey, credential.ParentPublicKey) {
+		return errors.New("node host configured parent public key conflicts with credential parent public key")
+	}
+	config.NodeID = credential.Identity.NodeID
+	config.Parent.NodeID = credential.ParentNodeID
+	config.Parent.PublicKey = append(ed25519.PublicKey(nil), credential.ParentPublicKey...)
+	if config.Runtime.Session.LocalNode != 0 && config.Runtime.Session.LocalNode != config.NodeID {
+		return fmt.Errorf("node host runtime session local node %d conflicts with credential NodeID %d", config.Runtime.Session.LocalNode, config.NodeID)
+	}
+	if config.Parent.NodeID == config.NodeID {
+		return errors.New("node host credential parent cannot be the local node")
 	}
 	return nil
 }

@@ -14,7 +14,7 @@ NodeHost 不是 Hub 基类、产品容器或权限捷径。产品名不赋予网
 
 一个 Host 恰好拥有：
 
-- 一份持久 auth state，或调用方注入的 `IdentityStore`；
+- 一份持久 auth state，以及 Legacy `IdentityStore` 或只读 `NodeCredentialSource` 提供的身份；
 - 一个 `runtime/node.Node`；
 - 一个绑定该 Node 的非 owning `*sdk.Client`；
 - 最多一个 ParentSupervisor；
@@ -45,7 +45,9 @@ SDK Client 不拥有 Host。关闭或清理 Client-local subscription 不得关�
 
 `New` 负责验证不变量、打开持久状态并创建 Node 与 attached SDK Client。它不建立父树边、不监听端口，也不向网络宣告 healthy。调用方可以在 `Start` 前注册固定资源，使第一次可见 Catalog 完整。
 
-输入至少包括 state directory、NodeID、可选 IdentityStore、Node limits、可选 Parent 和 Listener 配置。Parent identity、public key、permit、endpoint、Driver 与 Listener 配置必须在启动外部工作前验证。
+Legacy 输入至少包括 state directory、NodeID、可选 IdentityStore、Node limits、可选 Parent 和 Listener 配置。credential-backed 输入提供 state directory、`NodeCredentialSource`、Parent endpoint/Driver 与可选的兼容缓存约束。两种身份模式不能同时隐式生效；显式 NodeID、Parent NodeID 或公钥若存在，必须与 credential 完全一致。Parent identity、public key、permit、endpoint、Driver 与 Listener 配置必须在启动外部工作前验证。
+
+`NodeCredentialSource` 只读取一个已经注册的完整凭据：Node identity、Grant 绑定的直接父节点、Authority provenance 和 Enrollment ID。NodeHost 只消费身份与直接父信任；Authority provenance 不自动授予 Resource 权限。`missing/device/pending`、签名失败、key/NodeID 不匹配或 Profile 约束冲突都在 Listener/Dial 前 fail closed。credential-backed state 会初始化普通 trust/policy/admission 文件，但不得生成或复制 identity 文件。
 
 ### Start
 
@@ -95,7 +97,7 @@ Variable 便捷声明必须显式提供 local name、content type、schema、rea
 
 ## Product and Platform Composition
 
-- Desktop：拥有自己的 Profile identity 和 state；静态/既有 Profile 使用 Parent-only NodeHost，不因 UI 或产品名获得 Listener/relay 权限。尚无 Node ID 的 authority Enrollment Profile 通过既有 owning binding 完成注册和持久 Grant，并暂时沿用该兼容路径重连；这不是第二种网络角色或权限特例。
+- Desktop：拥有自己的 Profile identity 和 state；Legacy 与已经 granted 的 authority Profile 都使用 Parent-only NodeHost，不因 UI 或产品名获得 Listener/relay 权限。尚无 Node ID 的 authority Profile 只打开窄 Enrollment bootstrap；Grant 持久后先关闭 bootstrap，再以同一受保护凭据创建 NodeHost。
 - MetricsNode：拥有独立 NodeHost，在 `Start` 前注册指标、配置、控制和通知资源；不依赖 Desktop。
 - Hub：后续在 NodeHost 上组合 Management/File/Flow/Notification 等 feature；当前迁移延期。
 - Agent Gateway：后续作为普通 NodeHost 产品，在外层实现 Web/API/MCP、token 权限交集和审计；不成为树内特权。
@@ -119,7 +121,7 @@ NodeHost 不导入 Wails、Kotlin、Android API、产品 controller 或具体 Tr
 
 ## Compatibility
 
-首批迁移保持 wire envelope、Resource descriptor/schema、NodeID、持久 identity、Profile/config schema 和 Parent supervision 行为。旧 runtime-owning SDK/binding API 可以暂时作为明确标记的兼容入口，但不能成为新产品的 canonical path，也不能静默改变关闭所有权。Desktop authority Enrollment 是本轮保留的具体例外：注册前没有可供 NodeHost 构造的 Node ID，现阶段由 Enrollment binding 持有临时/重连 runtime；后续应让持久 Grant 可直接注入 NodeHost，再移除该例外。Android 的 Host 构造实现集中在 `sdk/bindings/android/host.go`；既有 `android.Client` 与 `android.Host` 可以作为 gomobile lifecycle wrapper 暴露 Start/Close，但其内部 portable SDK/bindings Client 始终 non-owning。
+首批迁移保持 wire envelope、Resource descriptor/schema、NodeID、持久 identity、Profile/config schema 和 Parent supervision 行为。旧 runtime-owning SDK/binding API 可以暂时作为明确标记的兼容入口，但不能成为新产品的 canonical path，也不能静默改变关闭所有权。Desktop authority Enrollment 不再是 post-Grant 例外：bootstrap 只负责 MFHE 与 Grant 持久化，普通运行统一进入 NodeHost；旧 owning API 仅为未迁移调用方保持源码兼容。Android 的 Host 构造实现集中在 `sdk/bindings/android/host.go`；既有 `android.Client` 与 `android.Host` 可以作为 gomobile lifecycle wrapper 暴露 Start/Close，但其内部 portable SDK/bindings Client 始终 non-owning。
 
 Android in-process Hub、现有 `host/hub` 和 ClipboardNode 不在首批迁移范围；其存在不改变本文的长期边界。
 
@@ -130,6 +132,7 @@ Android in-process Hub、现有 `host/hub` 和 ClipboardNode 不在首批迁移�
 - 证明 `Host.Client()` pointer identity，以及 Client-local close 不影响 Host；
 - 证明本地调用短路、远端调用仍走 Node route 与 Session queue；
 - 证明 Start 前/后资源注册、Variable Set、Catalog 和远端 subscription；
+- 证明 credential-backed Host 不创建 identity 文件、拒绝未 granted/冲突凭据，并让重复 Connect 复用同一 ParentSupervisor；
 - 产品门禁覆盖 Desktop Wails、Metrics TCP/process、gomobile AAR 与 Android Gradle；设备不可用时明确记为 unavailable。
 
 ## Related

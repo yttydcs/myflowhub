@@ -81,37 +81,59 @@ type platformCredentialBackend interface {
 	auth.EnrollmentCredentialStore
 }
 
-// profileRuntime is the Desktop product's explicit ownership boundary. Static
-// profiles use a non-owning binding over Host.Client; authority profiles keep
-// the owning Enrollment binding as a compatibility bootstrap/reconnect path.
+// profileRuntime is the Desktop product's explicit ownership boundary. Every
+// granted profile owns one NodeHost and an attached client. An authority
+// profile may temporarily own a narrow pre-Grant Enrollment bootstrap.
 type profileRuntime struct {
-	profile Profile
-	host    *nodehost.Host
-	client  *desktopbinding.Client
+	profile   Profile
+	host      *nodehost.Host
+	client    *desktopbinding.Client
+	bootstrap *bindings.EnrollmentBootstrap
+	promote   func() (*nodehost.Host, *desktopbinding.Client, error)
 }
 
 func (r *profileRuntime) Close() error {
 	if r == nil {
 		return nil
 	}
-	var facadeErr, hostErr error
+	var bootstrapErr, facadeErr, hostErr error
+	if r.bootstrap != nil {
+		bootstrapErr = r.bootstrap.Close()
+		r.bootstrap = nil
+	}
 	if r.client != nil {
 		facadeErr = r.client.Close()
 	}
 	if r.host != nil {
 		hostErr = r.host.Close()
 	}
-	return errors.Join(facadeErr, hostErr)
+	return errors.Join(bootstrapErr, facadeErr, hostErr)
 }
 
 func (r *profileRuntime) connect(permitJSON string, allowTOFU bool) error {
-	if r == nil || r.client == nil {
+	if r == nil {
 		return errors.New("desktop profile runtime is unavailable")
 	}
-	if r.profile.EnrollmentMode == "authority" {
-		return connectEnrollmentClient(r.client, r.profile, permitJSON, allowTOFU)
+	if r.bootstrap != nil {
+		if err := enrollBootstrap(r.bootstrap, r.profile, permitJSON, allowTOFU); err != nil {
+			return err
+		}
+		if err := r.bootstrap.Close(); err != nil {
+			return fmt.Errorf("close Enrollment bootstrap before opening node host: %w", err)
+		}
+		r.bootstrap = nil
+		if r.promote == nil {
+			return errors.New("desktop Enrollment runtime cannot open a granted node host")
+		}
+		host, client, err := r.promote()
+		if err != nil {
+			return err
+		}
+		r.host = host
+		r.client = client
+		r.promote = nil
 	}
-	if r.host == nil {
+	if r.host == nil || r.client == nil {
 		return errors.New("desktop profile node host is unavailable")
 	}
 	switch r.host.Status().Lifecycle {
@@ -126,6 +148,27 @@ func (r *profileRuntime) connect(permitJSON string, allowTOFU bool) error {
 		return fmt.Errorf("desktop profile runtime cannot connect from lifecycle %q", r.host.Status().Lifecycle)
 	}
 	return r.client.WaitConnected(defaultRequestTimeoutMS)
+}
+
+func (r *profileRuntime) identityJSON() (string, error) {
+	if r == nil {
+		return "", errors.New("desktop profile runtime is unavailable")
+	}
+	if r.bootstrap != nil {
+		statusJSON, err := r.bootstrap.EnrollmentStatusJSON()
+		if err != nil {
+			return "", err
+		}
+		var status enrollmentStatus
+		if err := decodeStrictJSON([]byte(statusJSON), &status); err != nil {
+			return "", err
+		}
+		return marshalJSON(publicIdentity{NodeID: status.NodeID, PublicKey: status.DevicePublicKey})
+	}
+	if r.client == nil {
+		return "", errors.New("desktop profile client is unavailable")
+	}
+	return r.client.IdentityJSON()
 }
 
 type profileCredentialStore struct {
@@ -149,16 +192,32 @@ func (s *profileCredentialStore) Open(profile Profile, permitJSON string) (*prof
 	if err != nil {
 		return nil, err
 	}
-	identityStore, err := s.backend(profile.ID, directory)
+	backend, err := s.backend(profile.ID, directory)
 	if err != nil {
 		return nil, err
 	}
 	if profile.EnrollmentMode == "authority" {
-		client := &desktopbinding.Client{}
-		if err := client.OpenEnrollmentWithCredentialStore(directory, identityStore); err != nil {
-			return nil, fmt.Errorf("open profile Enrollment credential: %w", err)
+		snapshot, found, err := auth.InspectEnrollmentClientState(backend)
+		if err != nil {
+			return nil, err
 		}
-		return &profileRuntime{profile: profile, client: client}, nil
+		if found && snapshot.Status == "enrolled" {
+			host, client, err := openAuthorityProfileHost(profile, directory, backend)
+			if err != nil {
+				return nil, err
+			}
+			return &profileRuntime{profile: profile, host: host, client: client}, nil
+		}
+		bootstrap, err := bindings.NewEnrollmentBootstrapWithCredentialStore(directory, backend)
+		if err != nil {
+			return nil, fmt.Errorf("open profile Enrollment bootstrap: %w", err)
+		}
+		return &profileRuntime{
+			profile: profile, bootstrap: bootstrap,
+			promote: func() (*nodehost.Host, *desktopbinding.Client, error) {
+				return openAuthorityProfileHost(profile, directory, backend)
+			},
+		}, nil
 	}
 	nodeID, err := parsePositiveInt64(profile.NodeID, "node_id")
 	if err != nil {
@@ -183,7 +242,7 @@ func (s *profileCredentialStore) Open(profile Profile, permitJSON string) (*prof
 	host, err := nodehost.New(context.Background(), nodehost.Config{
 		StateDirectory: directory,
 		NodeID:         protocol.NodeID(nodeID),
-		IdentityStore:  identityStore,
+		IdentityStore:  backend,
 		Parent: &nodehost.ParentConfig{
 			NodeID: protocol.NodeID(parentID), PublicKey: ed25519.PublicKey(parentKey), Permit: permit,
 			Driver: tcp.Driver{}, Endpoint: link.Endpoint(strings.TrimSpace(profile.Endpoint)),
@@ -192,25 +251,83 @@ func (s *profileCredentialStore) Open(profile Profile, permitJSON string) (*prof
 	if err != nil {
 		return nil, fmt.Errorf("open profile node host: %w", err)
 	}
+	client, err := attachDesktopClient(host)
+	if err != nil {
+		_ = host.Close()
+		return nil, err
+	}
+	return &profileRuntime{profile: profile, host: host, client: client}, nil
+}
+
+func openAuthorityProfileHost(profile Profile, directory string, backend platformCredentialBackend) (*nodehost.Host, *desktopbinding.Client, error) {
+	snapshot, found, err := auth.InspectEnrollmentClientState(backend)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !found || snapshot.Status != "enrolled" || snapshot.Grant == nil {
+		return nil, nil, auth.ErrEnrollmentNotGranted
+	}
+	if mismatch := enrollmentProfileMismatch(profile, snapshot); mismatch != "" {
+		return nil, nil, fmt.Errorf("Profile 与受保护的 Enrollment Grant %s 不一致", mismatch)
+	}
+	source, err := auth.NewEnrollmentCredentialSource(backend)
+	if err != nil {
+		return nil, nil, err
+	}
+	var configuredNodeID protocol.NodeID
+	if profile.NodeID != "" {
+		value, err := parsePositiveInt64(profile.NodeID, "node_id")
+		if err != nil {
+			return nil, nil, err
+		}
+		configuredNodeID = protocol.NodeID(value)
+	}
+	parent := &nodehost.ParentConfig{Driver: tcp.Driver{}, Endpoint: link.Endpoint(strings.TrimSpace(profile.Endpoint))}
+	if profile.ParentNodeID != "" {
+		value, err := parsePositiveInt64(profile.ParentNodeID, "parent_node_id")
+		if err != nil {
+			return nil, nil, err
+		}
+		parent.NodeID = protocol.NodeID(value)
+	}
+	if strings.TrimSpace(profile.ParentPublicKey) != "" {
+		key, err := base64.RawStdEncoding.DecodeString(strings.TrimSpace(profile.ParentPublicKey))
+		if err != nil || len(key) != ed25519.PublicKeySize {
+			return nil, nil, errors.New("parent_public_key must be a raw-base64 Ed25519 key")
+		}
+		parent.PublicKey = ed25519.PublicKey(key)
+	}
+	host, err := nodehost.New(context.Background(), nodehost.Config{
+		StateDirectory: directory, NodeID: configuredNodeID, CredentialSource: source, Parent: parent,
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("open granted profile node host: %w", err)
+	}
+	client, err := attachDesktopClient(host)
+	if err != nil {
+		_ = host.Close()
+		return nil, nil, err
+	}
+	return host, client, nil
+}
+
+func attachDesktopClient(host *nodehost.Host) (*desktopbinding.Client, error) {
 	status, ok := host.ParentStatus()
 	if !ok {
-		_ = host.Close()
 		return nil, errors.New("desktop profile node host has no parent")
 	}
 	core, err := bindings.NewAttachedClient(host.Client(), bindings.PublicIdentity{
 		NodeID: host.ID(), PublicKey: host.PublicKey(),
 	}, status)
 	if err != nil {
-		_ = host.Close()
 		return nil, fmt.Errorf("attach desktop binding: %w", err)
 	}
 	client, err := desktopbinding.NewAttachedClient(core)
 	if err != nil {
 		_ = core.Close()
-		_ = host.Close()
-		return nil, err
+		return nil, fmt.Errorf("open attached desktop binding: %w", err)
 	}
-	return &profileRuntime{profile: profile, host: host, client: client}, nil
+	return client, nil
 }
 
 func (s *profileCredentialStore) InspectEnrollment(profileID string) (auth.EnrollmentClientSnapshot, bool, error) {
@@ -370,13 +487,37 @@ func (a *App) ProfileStatesJSON() (string, error) {
 		if snapshot.Grant != nil {
 			state.NodeID = snapshot.Grant.NodeID
 		}
-		if profile.NodeID != "" && state.NodeID != "" && profile.NodeID != state.NodeID {
+		if mismatch := enrollmentProfileMismatch(profile, snapshot); mismatch != "" {
 			state.State = "error"
-			state.Message = "Profile Node ID 与受保护的 Enrollment Grant 不一致；请勿继续连接。"
+			state.Message = "Profile " + mismatch + " 与受保护的 Enrollment Grant 不一致；请勿继续连接。"
 		}
 		states = append(states, state)
 	}
 	return marshalJSON(states)
+}
+
+func enrollmentProfileMismatch(profile Profile, snapshot auth.EnrollmentClientSnapshot) string {
+	if snapshot.Status != "enrolled" || snapshot.Grant == nil {
+		return ""
+	}
+	checks := []struct {
+		name       string
+		configured string
+		canonical  string
+	}{
+		{name: "Node ID", configured: profile.NodeID, canonical: snapshot.Grant.NodeID},
+		{name: "父 Node ID", configured: profile.ParentNodeID, canonical: optionalNodeID(snapshot.ParentNodeID)},
+		{name: "父公钥", configured: profile.ParentPublicKey, canonical: base64.RawStdEncoding.EncodeToString(snapshot.ParentPublicKey)},
+		{name: "Authority Node ID", configured: profile.AuthorityNodeID, canonical: optionalNodeID(snapshot.AuthorityNodeID)},
+		{name: "Authority 公钥", configured: profile.AuthorityPublicKey, canonical: base64.RawStdEncoding.EncodeToString(snapshot.AuthorityPublicKey)},
+	}
+	for _, check := range checks {
+		configured := strings.TrimSpace(check.configured)
+		if configured != "" && configured != check.canonical {
+			return check.name
+		}
+	}
+	return ""
 }
 
 func optionalNodeID(value protocol.NodeID) string {
@@ -453,23 +594,12 @@ func (a *App) PrepareProfileJSON(raw string) (string, error) {
 		return "", err
 	}
 	defer candidate.Close()
-	identityJSON := ""
-	if profile.EnrollmentMode == "authority" {
-		identityJSON, err = candidate.client.EnrollmentStatusJSON()
-	} else {
-		identityJSON, err = candidate.client.IdentityJSON()
-	}
+	identityJSON, err := candidate.identityJSON()
 	if err != nil {
 		return "", fmt.Errorf("read prepared profile identity: %w", err)
 	}
 	var identity publicIdentity
-	if profile.EnrollmentMode == "authority" {
-		var status enrollmentStatus
-		if err := decodeStrictJSON([]byte(identityJSON), &status); err != nil {
-			return "", fmt.Errorf("decode prepared Enrollment identity: %w", err)
-		}
-		identity = publicIdentity{NodeID: status.NodeID, PublicKey: status.DevicePublicKey}
-	} else if err := decodeStrictJSON([]byte(identityJSON), &identity); err != nil {
+	if err := decodeStrictJSON([]byte(identityJSON), &identity); err != nil {
 		return "", fmt.Errorf("decode prepared profile identity: %w", err)
 	}
 
@@ -533,9 +663,19 @@ func (a *App) LoginJSON(raw string) (string, error) {
 		return "", a.fail("login", err)
 	}
 	if request.Profile.EnrollmentMode == "authority" {
-		request.Profile, err = hydrateEnrollmentProfile(candidate.client, request.Profile)
+		snapshot, found, inspectErr := a.credentials.InspectEnrollment(request.Profile.ID)
+		if inspectErr != nil {
+			err = inspectErr
+		} else {
+			request.Profile, err = hydrateEnrollmentProfile(snapshot, found, request.Profile)
+		}
 		if err != nil {
-			return "", err
+			_ = candidate.Close()
+			candidate = nil
+			if restoreErr := a.restoreClosedRuntime(previous, old, oldClosed); restoreErr != nil {
+				return "", a.fail("login", errors.Join(err, restoreErr))
+			}
+			return "", a.fail("login", err)
 		}
 		candidate.profile = request.Profile
 	}
@@ -710,25 +850,13 @@ func (a *App) ResetStorage(confirm string) (string, error) {
 }
 
 func (a *App) IdentityJSON() (string, error) {
-	client, err := a.currentClient()
-	if err != nil {
-		return "", err
-	}
 	a.mu.Lock()
-	profile, _ := findProfile(a.settings, a.settings.ActiveProfileID)
+	current := a.active
 	a.mu.Unlock()
-	if profile.EnrollmentMode != "authority" {
-		return client.IdentityJSON()
+	if current == nil {
+		return "", errors.New("desktop is signed out")
 	}
-	statusJSON, err := client.EnrollmentStatusJSON()
-	if err != nil {
-		return "", err
-	}
-	var status enrollmentStatus
-	if err := decodeStrictJSON([]byte(statusJSON), &status); err != nil {
-		return "", err
-	}
-	return marshalJSON(publicIdentity{NodeID: status.NodeID, PublicKey: status.DevicePublicKey})
+	return current.identityJSON()
 }
 
 func (a *App) Connect() error {
@@ -766,8 +894,8 @@ func (a *App) Connect() error {
 	return nil
 }
 
-func connectEnrollmentClient(client *desktopbinding.Client, profile Profile, permitJSON string, allowTOFU bool) error {
-	statusJSON, err := client.EnrollmentStatusJSON()
+func enrollBootstrap(bootstrap *bindings.EnrollmentBootstrap, profile Profile, permitJSON string, allowTOFU bool) error {
+	statusJSON, err := bootstrap.EnrollmentStatusJSON()
 	if err != nil {
 		return err
 	}
@@ -783,7 +911,7 @@ func connectEnrollmentClient(client *desktopbinding.Client, profile Profile, per
 				return err
 			}
 		}
-		resultJSON, err := client.EnrollTCP(profile.Endpoint, permitJSON, allowTOFU, expectedParentID, profile.ParentPublicKey, profile.AuthorityPublicKey, defaultRequestTimeoutMS)
+		resultJSON, err := bootstrap.EnrollTCP(profile.Endpoint, permitJSON, allowTOFU, expectedParentID, profile.ParentPublicKey, profile.AuthorityPublicKey, defaultRequestTimeoutMS)
 		if err != nil {
 			return fmt.Errorf("enroll: %w", err)
 		}
@@ -794,12 +922,6 @@ func connectEnrollmentClient(client *desktopbinding.Client, profile Profile, per
 		if result.Status == "pending" {
 			return fmt.Errorf("%w: request %s is waiting for approval", auth.ErrEnrollmentPending, result.RequestID)
 		}
-	}
-	if err := client.StartEnrolledTCP(profile.Endpoint); err != nil {
-		return fmt.Errorf("connect enrolled parent: %w", err)
-	}
-	if err := client.WaitConnected(defaultRequestTimeoutMS); err != nil {
-		return fmt.Errorf("wait for enrolled connection: %w", err)
 	}
 	return nil
 }
@@ -826,23 +948,15 @@ func connectRuntime(current *profileRuntime, permitJSON string, allowTOFU bool) 
 	return nil
 }
 
-func hydrateEnrollmentProfile(client *desktopbinding.Client, profile Profile) (Profile, error) {
-	statusJSON, err := client.EnrollmentStatusJSON()
-	if err != nil {
-		return Profile{}, err
-	}
-	var status enrollmentStatus
-	if err := decodeStrictJSON([]byte(statusJSON), &status); err != nil {
-		return Profile{}, err
-	}
-	if status.Status != "enrolled" || status.NodeID == "" {
+func hydrateEnrollmentProfile(snapshot auth.EnrollmentClientSnapshot, found bool, profile Profile) (Profile, error) {
+	if !found || snapshot.Status != "enrolled" || snapshot.Grant == nil || snapshot.Grant.NodeID == "" {
 		return Profile{}, errors.New("Enrollment did not persist a granted Node ID")
 	}
-	profile.NodeID = status.NodeID
-	profile.ParentNodeID = status.ParentNodeID
-	profile.ParentPublicKey = status.ParentPublicKey
-	profile.AuthorityNodeID = status.AuthorityNodeID
-	profile.AuthorityPublicKey = status.AuthorityPublicKey
+	profile.NodeID = snapshot.Grant.NodeID
+	profile.ParentNodeID = optionalNodeID(snapshot.ParentNodeID)
+	profile.ParentPublicKey = base64.RawStdEncoding.EncodeToString(snapshot.ParentPublicKey)
+	profile.AuthorityNodeID = optionalNodeID(snapshot.AuthorityNodeID)
+	profile.AuthorityPublicKey = base64.RawStdEncoding.EncodeToString(snapshot.AuthorityPublicKey)
 	return profile, nil
 }
 

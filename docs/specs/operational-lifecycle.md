@@ -16,6 +16,7 @@ Host 是 Node、ParentSupervisor、Listeners 和后台任务的 owner。`Host.Cl
 - Parent-only、Parent + Listeners、Listeners-only 与无外部链路使用同一状态机；角色只是配置组合。
 - 修改持久 identity、admission 或 policy 的离线引导命令只能在组件停止时执行；运行中管理必须走已鉴权 Command，禁止两个进程并发写同一状态目录。
 - 新设备在 Authority Grant 原子保存前没有 Node ID；Enrollment 的重试与断线恢复遵循 [node-enrollment-and-admission-authority.md](node-enrollment-and-admission-authority.md)，不得在 supervisor 中本地补发身份。
+- Enrollment bootstrap 不属于普通 Node lifecycle。Grant 持久化后先取消并关闭 bootstrap，再以只读 credential source 创建 `new` NodeHost；两个 owner 不得同时持有同一 Profile state root。
 
 ## Run and supervision
 
@@ -32,6 +33,8 @@ Host 是 Node、ParentSupervisor、Listeners 和后台任务的 owner。`Host.Cl
 ## Reconnect and reparent
 
 同一父身份和同一 policy generation 的重连可以恢复声明为 durable 的订阅意图，但创建新的 link generation。父身份或 authority generation 变化即 reparent：旧树边、旧控制权、旧 permit、旧 pending 和旧订阅全部失效，不自动复制。
+
+对已经 running/connecting 的 Desktop Host 再次执行 Connect，只等待同一 supervisor 的状态变化。它不得调用第二次 Start，也不得把普通连接失败降级回 Enrollment。
 
 ## Related
 

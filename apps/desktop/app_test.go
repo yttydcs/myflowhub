@@ -569,6 +569,28 @@ func TestAuthorityProfileEnrollsWithoutClientAssignedNodeOrParentKey(t *testing.
 	if status, err := app.StatusJSON(); err != nil || !strings.Contains(status, `"state":"connected"`) {
 		t.Fatalf("Authority-enrolled Profile did not enter ordinary Join: %v (%s)", err, status)
 	}
+	app.mu.Lock()
+	authorityRuntime := app.active
+	app.mu.Unlock()
+	if authorityRuntime == nil || authorityRuntime.host == nil || authorityRuntime.client == nil || authorityRuntime.bootstrap != nil {
+		t.Fatalf("Authority Profile did not hand off to NodeHost: %+v", authorityRuntime)
+	}
+	if authorityRuntime.host.Role() != nodehost.RoleLeaf || len(authorityRuntime.host.Endpoints()) != 0 {
+		t.Fatalf("Authority Profile Host is not a listener-free leaf: role=%q endpoints=%v", authorityRuntime.host.Role(), authorityRuntime.host.Endpoints())
+	}
+	hostClient := authorityRuntime.host.Client()
+	if err := app.Connect(); err != nil {
+		t.Fatalf("repeated Authority Connect did not reuse the Host supervisor: %v", err)
+	}
+	app.mu.Lock()
+	reusedAuthorityRuntime := app.active
+	app.mu.Unlock()
+	if reusedAuthorityRuntime != authorityRuntime || reusedAuthorityRuntime.host.Client() != hostClient {
+		t.Fatal("repeated Authority Connect replaced the Host or SDK client")
+	}
+	if _, err := os.Stat(filepath.Join(desktopRoot, "profiles", profile.ID, "identity.dpapi")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Authority Profile created a duplicate Legacy identity: %v", err)
+	}
 	statesJSON, err := app.ProfileStatesJSON()
 	if err != nil {
 		t.Fatal(err)
@@ -576,6 +598,30 @@ func TestAuthorityProfileEnrollsWithoutClientAssignedNodeOrParentKey(t *testing.
 	var states []profileState
 	if err := json.Unmarshal([]byte(statesJSON), &states); err != nil || len(states) != 1 || states[0].State != "enrolled" || states[0].NodeID != saved.NodeID {
 		t.Fatalf("enrolled credential was not projected independently of Profile hydration: %v (%s)", err, statesJSON)
+	}
+	snapshot, found, err := app.credentials.InspectEnrollment(profile.ID)
+	if err != nil || !found {
+		t.Fatalf("inspect enrolled Profile: found=%v err=%v", found, err)
+	}
+	for _, test := range []struct {
+		name   string
+		mutate func(*Profile)
+	}{
+		{name: "Node ID", mutate: func(value *Profile) { value.NodeID = "999" }},
+		{name: "父 Node ID", mutate: func(value *Profile) { value.ParentNodeID = "999" }},
+		{name: "父公钥", mutate: func(value *Profile) {
+			value.ParentPublicKey = base64.RawStdEncoding.EncodeToString(make([]byte, ed25519.PublicKeySize))
+		}},
+		{name: "Authority Node ID", mutate: func(value *Profile) { value.AuthorityNodeID = "999" }},
+		{name: "Authority 公钥", mutate: func(value *Profile) {
+			value.AuthorityPublicKey = base64.RawStdEncoding.EncodeToString(make([]byte, ed25519.PublicKeySize))
+		}},
+	} {
+		conflicting := saved
+		test.mutate(&conflicting)
+		if mismatch := enrollmentProfileMismatch(conflicting, snapshot); mismatch != test.name {
+			t.Fatalf("%s mismatch classified as %q", test.name, mismatch)
+		}
 	}
 	app.mu.Lock()
 	app.settings.Profiles[0].NodeID = "999"
@@ -609,8 +655,77 @@ func TestAuthorityProfileEnrollsWithoutClientAssignedNodeOrParentKey(t *testing.
 		t.Fatal(err)
 	}
 	defer reopened.Close()
+	reopened.mu.Lock()
+	restartedRuntime := reopened.active
+	reopened.mu.Unlock()
+	if restartedRuntime == nil || restartedRuntime.host == nil || restartedRuntime.bootstrap != nil {
+		t.Fatalf("enrolled restart did not open NodeHost directly: %+v", restartedRuntime)
+	}
 	if err := reopened.Connect(); err != nil {
 		t.Fatalf("persisted Authority Grant did not reconnect without another enrollment: %v", err)
+	}
+}
+
+func TestAuthorityPendingRetryCreatesNoNodeUntilGrant(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	root, err := hub.StartPersistent(ctx, hub.PersistentConfig{
+		StateDirectory: t.TempDir(), NodeID: 1,
+		Listeners: []hub.ListenerConfig{{Driver: tcp.Driver{}, Endpoint: "127.0.0.1:0"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	desktopRoot := t.TempDir()
+	app, err := NewApp(desktopRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Close()
+	profile := Profile{
+		ID: "authority-pending", Name: "Authority Pending", EnrollmentMode: "authority",
+		Endpoint: string(root.Endpoint), AutoConnect: false,
+	}
+	requestJSON, _ := json.Marshal(LoginRequest{Profile: profile, AllowTOFU: true})
+	if _, err := app.LoginJSON(string(requestJSON)); !errors.Is(err, auth.ErrEnrollmentPending) {
+		t.Fatalf("first authority login did not become pending: %v", err)
+	}
+	app.mu.Lock()
+	active := app.active
+	app.mu.Unlock()
+	if active != nil {
+		t.Fatal("pending authority Profile created an active ordinary runtime")
+	}
+	profileDirectory := filepath.Join(desktopRoot, "profiles", profile.ID)
+	for _, forbidden := range []string{
+		filepath.Join(profileDirectory, "identity.dpapi"),
+		filepath.Join(profileDirectory, "state", "trust.json"),
+	} {
+		if _, err := os.Stat(forbidden); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("pending authority Profile created ordinary Node state %s: %v", forbidden, err)
+		}
+	}
+	statesJSON, err := app.ProfileStatesJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var states []profileState
+	if err := json.Unmarshal([]byte(statesJSON), &states); err != nil || len(states) != 1 || states[0].State != "pending" || states[0].RequestID == "" {
+		t.Fatalf("unexpected pending state: %v (%s)", err, statesJSON)
+	}
+	if _, err := root.EnrollmentAuthority.Approve("00112233445566778899aabbccddeeff", states[0].RequestID, "desktop"); err != nil {
+		t.Fatal(err)
+	}
+	retryJSON, _ := json.Marshal(LoginRequest{Profile: profile})
+	if _, err := app.LoginJSON(string(retryJSON)); err != nil {
+		t.Fatalf("approved pending Profile did not retry through bootstrap and Host: %v", err)
+	}
+	app.mu.Lock()
+	granted := app.active
+	app.mu.Unlock()
+	if granted == nil || granted.host == nil || granted.client == nil || granted.bootstrap != nil {
+		t.Fatalf("approved pending Profile did not hand off to NodeHost: %+v", granted)
 	}
 }
 

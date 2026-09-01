@@ -57,6 +57,7 @@ MyFlowHub 曾通过多个 Git 仓库、多个 Go module 和多个 SubProto 分�
 - 订阅、控制和数据队列必须有边界，不能因慢消费者无限增长。
 - Transport Driver 只负责承载差异，上层资源与权限代码不得依赖具体 Transport 类型。
 - 一个 NodeHost 恰好拥有一个 Node、一个绑定该 Node 的非 owning SDK Client、最多一个 ParentSupervisor 和零个或多个 Listeners。
+- NodeHost 必须能从只读、已验证的 credential source 打开既有身份和父信任；该模式不得在凭据缺失、pending、损坏或冲突时生成替代身份，也不得创建第二份 identity 持久化。
 - SDK Client 只表达资源操作，不打开持久状态、不创建树边、不监听端口，也不关闭其所属 Host。
 - NodeHost 必须允许在网络启动前注册固定资源，并允许运行期按 Registry 契约动态注册或注销资源。
 - Android/iOS 等平台必须通过 IdentityStore、Driver/provider 和产品 adapter 注入平台能力；NodeHost 不依赖原生 UI 或 OS 生命周期 API。
@@ -109,6 +110,7 @@ MyFlowHub 曾通过多个 Git 仓库、多个 Go module 和多个 SubProto 分�
 
 - memory contract 覆盖 Parent-only、Parent + Listeners、Listeners-only 和无外部链路四种组合。
 - `host.Client()` 每次返回绑定同一 Node 的非 owning Client；本地与远端操作继续使用现有 Node 路由和 Session queue。
+- 受保护 Enrollment Grant 原子保存后，bootstrap 必须关闭；已注册节点由同一 NodeHost/attached Client 路径运行，重启不得重新 Enrollment 或要求 Permit。
 - Desktop 与 MetricsNode 首批迁移后仍是两个独立 Parent-only Node，且不互相依赖安装或资源 ownership。
 - Android 复用同一纯 Go Host contract，Kotlin Service 继续拥有前台服务、权限、通知和进程生命周期。
 

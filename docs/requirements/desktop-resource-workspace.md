@@ -36,7 +36,7 @@
 
 ## Functional Requirements
 
-1. Login shell 必须把“使用现有 Profile”和“首次连接”作为两个顶层入口，支持 Profile chooser、create/edit/delete、首次 admission 和明确错误恢复；现有 Authority Profile 的 `missing/device/pending/enrolled/error` 必须来自受保护 CredentialStore 的只读状态，不得由 `node_id` 猜测。全新 Profile 必须自动生成稳定、合法且无碰撞的本地 Profile ID，并能在连接前生成或复用 CredentialStore identity，只展示用于父节点签发 Permit 的公开身份；普通 Authority 流程不得要求用户指定 Node ID 或公钥 pin。
+1. Login shell 必须把“使用现有 Profile”和“首次连接”作为两个顶层入口，支持 Profile chooser、create/edit/delete、首次 admission 和明确错误恢复；现有 Authority Profile 的 `missing/device/pending/enrolled/error` 必须来自受保护 CredentialStore 的只读状态，不得由 `node_id` 猜测。全新 Profile 必须自动生成稳定、合法且无碰撞的本地 Profile ID，并能在连接前生成或复用 CredentialStore identity，只展示用于父节点签发 Permit 的公开身份；普通 Authority 流程不得要求用户指定 Node ID 或公钥 pin。Enrollment bootstrap 只存在于 Grant 前，Grant 后必须切换到 Parent-only NodeHost 和 attached Client。
 2. 每个 Profile 隔离 Hub/Transport 设置、本地 Node identity、受信任父节点、View、最近项和 UI preferences。
 3. 首版每个应用实例只能激活一个 Profile；切换必须先关闭旧连接、subscription 和 session。
 4. 身份准备不得激活 Profile、启动连接或导出私钥；一次性 permit 在成功 admission 后不得继续作为长期明文配置保存，私钥或 refresh secret 必须通过 CredentialStore abstraction 保护。
@@ -120,6 +120,7 @@
 - 成功登录后重启可以自动进入/连接；无效身份必须回到明确登录恢复流程。
 - 无 active Profile 时，有已保存 Profile 默认进入“使用现有 Profile”，无 Profile 默认进入“首次连接”；仅查看列表不创建凭据目录、密钥或 request ID，且状态响应不包含私钥、Permit 或 Grant 签名。
 - Pending 重试复用原 request ID/信任观察并使用空 Permit、关闭 TOFU；Enrolled 直接重连；Device/missing 继续首次连接。Authority 首次连接不显示可编辑 Node ID，Profile ID 由客户端生成且名称变化时保持稳定。
+- Authority 登录成功、重启和重复 Connect 都使用同一 NodeHost ownership 形状；凭据仍是 identity/parent/Authority 的事实源，不创建 Legacy `identity.dpapi`，也不调用 post-Grant owning binding Start。
 - “返回 Profile 选择”经未保存工作确认后跨重启保持未激活状态，同时原 Profile、凭据和 Views 可再次使用。
 - Resource Explorer 上方仅展示跨子树 Node，下方仅展示当前 Node Resources 的任意深度 path tree；两区
   可独立搜索/滚动和收起/展开，通过鼠标与键盘完成切换、预览、添加和有界高度调整。`system/config`

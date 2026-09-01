@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -87,6 +88,25 @@ func TestImportBoundaries(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDesktopAuthorityRuntimeUsesEnrollmentBootstrapThenNodeHost(t *testing.T) {
+	path := filepath.Join(repositoryRoot(t), "apps", "desktop", "app.go")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(data)
+	for _, forbidden := range []string{"StartEnrolledTCP", "OpenEnrollmentWithCredentialStore"} {
+		if strings.Contains(source, forbidden) {
+			t.Errorf("Desktop production composition still uses owning Enrollment runtime method %q", forbidden)
+		}
+	}
+	for _, required := range []string{"NewEnrollmentBootstrapWithCredentialStore", "CredentialSource: source", "attachDesktopClient(host)"} {
+		if !strings.Contains(source, required) {
+			t.Errorf("Desktop production composition is missing NodeHost handoff marker %q", required)
+		}
 	}
 }
 

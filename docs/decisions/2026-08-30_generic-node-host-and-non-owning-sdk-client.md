@@ -34,7 +34,7 @@ Desktop、MetricsNode、Android bindings 和其他第一方入口已经共享 pr
 - NodeHost 保持纯 Go 和平台中立。Android/iOS 通过 gomobile facade、IdentityStore、Driver/provider 与产品 adapter 注入平台能力；原生层拥有 OS lifecycle。
 - Desktop、MetricsNode、Hub 与 Agent Gateway 保持独立 Node、进程、状态和安装边界。产品名不产生 authority 或 Resource ownership 特权。
 - 首批迁移 Desktop、Metrics Windows/CLI、Metrics Android 和通用 Android leaf Client。Hub、Android in-process Hub、ClipboardNode 和 Agent Gateway 延期。
-- Desktop 的静态/既有 Profile 进入 NodeHost；authority Enrollment 因注册前没有 Node ID，暂保留 owning binding 作为显式 bootstrap/reconnect 兼容路径，且不获得额外网络权限。
+- Desktop 的 Legacy Profile 与 granted authority Profile 都进入 NodeHost；authority Enrollment 在注册前使用窄 bootstrap，Grant 持久化后关闭 bootstrap 并切换到 credential-backed NodeHost。
 
 ## Consequences
 
@@ -49,7 +49,7 @@ Desktop、MetricsNode、Android bindings 和其他第一方入口已经共享 pr
 ### Costs and Risks
 
 - 旧 owning SDK/binding 与 attached Client 在迁移期共存，必须通过 ownership guard、弃用说明和测试避免误关 Host。
-- Desktop authority Enrollment 尚未把持久 Grant 转换为 NodeHost 可直接消费的 identity/trust source，因此仍有一个明确、可删除的 owning 兼容例外。
+- credential-backed Host 增加一条 fail-closed 状态打开路径，必须持续防止 Profile 缓存、Grant 与 Legacy identity 形成多份事实源。
 - `New` 与 `Start` 两阶段需要严格状态机；部分 Listener/Parent 失败必须完整回滚。
 - gomobile 不能直接友好导出所有 Go 类型，仍需窄 facade 和生成物 ABI 验证。
 - Android in-process Hub 暂未迁移，文档和调用方必须明确这是过渡例外。
@@ -58,6 +58,7 @@ Desktop、MetricsNode、Android bindings 和其他第一方入口已经共享 pr
 
 - 补充 [统一权威节点树与可插拔链路](2026-08-27_authoritative-node-tree-and-pluggable-links.md) 的 Host composition 与 SDK ownership 边界，不改变其中的树、authority、Resource ownership 和 Transport 决策。
 - 若未来需要多 Parent authority、SDK-owned runtime 或平台专用 Node 模型，必须由新 ADR 明确取代本文。
+- Desktop authority 的临时 post-Grant owning 例外由 [Enrollment bootstrap → NodeHost handoff](2026-09-01_enrollment-bootstrap-nodehost-handoff.md) 明确关闭。
 
 ## Related
 

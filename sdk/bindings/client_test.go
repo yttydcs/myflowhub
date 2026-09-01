@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -450,6 +452,82 @@ func TestBindingEnrollmentNeedsNoClientNodeIDOrParentKey(t *testing.T) {
 	}
 	if err := json.Unmarshal([]byte(reopenedStatus), &status); err != nil || status.Status != "enrolled" || status.NodeID != result.Grant.NodeID || status.RequestID == "" {
 		t.Fatalf("binding Enrollment state was not durable: %v (%s)", err, reopenedStatus)
+	}
+}
+
+func TestEnrollmentBootstrapHasNoOrdinaryRuntimeSurface(t *testing.T) {
+	bootstrap, err := NewEnrollmentBootstrap(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusJSON, err := bootstrap.EnrollmentStatusJSON()
+	if err != nil || !strings.Contains(statusJSON, `"status":"device"`) {
+		t.Fatalf("unexpected bootstrap status: %v (%s)", err, statusJSON)
+	}
+	typeOf := reflect.TypeOf(bootstrap)
+	for _, forbidden := range []string{"StartEnrolledTCP", "StartTCP", "CatalogJSON", "OperateJSON", "Subscribe"} {
+		if _, exists := typeOf.MethodByName(forbidden); exists {
+			t.Fatalf("Enrollment bootstrap exposes ordinary runtime method %s", forbidden)
+		}
+	}
+	if err := bootstrap.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := bootstrap.Close(); err != nil {
+		t.Fatalf("repeated bootstrap Close returned %v", err)
+	}
+	if _, err := bootstrap.EnrollmentStatusJSON(); err == nil || !strings.Contains(err.Error(), "closed") {
+		t.Fatalf("closed bootstrap status returned %v", err)
+	}
+}
+
+func TestEnrollmentBootstrapCloseCancelsActiveHandshake(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	accepted := make(chan struct{})
+	release := make(chan struct{})
+	go func() {
+		connection, err := listener.Accept()
+		if err != nil {
+			close(accepted)
+			return
+		}
+		close(accepted)
+		<-release
+		_ = connection.Close()
+	}()
+	bootstrap, err := NewEnrollmentBootstrap(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := bootstrap.EnrollTCP(listener.Addr().String(), "", true, 0, "", "", 5_000)
+		done <- err
+	}()
+	select {
+	case <-accepted:
+	case <-time.After(time.Second):
+		t.Fatal("Enrollment bootstrap did not enter the handshake")
+	}
+	started := time.Now()
+	if err := bootstrap.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("bootstrap Close took %s", elapsed)
+	}
+	close(release)
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancelled Enrollment returned %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cancelled Enrollment did not return")
 	}
 }
 

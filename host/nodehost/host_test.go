@@ -5,6 +5,8 @@ import (
 	"crypto/ed25519"
 	"errors"
 	"net"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -374,6 +376,89 @@ func TestParentConfigRejectsInvalidTrustPermitAndRuntimeOwnership(t *testing.T) 
 	}
 }
 
+func TestCredentialBackedHostUsesGrantedIdentityWithoutPersistingAnotherIdentity(t *testing.T) {
+	network := memory.NewNetwork()
+	defer network.Close()
+	identity, _ := auth.GenerateIdentity(61)
+	parent, _ := auth.GenerateIdentity(60)
+	authority, _ := auth.GenerateIdentity(1)
+	source := &staticCredentialSource{credential: auth.NodeCredential{
+		Identity: identity, ParentNodeID: parent.NodeID, ParentPublicKey: parent.PublicKey,
+		AuthorityNodeID: authority.NodeID, AuthorityPublicKey: authority.PublicKey, EnrollmentID: "enrollment-test",
+	}}
+	directory := t.TempDir()
+	host, err := New(context.Background(), Config{
+		StateDirectory: directory, CredentialSource: source,
+		Parent: &ParentConfig{Driver: network, Endpoint: "credential-parent"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer host.Close()
+	if host.ID() != identity.NodeID || host.Role() != RoleLeaf || len(host.Endpoints()) != 0 {
+		t.Fatalf("unexpected credential-backed Host: id=%d role=%q endpoints=%v", host.ID(), host.Role(), host.Endpoints())
+	}
+	if source.Calls() != 1 {
+		t.Fatalf("credential source calls = %d, want 1", source.Calls())
+	}
+	if key, ok := host.State().Trust.PublicKey(parent.NodeID); !ok || !reflect.DeepEqual(key, parent.PublicKey) {
+		t.Fatal("credential parent was not installed into Host trust")
+	}
+	if _, err := os.Stat(filepath.Join(directory, "state", "identity.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("credential-backed Host created identity.json: %v", err)
+	}
+}
+
+func TestCredentialBackedHostRejectsAmbiguousOrConflictingConfiguration(t *testing.T) {
+	network := memory.NewNetwork()
+	defer network.Close()
+	identity, _ := auth.GenerateIdentity(71)
+	parent, _ := auth.GenerateIdentity(70)
+	authority, _ := auth.GenerateIdentity(1)
+	credential := auth.NodeCredential{
+		Identity: identity, ParentNodeID: parent.NodeID, ParentPublicKey: parent.PublicKey,
+		AuthorityNodeID: authority.NodeID, AuthorityPublicKey: authority.PublicKey, EnrollmentID: "enrollment-test",
+	}
+	base := func() Config {
+		return Config{
+			StateDirectory: t.TempDir(), CredentialSource: &staticCredentialSource{credential: credential},
+			Parent: &ParentConfig{Driver: network, Endpoint: "credential-parent"},
+		}
+	}
+
+	ambiguous := base()
+	ambiguous.IdentityStore = &memoryIdentityStore{}
+	if _, err := New(context.Background(), ambiguous); err == nil || !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Fatalf("ambiguous credential configuration returned %v", err)
+	}
+	nodeMismatch := base()
+	nodeMismatch.NodeID = 72
+	if _, err := New(context.Background(), nodeMismatch); err == nil || !strings.Contains(err.Error(), "conflicts with credential NodeID") {
+		t.Fatalf("NodeID mismatch returned %v", err)
+	}
+	parentMismatch := base()
+	parentMismatch.Parent.NodeID = 72
+	if _, err := New(context.Background(), parentMismatch); err == nil || !strings.Contains(err.Error(), "conflicts with credential parent NodeID") {
+		t.Fatalf("parent NodeID mismatch returned %v", err)
+	}
+	keyMismatch := base()
+	otherParent, _ := auth.GenerateIdentity(parent.NodeID)
+	keyMismatch.Parent.PublicKey = otherParent.PublicKey
+	if _, err := New(context.Background(), keyMismatch); err == nil || !strings.Contains(err.Error(), "configured parent public key conflicts") {
+		t.Fatalf("parent key mismatch returned %v", err)
+	}
+	missingParent := base()
+	missingParent.Parent = nil
+	if _, err := New(context.Background(), missingParent); err == nil || !strings.Contains(err.Error(), "requires a parent") {
+		t.Fatalf("missing credential parent returned %v", err)
+	}
+	loadFailure := base()
+	loadFailure.CredentialSource = &staticCredentialSource{err: errors.New("protected store unavailable")}
+	if _, err := New(context.Background(), loadFailure); err == nil || !strings.Contains(err.Error(), "protected store unavailable") {
+		t.Fatalf("credential load failure returned %v", err)
+	}
+}
+
 func waitParentState(t *testing.T, host *Host, state node.ConnectionState, timeout time.Duration) node.ConnectionSnapshot {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
@@ -417,6 +502,31 @@ type memoryIdentityStore struct {
 	mu       sync.Mutex
 	identity auth.Identity
 	found    bool
+}
+
+type staticCredentialSource struct {
+	mu         sync.Mutex
+	credential auth.NodeCredential
+	err        error
+	calls      int
+}
+
+func (source *staticCredentialSource) LoadNodeCredential() (auth.NodeCredential, error) {
+	source.mu.Lock()
+	defer source.mu.Unlock()
+	source.calls++
+	credential := source.credential
+	credential.Identity.PublicKey = append(ed25519.PublicKey(nil), credential.Identity.PublicKey...)
+	credential.Identity.PrivateKey = append(ed25519.PrivateKey(nil), credential.Identity.PrivateKey...)
+	credential.ParentPublicKey = append(ed25519.PublicKey(nil), credential.ParentPublicKey...)
+	credential.AuthorityPublicKey = append(ed25519.PublicKey(nil), credential.AuthorityPublicKey...)
+	return credential, source.err
+}
+
+func (source *staticCredentialSource) Calls() int {
+	source.mu.Lock()
+	defer source.mu.Unlock()
+	return source.calls
 }
 
 func (s *memoryIdentityStore) LoadIdentity() (auth.Identity, bool, error) {

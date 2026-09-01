@@ -45,6 +45,22 @@ func OpenStateWithIdentityStore(directory string, nodeID protocol.NodeID, identi
 	return openState(directory, nodeID, identityStore)
 }
 
+// OpenStateWithIdentity opens ordinary trust, policy, and admission state from
+// an already-resolved identity. It never creates or persists identity material.
+func OpenStateWithIdentity(directory string, identity Identity) (*State, error) {
+	if directory == "" {
+		return nil, errors.New("runtime state directory is required")
+	}
+	if err := identity.Validate(); err != nil {
+		return nil, fmt.Errorf("resolved runtime identity: %w", err)
+	}
+	store, err := keystore.New(filepath.Join(directory, "state"))
+	if err != nil {
+		return nil, err
+	}
+	return openStateWithIdentity(directory, store, identity)
+}
+
 func openState(directory string, nodeID protocol.NodeID, identityStore IdentityStore) (*State, error) {
 	if directory == "" {
 		return nil, errors.New("runtime state directory is required")
@@ -65,6 +81,12 @@ func openState(directory string, nodeID protocol.NodeID, identityStore IdentityS
 	if err != nil {
 		return nil, err
 	}
+	return openStateWithIdentity(directory, store, identity)
+}
+
+func openStateWithIdentity(directory string, store *keystore.Store, identity Identity) (*State, error) {
+	identity.PublicKey = append([]byte(nil), identity.PublicKey...)
+	identity.PrivateKey = append([]byte(nil), identity.PrivateKey...)
 	trust, err := LoadTrustStore(store)
 	if err != nil {
 		return nil, err

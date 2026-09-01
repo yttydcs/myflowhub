@@ -31,7 +31,7 @@ authoritative Node tree ── node-owned Resources
 
 登录页把“使用现有 Profile”和“首次连接”分成两个顶层入口。有保存记录时先显示 Profile 选择，没有记录时直接显示首次连接；不再用编号步骤解释填写顺序。现有 Authority Profile 的 `missing/device/pending/enrolled/error` 状态由受保护 Enrollment credential 的只读投影提供，而不是根据 Profile 的 `node_id` 猜测；Legacy Profile 保持独立兼容状态。Pending 重试复用原 request 与已固定的首次观察，Enrolled 直接连接，凭据损坏或 Profile/Grant Node ID 冲突会阻止连接并显示恢复提示。
 
-新建 Profile 使用 Enrollment：客户端自动生成稳定、合法的本地 Profile ID，先准备仅含密钥的 Device identity，连接父 endpoint 后通过 Permit 直接注册或等待审批；Node ID 与签名 Grant 由 Admission Authority 下发并原子保存。普通表单不要求用户输入 Profile ID、Node ID 或公钥 pin；父节点公钥不再是常规必填项，无预置锚时采用显式 TOFU 并在首次成功后固定。由于注册前没有 Node ID，authority Enrollment Profile 当前通过明确的 owning binding 兼容路径完成 bootstrap 和后续重连；该路径不提供 Listener、MCP 或额外权限，待 NodeHost 可直接消费持久 Grant 后移除。已有 version 2 Profile 仍按原 Node ID、父节点 ID、公钥和 Join Permit 路径连接，并由 Parent-only NodeHost 持有运行时。
+新建 Profile 使用 Enrollment：客户端自动生成稳定、合法的本地 Profile ID，先准备仅含密钥的 Device identity，连接父 endpoint 后通过 Permit 直接注册或等待审批；Node ID 与签名 Grant 由 Admission Authority 下发并原子保存。普通表单不要求用户输入 Profile ID、Node ID 或公钥 pin；父节点公钥不再是常规必填项，无预置锚时采用显式 TOFU 并在首次成功后固定。注册前没有 Node ID，因此 authority Profile 只在 `missing/device/pending` 阶段打开窄 Enrollment bootstrap；Grant 持久化后必须先关闭 bootstrap，再由受保护凭据作为 NodeHost 的身份与父信任来源。已有 `enrolled` Profile 启动时跳过 Enrollment。所有活动的 authority 与 version 2 Legacy Profile 都由 Parent-only NodeHost 持有运行时和 attached Client。
 
 设置格式为 version 2。每个 Profile 隔离 endpoint、本机 Node identity、受信任父节点和 Views；单个应用
 实例只激活一个 Profile。登录成功后保存 Profile 与身份，下次启动可自动连接。切换 Profile 会先关闭旧
@@ -43,7 +43,7 @@ Host，其 subscription、session 和 connection 随之清理，再打开新身�
 - Profile 列表只读取并验证已有受保护凭据，不会因为展示选择器而创建目录、密钥或 request ID，也不会把私钥、公钥正文、Permit 或 Grant 签名投影到前端；
 - Settings 的“返回 Profile 选择”会清空 active Profile 并关闭 client/subscription/session，但保留 Profile、受保护凭据、runtime state、Views 与 preference；它与“断开连接”和“删除 Profile”是三个不同动作；
 - Windows 使用当前用户作用域 DPAPI 保存 Ed25519 identity；Legacy 密文位于 Profile 目录的
-  `identity.dpapi`，Enrollment 设备密钥、观察到的信任锚和 Grant 位于独立的 `enrollment.dpapi`；
+  `identity.dpapi`，Enrollment 设备密钥、观察到的信任锚和 Grant 位于独立的 `enrollment.dpapi`。authority Profile 不再复制生成 `identity.dpapi`；
 - 没有系统保护 backend 的平台明确使用 session-only identity，不写明文 secret；
 - 删除 Profile 会删除其本地身份、runtime state 和 Views；settings reset 不删除这些 Profile 状态。
 

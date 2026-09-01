@@ -84,6 +84,20 @@ func New(ctx context.Context, config Config) (*Host, error) {
 		return nil, err
 	}
 	config = cloneConfig(config)
+	var credential *auth.NodeCredential
+	if config.CredentialSource != nil {
+		resolved, err := config.CredentialSource.LoadNodeCredential()
+		if err != nil {
+			return nil, fmt.Errorf("load node host credential: %w", err)
+		}
+		if err := applyNodeCredential(&config, resolved); err != nil {
+			return nil, err
+		}
+		credential = &resolved
+		if err := validateConfig(config); err != nil {
+			return nil, err
+		}
+	}
 	release, err := reserveStateDirectory(config.StateDirectory)
 	if err != nil {
 		return nil, err
@@ -96,7 +110,9 @@ func New(ctx context.Context, config Config) (*Host, error) {
 	}()
 
 	var state *auth.State
-	if config.IdentityStore == nil {
+	if credential != nil {
+		state, err = auth.OpenStateWithIdentity(config.StateDirectory, credential.Identity)
+	} else if config.IdentityStore == nil {
 		state, err = auth.OpenState(config.StateDirectory, config.NodeID)
 	} else {
 		state, err = auth.OpenStateWithIdentityStore(config.StateDirectory, config.NodeID, config.IdentityStore)

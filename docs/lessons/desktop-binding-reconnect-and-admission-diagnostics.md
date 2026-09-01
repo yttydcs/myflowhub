@@ -2,7 +2,7 @@
 
 ## Summary
 
-Desktop 的 binding client 是单次启动生命周期对象。一次连接或首次准入失败后，如果下一次重试继续复用已经启动过的 client，会把真正的身份、权限或链路错误遮蔽成生命周期错误；如果监督循环只返回 `context deadline exceeded`，用户也无法判断是 permit、父节点公钥、网络还是权限配置有问题。
+Enrollment bootstrap 是 Grant 前的单次生命周期对象，NodeHost 则拥有 Grant 后可重连的 ParentSupervisor。把两者混成同一个 owning binding，会让重复 Connect 把真正的身份、权限或链路错误遮蔽成 `already started`；如果监督循环只返回 `context deadline exceeded`，用户也无法判断是 permit、父节点公钥、网络还是权限配置有问题。
 
 ## Symptoms And Triggers
 
@@ -19,12 +19,12 @@ Desktop 的 binding client 是单次启动生命周期对象。一次连接或�
 
 ## Resolution Pattern
 
-1. 每次 `Connect` 重试创建新的候选 binding client，只在连接成功后替换当前活动实例。
+1. Grant 前每次失败重试重新打开窄 Enrollment bootstrap；Grant 后创建新的候选 NodeHost，只在连接成功后替换当前活动实例。
 2. 用 lifecycle mutex 串行化连接、切换和关闭，避免旧连接清理与新连接建立交叉。
 3. 超时时优先返回监督循环记录的最后一个具体错误，并用 deadline 作为外层上下文，而不是覆盖根因。
 4. 只在成功登录后清空 UI 中的一次性 permit；失败时保留，允许用户修正其他字段后重试。
 5. Profile、node identity 与 view store 必须按 profile ID 隔离；切换前先清理旧 subscription/session。
-6. 首次准入必须把 identity preparation 与 login activation 分开：准备阶段只生成或复用 CredentialStore identity、返回公钥并保存非 active Profile；连接成功后才激活。
+6. 首次准入必须把 identity preparation、Enrollment bootstrap 与 login activation 分开：准备阶段只生成或复用 CredentialStore device identity、返回公钥并保存非 active Profile；Grant 保存后关闭 bootstrap，由 NodeHost 接管，连接成功后才激活。
 
 ## Quick Checks
 
@@ -37,7 +37,7 @@ Desktop 的 binding client 是单次启动生命周期对象。一次连接或�
 
 ## Prevention Rules
 
-- 将 binding client 视为 disposable session object，不设计成可无限重启的全局单例。
+- 将 Enrollment bootstrap 视为 disposable pre-auth object；普通 Connect 只操作 NodeHost 的幂等 supervisor，不让 operation facade 拥有 runtime。
 - UI 错误必须保留 runtime 的最后一个可操作诊断；不得用通用 timeout 静默降级。
 - 涉及一次性凭据的测试必须覆盖失败后重试和成功后清理两个方向。
 - 覆盖“准备身份后仍未登录、active_profile_id 不变、重复准备公钥稳定、输出不含私钥”的首次引导门禁。

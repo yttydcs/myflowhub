@@ -15,6 +15,11 @@ import (
 
 const enrollmentClientStateVersion = 1
 
+var (
+	ErrEnrollmentCredentialMissing = errors.New("enrollment credential is missing")
+	ErrEnrollmentNotGranted        = errors.New("enrollment credential is not granted")
+)
+
 type EnrollmentClientSnapshot struct {
 	Status             string
 	RequestID          string
@@ -42,6 +47,75 @@ type EnrollmentCredential struct {
 type EnrollmentCredentialStore interface {
 	LoadEnrollmentCredential() (EnrollmentCredential, bool, error)
 	SaveEnrollmentCredential(EnrollmentCredential) error
+}
+
+// NodeCredential is the complete, already-enrolled identity material required
+// to open an ordinary Node runtime. Callers must treat every byte slice as
+// sensitive and must not persist a second identity copy.
+type NodeCredential struct {
+	Identity           Identity
+	ParentNodeID       protocol.NodeID
+	ParentPublicKey    ed25519.PublicKey
+	AuthorityNodeID    protocol.NodeID
+	AuthorityPublicKey ed25519.PublicKey
+	EnrollmentID       string
+}
+
+// NodeCredentialSource resolves an existing Node identity without creating or
+// mutating enrollment state.
+type NodeCredentialSource interface {
+	LoadNodeCredential() (NodeCredential, error)
+}
+
+// EnrollmentCredentialSource adapts a protected Enrollment credential store
+// to the read-only NodeHost credential contract.
+type EnrollmentCredentialSource struct {
+	store EnrollmentCredentialStore
+}
+
+func NewEnrollmentCredentialSource(store EnrollmentCredentialStore) (*EnrollmentCredentialSource, error) {
+	if store == nil {
+		return nil, errors.New("enrollment credential store is required")
+	}
+	return &EnrollmentCredentialSource{store: store}, nil
+}
+
+func (source *EnrollmentCredentialSource) LoadNodeCredential() (NodeCredential, error) {
+	if source == nil || source.store == nil {
+		return NodeCredential{}, errors.New("enrollment credential source is required")
+	}
+	state, found, err := source.store.LoadEnrollmentCredential()
+	if err != nil {
+		return NodeCredential{}, fmt.Errorf("load enrolled Node credential: %w", err)
+	}
+	if !found {
+		return NodeCredential{}, ErrEnrollmentCredentialMissing
+	}
+	if err := validateEnrollmentCredential(state); err != nil {
+		return NodeCredential{}, fmt.Errorf("load enrolled Node credential: %w", err)
+	}
+	if state.Status != "enrolled" || state.Grant == nil {
+		return NodeCredential{}, fmt.Errorf("%w: status %q", ErrEnrollmentNotGranted, state.Status)
+	}
+	nodeID, err := parseEnrollmentNodeID(state.Grant.NodeID)
+	if err != nil {
+		return NodeCredential{}, fmt.Errorf("load enrolled Node credential Node ID: %w", err)
+	}
+	identity, err := (DeviceIdentity{
+		PublicKey:  state.DevicePublicKey,
+		PrivateKey: state.DevicePrivateKey,
+	}).Enroll(nodeID)
+	if err != nil {
+		return NodeCredential{}, fmt.Errorf("load enrolled Node credential identity: %w", err)
+	}
+	return cloneNodeCredential(NodeCredential{
+		Identity:           identity,
+		ParentNodeID:       state.ParentNodeID,
+		ParentPublicKey:    state.ParentPublicKey,
+		AuthorityNodeID:    state.AuthorityNodeID,
+		AuthorityPublicKey: state.AuthorityPublicKey,
+		EnrollmentID:       state.Grant.EnrollmentID,
+	}), nil
 }
 
 // InspectEnrollmentClientState validates and snapshots an existing credential
@@ -308,4 +382,12 @@ func enrollmentClientSnapshot(state EnrollmentCredential) EnrollmentClientSnapsh
 		ParentPublicKey: append(ed25519.PublicKey(nil), state.ParentPublicKey...), AuthorityNodeID: state.AuthorityNodeID,
 		AuthorityPublicKey: append(ed25519.PublicKey(nil), state.AuthorityPublicKey...),
 	}
+}
+
+func cloneNodeCredential(source NodeCredential) NodeCredential {
+	source.Identity.PublicKey = append(ed25519.PublicKey(nil), source.Identity.PublicKey...)
+	source.Identity.PrivateKey = append(ed25519.PrivateKey(nil), source.Identity.PrivateKey...)
+	source.ParentPublicKey = append(ed25519.PublicKey(nil), source.ParentPublicKey...)
+	source.AuthorityPublicKey = append(ed25519.PublicKey(nil), source.AuthorityPublicKey...)
+	return source
 }

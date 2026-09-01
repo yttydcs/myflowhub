@@ -15,6 +15,7 @@
 - 直接父节点负责链路挑战、连接控制和 Grant 缓存；管理操作可从任意受权节点沿权威树路由到 Authority。
 - Authority、父节点或所需上游不可达时，新准入必须 fail closed，不得回退为本地随机身份。
 - 已注册节点继续使用既有 MFH4 Join，普通重连不应实时依赖 Authority。
+- Enrollment client 只拥有获得并原子保存 Grant 的 bootstrap 生命周期；Grant 持久化后必须关闭 bootstrap，并把同一受保护凭据交给普通 NodeHost，不得保留第二套 post-Grant runtime。
 - 迁移期保留旧版显式 Node ID、父节点公钥与 `ProvisioningPermitV1` 路径。
 
 ### Out Of Scope
@@ -64,6 +65,7 @@
 
 - 所有拒绝、pending、Permit 失败和 Authority 不可达路径必须返回明确且可操作的状态。
 - Authority 状态、签名密钥与客户端 Grant 必须版本化、原子持久化；损坏或密钥不匹配不得静默重建。
+- 客户端 Grant 是已注册身份、父节点锚点与 Authority provenance 的唯一事实源；兼容 Profile 缓存只能校验或展示，不能覆盖 Grant，也不能触发新身份生成。
 - 敏感材料不得写入日志、settings 或审计事件；Permit 只在必要的单次 Enrollment 中传输。
 - 新协议设有严格帧大小、字段长度、过期时间和签名校验。
 - 默认升级不得破坏已有持久身份或旧客户端 Join。
@@ -77,6 +79,7 @@
 - 并发注册、随机 ID 冲突和重复提交不会产生重复 Node ID 或重复 Enrollment。
 - 撤销 Enrollment 后，Node ID 不再被分配，对应 Join 与活动会话失效。
 - Authority 不可达时新准入失败；已有缓存 Grant 的节点仍可按既有 Join 规则重连。
+- Desktop authority Profile 在 Grant 后与 Legacy Profile 一样由 Parent-only NodeHost 运行；重复 Connect 复用 Host supervisor，不进入 owning Enrollment runtime。
 - 旧 Desktop/Profile、Android 与 Embedded 显式身份路径通过回归测试。
 
 ## Canonical Design
