@@ -160,18 +160,7 @@ function nodeSearchValues(node: TopologyNode): string[] {
 }
 
 export function defaultExpandedNodeIDs(index: ExplorerIndex): string[] {
-  const expanded: string[] = []
-  const queue = index.roots.map((nodeID) => ({ nodeID, depth: 1 }))
-  for (let cursor = 0; cursor < queue.length; cursor += 1) {
-    const current = queue[cursor]
-    if (!current) continue
-    if (current.depth <= 2) expanded.push(current.nodeID)
-    if (current.depth >= 2) continue
-    for (const childID of index.childrenByID.get(current.nodeID) || []) {
-      queue.push({ nodeID: childID, depth: current.depth + 1 })
-    }
-  }
-  return expanded
+  return [...index.roots]
 }
 
 export function explorerBreadcrumb(index: ExplorerIndex, focusedNodeID?: string): TopologyNode[] {

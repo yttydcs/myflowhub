@@ -18,11 +18,9 @@ const resource: ResourceDescriptor = {
 describe('workspace domain', () => {
   it('indexes authority and resource ownership without deriving either from resource paths', () => {
     const topology: Topology = {
-      version: 1,
-      epoch: 2,
       nodes: [
-        { node_id: '1', role: 'root', generation: 1 },
-        { node_id: '3', parent_id: '1', role: 'child', generation: 1 },
+        { node_id: '1', role: 'root', has_children: true, generation: 1 },
+        { node_id: '3', parent_id: '1', role: 'child', has_children: false, generation: 1 },
       ],
     }
     const index = buildExplorerIndex(topology, [resource])
@@ -35,9 +33,10 @@ describe('workspace domain', () => {
       node_id: String(index + 1),
       parent_id: index === 0 ? undefined : String(index),
       role: index === 0 ? 'root' : 'child',
+      has_children: index < 2999,
       generation: 1,
     }))
-    const index = buildExplorerIndex({ version: 1, epoch: 1, nodes }, [resource])
+    const index = buildExplorerIndex({ nodes }, [resource])
     const rows = flattenNodeRows(index, new Set(nodes.map((node) => node.node_id)), '')
     expect(rows).toHaveLength(nodes.length)
     expect(rows.at(-1)).toMatchObject({ key: nodeRowKey('3000'), depth: 3000, posInSet: 1, setSize: 1 })
@@ -47,12 +46,10 @@ describe('workspace domain', () => {
 
   it('turns malformed parent cycles and missing parents into stable roots', () => {
     const index = buildExplorerIndex({
-      version: 1,
-      epoch: 1,
       nodes: [
-        { node_id: '1', parent_id: '2', role: 'child', generation: 1 },
-        { node_id: '2', parent_id: '1', role: 'child', generation: 1 },
-        { node_id: '3', parent_id: 'missing', role: 'child', generation: 1 },
+        { node_id: '1', parent_id: '2', role: 'child', has_children: false, generation: 1 },
+        { node_id: '2', parent_id: '1', role: 'child', has_children: false, generation: 1 },
+        { node_id: '3', parent_id: 'missing', role: 'child', has_children: false, generation: 1 },
       ],
     }, [])
     expect(index.roots).toEqual(['1', '2', '3'])
@@ -61,12 +58,10 @@ describe('workspace domain', () => {
 
   it('keeps matching deep Nodes and their ancestors without mixing Resources into search results', () => {
     const topology: Topology = {
-      version: 1,
-      epoch: 1,
       nodes: [
-        { node_id: '1', display_name: 'Root', role: 'root', generation: 1 },
-        { node_id: '2', parent_id: '1', display_name: 'Branch', role: 'branch', generation: 1 },
-        { node_id: '3', parent_id: '2', display_name: 'Leaf', role: 'leaf', generation: 1 },
+        { node_id: '1', display_name: 'Root', role: 'root', has_children: true, generation: 1 },
+        { node_id: '2', parent_id: '1', display_name: 'Branch', role: 'branch', has_children: true, generation: 1 },
+        { node_id: '3', parent_id: '2', display_name: 'Leaf', role: 'leaf', has_children: false, generation: 1 },
       ],
     }
     const index = buildExplorerIndex(topology, [resource])
@@ -84,6 +79,7 @@ describe('workspace domain', () => {
       parent_id: index === 0 ? undefined : '1',
       display_name: index === 1_999 ? 'Target leaf' : undefined,
       role: index === 0 ? 'root' : 'child',
+      has_children: index === 0,
       generation: 1,
     }))
     const resources = Array.from({ length: 10_000 }, (_, index): ResourceDescriptor => ({
@@ -91,7 +87,7 @@ describe('workspace domain', () => {
       id: { owner_node_id: '1', name: `metrics/value-${index}` },
     }))
     const started = performance.now()
-    const explorerIndex = buildExplorerIndex({ version: 1, epoch: 1, nodes }, resources)
+    const explorerIndex = buildExplorerIndex({ nodes }, resources)
     const rows = flattenNodeRows(explorerIndex, new Set(), 'target leaf')
     const elapsed = performance.now() - started
     expect(rows.map((row) => row.node.node_id)).toEqual(['1', '2000'])

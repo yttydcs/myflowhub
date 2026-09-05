@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -12,6 +12,9 @@ import {
 } from '@dnd-kit/core'
 import { Boxes, GripVertical, Layers3, Moon, Plus, RefreshCw, Settings2, Sun } from 'lucide-react'
 import { api as productionApi, type DesktopAPI, type PreparedProfile } from './api'
+import { useConnectionMonitor } from './discovery/useConnectionMonitor'
+import { useDiscovery } from './discovery/useDiscovery'
+import { CatalogContext } from './discovery/DiscoveryStatus'
 import { BrandMark } from './components/BrandMark'
 import { Explorer } from './components/Explorer'
 import { Inspector } from './components/Inspector'
@@ -24,7 +27,7 @@ import { focusResourceAction, type FocusedResourceAction, type ResourceAction } 
 import { errorText } from './lib/utils'
 import { defaultUIPreferences, loadUIPreferences, saveUIPreferences, type Theme, type UIPreferences } from './preferences'
 import { defaultRenderer, nextWidgetID } from './store'
-import type { ConnectionStatus, Profile, ProfileState, ResourceDescriptor, Settings, Topology, ViewDefinition, ViewWidget, WorkspaceSelection } from './types'
+import type { ConnectionStatus, Profile, ProfileState, ResourceDescriptor, Settings, ViewDefinition, ViewWidget, WorkspaceSelection } from './types'
 import {
   addWorkspaceWidget,
   dockWorkspaceView,
@@ -36,8 +39,6 @@ import {
   type WorkspaceDockSide,
   type WorkspaceDockSource,
 } from './workspace-layout'
-
-const emptyTopology: Topology = { version: 1, epoch: 1, nodes: [] }
 
 type ActiveWorkspaceDrag = {
   source: WorkspaceDockSource
@@ -139,12 +140,35 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const [settings, setSettings] = useState<Settings>()
   const [profileStates, setProfileStates] = useState<ProfileState[]>([])
   const [status, setStatus] = useState<ConnectionStatus>({ state: 'signed_out' })
-  const [topology, setTopology] = useState<Topology>(emptyTopology)
-  const [resources, setResources] = useState<ResourceDescriptor[]>([])
+  const { controller: discovery, snapshot: discoveryState } = useDiscovery(api)
+  const { topology, resources } = discoveryState
+  const connectionGeneration = useRef(0)
+  const statusRequest = useRef(0)
+  const profileGeneration = useRef(0)
+  const platformChecks = useRef(0)
+  const changingConnection = useRef(false)
+  const contextProfile = useRef('')
+  const connectionSignature = useRef('')
+  const browseRoot = useRef({ profile: '', root: '' })
+  const [catalogOwner, setCatalogOwner] = useState('')
+  const invalidateDiscovery = useCallback(() => {
+    changingConnection.current = true
+    connectionGeneration.current += 1
+    statusRequest.current += 1
+    contextProfile.current = ''
+    connectionSignature.current = ''
+    discovery.reset()
+    setCatalogOwner('')
+  }, [discovery])
   const [inspector, setInspector] = useState<InspectorState>({ selection: null, focusedAction: null })
   const { selection, focusedAction: focusedResourceAction } = inspector
   const [views, setViews] = useState<ViewDefinition[]>([])
   const [view, setView] = useState<ViewDefinition>(newView())
+  const [viewProfile, setViewProfile] = useState<{ id: string; generation: number }>()
+  const viewEditGeneration = useRef(0)
+  const viewLoadRequest = useRef(0)
+  const currentView = useRef(view)
+  currentView.current = view
   const [activeContent, setActiveContent] = useState<'workspace' | 'settings'>('workspace')
   const [preferences, setPreferences] = useState<UIPreferences>(defaultUIPreferences())
   const [dirty, setDirty] = useState(false)
@@ -154,10 +178,19 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const [dockIntent, setDockIntent] = useState<WorkspaceDockIntent | null>(null)
   const [error, setError] = useState('')
 
+  useEffect(() => { if (!busy) changingConnection.current = false }, [busy])
+
   const activeProfile = useMemo(
     () => settings?.profiles.find((profile) => profile.id === settings.active_profile_id),
     [settings],
   )
+  const viewReady = viewProfile?.id === activeProfile?.id && viewProfile?.generation === profileGeneration.current
+  const invalidateProfile = () => {
+    profileGeneration.current += 1
+    setViewProfile(undefined)
+    setInspector({ selection: null, focusedAction: null })
+    invalidateDiscovery()
+  }
   const confirmDiscard = useCallback(
     () => !dirty || window.confirm('当前视图有未保存的更改。放弃这些更改并继续吗？'),
     [dirty],
@@ -194,74 +227,128 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     }
   }, [activeContent, selection])
 
-  const loadViews = useCallback(async () => {
+  const loadViews = useCallback(async (profileID: string) => {
+    const request = ++viewLoadRequest.current
+    const generation = profileGeneration.current
     const document = await api.views()
+    if (generation !== profileGeneration.current || request !== viewLoadRequest.current) return
     if (document.version !== 3) throw new Error(`不支持的视图文档版本：${document.version}`)
     document.views.forEach(validateWorkspaceView)
     const activeView = document.views[0] || newView(1)
     setViews(document.views)
+    viewEditGeneration.current += 1
     setView(activeView)
+    setViewProfile({ id: profileID, generation })
     setDirty(false)
   }, [api])
 
   const refreshEntryState = useCallback(async () => {
+    const generation = profileGeneration.current
     const [nextSettings, nextProfileStates] = await Promise.all([api.settings(), api.profileStates()])
+    if (generation !== profileGeneration.current) return nextSettings
     setSettings(nextSettings)
     setProfileStates(nextProfileStates)
     return nextSettings
   }, [api])
 
-  const refreshPlatform = useCallback(async (profile: Profile, waitForAutoConnect = true) => {
-    setError('')
-    let nextStatus = await api.status()
-    for (let attempt = 0; waitForAutoConnect && profile.auto_connect && attempt < 60 && (nextStatus.state === 'disconnected' || nextStatus.state === 'connecting'); attempt += 1) {
-      await new Promise((resolve) => window.setTimeout(resolve, 250))
-      nextStatus = await api.status()
+  const acceptStatus = useCallback((profile: Profile, nextStatus: ConnectionStatus) => {
+    const signature = JSON.stringify([profile.id, nextStatus.state, nextStatus.generation, nextStatus.link_generation, nextStatus.parent_node_id, nextStatus.endpoint])
+    const changed = signature !== connectionSignature.current
+    if (changed) {
+      connectionGeneration.current += 1
+      discovery.reset()
+      connectionSignature.current = signature
     }
     setStatus(nextStatus)
-    if (nextStatus.state !== 'connected') {
-      setTopology(emptyTopology)
-      setResources([])
-      setInspector({ selection: null, focusedAction: null })
-      return
+    if (nextStatus.state !== 'connected') return false
+    const root = browseRoot.current.profile === profile.id ? browseRoot.current.root : nextStatus.parent_node_id || profile.parent_node_id
+    contextProfile.current = profile.id
+    discovery.activate(profile.id, connectionGeneration.current, root)
+    return changed
+  }, [discovery])
+
+  const refreshPlatform = useCallback(async (profile: Profile, waitForAutoConnect = true, loadTree = true) => {
+    platformChecks.current += 1
+    try {
+      const request = ++statusRequest.current
+      setError('')
+      let nextStatus = await api.status()
+      for (let attempt = 0; request === statusRequest.current && waitForAutoConnect && profile.auto_connect && attempt < 60 && (nextStatus.state === 'disconnected' || nextStatus.state === 'connecting'); attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 250))
+        if (request !== statusRequest.current) return
+        nextStatus = await api.status()
+      }
+      if (request !== statusRequest.current) return
+      acceptStatus(profile, nextStatus)
+      if (nextStatus.state !== 'connected') return
+      if (loadTree) void discovery.query(discovery.getSnapshot().scope)
+    } finally { platformChecks.current -= 1 }
+  }, [api, discovery, acceptStatus])
+
+  const checkConnection = useCallback(async (current: () => boolean) => {
+    if (!activeProfile || changingConnection.current || platformChecks.current > 0) return
+    const generation = connectionGeneration.current
+    const request = ++statusRequest.current
+    try {
+      const next = await api.status()
+      if (!current() || request !== statusRequest.current || generation !== connectionGeneration.current) return
+      if (acceptStatus(activeProfile, next) && next.state === 'connected') void discovery.query(discovery.getSnapshot().scope)
+    } catch (error) {
+      if (current() && request === statusRequest.current && generation === connectionGeneration.current) {
+        acceptStatus(activeProfile, { state: 'failed', last_error: errorText(error) })
+        setError(`读取本机连接状态失败：${errorText(error)}`)
+      }
     }
-    const nextTopology = await api.topology(profile.parent_node_id)
-    const catalogs = await Promise.allSettled(nextTopology.nodes.map((node) => api.catalog(node.node_id)))
-    const nextResources = catalogs.flatMap((result) => result.status === 'fulfilled' ? result.value.resources : [])
-    setTopology(nextTopology)
-    setResources(nextResources)
+  }, [activeProfile, api, acceptStatus, discovery])
+  useConnectionMonitor(!!activeProfile, checkConnection)
+
+  useEffect(() => {
+    if (!discoveryState.scope || contextProfile.current !== activeProfile?.id) return
+    const expanded = preferences.expanded_node_ids ?? [discoveryState.scope]
+    discovery.restoreExpanded(expanded, preferences.focused_node_id)
+  }, [activeProfile?.id, discovery, discoveryState.topology, discoveryState.scope, preferences.expanded_node_ids, preferences.focused_node_id])
+
+  useEffect(() => {
+    if (!discoveryState.scope || contextProfile.current !== activeProfile?.id) return
+    const selectedOwner = selection?.kind === 'resource' ? selection.resource.id.owner_node_id : selection?.kind === 'node' ? selection.node.node_id : catalogOwner || discoveryState.scope
+    const owners = new Set([selectedOwner, ...(viewReady ? view.widgets.map((widget) => widget.owner_node_id) : [])])
+    discovery.setCatalogOwners(owners)
+    for (const owner of owners) void discovery.catalog(owner)
+  }, [activeProfile?.id, discovery, discoveryState.scope, discoveryState.session, catalogOwner, selection, view.widgets, viewReady])
+
+  useEffect(() => {
     setInspector((current) => {
       const selected = current.selection
       if (selected?.kind === 'node') {
-        const selection = nextTopology.nodes.some((node) => node.node_id === selected.node.node_id) ? selected : null
-        return { selection, focusedAction: null }
+        const node = topology.nodes.find((item) => item.node_id === selected.node.node_id)
+        if (!node) return { selection: null, focusedAction: null }
+        if (node !== selected.node) return { ...current, selection: { kind: 'node', node } }
       }
       if (selected?.kind === 'resource') {
-        const refreshed = nextResources.find((resource) => (
-          resource.id.owner_node_id === selected.resource.id.owner_node_id
-          && resource.id.name === selected.resource.id.name
-        ))
-        return refreshed
-          ? { selection: { kind: 'resource', resource: refreshed }, focusedAction: current.focusedAction }
-          : { selection: null, focusedAction: null }
+        const catalog = discoveryState.catalogs.get(selected.resource.id.owner_node_id)
+        if (catalog?.status !== 'loaded') return current
+        const resource = catalog.catalog?.resources.find((item) => item.id.name === selected.resource.id.name)
+        if (!resource) return { selection: null, focusedAction: null }
+        if (resource !== selected.resource) return { ...current, selection: { kind: 'resource', resource } }
       }
-      return { selection: selected, focusedAction: null }
+      return current
     })
-    const failures = catalogs.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-    const firstFailure = failures[0]
-    if (firstFailure) setError(`已连接，但有 ${failures.length} 个节点的资源目录加载失败：${errorText(firstFailure.reason)}`)
-  }, [api])
+  }, [topology, discoveryState.catalogs])
 
   useEffect(() => {
+    let active = true
+    const generation = profileGeneration.current
     void (async () => {
       try {
         const nextSettings = await refreshEntryState()
+        if (!active || generation !== profileGeneration.current) return
         const profile = nextSettings.profiles.find((item) => item.id === nextSettings.active_profile_id)
-        if (profile) await Promise.all([refreshPlatform(profile), loadViews()])
+        if (profile) await Promise.all([refreshPlatform(profile), loadViews(profile.id)])
       } catch (current) {
-        setError(errorText(current))
+        if (active && generation === profileGeneration.current) setError(errorText(current))
       }
     })()
+    return () => { active = false; statusRequest.current += 1 }
   }, [loadViews, refreshEntryState, refreshPlatform])
 
   function updatePreferences(patch: Partial<Omit<UIPreferences, 'version'>>) {
@@ -277,10 +364,11 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setBusy(true)
     setError('')
     try {
+      invalidateProfile()
       const saved = await api.login(profile, permit, allowTOFU)
       const next = await refreshEntryState()
       const nextProfile = next.profiles.find((item) => item.id === next.active_profile_id) || saved
-      await Promise.all([refreshPlatform(nextProfile), loadViews()])
+      await Promise.all([refreshPlatform(nextProfile), loadViews(nextProfile.id)])
       setActiveContent('workspace')
       setInspector({ selection: null, focusedAction: null })
       return true
@@ -318,10 +406,11 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setBusy(true)
     setError('')
     try {
+      invalidateProfile()
       const saved = await api.saveProfile(profile)
       await refreshEntryState()
       setInspector({ selection: null, focusedAction: null })
-      await Promise.all([refreshPlatform(saved, false), loadViews()])
+      await Promise.all([refreshPlatform(saved, false), loadViews(saved.id)])
       return true
     } catch (current) {
       setError(errorText(current))
@@ -337,10 +426,11 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setBusy(true)
     setError('')
     try {
+      invalidateProfile()
       await api.switchProfile(profileID)
       const next = await refreshEntryState()
       const profile = next.profiles.find((item) => item.id === profileID)
-      if (profile) await Promise.all([refreshPlatform(profile), loadViews()])
+      if (profile) await Promise.all([refreshPlatform(profile), loadViews(profile.id)])
       setInspector({ selection: null, focusedAction: null })
     } catch (current) {
       setError(errorText(current))
@@ -354,12 +444,12 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setBusy(true)
     setError('')
     try {
+      if (profileID === activeProfile?.id) invalidateProfile()
       await api.deleteProfile(profileID, `DELETE ${profileID}`)
       await refreshEntryState()
       if (profileID === activeProfile?.id) {
         setStatus({ state: 'signed_out' })
-        setTopology(emptyTopology)
-        setResources([])
+        invalidateDiscovery()
         setViews([])
         setView(newView())
         setDirty(false)
@@ -376,6 +466,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setBusy(true)
     setError('')
     try {
+      invalidateDiscovery()
       await api.connect()
       if (activeProfile) await refreshPlatform(activeProfile)
     } catch (current) {
@@ -389,10 +480,10 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setBusy(true)
     setError('')
     try {
+      invalidateDiscovery()
       await api.disconnect()
       setStatus(await api.status())
-      setTopology(emptyTopology)
-      setResources([])
+      invalidateDiscovery()
       setInspector({ selection: null, focusedAction: null })
     } catch (current) {
       setError(errorText(current))
@@ -407,6 +498,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setError('')
     let operationError = ''
     try {
+      invalidateProfile()
       await api.deactivateProfile()
     } catch (current) {
       operationError = errorText(current)
@@ -415,8 +507,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
       const next = await refreshEntryState()
       if (!next.active_profile_id) {
         setStatus({ state: 'signed_out' })
-        setTopology(emptyTopology)
-        setResources([])
+        invalidateDiscovery()
         setInspector({ selection: null, focusedAction: null })
         setViews([])
         setView(newView())
@@ -435,7 +526,8 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     if (!activeProfile) return
     setBusy(true)
     try {
-      await refreshPlatform(activeProfile)
+      await refreshPlatform(activeProfile, true, false)
+      await discovery.refresh(preferences.expanded_node_ids ?? [discovery.getSnapshot().scope], preferences.focused_node_id)
     } catch (current) {
       setError(errorText(current))
     } finally {
@@ -445,7 +537,9 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
 
   const changeView = (next: ViewDefinition) => {
     try {
+      if (!viewReady) return
       validateWorkspaceView(next)
+      viewEditGeneration.current += 1
       setView(next)
       setDirty(true)
     } catch (current) {
@@ -563,25 +657,43 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     }
   }, [activeWorkspaceDrag, dockIntent, view])
   const saveView = async () => {
+    if (!viewReady || savingView) return
+    const generation = profileGeneration.current
+    const editGeneration = viewEditGeneration.current
+    const submitted = view
     setBusy(true)
     setSavingView(true)
     setError('')
     try {
-      const saved = await api.saveView(view)
-      setView(saved)
+      const saved = await api.saveView(submitted)
+      if (generation !== profileGeneration.current) return
+      validateWorkspaceView(saved)
+      if (saved.id !== submitted.id) throw new Error('保存结果引用了其他 View')
       setViews((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((left, right) => left.id.localeCompare(right.id)))
-      setDirty(false)
+      if (currentView.current.id === submitted.id) {
+        if (editGeneration === viewEditGeneration.current) {
+          setView(saved)
+          setDirty(false)
+        } else {
+          // Keep edits made during the save, but advance the optimistic revision
+          // so their next explicit save can succeed against the acknowledged version.
+          setView((current) => current.id === submitted.id ? { ...current, revision: saved.revision } : current)
+        }
+      }
     } catch (current) {
-      setError(errorText(current))
+      if (generation === profileGeneration.current) setError(errorText(current))
     } finally {
       setSavingView(false)
-      setBusy(false)
+      if (generation === profileGeneration.current) setBusy(false)
     }
   }
+
   const createView = () => {
+    if (!viewReady) return
     if (!confirmDiscard()) return
     let index = views.length + 1
     while (views.some((item) => item.id === `view-${index}`)) index += 1
+    viewEditGeneration.current += 1
     setView(newView(index))
     setDirty(true)
     setActiveContent('workspace')
@@ -589,6 +701,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const removeView = async (target: ViewDefinition) => {
     if (!window.confirm(`删除视图“${target.name}”？此操作不可恢复。`)) return
     if (target.revision === 0) {
+      viewEditGeneration.current += 1
       setView(views[0] || newView())
       setDirty(false)
       return
@@ -597,6 +710,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
       await api.deleteView(target.id, target.revision)
       const next = views.filter((item) => item.id !== target.id)
       setViews(next)
+      viewEditGeneration.current += 1
       setView(next[0] || newView(1))
       setDirty(false)
     } catch (current) {
@@ -625,6 +739,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
 
   const inspectorVisible = activeContent === 'workspace' && selection !== null
   return (
+    <CatalogContext.Provider value={{ states: discoveryState.catalogs, retry: (owner) => void discovery.catalog(owner, true) }}>
     <DndContext
       accessibility={{
         announcements: workspaceAnnouncements,
@@ -657,6 +772,24 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                 <Explorer
                   key={activeProfile.id}
                   topology={topology}
+                  discovery={discoveryState}
+                  scopeRoot={discoveryState.scope || status.parent_node_id || activeProfile.parent_node_id}
+                  defaultRoot={status.parent_node_id || activeProfile.parent_node_id}
+                  onScopeRootChange={(root, followParent) => {
+                    try {
+                      discovery.activate(activeProfile.id, connectionGeneration.current, root)
+                      browseRoot.current = followParent ? { profile: '', root: '' } : { profile: activeProfile.id, root }
+                      updatePreferences({ focused_node_id: undefined, expanded_node_ids: [...new Set([...(preferences.expanded_node_ids || []), root])] })
+                      setInspector({ selection: null, focusedAction: null })
+                      setCatalogOwner(root)
+                      void discovery.query(root)
+                    } catch (current) { setError(errorText(current)) }
+                  }}
+                  onLoadSubtree={() => void discovery.query(discoveryState.scope, 0, true)}
+                  onExpandNode={(owner) => void discovery.query(owner)}
+                  onRetryNode={(owner) => void discovery.query(owner, 1, true)}
+                  onCatalogOwnerChange={setCatalogOwner}
+                  onRetryCatalog={(owner) => void discovery.catalog(owner, true)}
                   resources={resources}
                   selection={selection}
                   expandedNodeIDs={preferences.expanded_node_ids}
@@ -676,10 +809,11 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
               </TabsContent>
               <TabsContent className="tabs-content" value="views">
                 <ViewManager
-                  views={views}
+                  views={viewReady ? views : []}
                   activeID={view.id}
                   onOpen={(target) => {
-                    if (!confirmDiscard()) return
+                    if (!viewReady || !confirmDiscard()) return
+                    viewEditGeneration.current += 1
                     setView(target)
                     setDirty(false)
                     setActiveContent('workspace')
@@ -698,9 +832,9 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
 
           <div className="main-stack">
             <nav className="content-tabs" role="tablist" aria-label="工作区标签">
-              <button role="tab" aria-selected={activeContent === 'workspace'} className={activeContent === 'workspace' ? 'is-active' : ''} onClick={() => setActiveContent('workspace')}><Layers3 aria-hidden="true" size={13} />{view.name}{dirty && <span className="tab-dirty" aria-label="未保存">●</span>}</button>
+              <button role="tab" aria-selected={activeContent === 'workspace'} className={activeContent === 'workspace' ? 'is-active' : ''} onClick={() => setActiveContent('workspace')}><Layers3 aria-hidden="true" size={13} />{viewReady ? view.name : '视图加载中…'}{viewReady && dirty && <span className="tab-dirty" aria-label="未保存">●</span>}</button>
               <button role="tab" aria-selected={activeContent === 'settings'} className={activeContent === 'settings' ? 'is-active' : ''} onClick={() => setActiveContent('settings')}><Settings2 aria-hidden="true" size={13} />设置</button>
-              <button className="new-tab" onClick={createView} aria-label="新建视图"><Plus aria-hidden="true" size={14} /></button>
+              <button className="new-tab" disabled={!viewReady} onClick={createView} aria-label="新建视图"><Plus aria-hidden="true" size={14} /></button>
             </nav>
             {activeContent === 'settings'
               ? (
@@ -720,8 +854,9 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                   onThemeChange={(theme: Theme) => updatePreferences({ theme })}
                 />
               )
-              : (
+              : !viewReady ? <section className="workspace" aria-label="资源工作区"><p className="discovery-status" role="status">正在加载当前 Profile 的视图…</p><button type="button" onClick={() => void loadViews(activeProfile.id).catch((current) => setError(errorText(current)))}>重新加载视图</button></section> : (
                 <Workspace
+                  key={activeProfile.id}
                   id="resource-workspace"
                   api={api}
                   resources={resources}
@@ -762,6 +897,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
         )}
       </DragOverlay>
     </DndContext>
+    </CatalogContext.Provider>
   )
 }
 

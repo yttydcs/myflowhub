@@ -53,6 +53,7 @@ type Controller struct {
 	now             func() time.Time
 	startedAt       time.Time
 	topology        *resource.Variable
+	topologyQuery   *topologyResource
 	health          *resource.Variable
 	config          *resource.Variable
 	auditFeed       *resource.Stream
@@ -100,7 +101,7 @@ func Register(config Config) (*Controller, error) {
 		}
 		return nil, fmt.Errorf("bind management audit stream: %w", err)
 	}
-	if err := value.Refresh(); err != nil {
+	if err := value.Refresh(); err != nil && !errors.Is(err, protocol.ErrPayloadTooLarge) {
 		for index := len(registered) - 1; index >= 0; index-- {
 			_ = config.Node.Registry().Remove(registered[index])
 		}
@@ -109,15 +110,24 @@ func Register(config Config) (*Controller, error) {
 	return value, nil
 }
 
-func (c *Controller) Refresh() error {
+func (c *Controller) Refresh() (err error) {
 	if c == nil {
 		return errors.New("management controller is required")
 	}
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	if err := c.refreshTopologyLocked(); err != nil {
-		c.lastError = err.Error()
-		return err
+	publication, topologyErr := c.refreshTopologyLocked()
+	defer func() {
+		c.mu.Unlock()
+		// Reentrant refreshes enqueue their newer snapshot; they never invoke
+		// another observer round inside an older publication.
+		if publication != nil {
+			err = errors.Join(err, c.topologyQuery.publish(publication))
+		}
+	}()
+	if topologyErr != nil {
+		c.lastError = topologyErr.Error()
+	} else {
+		c.lastError = ""
 	}
 	if err := c.refreshConfigLocked(); err != nil {
 		c.lastError = err.Error()
@@ -131,8 +141,10 @@ func (c *Controller) Refresh() error {
 		c.lastError = err.Error()
 		return err
 	}
-	c.lastError = ""
-	return nil
+	if topologyErr == nil {
+		c.lastError = ""
+	}
+	return topologyErr
 }
 
 func (c *Controller) buildResources() ([]resource.Resource, error) {
@@ -155,6 +167,10 @@ func (c *Controller) buildResources() ([]resource.Resource, error) {
 		return nil, err
 	}
 	c.topology, c.health, c.config, c.auditFeed = topology, health, configVariable, auditFeed
+	c.topologyQuery, err = newTopologyResource(topology)
+	if err != nil {
+		return nil, err
+	}
 	issueInputSchema := protocol.SchemaManagementIssuePermitV1
 	issueOutputSchema := protocol.SchemaProvisioningPermitV1
 	if c.authority != nil {
@@ -177,7 +193,7 @@ func (c *Controller) buildResources() ([]resource.Resource, error) {
 	if err != nil {
 		return nil, err
 	}
-	resources := []resource.Resource{topology, health, configVariable, auditFeed, issue, revokePermit, revokeNode, updateConfig}
+	resources := []resource.Resource{c.topologyQuery, health, configVariable, auditFeed, issue, revokePermit, revokeNode, updateConfig}
 	policyResources, err := c.buildPolicyResources()
 	if err != nil {
 		return nil, err
@@ -299,27 +315,6 @@ func decodePolicyRule(input []byte) (auth.Request, error) {
 		Subject: protocol.NodeID(subject), Action: auth.Action(request.Action),
 		Resource: protocol.ResourceID{Owner: protocol.NodeID(owner), Name: request.ResourceName},
 	}, nil
-}
-
-func (c *Controller) refreshTopologyLocked() error {
-	epoch := c.node.Tree().Epoch()
-	if epoch == 0 {
-		epoch = 1
-	}
-	settings := c.settings.Snapshot()
-	role := "node"
-	if _, hasParent := c.node.Tree().Parent(); !hasParent {
-		role = "root"
-	}
-	nodes := []protocol.TopologyNodeV1{{NodeID: strconv.FormatUint(uint64(c.node.ID()), 10), DisplayName: settings.DisplayName, Role: role, Generation: epoch}}
-	for _, relation := range c.node.Tree().Relations() {
-		nodes = append(nodes, protocol.TopologyNodeV1{NodeID: strconv.FormatUint(uint64(relation.Node), 10), ParentID: strconv.FormatUint(uint64(relation.Parent), 10), Role: "node", Generation: epoch})
-	}
-	payload, err := protocol.EncodeJSONPayload(&protocol.ManagementTopologyV1{Version: 1, Epoch: epoch, Nodes: nodes}, protocol.DefaultMaxPayload)
-	if err != nil {
-		return err
-	}
-	return setIfChanged(c.topology, payload)
 }
 
 func (c *Controller) refreshConfigLocked() error {

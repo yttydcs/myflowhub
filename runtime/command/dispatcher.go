@@ -235,6 +235,12 @@ func (d *Dispatcher) execute(ctx context.Context, call Call) (result Result) {
 		if errors.Is(err, resource.ErrInvalidSchema) || errors.Is(err, resource.ErrValueTooLarge) {
 			failure.Code = protocol.CodeMalformed
 		}
+		if errors.Is(err, protocol.ErrInvalidPayload) {
+			failure.Code = protocol.CodeMalformed
+		}
+		if errors.Is(err, protocol.ErrPayloadTooLarge) {
+			failure.Code = protocol.CodeOverflow
+		}
 		if errors.Is(err, resource.ErrRevisionConflict) {
 			failure.Code = protocol.CodeConflict
 		}

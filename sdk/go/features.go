@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/yttydcs/myflowhub/protocol"
@@ -106,6 +107,35 @@ func (c *ManagementClient) Topology(ctx context.Context) (protocol.ManagementTop
 	var value protocol.ManagementTopologyV1
 	err := c.client.DecodeSnapshot(ctx, c.id(protocol.BuiltinManagementTopology), &value)
 	return value, err
+}
+
+// QueryTopology returns the owner's subtree up to depth edges. Depth 1 uses
+// children; other depths use subtree, with 0 requesting all descendants.
+func (c *ManagementClient) QueryTopology(ctx context.Context, depth int) (protocol.ManagementTopologyQueryV1, error) {
+	var value protocol.ManagementTopologyQueryV1
+	if c == nil || c.client == nil {
+		return value, errors.New("SDK management client is required")
+	}
+	capability := protocol.CapabilitySubtree
+	var request protocol.ValidatedPayload = &protocol.ManagementTopologyQueryRequestV1{Version: 1, Depth: depth}
+	if depth == 1 {
+		capability = protocol.CapabilityChildren
+		request = &protocol.ManagementTopologyChildrenRequestV1{Version: 1, Depth: depth}
+	}
+	// OperatePayload validates the request before I/O and decodes the typed
+	// response; the owner's Registry enforces the descriptor's wire schemas.
+	if err := c.client.OperatePayload(ctx, c.id(protocol.BuiltinManagementTopology), capability, request, &value); err != nil {
+		return protocol.ManagementTopologyQueryV1{}, err
+	}
+	if value.RootNodeID != strconv.FormatUint(uint64(c.owner), 10) {
+		return protocol.ManagementTopologyQueryV1{}, &Error{Code: protocol.CodeMalformed,
+			Message: fmt.Sprintf("topology response root_node_id %q does not match owner %d", value.RootNodeID, c.owner)}
+	}
+	if value.Depth != depth {
+		return protocol.ManagementTopologyQueryV1{}, &Error{Code: protocol.CodeMalformed,
+			Message: fmt.Sprintf("topology response depth %d does not match requested depth %d", value.Depth, depth)}
+	}
+	return value, nil
 }
 
 func (c *ManagementClient) Health(ctx context.Context) (protocol.ManagementHealthV1, error) {

@@ -156,11 +156,13 @@ func (m *Manager) Subscribe(request Request) (*Subscription, error) {
 		return nil, resource.ErrNotFound
 	}
 	valueDelivery := newDelivery(m.ctx, request.Resource, queue)
-	current := &entry{request: request, leaseUntil: leaseUntil, delivery: valueDelivery}
+	expireCtx, expireCancel := context.WithCancel(valueDelivery.ctx)
+	current := &entry{request: request, leaseUntil: leaseUntil, delivery: valueDelivery, expireCancel: expireCancel}
 	ready := make(chan struct{})
 	readyClosed := false
 	defer func() {
 		if !readyClosed {
+			valueDelivery.stop()
 			close(ready)
 		}
 	}()
@@ -214,8 +216,6 @@ func (m *Manager) Subscribe(request Request) (*Subscription, error) {
 	close(ready)
 	readyClosed = true
 	valueDelivery.start(func() { m.remove(request.ID, false) })
-	expireCtx, expireCancel := context.WithCancel(m.ctx)
-	current.expireCancel = expireCancel
 	go func() {
 		timer := time.NewTimer(time.Until(leaseUntil))
 		defer timer.Stop()
@@ -327,6 +327,10 @@ func ValidateRequest(request Request) error {
 }
 
 func (e *entry) enqueueObservation(request Request, observation resource.Observation) {
+	if observation.Failure != nil {
+		e.delivery.fail(Event{Kind: EventFailure, Resource: request.Resource, Capability: request.Capability, Failure: observation.Failure})
+		return
+	}
 	event := Event{
 		Kind: EventData, Resource: request.Resource, Capability: request.Capability, Schema: observation.Schema,
 		Revision: observation.Revision, Sequence: observation.Sequence, Publisher: observation.Publisher,

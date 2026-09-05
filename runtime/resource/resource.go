@@ -44,6 +44,8 @@ type Observation struct {
 	PublisherSequence uint64
 	Schema            string
 	Value             []byte
+	// Failure terminates the observation; no value is delivered with it.
+	Failure *protocol.ErrorPayload
 }
 
 type Resource interface {

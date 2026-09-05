@@ -389,12 +389,22 @@
       "type": "mfh.variable",
       "capabilities": [
         {
+          "name": "children",
+          "input_schema": "mfh.management.topology-children-request.v1",
+          "output_schema": "mfh.management.topology-query.v1"
+        },
+        {
           "name": "read",
           "output_schema": "mfh.management.topology.v1"
         },
         {
           "name": "subscribe",
           "event_schema": "mfh.management.topology.v1"
+        },
+        {
+          "name": "subtree",
+          "input_schema": "mfh.management.topology-query-request.v1",
+          "output_schema": "mfh.management.topology-query.v1"
         }
       ]
     }

@@ -12,6 +12,7 @@
 - 受保护 generated 文档的维护说明
 
 ## Current Specs
+- [topology-discovery.md](topology-discovery.md)：当前 children/subtree、原子快照、部分树及独立 catalog 缓存合同。
 - [desktop-profile-entry.md](desktop-profile-entry.md)
   - Existing Profile / 首次连接入口、受保护 Enrollment 状态投影、Profile ID 与非破坏性返回选择器契约
 - [node-host-runtime.md](node-host-runtime.md)

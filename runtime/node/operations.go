@@ -83,7 +83,7 @@ func (n *Node) handleSubscribe(envelope protocol.Envelope, inbound *peerSession)
 			code = protocol.CodeNotFound
 		case errors.Is(err, subscription.ErrNotSubscribable):
 			code = protocol.CodeUnsupported
-		case errors.Is(err, subscription.ErrSubscriptionLimit):
+		case errors.Is(err, subscription.ErrSubscriptionLimit), errors.Is(err, protocol.ErrPayloadTooLarge):
 			code = protocol.CodeOverflow
 		}
 		_ = n.sendError(envelope, code, err.Error())
@@ -110,6 +110,17 @@ func (n *Node) handleSubscribe(envelope protocol.Envelope, inbound *peerSession)
 
 func (n *Node) forwardSubscription(request protocol.Envelope, current *subscription.Subscription) {
 	for event := range current.Events {
+		if event.Kind == subscription.EventFailure {
+			failure := event.Failure
+			if failure == nil || failure.Code == "" || failure.Message == "" {
+				failure = &protocol.ErrorPayload{Code: protocol.CodeInternal, Message: "subscription provider returned an invalid failure"}
+			}
+			if err := n.sendFailure(request, *failure); err != nil {
+				n.emit(fmt.Errorf("forward subscription failure: %w", err))
+			}
+			current.Cancel()
+			return
+		}
 		operation := protocol.OperationResourceEvent
 		payload := resourceEventPayload{
 			Version: protocol.SchemaVersionV2, Snapshot: event.Kind == subscription.EventSnapshot,

@@ -35,12 +35,23 @@ import {
 import type { ExplorerCollapsedPane } from '../preferences'
 import { deriveResourceActions, type ResourceAction } from '../lib/resource-actions'
 import type { ResourceDescriptor, Topology, TopologyNode, WorkspaceSelection } from '../types'
+import type { DiscoverySnapshot, LoadState } from '../discovery/controller'
+import { DiscoveryStatus } from '../discovery/DiscoveryStatus'
 import { ExplorerSplitPane } from './ExplorerSplitPane'
 import { Input } from './ui/input'
 import { ScrollArea } from './ui/scroll-area'
 
 type Props = {
   topology: Topology
+  discovery?: DiscoverySnapshot
+  scopeRoot?: string
+  defaultRoot?: string
+  onScopeRootChange?(root: string, followParent?: boolean): void
+  onLoadSubtree?(): void
+  onExpandNode?(owner: string): void
+  onRetryNode?(owner: string): void
+  onCatalogOwnerChange?(owner: string): void
+  onRetryCatalog?(owner: string): void
   resources: ResourceDescriptor[]
   selection: WorkspaceSelection
   expandedNodeIDs?: string[]
@@ -72,7 +83,9 @@ type NodeRowProps = {
   current: boolean
   expanded: boolean
   expandable: boolean
-  resourceCount: number
+  resourceCount?: number
+  state?: LoadState
+  onRetry(): void
   setRef(key: string, element: HTMLButtonElement | null): void
   onFocus(key: string): void
   onKeyDown(event: KeyboardEvent<HTMLButtonElement>, row: NodeExplorerRow): void
@@ -104,6 +117,7 @@ function NodeRow(props: NodeRowProps) {
         aria-setsize={props.row.setSize}
         aria-expanded={props.expandable ? props.expanded : undefined}
         aria-selected={props.current}
+        aria-busy={props.state?.status === 'loading'}
         tabIndex={props.active ? 0 : -1}
         onFocus={() => props.onFocus(props.row.key)}
         onClick={() => props.onSelect(node)}
@@ -113,10 +127,11 @@ function NodeRow(props: NodeRowProps) {
         <CircleDot aria-hidden="true" size={14} />
         <span className="tree-label">
           <strong>{node.display_name || `Node ${node.node_id}`}</strong>
-          <small>{node.role}</small>
+          <small>{node.role}{props.state?.status === 'loading' ? ' · 加载中…' : props.state?.stale ? ' · 缓存待刷新' : ''}</small>
         </span>
       </button>
-      <span className="tree-count" aria-label={`${props.resourceCount} 个直接资源`}>{props.resourceCount}</span>
+      <span className="tree-count" aria-label={props.resourceCount === undefined ? '资源目录尚未加载' : `${props.resourceCount} 个直接资源`}>{props.resourceCount ?? '—'}</span>
+      {props.state?.status === 'error' && <div className="node-discovery-error"><DiscoveryStatus state={props.state} label={`节点 ${node.display_name || node.node_id}`} onRetry={props.onRetry} /></div>}
     </div>
   )
 }
@@ -272,6 +287,9 @@ function ResourceRow(props: ResourceRowProps) {
 
 export function Explorer(props: Props) {
   const [nodeQuery, setNodeQuery] = useState('')
+  const [scopeInput, setScopeInput] = useState(props.scopeRoot || '')
+  const [scopeOpen, setScopeOpen] = useState(false)
+  useEffect(() => setScopeInput(props.scopeRoot || ''), [props.scopeRoot])
   const [resourceQuery, setResourceQuery] = useState('')
   const deferredNodeQuery = useDeferredValue(nodeQuery)
   const deferredResourceQuery = useDeferredValue(resourceQuery)
@@ -299,6 +317,7 @@ export function Explorer(props: Props) {
         : index.roots[0] || ''
   const currentNode = index.nodesByID.get(resolvedNodeID)
   const currentResources = index.resourcesByNodeID.get(resolvedNodeID) || []
+  const catalogState = props.discovery?.catalogs.get(resolvedNodeID)
   const resourceTree = useMemo(() => buildResourceTree(currentResources), [currentResources])
   const defaultResourceExpansion = useMemo(() => defaultExpandedResourcePaths(resourceTree), [resourceTree])
   const expandedResourcePaths = props.expandedResourcePaths ?? defaultResourceExpansion
@@ -307,6 +326,10 @@ export function Explorer(props: Props) {
     () => flattenResourceRows(resourceTree, expandedResources, deferredResourceQuery),
     [deferredResourceQuery, expandedResources, resourceTree],
   )
+
+  useEffect(() => {
+    if (resolvedNodeID) props.onCatalogOwnerChange?.(resolvedNodeID)
+  }, [resolvedNodeID, props.onCatalogOwnerChange])
 
   useEffect(() => {
     if (resolvedNodeID && resolvedNodeID !== currentNodeID) setCurrentNodeID(resolvedNodeID)
@@ -354,7 +377,7 @@ export function Explorer(props: Props) {
 
   function setExpanded(nodeID: string, shouldExpand: boolean) {
     const next = new Set(expanded)
-    if (shouldExpand) next.add(nodeID)
+    if (shouldExpand) { next.add(nodeID); props.onExpandNode?.(nodeID) }
     else next.delete(nodeID)
     props.onExpandedNodeIDsChange([...next])
   }
@@ -394,7 +417,7 @@ export function Explorer(props: Props) {
     else if (event.key === 'ArrowRight') {
       const nodeID = row.node.node_id
       const expandable = hasChildNodes(index, nodeID)
-      if (expandable && !expanded.has(nodeID)) setExpanded(nodeID, true)
+      if (expandable && (!expanded.has(nodeID) || props.discovery?.children.get(nodeID)?.status === 'error')) setExpanded(nodeID, true)
       else {
         const childIndex = nodeRows.findIndex((candidate, indexInRows) => indexInRows > rowIndex && candidate.parentKey === row.key)
         if (childIndex >= 0) focusNodeRow(childIndex)
@@ -409,7 +432,10 @@ export function Explorer(props: Props) {
     else if (event.key === '*') {
       const next = new Set(expanded)
       for (const sibling of nodeRows) {
-        if (sibling.parentKey === row.parentKey && hasChildNodes(index, sibling.node.node_id)) next.add(sibling.node.node_id)
+        if (sibling.parentKey === row.parentKey && hasChildNodes(index, sibling.node.node_id)) {
+          next.add(sibling.node.node_id)
+          props.onExpandNode?.(sibling.node.node_id)
+        }
       }
       props.onExpandedNodeIDsChange([...next])
     } else return
@@ -467,21 +493,39 @@ export function Explorer(props: Props) {
         </button>
       </header>
       <div id="explorer-node-content" className="explorer-pane-content" hidden={!nodePaneExpanded}>
+        {props.onScopeRootChange && <div className="discovery-scope">
+          <div className="discovery-scope-toolbar">
+            <button type="button" className="discovery-scope-toggle" aria-label={`修改浏览起点，当前 Node ${props.scopeRoot}`} aria-expanded={scopeOpen} aria-controls="discovery-scope-options" onClick={() => setScopeOpen((open) => !open)}>
+              {scopeOpen ? <ChevronDown aria-hidden="true" size={12} /> : <ChevronRight aria-hidden="true" size={12} />}<span>起点：{props.scopeRoot}</span>
+            </button>
+            <button type="button" onClick={props.onLoadSubtree}>加载完整子树</button>
+          </div>
+          {scopeOpen && <div id="discovery-scope-options" className="discovery-scope-options" role="region" aria-label="编辑浏览起点">
+            <form onSubmit={(event) => { event.preventDefault(); props.onScopeRootChange?.(scopeInput.trim()) }}>
+              <Input aria-label="浏览起点 Node ID" value={scopeInput} onChange={(event) => setScopeInput(event.target.value)} />
+              <button type="submit">设为起点</button>
+            </form>
+            <button type="button" onClick={() => props.defaultRoot && props.onScopeRootChange?.(props.defaultRoot, true)}>直接父节点</button>
+            <small>仅向下查询</small>
+          </div>}
+        </div>}
+        {props.discovery?.limitError && <p className="discovery-status" role="alert">{props.discovery.limitError}</p>}
+        {props.discovery && props.scopeRoot && (nodeRows.length === 0 || props.discovery.children.get(props.scopeRoot)?.status === 'loading') && <DiscoveryStatus state={props.discovery.children.get(props.scopeRoot)} label="节点树" onRetry={() => props.onRetryNode?.(props.scopeRoot!)} />}
         <div className="search-box">
           <Search aria-hidden="true" size={14} />
           <Input
-            aria-label="搜索节点"
+            aria-label="搜索已加载节点"
             name="node-search"
             autoComplete="off"
             spellCheck={false}
             value={nodeQuery}
             onChange={(event) => setNodeQuery(event.target.value)}
-            placeholder="搜索节点"
+            placeholder="搜索已加载节点"
           />
         </div>
         {breadcrumb.length > 0 && (
           <div className="tree-focus-bar">
-            <button onClick={() => props.onFocusedNodeIDChange(undefined)} aria-label="返回完整节点树">
+            <button onClick={() => props.onFocusedNodeIDChange(undefined)} aria-label="返回已加载节点树">
               <ChevronLeft aria-hidden="true" size={13} /> 返回
             </button>
             <div className="tree-breadcrumb" aria-label="当前节点路径">
@@ -496,7 +540,7 @@ export function Explorer(props: Props) {
         )}
         <ScrollArea className="explorer-scroll">
           <div className="tree" role="tree" aria-label="节点" aria-busy={nodeQuery !== deferredNodeQuery}>
-            {nodeRows.length === 0 && <p className="empty-copy">没有匹配的节点</p>}
+            {nodeRows.length === 0 && (!props.discovery || props.discovery.children.get(props.scopeRoot || '')?.status === 'loaded') && <p className="empty-copy">没有匹配的已加载节点</p>}
             {nodeRows.map((row) => {
               const nodeID = row.node.node_id
               return (
@@ -507,7 +551,9 @@ export function Explorer(props: Props) {
                   current={resolvedNodeID === nodeID}
                   expanded={expanded.has(nodeID) || deferredNodeQuery.trim().length > 0}
                   expandable={hasChildNodes(index, nodeID)}
-                  resourceCount={(index.resourcesByNodeID.get(nodeID) || []).length}
+                  resourceCount={!props.discovery || props.discovery.catalogs.get(nodeID)?.status === 'loaded' ? (index.resourcesByNodeID.get(nodeID) || []).length : undefined}
+                  state={props.discovery?.children.get(nodeID)}
+                  onRetry={() => props.onRetryNode?.(nodeID)}
                   setRef={setNodeRowRef}
                   onFocus={setActiveNodeKey}
                   onKeyDown={handleNodeKeyDown}
@@ -552,9 +598,10 @@ export function Explorer(props: Props) {
           />
         </div>
         <ScrollArea className="explorer-scroll resource-scroll">
-          <div className="tree resource-tree" role="tree" aria-label="资源" aria-busy={resourceQuery !== deferredResourceQuery}>
+          <div className="tree resource-tree" role="tree" aria-label="资源" aria-busy={resourceQuery !== deferredResourceQuery || catalogState?.status === 'loading'}>
             {!currentNode && <p className="empty-copy">选择一个节点以查看资源</p>}
-            {currentNode && currentResources.length === 0 && <p className="empty-copy">此节点没有资源</p>}
+            {currentNode && props.discovery && <DiscoveryStatus state={catalogState} label="资源目录" onRetry={() => props.onRetryCatalog?.(resolvedNodeID)} />}
+            {currentNode && (!props.discovery || catalogState?.status === 'loaded') && currentResources.length === 0 && <p className="empty-copy">此节点没有资源</p>}
             {currentNode && currentResources.length > 0 && resourceRows.length === 0 && <p className="empty-copy">没有匹配的资源</p>}
             {resourceRows.map((row) => (
               <ResourceRow
@@ -595,7 +642,7 @@ export function Explorer(props: Props) {
 }
 
 function hasChildNodes(index: ReturnType<typeof buildExplorerIndex>, nodeID: string): boolean {
-  return (index.childrenByID.get(nodeID)?.length || 0) > 0
+  return index.nodesByID.get(nodeID)?.has_children === true || (index.childrenByID.get(nodeID)?.length || 0) > 0
 }
 
 function selectionOwnerID(selection: WorkspaceSelection): string {

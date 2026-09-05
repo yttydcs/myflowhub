@@ -1,6 +1,7 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import {
   useEffect,
+  useContext,
   useMemo,
   useRef,
   useState,
@@ -25,6 +26,7 @@ import {
   type WorkspaceDockSide,
 } from '../workspace-layout'
 import { ResourceRenderer, ResourceRendererSelector } from './Renderer'
+import { CatalogContext, DiscoveryStatus, MissingResource } from '../discovery/DiscoveryStatus'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -75,7 +77,17 @@ function widgetLabel(widget: ViewWidget, resource?: ResourceDescriptor): string 
   return resource?.presentation?.label || widget.resource_name.split('/').at(-1) || widget.resource_name
 }
 
-function WorkspaceWidgetPane({ api, resource, widget, onRemove, onRendererChange }: WorkspaceWidgetProps) {
+function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove, onRendererChange }: WorkspaceWidgetProps) {
+  const discovery = useContext(CatalogContext)
+  const catalog = discovery?.states.get(widget.owner_node_id)
+  const reference = resourceKey(widget.owner_node_id, widget.resource_name)
+  const retained = useRef<{ reference: string; resource?: ResourceDescriptor }>({ reference })
+  if (retained.current.reference !== reference) retained.current = { reference }
+  if (currentResource) retained.current.resource = currentResource
+  // Retain this pane's renderer instance and its unsaved input across discovery
+  // resets. An unresolved descriptor disables operations until catalog recovery.
+  const resource = currentResource || retained.current.resource
+  const unavailable = !!discovery && (!currentResource || catalog?.status !== 'loaded')
   const draggable = useDraggable({
     id: `workspace-drag:${widget.id}`,
     data: { kind: 'workspace-widget', widgetID: widget.id, label: widgetLabel(widget, resource) },
@@ -151,14 +163,12 @@ function WorkspaceWidgetPane({ api, resource, widget, onRemove, onRendererChange
         </div>
       </header>
       <div className="widget-body">
+        {resource && unavailable && <DiscoveryStatus state={catalog?.status === 'loaded' ? { status: 'error', stale: true, error: '目录中已找不到该资源；保留未保存输入' } : catalog} label={`Node ${widget.owner_node_id} 资源目录`} onRetry={() => discovery?.retry(widget.owner_node_id)} />}
         {resource && focusedCapability && <div className="widget-action-focusbar"><strong>{focusedCapability}</strong><button type="button" aria-label="关闭操作面板" onClick={() => setFocusedCapability(undefined)}><X aria-hidden="true" size={13} /></button></div>}
         {resource
-          ? <ResourceRenderer api={api} resource={resource} rendererID={widget.renderer} density={density} focusedCapability={focusedCapability} />
+          ? <fieldset className="discovery-renderer" disabled={unavailable}><ResourceRenderer api={api} resource={resource} rendererID={widget.renderer} density={density} focusedCapability={focusedCapability} /></fieldset>
           : (
-            <div className="missing-resource">
-              <strong>资源暂不可用</strong>
-              <p>保留布局，等待 {widget.owner_node_id}/{widget.resource_name} 恢复。</p>
-            </div>
+            <MissingResource owner={widget.owner_node_id} name={widget.resource_name} />
           )}
       </div>
     </article>

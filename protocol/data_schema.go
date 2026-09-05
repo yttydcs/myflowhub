@@ -212,6 +212,9 @@ func BuiltinDataSchemas() ([]DataSchemaDefinition, error) {
 		{SchemaFileProgressV1, "File progress", reflect.TypeOf(FileProgressV1{})},
 		{SchemaFileTransfersV1, "File transfers", reflect.TypeOf(FileTransfersV1{})},
 		{SchemaManagementTopologyV1, "Node topology", reflect.TypeOf(ManagementTopologyV1{})},
+		{SchemaManagementTopologyChildrenRequestV1, "Query topology children", reflect.TypeOf(ManagementTopologyChildrenRequestV1{})},
+		{SchemaManagementTopologyQueryRequestV1, "Query topology subtree", reflect.TypeOf(ManagementTopologyQueryRequestV1{})},
+		{SchemaManagementTopologyQueryV1, "Topology query result", reflect.TypeOf(ManagementTopologyQueryV1{})},
 		{SchemaManagementHealthV1, "Hub health", reflect.TypeOf(ManagementHealthV1{})},
 		{SchemaManagementConfigV1, "Hub configuration", reflect.TypeOf(ManagementConfigV1{})},
 		{SchemaManagementAdmitV1, "Admission", reflect.TypeOf(ManagementAdmitV1{})},
@@ -349,6 +352,17 @@ func annotateBuiltinDataSchema(schema *DataSchemaDefinition) {
 		setDataSchemaMinimum(schema, path, 1)
 	}
 	switch schema.ID {
+	case SchemaManagementTopologyChildrenRequestV1:
+		setDataSchemaMaximum(schema, "version", 1)
+		setDataSchemaMinimum(schema, "depth", 1)
+		setDataSchemaMaximum(schema, "depth", 1)
+	case SchemaManagementTopologyQueryRequestV1, SchemaManagementTopologyQueryV1:
+		setDataSchemaMaximum(schema, "version", 1)
+		setDataSchemaMinimum(schema, "depth", 0)
+		setDataSchemaMaximum(schema, "depth", MaxItems)
+		if schema.ID == SchemaManagementTopologyQueryV1 {
+			annotateTopologyQueryDataSchema(schema)
+		}
 	case SchemaCollectionListRequestV1:
 		setDataSchemaMinimum(schema, "limit", 1)
 		setDataSchemaMaximum(schema, "limit", MaxCollectionPageMembers)
@@ -412,6 +426,38 @@ func annotateBuiltinDataSchema(schema *DataSchemaDefinition) {
 	case SchemaVariableWriteV2:
 		setDataSchemaFormat(schema, "value", "json-base64")
 	}
+}
+
+func annotateTopologyQueryDataSchema(schema *DataSchemaDefinition) {
+	setDataSchemaMaximum(schema, "revision", float64(MaxTopologyRevision))
+	if instance := dataSchemaAtPath(schema, "instance_id"); instance != nil {
+		length := 32
+		instance.MinLength, instance.MaxLength = &length, &length
+		instance.Pattern = "^[0-9a-f]{32}$"
+	}
+	annotateTopologyNodeIDDataSchema(dataSchemaAtPath(schema, "root_node_id"))
+	if nodes := dataSchemaAtPath(schema, "nodes"); nodes != nil && nodes.Items != nil {
+		minimum := 1
+		nodes.MinItems = &minimum
+		annotateTopologyNodeIDDataSchema(dataSchemaAtPath(nodes.Items, "node_id"))
+		annotateTopologyNodeIDDataSchema(dataSchemaAtPath(nodes.Items, "parent_id"))
+		setDataSchemaMaxLength(nodes.Items, "display_name", MaxLabelBytes)
+		setDataSchemaMaxLength(nodes.Items, "role", MaxIdentifierBytes)
+		if role := dataSchemaAtPath(nodes.Items, "role"); role != nil {
+			role.MinLength = &minimum
+		}
+		setDataSchemaMinimum(nodes.Items, "generation", 1)
+	}
+}
+
+func annotateTopologyNodeIDDataSchema(schema *DataSchemaDefinition) {
+	if schema == nil {
+		return
+	}
+	minimum, maximum := 1, 20
+	schema.MinLength, schema.MaxLength = &minimum, &maximum
+	schema.Format = "node-id"
+	schema.Pattern = "^[1-9][0-9]*$"
 }
 
 func annotateCollectionMemberDataSchema(schema *DataSchemaDefinition) {

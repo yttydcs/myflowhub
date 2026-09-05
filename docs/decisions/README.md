@@ -4,6 +4,8 @@
 
 ## Current Decisions
 
+- [浅层与递归拓扑能力](2026-09-06_depth-scoped-topology-capabilities.md)：同一 Resource 的独立 capability，复用现有 policy。
+
 - [移除移动与嵌入式旧实现，收敛 SDK 生命周期](2026-09-06_retire-mobile-embedded-and-owning-bindings.md)
 
 - [移除 Flow，延期重新设计](2026-09-06_retire-flow-pending-redesign.md)

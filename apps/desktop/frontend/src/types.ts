@@ -36,6 +36,8 @@ export type ConnectionStatus = {
   parent_node_id?: string
   endpoint?: string
   last_error?: string
+  generation?: number
+  link_generation?: number
 }
 
 export type CapabilityDescriptor = {
@@ -79,9 +81,18 @@ export type TopologyNode = {
   display_name?: string
   role: string
   generation: number
+  has_children: boolean
 }
 
-export type Topology = { version: number; epoch: number; nodes: TopologyNode[] }
+// Navigation is a merged partial tree; provider versions belong to individual queries.
+export type Topology = { nodes: TopologyNode[] }
+export type TopologyQuery = Topology & {
+  version: 1
+  root_node_id: string
+  depth: number
+  instance_id: string
+  revision: number
+}
 
 export type WorkspaceSelection =
   | { kind: 'node'; node: TopologyNode }

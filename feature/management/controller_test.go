@@ -544,7 +544,11 @@ func decodeVariable(t *testing.T, runtime *node.Node, name string, target protoc
 	if !ok {
 		t.Fatalf("variable %s missing", name)
 	}
-	decode(t, value.(*resource.Variable).Snapshot().Value, target)
+	result, err := value.Operate(context.Background(), resource.OperationRequest{Capability: protocol.CapabilityRead})
+	if err != nil {
+		t.Fatal(err)
+	}
+	decode(t, result.Payload, target)
 }
 
 func encode(t *testing.T, value protocol.ValidatedPayload) []byte {

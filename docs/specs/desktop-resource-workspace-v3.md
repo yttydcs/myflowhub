@@ -46,8 +46,8 @@ Node 与 Resource heading 各是原生 disclosure button，使用 `aria-expanded
 非法 preference 继续走现有显式默认值与警告路径。无匹配的陈旧 path key 只在派生时忽略，不修改 catalog。
 
 Resource tree 构建必须保持 O(total path segments)，扁平化保持 O(visible rows)，搜索不得在每行重复扫描
-整棵树。超过 50 行继续使用现有离屏绘制策略。现有 topology/catalog API 不支持服务端分页，因此真正
-lazy loading 与 DOM windowing 仍为独立后续工作，不得引入第二套资源模型伪装。
+整棵已加载树。超过 50 行继续使用现有离屏绘制策略。按需拓扑和独立 catalog 加载由当前
+[拓扑发现合同](topology-discovery.md)接管；服务端分页与 DOM windowing 仍为独立后续工作。
 
 ## View v3 document
 

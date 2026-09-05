@@ -13,6 +13,8 @@
 
 ## Current Status
 
+- [topology-discovery.md](topology-discovery.md)：当前按深度发现、权限边界与 Desktop 按需导航。
+
 - [Android 与嵌入式重新设计](mobile-embedded-redesign.md)：已退役实现，重新设计延期。
 - [flow-redesign.md](flow-redesign.md)
   - 已移除旧 Flow；通用自动化模型、语言与执行语义的延期待办，尚未选型。

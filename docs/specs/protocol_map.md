@@ -81,6 +81,8 @@ filesystem schemas 是 canonical built-in data schemas，但 filesystem Resource
 | notifications | `notifications/events` Stream、`notifications/publish` Command |
 | file | `file/transfers` Variable、`file/progress` Stream、`file/upload` File session |
 
+`system/topology` 已提供 children/subtree 深度查询，具体 schema、数值 depth 和权限兼容边界见[拓扑发现合同](topology-discovery.md)。旧 read/subscribe 仍为完整快照。
+
 Management、Admission 与 Notification 中仍存在的 endpoint-style Commands 保持 current；全量 capability 迁移属于
 延期的 `CMD02`，本文不把目标形态伪装成现状。
 

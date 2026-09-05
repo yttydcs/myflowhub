@@ -7,12 +7,10 @@ import type { ResourceDescriptor, Topology, WorkspaceSelection } from '../types'
 import { Explorer } from './Explorer'
 
 const topology: Topology = {
-  version: 1,
-  epoch: 1,
   nodes: [
-    { node_id: '1', display_name: 'Root', role: 'root', generation: 1 },
-    { node_id: '2', parent_id: '1', display_name: 'Branch', role: 'branch', generation: 1 },
-    { node_id: '3', parent_id: '2', display_name: 'Leaf', role: 'leaf', generation: 1 },
+    { node_id: '1', display_name: 'Root', role: 'root', has_children: true, generation: 1 },
+    { node_id: '2', parent_id: '1', display_name: 'Branch', role: 'branch', has_children: true, generation: 1 },
+    { node_id: '3', parent_id: '2', display_name: 'Leaf', role: 'leaf', has_children: false, generation: 1 },
   ],
 }
 
@@ -40,7 +38,7 @@ function Harness({ onAdd = vi.fn(), onAction = vi.fn() }: {
   onAction?: (resource: ResourceDescriptor, action: { capability: string }) => void
 }) {
   const [selection, setSelection] = useState<WorkspaceSelection>(null)
-  const [expandedNodes, setExpandedNodes] = useState<string[] | undefined>()
+  const [expandedNodes, setExpandedNodes] = useState<string[] | undefined>(['1', '2'])
   const [expandedResources, setExpandedResources] = useState<string[] | undefined>()
   const [focused, setFocused] = useState<string>()
   const [ratio, setRatio] = useState(0.35)
@@ -215,14 +213,14 @@ describe('split Node and Resource explorer', () => {
 
   it('searches deep Nodes with ancestors and retains focused-subtree breadcrumbs', async () => {
     render(<Harness />)
-    fireEvent.change(screen.getByLabelText('搜索节点'), { target: { value: 'leaf' } })
+    fireEvent.change(screen.getByLabelText('搜索已加载节点'), { target: { value: 'leaf' } })
     const tree = screen.getByRole('tree', { name: '节点' })
     expect(within(tree).getByRole('treeitem', { name: /Root/ })).toBeInTheDocument()
     expect(within(tree).getByRole('treeitem', { name: /Branch/ })).toBeInTheDocument()
     expect(within(tree).getByRole('treeitem', { name: /Leaf/ })).toHaveAttribute('aria-level', '3')
     fireEvent.click(screen.getByRole('button', { name: '聚焦叶节点' }))
     expect(await screen.findByLabelText('当前节点路径')).toHaveTextContent('RootBranchLeaf')
-    expect(screen.getByRole('button', { name: '返回完整节点树' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '返回已加载节点树' })).toBeInTheDocument()
     expect(within(tree).getByRole('treeitem', { name: /Leaf/ })).toHaveAttribute('aria-level', '1')
   })
 

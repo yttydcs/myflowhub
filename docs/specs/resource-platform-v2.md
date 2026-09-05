@@ -7,7 +7,7 @@
 
 ## Identity and ownership
 
-所有设备都是 Node。资源只存在于某个 Node 下，以 `(owner NodeID, local name)` 唯一寻址。
+Node 是提供能力的逻辑对象，与物理设备无一一对应关系；设备和插件不属于网络模型。资源只存在于某个 Node 下，以 `(owner NodeID, local name)` 唯一寻址。
 资源名可以分段用于展示，但不会形成第二棵权限树；authority、路由和资源归属仍服从唯一节点树。
 
 ## Descriptor

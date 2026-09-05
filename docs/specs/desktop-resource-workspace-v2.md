@@ -105,6 +105,6 @@ light/default expansion/default split，不影响 settings、identity 或 View s
 - Explorer 的代表性基准为 2,000 个 Node、10,000 个 Resource；构建 authority/ownership index、派生 Node
   visible rows 并完成一次精确筛选/当前 Node 分组必须在 750 ms 内完成。
 - 可见树必须扁平化并为重复查询建立 Map/Set 索引；超过 50 行使用浏览器跳过离屏绘制的能力或等价
-  虚拟化。当前 API 仍一次返回完整 topology 并按 Node 拉取 catalog，因此服务端 lazy-load/pagination 与
-  真正 DOM windowing 作为后续协议工作；首版不能因规模增大引入第二套资源模型或伪加载状态。
+  虚拟化。完整 topology 和逐 Node catalog 的旧发现语义已由[拓扑发现合同](topology-discovery.md)取代；
+  服务端分页与真正 DOM windowing 仍为后续工作。
 - 基准由 `frontend/src/store.test.ts` 执行；阈值覆盖前端数据整形与筛选，不把网络目录加载时间混入渲染预算。

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -40,6 +41,117 @@ func TestBuiltinDataSchemasAreValidSortedAndDeterministic(t *testing.T) {
 	if !bytes.Equal(first, second) {
 		t.Fatal("schema generation is not deterministic")
 	}
+}
+
+func TestBuiltinTopologyQueryDataSchemas(t *testing.T) {
+	definitions, err := BuiltinDataSchemas()
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := make(map[string]DataSchemaDefinition, len(definitions))
+	for _, definition := range definitions {
+		byID[definition.ID] = definition
+	}
+	assertFields := func(schema *DataSchemaDefinition, required, optional []string) {
+		t.Helper()
+		if schema.Type != "object" || schema.AdditionalProperties != nil || len(schema.Properties) != len(required)+len(optional) {
+			t.Fatalf("unexpected object shape: %#v", schema)
+		}
+		want := make(map[string]bool, len(required)+len(optional))
+		for _, name := range required {
+			want[name] = true
+		}
+		for _, name := range optional {
+			want[name] = false
+		}
+		for _, property := range schema.Properties {
+			required, ok := want[property.Name]
+			if !ok || property.Required != required || property.Schema == nil || property.Schema.Type == "null" {
+				t.Fatalf("unexpected field or presence/nullability: %#v", property)
+			}
+			delete(want, property.Name)
+		}
+		if len(want) != 0 {
+			t.Fatalf("missing fields: %v", want)
+		}
+	}
+	assertBounds := func(schema *DataSchemaDefinition, path string, minimum, maximum float64) {
+		t.Helper()
+		field := dataSchemaAtPath(schema, path)
+		if field == nil || field.Type != "integer" || field.MultipleOf == nil || *field.MultipleOf != 1 ||
+			field.Minimum == nil || *field.Minimum != minimum || field.Maximum == nil || *field.Maximum != maximum {
+			t.Fatalf("%s bounds = %#v, want integer %v..%v", path, field, minimum, maximum)
+		}
+	}
+	for _, id := range []string{SchemaManagementTopologyChildrenRequestV1, SchemaManagementTopologyQueryRequestV1} {
+		schema, ok := byID[id]
+		if !ok {
+			t.Fatalf("missing topology request schema %s", id)
+		}
+		assertFields(&schema, []string{"version", "depth"}, nil)
+		assertBounds(&schema, "version", 1, 1)
+		if id == SchemaManagementTopologyChildrenRequestV1 {
+			assertBounds(&schema, "depth", 1, 1)
+		} else {
+			assertBounds(&schema, "depth", 0, MaxItems)
+		}
+	}
+	response, ok := byID[SchemaManagementTopologyQueryV1]
+	if !ok {
+		t.Fatal("missing topology response schema")
+	}
+	assertFields(&response, []string{"version", "root_node_id", "depth", "instance_id", "revision", "nodes"}, nil)
+	assertBounds(&response, "version", 1, 1)
+	assertBounds(&response, "depth", 0, MaxItems)
+	assertBounds(&response, "revision", 1, float64(MaxTopologyRevision))
+	instance := dataSchemaAtPath(&response, "instance_id")
+	if instance == nil || instance.Type != "string" || instance.MinLength == nil || *instance.MinLength != 32 || instance.MaxLength == nil || *instance.MaxLength != 32 {
+		t.Fatalf("instance_id shape: %#v", instance)
+	}
+	pattern, err := regexp.Compile(instance.Pattern)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{topologyQueryFixture().InstanceID, strings.Repeat("0", 32), strings.Repeat("f", 32)} {
+		if !pattern.MatchString(value) {
+			t.Fatalf("instance pattern rejected %q", value)
+		}
+	}
+	for _, value := range []string{"", strings.Repeat("0", 31), strings.Repeat("0", 33), strings.Repeat("F", 32), strings.Repeat("g", 32)} {
+		if pattern.MatchString(value) {
+			t.Fatalf("instance pattern accepted %q", value)
+		}
+	}
+	nodes := dataSchemaAtPath(&response, "nodes")
+	if nodes == nil || nodes.Type != "array" || nodes.MinItems == nil || *nodes.MinItems != 1 || nodes.MaxItems == nil || *nodes.MaxItems != MaxItems || nodes.Items == nil {
+		t.Fatalf("nodes bounds: %#v", nodes)
+	}
+	assertFields(nodes.Items, []string{"node_id", "role", "generation", "has_children"}, []string{"parent_id", "display_name"})
+	if field := dataSchemaAtPath(nodes.Items, "has_children"); field.Type != "boolean" {
+		t.Fatalf("has_children type: %#v", field)
+	}
+	if field := dataSchemaAtPath(nodes.Items, "generation"); field.Minimum == nil || *field.Minimum != 1 {
+		t.Fatalf("generation minimum: %#v", field)
+	}
+	for _, field := range []*DataSchemaDefinition{
+		dataSchemaAtPath(&response, "root_node_id"), dataSchemaAtPath(nodes.Items, "node_id"), dataSchemaAtPath(nodes.Items, "parent_id"),
+	} {
+		if field == nil || field.Type != "string" || field.Format != "node-id" || field.MinLength == nil || *field.MinLength != 1 || field.MaxLength == nil || *field.MaxLength != 20 {
+			t.Fatalf("Node ID bounds: %#v", field)
+		}
+	}
+	for path, maximum := range map[string]int{"display_name": MaxLabelBytes, "role": MaxIdentifierBytes} {
+		field := dataSchemaAtPath(nodes.Items, path)
+		if field == nil || field.MaxLength == nil || *field.MaxLength != maximum {
+			t.Fatalf("%s max length: %#v", path, field)
+		}
+	}
+	legacy, ok := byID[SchemaManagementTopologyV1]
+	if !ok {
+		t.Fatal("legacy topology schema disappeared")
+	}
+	assertFields(&legacy, []string{"version", "epoch", "nodes"}, nil)
+	assertFields(dataSchemaAtPath(&legacy, "nodes").Items, []string{"node_id", "role", "generation"}, []string{"parent_id", "display_name"})
 }
 
 func TestDataSchemaDefinitionRejectsInvalidOrUnsafeShapes(t *testing.T) {

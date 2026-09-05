@@ -3142,6 +3142,201 @@
       ]
     },
     {
+      "id": "mfh.management.topology-children-request.v1",
+      "type": "object",
+      "title": "Query topology children",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "maximum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "depth",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Depth",
+            "minimum": 1,
+            "maximum": 1,
+            "multiple_of": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.management.topology-query-request.v1",
+      "type": "object",
+      "title": "Query topology subtree",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "maximum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "depth",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Depth",
+            "minimum": 0,
+            "maximum": 4096,
+            "multiple_of": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.management.topology-query.v1",
+      "type": "object",
+      "title": "Topology query result",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "maximum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "root_node_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Root Node Id",
+            "format": "node-id",
+            "min_length": 1,
+            "max_length": 20,
+            "pattern": "^[1-9][0-9]*$"
+          }
+        },
+        {
+          "name": "depth",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Depth",
+            "minimum": 0,
+            "maximum": 4096,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "instance_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Instance Id",
+            "min_length": 32,
+            "max_length": 32,
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        {
+          "name": "revision",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Revision",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "nodes",
+          "required": true,
+          "schema": {
+            "type": "array",
+            "title": "Nodes",
+            "min_items": 1,
+            "max_items": 4096,
+            "items": {
+              "type": "object",
+              "properties": [
+                {
+                  "name": "node_id",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Node Id",
+                    "format": "node-id",
+                    "min_length": 1,
+                    "max_length": 20,
+                    "pattern": "^[1-9][0-9]*$"
+                  }
+                },
+                {
+                  "name": "parent_id",
+                  "schema": {
+                    "type": "string",
+                    "title": "Parent Id",
+                    "format": "node-id",
+                    "min_length": 1,
+                    "max_length": 20,
+                    "pattern": "^[1-9][0-9]*$"
+                  }
+                },
+                {
+                  "name": "display_name",
+                  "schema": {
+                    "type": "string",
+                    "title": "Display Name",
+                    "max_length": 255
+                  }
+                },
+                {
+                  "name": "role",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Role",
+                    "min_length": 1,
+                    "max_length": 128
+                  }
+                },
+                {
+                  "name": "generation",
+                  "required": true,
+                  "schema": {
+                    "type": "integer",
+                    "title": "Generation",
+                    "minimum": 1,
+                    "multiple_of": 1
+                  }
+                },
+                {
+                  "name": "has_children",
+                  "required": true,
+                  "schema": {
+                    "type": "boolean",
+                    "title": "Has Children"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "mfh.management.topology.v1",
       "type": "object",
       "title": "Node topology",

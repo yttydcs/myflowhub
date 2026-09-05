@@ -5,10 +5,11 @@ import type {
   ProfileState,
   ResourceCatalog,
   Settings,
-  Topology,
+  TopologyQuery,
   ViewDefinition,
   ViewDocument,
 } from './types'
+import { parseTopology, TOPOLOGY_QUERY_SCHEMA, validateTopologyRequest } from './discovery/topology'
 
 export type OperationResult = { schema?: string; payload: unknown }
 export type PollResult = { kind: 'event' | 'error' | 'closed' | 'timeout'; payload?: unknown }
@@ -29,7 +30,7 @@ export interface DesktopAPI {
   disconnect(): Promise<void>
   status(): Promise<ConnectionStatus>
   catalog(ownerNodeID: string): Promise<ResourceCatalog>
-  topology(ownerNodeID: string): Promise<Topology>
+  topology(ownerNodeID: string, depth?: number): Promise<TopologyQuery>
   snapshot(ownerNodeID: string, name: string): Promise<unknown>
   operate(ownerNodeID: string, name: string, capability: string, schema: string, input: unknown): Promise<OperationResult>
   subscribe(ownerNodeID: string, name: string, capability: string, leaseMS?: number): Promise<number>
@@ -61,7 +62,14 @@ export const api: DesktopAPI = {
   disconnect: App.Disconnect,
   status: async () => JSON.parse(await App.StatusJSON()),
   catalog: async (ownerNodeID) => JSON.parse(await App.CatalogJSON(ownerNodeID)),
-  topology: async (ownerNodeID) => JSON.parse(await App.TopologyJSON(ownerNodeID)),
+  topology: async (ownerNodeID, depth = 1) => {
+    validateTopologyRequest(ownerNodeID, depth)
+    const capability = depth === 1 ? 'children' : 'subtree'
+    const schema = depth === 1 ? 'mfh.management.topology-children-request.v1' : 'mfh.management.topology-query-request.v1'
+    const result = parseOperation(await App.OperateJSON(ownerNodeID, 'system/topology', capability, schema, JSON.stringify({ version: 1, depth })))
+    if (result.schema !== TOPOLOGY_QUERY_SCHEMA) throw new Error('topology 响应 schema 不匹配')
+    return parseTopology(result.payload, ownerNodeID, depth)
+  },
   snapshot: async (ownerNodeID, name) => JSON.parse(await App.SnapshotJSON(ownerNodeID, name)),
   operate: async (ownerNodeID, name, capability, schema, input) =>
     parseOperation(await App.OperateJSON(ownerNodeID, name, capability, schema, JSON.stringify(input))),

@@ -4,6 +4,7 @@
 
 ## Current Records
 
+- [带深度的拓扑查询与 Desktop 按展开加载（规划中）](2026-09-06_depth-scoped-topology-discovery.md)
 - [Android、嵌入式退役与运行时收敛](2026-09-06_android-embedded-retirement-and-runtime-convergence.md)
 
 - [Flow 移除与重新设计延期](2026-09-06_flow-retirement-and-redesign-deferral.md)

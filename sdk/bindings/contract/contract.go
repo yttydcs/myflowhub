@@ -44,7 +44,7 @@ func Canonical() (Manifest, error) {
 		},
 		Resources: []Resource{
 			variable(protocol.BuiltinResourceCatalog, protocol.SchemaResourceCatalogV2),
-			variable(protocol.BuiltinManagementTopology, protocol.SchemaManagementTopologyV1),
+			topology(),
 			variable(protocol.BuiltinManagementHealth, protocol.SchemaManagementHealthV1),
 			variable(protocol.BuiltinManagementConfig, protocol.SchemaManagementConfigV1),
 			stream(protocol.BuiltinManagementAudit, protocol.SchemaManagementAuditV1),
@@ -110,6 +110,15 @@ func variable(name, schema string) Resource {
 		{Name: string(protocol.CapabilityRead), OutputSchema: schema},
 		{Name: string(protocol.CapabilitySubscribe), EventSchema: schema},
 	}}
+}
+
+func topology() Resource {
+	value := variable(protocol.BuiltinManagementTopology, protocol.SchemaManagementTopologyV1)
+	value.Capabilities = append(value.Capabilities,
+		capability(protocol.CapabilityChildren, protocol.SchemaManagementTopologyChildrenRequestV1, protocol.SchemaManagementTopologyQueryV1, ""),
+		capability(protocol.CapabilitySubtree, protocol.SchemaManagementTopologyQueryRequestV1, protocol.SchemaManagementTopologyQueryV1, ""),
+	)
+	return value
 }
 
 func stream(name, schema string) Resource {

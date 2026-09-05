@@ -886,3 +886,19 @@ pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* Scoped discovery status lives beside its owner, so failures are not empty results. */
+.discovery-scope { display: grid; gap: 6px; padding: 5px 10px; border-bottom: 1px solid var(--border); }
+.discovery-scope form, .discovery-scope-toolbar { display: flex; gap: 6px; }
+.discovery-scope .discovery-scope-toggle { display: flex; align-items: center; flex: 1; min-width: 0; }
+.discovery-scope-toggle span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.discovery-scope-options { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px; }
+.discovery-scope-options form { grid-column: 1 / -1; }
+.discovery-scope input { min-width: 0; }
+.discovery-scope button, .discovery-status button { flex-shrink: 0; font-size: 11px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; }
+.discovery-scope small { font-size: 10px; opacity: .7; }
+.discovery-status { padding: 8px; font-size: 11px; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.discovery-status[role="alert"] { color: var(--danger, #ba3030); }
+.node-discovery-error { grid-column: 1 / -1; }
+
+.discovery-renderer { border: 0; padding: 0; margin: 0; min-width: 0; }

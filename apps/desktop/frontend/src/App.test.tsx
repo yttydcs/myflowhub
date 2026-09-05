@@ -50,7 +50,7 @@ function mockAPI(settings: Settings): DesktopAPI {
     disconnect: vi.fn(),
     status: vi.fn().mockResolvedValue({ state: 'connected', endpoint: 'localhost:9540' }),
     catalog: vi.fn().mockResolvedValue({ version: 2, revision: 1, resources: [resource] }),
-    topology: vi.fn().mockResolvedValue({ version: 1, epoch: 1, nodes: [{ node_id: '1', role: 'root', generation: 1 }] }),
+    topology: vi.fn().mockResolvedValue({ version: 1, root_node_id: '1', depth: 1, instance_id: 'a'.repeat(32), revision: 1, nodes: [{ node_id: '1', role: 'root', generation: 1, has_children: false }] }),
     snapshot: vi.fn().mockResolvedValue({ value: 42 }),
     operate: vi.fn(),
     subscribe: vi.fn(),

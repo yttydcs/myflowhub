@@ -48,6 +48,28 @@ func TestAdjudicatedAllowDenyAndParentControl(t *testing.T) {
 	}
 }
 
+func TestProtocolPayloadFailuresKeepActionableCodes(t *testing.T) {
+	for _, test := range []struct {
+		err  error
+		code protocol.ErrorCode
+	}{
+		{protocol.ErrInvalidPayload, protocol.CodeMalformed},
+		{protocol.ErrPayloadTooLarge, protocol.CodeOverflow},
+	} {
+		t.Run(string(test.code), func(t *testing.T) {
+			registry, id := commandRegistry(t, func(context.Context, []byte) ([]byte, error) { return nil, test.err })
+			dispatcher, err := NewDispatcher(registry, Config{Authorizer: func(context.Context, Call) error { return nil }})
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, _ := dispatcher.Invoke(context.Background(), call(id))
+			if result.Failure == nil || result.Failure.Code != test.code {
+				t.Fatalf("wrong wire error: %+v", result)
+			}
+		})
+	}
+}
+
 func TestTimeoutDropsLateResult(t *testing.T) {
 	registry, id := commandRegistry(t, func(_ context.Context, _ []byte) ([]byte, error) {
 		time.Sleep(40 * time.Millisecond)

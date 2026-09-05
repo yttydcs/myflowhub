@@ -6,7 +6,7 @@
 
 ## Goal
 
-提供极简、舒适、可访问的 Desktop 工作区，让用户可以安全登录不同 Profile，发现整棵 Node tree 下的 Resource，预览资源，并把资源组合成可恢复的 View。
+提供极简、舒适、可访问的 Desktop 工作区，让用户可以安全登录不同 Profile，在授权范围内按需发现 Node 和 Resource，预览资源，并把资源组合成可恢复的 View。节点发现的范围、深度、缓存及目录独立性以[拓扑发现需求](topology-discovery.md)为准。
 
 ## Scope
 

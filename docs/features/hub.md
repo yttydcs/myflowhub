@@ -1,5 +1,9 @@
 # Hub
 
+## 按深度查询拓扑
+
+已有 topology Resource 增加 children/subtree，复用维护中的本地子树和周期快照；children 仅允许直接孩子。旧 read/subscribe 全量语义保持。新能力独立授权，不自动改写已有 policy；见[拓扑发现合同](../specs/topology-discovery.md)。
+
 ## Purpose
 
 Hub 是权威节点树的根或中继宿主，负责持久身份、子节点准入、路由、策略裁决和内建管理资源。它不是全局业务模块容器。
