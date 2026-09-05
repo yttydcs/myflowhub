@@ -103,4 +103,10 @@ GUI不是对生产WebView2窗口的原生自动化；生产EXE另经canonical构
 
 ## 本地收口状态
 
-归档文档完成；本地master合入与工作树清理待执行。主检出有8项tracked改动及独立未跟踪草稿，本轮仅6份文档重叠，先准备三方合并并校验，再保留为未暂存改动。其他工作树不属于本轮清理范围。未推送、发布、部署或配置远端。
+归档与本地收口完成。canonical master从ab19d39快进到归档提交 `b1d09e7dd9e3d224791842f0cb9aca5dc2f6df7b`，包含实现a3757f8；本段收口记录随后单独提交。
+
+主检出8项tracked改动与24个untracked文件全部保留：6份重叠文档在合入前完成无冲突三方合并，合入后恢复为未暂存草稿；其余文件逐项SHA256不变，索引没有用户内容。未创建包含用户草稿的stash或提交；临时保存仅包含6份重叠文档，guide原文未被保存到归档。检查见[保留校验](../../../../artifacts/2026-09-06_depth-scoped-topology/preservation-result.json)。
+
+清理前确认工作树无未提交产品内容、分支已被master包含、127项证据/产物已保留；无仍运行的工作树内进程或reparse/junction。已从canonical控制面删除 `worktrees/depth-scoped-topology` 和本地 `feat/depth-scoped-topology`；[清理记录](../../../../artifacts/2026-09-06_depth-scoped-topology/cleanup-result.log)。remove-legacy-flow和retire-mobile-embedded-bindings工作树保留。
+
+结果仅在本地，未推送、发布、部署、配置远端或改写真实授权。远端是否另有更新未通过网络查询，本地origin/master记录仍为ab19d39。

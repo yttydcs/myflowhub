@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Stage：$m-archive；文档归档完成，本地合入和清理待执行。
+- Stage：$m-archive complete；本地master已合入，本轮工作树/分支已清理，未推送。
 - [变更与收口状态](docs/change/2026-09-06_depth-scoped-topology-discovery.md)
 - [计划快照](docs/plan/plan_archive_2026-09-06_depth-scoped-topology.md) / [验收清单快照](docs/plan/todo_archive_2026-09-06_depth-scoped-topology.md)
 
@@ -15,7 +15,7 @@
 - [x] SDK01 — attached查询接口与生成契约。
 - [x] DESK01 — 按需树/目录与View异步保护。
 - [x] QA01 — Go/race、224项前端测试、真实Wails/TCP与当前Windows产品验证。
-- [ ] ARC01 — 文档已归档，待本地合入与本轮工作树清理。
+- [x] ARC01 — 文档归档、本地合入、本轮工作树和分支清理完成；用户草稿及其他工作树保留。
 
 ## 未授权的后续事项
 

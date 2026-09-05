@@ -1,11 +1,12 @@
 # Plan — 按深度拓扑发现归档入口
 
-- Current Stage：$m-archive；文档归档完成，本地合入和清理待执行。
+- Current Stage：$m-archive complete；文档归档、本地master合入及本轮工作树/分支清理完成。
 - Canonical Repo：D:/project/MyFlowHub3/repo/MyFlowHub。
 - Docs Root：canonical docs/，不另设文档仓库。
 - 实现：a3757f8de753dcbb67a615ed3c7ae58b3a4ac2f8。
 - 执行范围：DOC01、PROTO01、TREE01、MGMT01、SDK01、DESK01、QA01，均验收通过。
 - 归档授权：用户显式调用 $m-archive，包含本地提交、合入和本轮工作树清理；未授权推送或发布。
+- 归档合入：b1d09e7dd9e3d224791842f0cb9aca5dc2f6df7b；主检出8项tracked修改、24个untracked文件保留为未提交状态。其他工作树未清理。
 
 ## 当前入口
 
