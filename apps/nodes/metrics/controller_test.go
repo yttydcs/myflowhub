@@ -147,15 +147,14 @@ func TestDefaultConfigIsCompleteSortedAndPlatformScoped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := settingFor(windows, FlashlightEnabled); ok {
-		t.Fatal("Windows config exposed Android flashlight")
+	if len(windows.Settings) != len(Definitions("windows")) {
+		t.Fatal("incomplete Windows config")
 	}
-	android, err := DefaultConfig("android")
-	if err != nil {
-		t.Fatal(err)
+	if _, err := DefaultConfig("android"); err == nil {
+		t.Fatal("retired platform was accepted")
 	}
-	if setting, ok := settingFor(android, FlashlightEnabled); !ok || !setting.Writable {
-		t.Fatal("Android config omitted controllable flashlight")
+	if len(Definitions("android")) != 0 {
+		t.Fatal("retired platform exposed metrics")
 	}
 }
 

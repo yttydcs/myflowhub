@@ -14,12 +14,7 @@ import (
 	"time"
 
 	"github.com/yttydcs/myflowhub/protocol"
-	"github.com/yttydcs/myflowhub/runtime/auth"
-	"github.com/yttydcs/myflowhub/runtime/link"
-	"github.com/yttydcs/myflowhub/runtime/node"
 	sdk "github.com/yttydcs/myflowhub/sdk/go"
-	"github.com/yttydcs/myflowhub/transport/rfcomm"
-	"github.com/yttydcs/myflowhub/transport/tcp"
 )
 
 const maxBindingTimeout = 10 * time.Minute
@@ -37,64 +32,14 @@ type PublicIdentity struct {
 }
 
 type Client struct {
-	mu              sync.Mutex
-	state           *auth.State
-	enrollment      *auth.EnrollmentClientState
-	identity        PublicIdentity
-	runtime         *node.Node
-	sdk             *sdk.Client
-	connection      sdk.ConnectionStatus
-	ownedConnection *sdk.Connection
-	cancelRuntime   context.CancelFunc
-	ownsRuntime     bool
-	closed          bool
-	nextID          int64
-	subscriptions   map[int64]context.CancelFunc
-	wg              sync.WaitGroup
-}
-
-// NewClient creates a compatibility binding that owns auth state, a node, and
-// its managed parent connection after StartTCP or StartRFCOMM.
-//
-// Deprecated: new products should own NodeHost and use NewAttachedClient.
-func NewClient(stateDirectory string, nodeID int64) (*Client, error) {
-	return newClient(stateDirectory, nodeID, nil)
-}
-
-// NewClientWithIdentityStore is the protected-store form of the legacy
-// runtime-owning binding.
-//
-// Deprecated: new products should own NodeHost and use NewAttachedClient.
-func NewClientWithIdentityStore(stateDirectory string, nodeID int64, identityStore auth.IdentityStore) (*Client, error) {
-	if identityStore == nil {
-		return nil, errors.New("binding protected identity store is required")
-	}
-	return newClient(stateDirectory, nodeID, identityStore)
-}
-
-func newClient(stateDirectory string, nodeID int64, identityStore auth.IdentityStore) (*Client, error) {
-	if stateDirectory == "" {
-		return nil, errors.New("binding state directory is required")
-	}
-	id, err := bindingNodeID(nodeID)
-	if err != nil {
-		return nil, err
-	}
-	var state *auth.State
-	if identityStore == nil {
-		state, err = auth.OpenState(stateDirectory, id)
-	} else {
-		state, err = auth.OpenStateWithIdentityStore(stateDirectory, id, identityStore)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("open binding state: %w", err)
-	}
-	return &Client{
-		state:         state,
-		identity:      PublicIdentity{NodeID: state.Identity.NodeID, PublicKey: append(ed25519.PublicKey(nil), state.Identity.PublicKey...)},
-		ownsRuntime:   true,
-		subscriptions: make(map[int64]context.CancelFunc),
-	}, nil
+	mu            sync.Mutex
+	identity      PublicIdentity
+	sdk           *sdk.Client
+	connection    sdk.ConnectionStatus
+	closed        bool
+	nextID        int64
+	subscriptions map[int64]context.CancelFunc
+	wg            sync.WaitGroup
 }
 
 // NewAttachedClient creates a JSON/callback facade over an existing operation
@@ -130,7 +75,7 @@ func NewAttachedClient(client *sdk.Client, identity PublicIdentity, connection s
 func (c *Client) IdentityJSON() (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.closed || (c.sdk == nil && c.state == nil) {
+	if c.closed || c.sdk == nil {
 		return "", errors.New("binding client is closed")
 	}
 	return encodeJSON(struct {
@@ -140,108 +85,6 @@ func (c *Client) IdentityJSON() (string, error) {
 		NodeID:    strconv.FormatUint(uint64(c.identity.NodeID), 10),
 		PublicKey: base64.RawStdEncoding.EncodeToString(c.identity.PublicKey),
 	})
-}
-
-func (c *Client) TrustParent(parentID int64, rawPublicKey string) error {
-	parent, err := bindingNodeID(parentID)
-	if err != nil {
-		return err
-	}
-	key, err := base64.RawStdEncoding.DecodeString(rawPublicKey)
-	if err != nil || len(key) != ed25519.PublicKeySize {
-		return errors.New("parent public key must be a raw-base64 Ed25519 key")
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if !c.ownsRuntime {
-		return errors.New("parent trust is owned by the attached node host")
-	}
-	if c.closed || c.state == nil {
-		return errors.New("binding client is closed")
-	}
-	if c.runtime != nil {
-		return errors.New("parent trust cannot change after the binding client starts")
-	}
-	if err := c.state.Trust.Add(parent, ed25519.PublicKey(key)); err != nil {
-		return fmt.Errorf("trust parent identity: %w", err)
-	}
-	return nil
-}
-
-func (c *Client) StartTCP(endpoint string, parentID int64, permitJSON string) error {
-	return c.start(tcp.Driver{}, endpoint, parentID, permitJSON)
-}
-
-func (c *Client) StartRFCOMM(endpoint string, parentID int64, permitJSON string) error {
-	driver, err := rfcomm.New(0)
-	if err != nil {
-		return err
-	}
-	return c.start(driver, endpoint, parentID, permitJSON)
-}
-
-func (c *Client) start(driver link.Driver, endpoint string, parentID int64, permitJSON string) error {
-	parent, err := bindingNodeID(parentID)
-	if err != nil {
-		return err
-	}
-	address := link.Endpoint(endpoint)
-	if err := address.Validate(); err != nil {
-		return err
-	}
-	var permit *protocol.ProvisioningPermitV1
-	if permitJSON != "" {
-		var decoded protocol.ProvisioningPermitV1
-		if err := protocol.DecodeJSONPayload([]byte(permitJSON), protocol.DefaultMaxPayload, &decoded); err != nil {
-			return fmt.Errorf("decode provisioning permit: %w", err)
-		}
-		permit = &decoded
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if !c.ownsRuntime {
-		return errors.New("parent connection is owned by the attached node host")
-	}
-	if c.closed || c.state == nil {
-		return errors.New("binding client is closed")
-	}
-	if c.runtime != nil {
-		return errors.New("binding client is already started")
-	}
-	if _, trusted := c.state.Trust.PublicKey(parent); !trusted {
-		return errors.New("parent identity is not trusted")
-	}
-	runCtx, cancel := context.WithCancel(context.Background())
-	var policy auth.Policy
-	if c.state.Policy != nil {
-		policy = c.state.Policy
-	}
-	runtime, err := node.New(runCtx, node.Config{
-		Identity: c.state.Identity, Trust: c.state.Trust, Policy: policy, JoinPermit: permit,
-	})
-	if err != nil {
-		cancel()
-		return err
-	}
-	client, err := sdk.NewClient(runtime)
-	if err != nil {
-		_ = runtime.Close()
-		cancel()
-		return err
-	}
-	connection, err := client.ConnectManaged(runCtx, driver, address, parent, node.SupervisorConfig{})
-	if err != nil {
-		_ = client.Close()
-		cancel()
-		return err
-	}
-	c.runtime = runtime
-	c.sdk = client
-	c.connection = connection
-	c.ownedConnection = connection
-	c.cancelRuntime = cancel
-	return nil
 }
 
 func (c *Client) StatusJSON() (string, error) {
@@ -510,15 +353,8 @@ func (c *Client) Close() error {
 		return nil
 	}
 	c.closed = true
-	connection := c.ownedConnection
-	client := c.sdk
-	cancelRuntime := c.cancelRuntime
-	ownsRuntime := c.ownsRuntime
 	c.connection = nil
-	c.ownedConnection = nil
 	c.sdk = nil
-	c.runtime = nil
-	c.cancelRuntime = nil
 	cancellations := make([]context.CancelFunc, 0, len(c.subscriptions))
 	for _, cancel := range c.subscriptions {
 		cancellations = append(cancellations, cancel)
@@ -527,18 +363,8 @@ func (c *Client) Close() error {
 	for _, cancel := range cancellations {
 		cancel()
 	}
-	if connection != nil {
-		connection.Stop()
-	}
-	if cancelRuntime != nil {
-		cancelRuntime()
-	}
-	var closeErr error
-	if ownsRuntime && client != nil {
-		closeErr = client.Close()
-	}
 	c.wg.Wait()
-	return closeErr
+	return nil
 }
 
 func (c *Client) operationClient() (*sdk.Client, error) {

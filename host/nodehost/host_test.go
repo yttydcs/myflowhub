@@ -65,13 +65,6 @@ func TestOfflineHostOwnsOneNodeClientAndRegistry(t *testing.T) {
 	if err != nil || string(event.Value) != "ready" {
 		t.Fatalf("attached client did not use the host node: event=%+v err=%v", event, err)
 	}
-	if err := host.Client().Close(); !errors.Is(err, sdk.ErrAttachedClientClose) {
-		t.Fatalf("attached client Close returned %v", err)
-	}
-	event, err = host.Client().Snapshot(context.Background(), variableID)
-	if err != nil || string(event.Value) != "ready" {
-		t.Fatalf("guarded client Close affected the host: event=%+v err=%v", event, err)
-	}
 	if err := host.Start(); !errors.Is(err, ErrAlreadyStarted) {
 		t.Fatalf("repeated Start returned %v", err)
 	}

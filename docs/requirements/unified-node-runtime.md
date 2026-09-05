@@ -2,7 +2,7 @@
 
 ## Background
 
-MyFlowHub 曾通过多个 Git 仓库、多个 Go module 和多个 SubProto 分别表达协议、连接、权限、变量、主题、流、指令和运行时装配。canonical monorepo 已完成源码收敛，但 Desktop、MetricsNode 与移动 binding 仍重复装配身份、Node、SDK Client、ParentSupervisor 和生命周期。
+MyFlowHub 曾通过多个 Git 仓库、多个 Go module 和多个 SubProto 分别表达协议、连接、权限、变量、主题、流、指令和运行时装配。canonical monorepo 已完成源码收敛，Desktop、MetricsNode 与 Clipboard 现已通过 NodeHost 统一运行时；Android 和嵌入式旧实现已退役并延期重新设计。
 
 系统需要以一棵权威节点树为运行期基础，将 Variable、Stream、Command 和 Subscription 提升为一级概念，同时保持 TCP、Bluetooth、QUIC、串口等链路承载可扩展。
 
@@ -11,7 +11,7 @@ MyFlowHub 曾通过多个 Git 仓库、多个 Go module 和多个 SubProto 分�
 - 用统一节点树表达连接、路由和运行期 authority。
 - 节点拥有资源；Variable 和 Stream 可订阅，Command 可调用。
 - 所有 Transport 通过统一 LinkSession 契约接入，不改变上层权限和资源语义。
-- 在单一 canonical monorepo 中完成第一方协议、运行时、SDK、应用和 Embedded 实现的原子演进。
+- 在单一 canonical monorepo 中完成第一方协议、运行时、SDK 与当前支持应用的原子演进。
 - 为完整 Go 节点提供平台中立的 NodeHost，使产品共享运行时组合但保持独立身份、进程、资源归属和安装边界。
 - 降低日常开发、集成验证和发布同步成本。
 
@@ -28,7 +28,7 @@ MyFlowHub 曾通过多个 Git 仓库、多个 Go module 和多个 SubProto 分�
 - Hub 与 Go client 的最小纵向闭环；
 - 通用 NodeHost、非 owning SDK operation Client、资源声明和薄平台适配；
 - monorepo 目录、package、测试和文档治理；
-- 现有第一方应用与 EmbeddedSDK 的后续迁移。
+- 现有第一方应用的运行时收敛；Android 与嵌入式另列[重新设计待办](mobile-embedded-redesign.md)。
 
 不包含长期兼容旧 Go module path、SubProto API 或 wire 协议。
 
@@ -60,7 +60,7 @@ MyFlowHub 曾通过多个 Git 仓库、多个 Go module 和多个 SubProto 分�
 - NodeHost 必须能从只读、已验证的 credential source 打开既有身份和父信任；该模式不得在凭据缺失、pending、损坏或冲突时生成替代身份，也不得创建第二份 identity 持久化。
 - SDK Client 只表达资源操作，不打开持久状态、不创建树边、不监听端口，也不关闭其所属 Host。
 - NodeHost 必须允许在网络启动前注册固定资源，并允许运行期按 Registry 契约动态注册或注销资源。
-- Android/iOS 等平台必须通过 IdentityStore、Driver/provider 和产品 adapter 注入平台能力；NodeHost 不依赖原生 UI 或 OS 生命周期 API。
+- 平台能力必须通过身份存储、Driver 与产品 adapter 注入；Android/iOS 的具体集成方式需在恢复支持前另行确定；NodeHost 不依赖原生 UI 或 OS 生命周期 API。
 - Desktop、MetricsNode、Hub、Agent Gateway 等产品的 Node identity、state、process、Resource owner 和权限相互独立。
 - 第一方源码必须收敛到 canonical monorepo；内部能力默认使用 package 而不是独立 Go module。
 
@@ -101,7 +101,7 @@ MyFlowHub 曾通过多个 Git 仓库、多个 Go module 和多个 SubProto 分�
 
 ### 完整迁移
 
-- Desktop、Android、Hub、节点应用和 EmbeddedSDK 均使用新契约。
+- Desktop、Hub、Windows 节点应用均使用新契约；已退役平台不再是当前验收对象。
 - 旧 SubProto、旧多 module 装配和内部 `replace` 链退出生产构建。
 - 旧仓来源、迁移状态、验证证据和最终归档状态完整可查。
 - 只有在完整迁移验证后，旧仓才能停止发布或设置只读。
@@ -112,7 +112,7 @@ MyFlowHub 曾通过多个 Git 仓库、多个 Go module 和多个 SubProto 分�
 - `host.Client()` 每次返回绑定同一 Node 的非 owning Client；本地与远端操作继续使用现有 Node 路由和 Session queue。
 - 受保护 Enrollment Grant 原子保存后，bootstrap 必须关闭；已注册节点由同一 NodeHost/attached Client 路径运行，重启不得重新 Enrollment 或要求 Permit。
 - Desktop 与 MetricsNode 首批迁移后仍是两个独立 Parent-only Node，且不互相依赖安装或资源 ownership。
-- Android 复用同一纯 Go Host contract，Kotlin Service 继续拥有前台服务、权限、通知和进程生命周期。
+- Clipboard 使用 NodeHost、attached SDK 和只读连接状态，迁移保留原身份、配置、历史、同步和退出行为；Android 与嵌入式重启时重新定义平台验收。
 
 ## Related Features
 

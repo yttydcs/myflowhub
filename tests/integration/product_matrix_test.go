@@ -66,7 +66,7 @@ func TestCanonicalProductMatrixSharesAuthoritativeTree(t *testing.T) {
 		}
 		waitDownRoute(t, root.Node.Tree(), child.ID())
 	}
-	client, err := sdk.NewClient(clientNode)
+	client, err := sdk.NewAttachedClient(clientNode)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,11 +161,11 @@ func TestScopedBindingCoversCurrentAndFutureMetricsNodes(t *testing.T) {
 	defer root.Close()
 
 	_, clientNode := joinProductNode(t, ctx, root, 41)
-	client, err := sdk.NewClient(clientNode)
+	client, err := sdk.NewAttachedClient(clientNode)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close()
+	defer clientNode.Close()
 	metricsState, metricsNode := joinProductNode(t, ctx, root, 42)
 	defer metricsNode.Close()
 	metricsController, err := metrics.Register(metrics.ControllerConfig{Node: metricsNode, Store: metricsState.Store, Platform: "windows"})

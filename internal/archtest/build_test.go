@@ -15,27 +15,23 @@ func TestCanonicalBuildEntrypointAndPinnedToolchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	var toolchain struct {
-		Go                string `json:"go"`
-		Node              string `json:"node"`
-		Java              string `json:"java"`
-		AndroidCompileSDK int    `json:"android_compile_sdk"`
-		AndroidMinSDK     int    `json:"android_min_sdk"`
-		Wails             string `json:"wails"`
-		Flutter           string `json:"flutter"`
+		Go      string `json:"go"`
+		Node    string `json:"node"`
+		Wails   string `json:"wails"`
+		Flutter string `json:"flutter"`
 	}
 	if err := json.Unmarshal(toolchainData, &toolchain); err != nil {
 		t.Fatalf("parse build/toolchain.json: %v", err)
 	}
-	if toolchain.Go != "1.24.x" || toolchain.Node != "22.x" || toolchain.Java != "17" ||
-		toolchain.AndroidCompileSDK != 34 || toolchain.AndroidMinSDK != 26 ||
+	if toolchain.Go != "1.24.x" || toolchain.Node != "22.x" ||
 		toolchain.Wails != "v2.11.0" || toolchain.Flutter != "3.47.1" {
 		t.Errorf("unexpected pinned toolchain: %+v", toolchain)
 	}
 
 	entry := readBuildFile(t, root, "scripts/mfh.ps1")
 	for _, fragment := range []string{
-		"$env:GOWORK = 'off'", "MFH_JAVA_HOME", "MFH_FLUTTER_HOME", "MFH_SHORT_TEMP",
-		"'core'", "'hub'", "'desktop'", "'android'", "'metrics'", "'clipboard'", "'embedded'", "'generated'",
+		"$env:GOWORK = 'off'", "MFH_FLUTTER_HOME",
+		"'core'", "'hub'", "'desktop'", "'metrics'", "'clipboard'", "'generated'",
 	} {
 		if !strings.Contains(entry, fragment) {
 			t.Errorf("canonical build entry is missing %q", fragment)
@@ -46,9 +42,8 @@ func TestCanonicalBuildEntrypointAndPinnedToolchain(t *testing.T) {
 func TestCIHasEveryProductGateAndNoPathFilter(t *testing.T) {
 	workflow := readBuildFile(t, repositoryRoot(t), ".github/workflows/ci.yml")
 	for _, job := range []string{
-		"  core:", "  generated:", "  desktop-windows:", "  android:",
-		"  metrics-windows:", "  metrics-android:", "  clipboard:",
-		"  embedded-host:", "  esp32-idf6:",
+		"  core:", "  generated:", "  desktop-windows:",
+		"  metrics-windows:", "  clipboard:",
 	} {
 		if !strings.Contains(workflow, job) {
 			t.Errorf("canonical CI is missing job %q", strings.TrimSpace(job))
@@ -59,15 +54,27 @@ func TestCIHasEveryProductGateAndNoPathFilter(t *testing.T) {
 	}
 }
 
-func TestAndroidBindingsAreRequiredBuildInputs(t *testing.T) {
+func TestRetiredPlatformsAreNotBuildInputs(t *testing.T) {
 	root := repositoryRoot(t)
-	for path, fragment := range map[string]string{
-		"apps/android/app/build.gradle.kts":                     "myflowhub.aar is required",
-		"apps/nodes/metrics/android/app/build.gradle.kts":       "metricsmobile.aar is required",
-		"apps/nodes/clipboard/app/android/app/build.gradle.kts": "libs/clipboardmobile.aar",
+	for _, path := range []string{
+		"apps/android/app/build.gradle.kts", "apps/nodes/metrics/android/app/build.gradle.kts",
+		"apps/nodes/clipboard/app/android/app/build.gradle.kts", "internal/tools/mobile.go",
+		"transport/rfcomm/android_provider.go", "embedded/c/CMakeLists.txt",
 	} {
-		if !strings.Contains(readBuildFile(t, root, path), fragment) {
-			t.Errorf("%s does not require canonical generated binding %q", path, fragment)
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(path))); !os.IsNotExist(err) {
+			t.Errorf("retired build input still exists or cannot be inspected: %s (%v)", path, err)
+		}
+	}
+	for path, fragments := range map[string][]string{
+		"scripts/mfh.ps1":          {"'android'", "'embedded'", "gomobile", "gradlew", "MFH_JAVA_HOME"},
+		".github/workflows/ci.yml": {"  android:", "  metrics-android:", "  embedded-host:", "  esp32-idf6:", "setup-android", "gomobile"},
+		"go.mod":                   {"golang.org/x/mobile"},
+	} {
+		content := readBuildFile(t, root, path)
+		for _, fragment := range fragments {
+			if strings.Contains(content, fragment) {
+				t.Errorf("%s still requires retired platform input %q", path, fragment)
+			}
 		}
 	}
 }

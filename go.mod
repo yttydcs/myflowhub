@@ -8,7 +8,6 @@ require (
 	github.com/moutend/go-wca v0.3.0
 	github.com/quic-go/quic-go v0.59.0
 	github.com/wailsapp/wails/v2 v2.11.0
-	golang.org/x/mobile v0.0.0-20250520180527-a1d90793fc63
 	golang.org/x/sys v0.35.0
 )
 
@@ -35,9 +34,6 @@ require (
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
-	golang.org/x/tools v0.36.0 // indirect
 )

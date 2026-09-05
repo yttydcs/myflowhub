@@ -156,9 +156,8 @@ packaged Wails/GUI `QA01` 已完成。
 - Go SDK `CollectionClient` 提供通用 list/get；domain-specific get 继续通过 typed `OperatePayload` 解码真实输出，
   `PolicyClient` 提供当前策略 Collections 的 typed operations；
 - bindings 保留 generic `OperateJSON` 与 `SubscribeCapability`，继续走同一个 Node operation/subscription path；
-- Android bindings 保留 generic capability 操作/订阅；Flow 专属示例页面已移除；
-- Android 已完成双 ABI AAR 与离线 Gradle unit/lint/assemble gate；因没有连接物理设备，device smoke 明确记为
-  unavailable，而不是 passed。
+- portable attached bindings 保留 generic capability 操作/订阅；Android 与 Flow 专属实现均已退役；
+- Android 不再作为当前构建/验证门禁，旧结果仅是历史记录，见[重新设计待办](../requirements/mobile-embedded-redesign.md)。
 
 ## Deferred protocol details
 

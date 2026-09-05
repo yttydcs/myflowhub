@@ -235,7 +235,7 @@ class _ClipboardHomeState extends State<ClipboardHome> {
           children: <Widget>[
             if (!widget.bridge.supported)
               const _Notice(
-                text: 'This Web build previews configuration. Run the Windows or Android product to host a native node.',
+                text: 'This Web build previews configuration. Run the Windows product to host a native node.',
               ),
             if (_message != null) _Notice(text: _message!),
             if (_busy) const LinearProgressIndicator(),

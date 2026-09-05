@@ -4,6 +4,8 @@
 
 ## Current Records
 
+- [Android、嵌入式退役与运行时收敛](2026-09-06_android-embedded-retirement-and-runtime-convergence.md)
+
 - [Flow 移除与重新设计延期](2026-09-06_flow-retirement-and-redesign-deferral.md)
 - [作用域策略角色与持久绑定](2026-09-01_scoped-policy-roles-and-bindings.md)
 - [NodeHost、Enrollment 与 Profile 生命周期收敛](2026-09-01_nodehost-enrollment-profile-convergence.md)

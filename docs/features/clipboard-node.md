@@ -38,28 +38,18 @@ Node C / clipboard/events ─┘                         └─ local policy / a
 - Go core、同步引擎和持久状态：`apps/nodes/clipboard`。
 - Windows 系统剪贴板适配器：`apps/nodes/clipboard/platform/windows`，直接调用 Win32 Unicode clipboard API。
 - 有界 NDJSON 本地桥：`apps/nodes/clipboard/bridge`；每条请求/响应最多 512 KiB，Flutter 不接触 Go 对象或网络帧。
-- Windows/Android/Web Flutter 壳：`apps/nodes/clipboard/app`。Windows 启动同目录 `mfh-clipboard.exe -bridge`；Android 使用 gomobile 与平台 ClipboardManager；Web 是明确标注的配置/UI 预览，不伪装为可运行节点。
-- 移动绑定：`sdk/bindings/clipboard`，只导出 string/JSON/基础类型和容量 64 的平台写入队列。
+- Windows/Web Flutter 壳：`apps/nodes/clipboard/app`。Windows 启动同目录 `mfh-clipboard.exe -bridge`；Web 是明确标注的配置/UI 预览，不伪装为可运行节点。
 - 无 UI Windows 入口：`cmd/mfh-clipboard`。
 
-Android 后台剪贴板能力受系统版本和前台可见性约束；产品不会绕过平台隐私限制，也不把权限不足静默解释为成功。
+Windows 产品由 NodeHost 持有身份、Node 和父连接；同步引擎使用 attached SDK 与只读连接状态。资源在 Host.Start 前注册，启动失败与退出释放 Host，现有身份、clipboard.json 和 clipboard_history.json 继续复用。Android 实现已移除，见[重新设计待办](../requirements/mobile-embedded-redesign.md)。
 
 ## Build and verification
 
 Go 命令从 monorepo 根运行并设置 `GOWORK=off`：
 
 ```text
-go test ./apps/nodes/clipboard/... ./sdk/bindings/clipboard ./cmd/mfh-clipboard
-go test -race ./apps/nodes/clipboard/... ./sdk/bindings/clipboard
-```
-
-Android AAR 由 canonical binding 生成：
-
-```text
-gomobile bind -target android/arm64,android/amd64 -androidapi 26 \
-  -javapkg com.myflowhub.gomobile \
-  -o apps/nodes/clipboard/app/android/app/libs/clipboardmobile.aar \
-  ./sdk/bindings/clipboard
+go test ./apps/nodes/clipboard/... ./cmd/mfh-clipboard
+go test -race ./apps/nodes/clipboard/...
 ```
 
 在 `apps/nodes/clipboard/app` 运行：
@@ -69,10 +59,9 @@ flutter analyze
 flutter test
 flutter build web --release
 flutter build windows --release
-flutter build apk --debug --target-platform android-arm64,android-x64 --split-per-abi
 ```
 
-门禁包括：core/bridge 单元测试、真实父树双节点同步、Windows 平台 smoke、真实 TCP Hub 进程 E2E、gomobile AAR、Flutter analyze/test、Windows/Web release、Android APK 和 lint。
+门禁包括：core/bridge 单元测试、真实父树双节点同步、Windows 平台 smoke、真实 TCP Hub 进程 E2E、Flutter analyze/test、Windows/Web release 与 Host 状态保留/失败回滚测试。
 
 ## Non-goals
 

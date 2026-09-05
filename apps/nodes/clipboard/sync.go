@@ -16,7 +16,7 @@ import (
 // subscriptions; configuration changes only add or remove logical peers.
 type SyncEngine struct {
 	client     *sdk.Client
-	connection *sdk.Connection
+	connection sdk.ConnectionStatus
 	controller *Controller
 
 	ctx       context.Context
@@ -29,7 +29,7 @@ type SyncEngine struct {
 
 type peerWorker struct{ cancel context.CancelFunc }
 
-func StartSync(ctx context.Context, client *sdk.Client, connection *sdk.Connection, controller *Controller) (*SyncEngine, error) {
+func StartSync(ctx context.Context, client *sdk.Client, connection sdk.ConnectionStatus, controller *Controller) (*SyncEngine, error) {
 	if ctx == nil {
 		return nil, errors.New("clipboard sync context is required")
 	}
@@ -119,7 +119,7 @@ func (s *SyncEngine) consumePeer(ctx context.Context, peer protocol.NodeID, work
 	}()
 	resourceID := protocol.ResourceID{Owner: peer, Name: ResourceEvents}
 	for {
-		subscription, err := s.client.SubscribeDurableConnection(ctx, s.connection, resourceID, time.Minute, MaxPendingEvents)
+		subscription, err := s.client.SubscribeDurableStatus(ctx, s.connection, resourceID, time.Minute, MaxPendingEvents)
 		if err != nil {
 			s.controller.RecordError(fmt.Errorf("subscribe clipboard peer %d: %w", peer, err))
 			if !waitController(ctx, time.Second) {

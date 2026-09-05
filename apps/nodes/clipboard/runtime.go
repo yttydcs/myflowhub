@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/ed25519"
 	"errors"
-	"fmt"
 	"sync"
 
+	"github.com/yttydcs/myflowhub/host/nodehost"
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/auth"
 	"github.com/yttydcs/myflowhub/runtime/link"
@@ -28,15 +28,17 @@ type RuntimeConfig struct {
 }
 
 type Runtime struct {
+	Host       *nodehost.Host
 	State      *auth.State
 	Node       *node.Node
 	SDK        *sdk.Client
-	Connection *sdk.Connection
+	Connection sdk.ConnectionStatus
 	Clipboard  *Controller
 	Sync       *SyncEngine
 
 	cancel    context.CancelFunc
 	closeOnce sync.Once
+	closeErr  error
 }
 
 func Start(ctx context.Context, config RuntimeConfig) (*Runtime, error) {
@@ -61,85 +63,57 @@ func Start(ctx context.Context, config RuntimeConfig) (*Runtime, error) {
 	if err := config.Endpoint.Validate(); err != nil {
 		return nil, err
 	}
-	state, err := auth.OpenState(config.StateDirectory, config.NodeID)
-	if err != nil {
-		return nil, err
-	}
-	if len(config.ParentKey) > 0 {
-		if len(config.ParentKey) != ed25519.PublicKeySize {
-			return nil, errors.New("clipboard runtime parent key must be Ed25519")
-		}
-		if err := state.Trust.Add(config.ParentID, config.ParentKey); err != nil {
-			return nil, fmt.Errorf("trust clipboard parent: %w", err)
-		}
-	}
-	if _, trusted := state.Trust.PublicKey(config.ParentID); !trusted {
-		return nil, errors.New("clipboard runtime parent identity is not trusted")
-	}
 	runCtx, cancel := context.WithCancel(ctx)
-	runtimeNode, err := node.New(runCtx, node.Config{
-		Identity: state.Identity, Trust: state.Trust, Policy: state.Policy, JoinPermit: config.Permit,
+	host, err := nodehost.New(runCtx, nodehost.Config{
+		StateDirectory: config.StateDirectory, NodeID: config.NodeID,
+		Parent: &nodehost.ParentConfig{
+			NodeID: config.ParentID, PublicKey: append(ed25519.PublicKey(nil), config.ParentKey...),
+			Permit: config.Permit, Driver: config.Driver, Endpoint: config.Endpoint, Supervisor: config.Supervisor,
+		},
 	})
 	if err != nil {
 		cancel()
 		return nil, err
 	}
-	controller, err := Register(ControllerConfig{Node: runtimeNode, Store: state.Store, Adapter: config.Adapter})
+	value := &Runtime{Host: host, State: host.State(), Node: host.Node(), SDK: host.Client(), cancel: cancel}
+	controller, err := Register(ControllerConfig{Node: host.Node(), Store: host.State().Store, Adapter: config.Adapter})
 	if err != nil {
-		_ = runtimeNode.Close()
-		cancel()
-		return nil, err
+		return nil, errors.Join(err, value.Close())
 	}
-	client, err := sdk.NewClient(runtimeNode)
+	value.Clipboard = controller
+	connection, ok := host.ParentStatus()
+	if !ok {
+		return nil, errors.Join(errors.New("clipboard runtime parent status is unavailable"), value.Close())
+	}
+	value.Connection = connection
+	if err := host.Start(); err != nil {
+		return nil, errors.Join(err, value.Close())
+	}
+	syncEngine, err := StartSync(runCtx, value.SDK, connection, controller)
 	if err != nil {
-		_ = controller.Close()
-		_ = runtimeNode.Close()
-		cancel()
-		return nil, err
+		return nil, errors.Join(err, value.Close())
 	}
-	connection, err := client.ConnectManaged(runCtx, config.Driver, config.Endpoint, config.ParentID, config.Supervisor)
-	if err != nil {
-		_ = controller.Close()
-		_ = client.Close()
-		cancel()
-		return nil, err
-	}
-	syncEngine, err := StartSync(runCtx, client, connection, controller)
-	if err != nil {
-		connection.Stop()
-		_ = controller.Close()
-		_ = client.Close()
-		cancel()
-		return nil, err
-	}
-	return &Runtime{
-		State: state, Node: runtimeNode, SDK: client, Connection: connection, Clipboard: controller, Sync: syncEngine, cancel: cancel,
-	}, nil
+	value.Sync = syncEngine
+	return value, nil
 }
 
 func (r *Runtime) Close() error {
 	if r == nil {
 		return nil
 	}
-	var closeErr error
 	r.closeOnce.Do(func() {
 		if r.Sync != nil {
 			r.Sync.Close()
 		}
-		if r.Connection != nil {
-			r.Connection.Stop()
+		if r.Clipboard != nil {
+			r.closeErr = r.Clipboard.Close()
 		}
 		if r.cancel != nil {
 			r.cancel()
 		}
-		if r.Clipboard != nil {
-			closeErr = r.Clipboard.Close()
-		}
-		if r.SDK != nil {
-			if err := r.SDK.Close(); err != nil && closeErr == nil {
-				closeErr = err
-			}
+		if r.Host != nil {
+			r.closeErr = errors.Join(r.closeErr, r.Host.Close())
 		}
 	})
-	return closeErr
+	return r.closeErr
 }

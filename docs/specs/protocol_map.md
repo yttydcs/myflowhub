@@ -101,8 +101,8 @@ runtime 先匹配 exact Grant，再按 Subject Binding、当前原子 topology s
 
 - Go SDK `OperatePayload` 在既有 Node optimized operation path 上完成 typed request/response 校验；
 - `CollectionClient` 提供通用 list/get，`PolicyClient` 提供 Authority policy Collections 的 typed operations；
-- generic bindings 公开 `OperateJSON` 与 `SubscribeCapability`，Desktop/Android 不需要恢复 endpoint wrappers；
-- Android bindings 保留 generic capability API；Flow 专属页面已移除。
+- generic bindings 公开 `OperateJSON` 与 `SubscribeCapability`，Desktop 不需要恢复 endpoint wrappers；
+- Android bindings 已随平台退役移除；portable attached bindings 保留 generic capability API，不再拥有 Node 生命周期。
 
 ## Deferred and delivery boundary
 

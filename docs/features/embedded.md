@@ -1,5 +1,11 @@
 # Embedded leaf SDK
 
+## 当前状态：已退役
+
+2026-09-06 已删除本文对应的实现与专属构建/CI。以下内容仅保留退役前的行为和设计证据，其中路径、命令、能力和测试记录均不代表当前支持。恢复前需重新设计，见[待办](../requirements/mobile-embedded-redesign.md)与[退役决策](../decisions/2026-09-06_retire-mobile-embedded-and-owning-bindings.md).
+
+## 历史说明
+
 ## Product boundary
 
 Embedded is a constrained **leaf/client profile**, not a reduced Hub. C, MicroPython, and ESP32 use the same MFH4 v2 envelope, signed admission, Resource ID, Subscription, generic resource events, and operations as Go clients. They do not implement authority, routing, policy storage, or child admission.

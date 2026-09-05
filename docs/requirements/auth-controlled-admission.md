@@ -80,7 +80,7 @@
 - 撤销 Enrollment 后，Node ID 不再被分配，对应 Join 与活动会话失效。
 - Authority 不可达时新准入失败；已有缓存 Grant 的节点仍可按既有 Join 规则重连。
 - Desktop authority Profile 在 Grant 后与 Legacy Profile 一样由 Parent-only NodeHost 运行；重复 Connect 复用 Host supervisor，不进入 owning Enrollment runtime。
-- 旧 Desktop/Profile、Android 与 Embedded 显式身份路径通过回归测试。
+- 旧 Desktop/Profile 和保留的 CLI 显式身份路径通过回归测试；Android 与 Embedded 已退役，不再属于当前门禁。
 
 ## Canonical Design
 

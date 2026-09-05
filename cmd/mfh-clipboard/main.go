@@ -142,7 +142,7 @@ func readPermit(path string) (*protocol.ProvisioningPermitV1, error) {
 	return &permit, nil
 }
 
-func waitConnected(ctx context.Context, connection *sdk.Connection) error {
+func waitConnected(ctx context.Context, connection sdk.ConnectionStatus) error {
 	for {
 		snapshot := connection.Snapshot()
 		switch snapshot.State {
@@ -151,13 +151,8 @@ func waitConnected(ctx context.Context, connection *sdk.Connection) error {
 		case sdk.ConnectionFailed, sdk.ConnectionStopped:
 			return fmt.Errorf("clipboard parent connection %s: %s", snapshot.State, snapshot.LastError)
 		}
-		select {
-		case _, ok := <-connection.Changes():
-			if !ok {
-				return errors.New("clipboard parent connection stopped")
-			}
-		case <-ctx.Done():
-			return fmt.Errorf("wait for clipboard parent: %w", ctx.Err())
+		if _, err := connection.WaitChange(ctx, snapshot.Generation); err != nil {
+			return fmt.Errorf("wait for clipboard parent: %w", err)
 		}
 	}
 }

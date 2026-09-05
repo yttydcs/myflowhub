@@ -2,12 +2,9 @@ package sdk
 
 import (
 	"context"
-	"errors"
-	"sync"
 	"time"
 
 	"github.com/yttydcs/myflowhub/protocol"
-	"github.com/yttydcs/myflowhub/runtime/link"
 	"github.com/yttydcs/myflowhub/runtime/node"
 )
 
@@ -33,121 +30,10 @@ type ConnectionSnapshot struct {
 }
 
 // ConnectionStatus is a read-only view of a supervised parent connection.
-// Implementations may be owned by NodeHost or by the legacy managed connection
-// compatibility API.
+// Its owner manages the parent supervisor; SDK consumers only observe it.
 type ConnectionStatus interface {
 	Snapshot() ConnectionSnapshot
 	WaitChange(context.Context, uint64) (ConnectionSnapshot, error)
-}
-
-type Connection struct {
-	supervisor *node.ParentSupervisor
-	cancel     context.CancelFunc
-	changes    chan ConnectionSnapshot
-	done       chan struct{}
-	stopOnce   sync.Once
-}
-
-func (c *Client) ConnectManaged(ctx context.Context, driver link.Driver, endpoint link.Endpoint, parent protocol.NodeID, config node.SupervisorConfig) (*Connection, error) {
-	if ctx == nil {
-		return nil, errors.New("SDK managed connection context is required")
-	}
-	runtime, err := c.connectionRuntime()
-	if err != nil {
-		return nil, err
-	}
-	supervisor, err := runtime.SuperviseParent(ctx, driver, endpoint, parent, config)
-	if err != nil {
-		return nil, wrapError(err)
-	}
-	watchCtx, cancel := context.WithCancel(ctx)
-	value := &Connection{supervisor: supervisor, cancel: cancel, changes: make(chan ConnectionSnapshot, 1), done: make(chan struct{})}
-	go value.watch(watchCtx)
-	return value, nil
-}
-
-func (c *Connection) Snapshot() ConnectionSnapshot {
-	if c == nil || c.supervisor == nil {
-		return ConnectionSnapshot{State: ConnectionStopped}
-	}
-	return convertConnection(c.supervisor.Snapshot())
-}
-
-// WaitChange waits until the parent connection generation advances.
-func (c *Connection) WaitChange(ctx context.Context, after uint64) (ConnectionSnapshot, error) {
-	if ctx == nil {
-		return ConnectionSnapshot{}, errors.New("SDK connection wait context is required")
-	}
-	if c == nil || c.supervisor == nil {
-		return ConnectionSnapshot{}, errors.New("SDK connection is stopped")
-	}
-	value, err := c.supervisor.WaitChange(ctx, after)
-	if err != nil {
-		return ConnectionSnapshot{}, err
-	}
-	return convertConnection(value), nil
-}
-
-func (c *Connection) Changes() <-chan ConnectionSnapshot {
-	if c == nil {
-		closed := make(chan ConnectionSnapshot)
-		close(closed)
-		return closed
-	}
-	return c.changes
-}
-
-func (c *Connection) Done() <-chan struct{} {
-	if c == nil {
-		closed := make(chan struct{})
-		close(closed)
-		return closed
-	}
-	return c.done
-}
-
-func (c *Connection) Stop() {
-	if c == nil {
-		return
-	}
-	c.stopOnce.Do(func() {
-		c.cancel()
-		c.supervisor.Stop()
-		<-c.done
-	})
-}
-
-func (c *Connection) watch(ctx context.Context) {
-	defer close(c.done)
-	defer close(c.changes)
-	current := c.supervisor.Snapshot()
-	c.publish(convertConnection(current))
-	for {
-		next, err := c.supervisor.WaitChange(ctx, current.Generation)
-		if err != nil {
-			return
-		}
-		current = next
-		c.publish(convertConnection(next))
-		if next.State == node.ConnectionFailed || next.State == node.ConnectionStopped {
-			return
-		}
-	}
-}
-
-func (c *Connection) publish(snapshot ConnectionSnapshot) {
-	select {
-	case c.changes <- snapshot:
-	default:
-		select {
-		case <-c.changes:
-		default:
-		}
-		select {
-		case c.changes <- snapshot:
-		default:
-		}
-	}
 }
 
 // ConnectionSnapshotFromRuntime converts runtime connection state into the

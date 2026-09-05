@@ -73,17 +73,6 @@ func (c *Client) SubscribeDurableStatusCapability(ctx context.Context, status Co
 	return result, nil
 }
 
-func (c *Client) SubscribeDurableConnection(ctx context.Context, connection *Connection, resource protocol.ResourceID, lease time.Duration, queue int) (*DurableSubscription, error) {
-	return c.SubscribeDurableConnectionCapability(ctx, connection, resource, protocol.CapabilitySubscribe, lease, queue)
-}
-
-func (c *Client) SubscribeDurableConnectionCapability(ctx context.Context, connection *Connection, resource protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int) (*DurableSubscription, error) {
-	if connection == nil || connection.supervisor == nil {
-		return nil, errors.New("durable subscription requires a managed connection")
-	}
-	return c.SubscribeDurableStatusCapability(ctx, connection, resource, capability, lease, queue)
-}
-
 func (c *Client) runDurableSubscription(ctx context.Context, status ConnectionStatus, resource protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int, events chan<- Event, errorsOut chan<- error, ready chan struct{}) {
 	defer close(events)
 	defer close(errorsOut)

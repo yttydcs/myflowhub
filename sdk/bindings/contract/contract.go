@@ -35,15 +35,12 @@ func Canonical() (Manifest, error) {
 		Version: 2,
 		API:     APIVersion,
 		Methods: []string{
-			"CancelSubscription", "CatalogJSON", "Close", "EnrollmentStatusJSON", "EnrollTCP", "IdentityJSON",
-			"InvokeJSON", "OperateJSON", "SnapshotJSON", "StartEnrolledTCP", "StartRFCOMM", "StartTCP",
-			"StatusJSON", "Subscribe", "SubscribeCapability", "TrustParent", "UploadFile", "WaitConnected",
+			"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "OperateJSON",
+			"SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected",
 		},
 		DesktopMethods: []string{
-			"CancelSubscription", "CatalogJSON", "Close", "EnrollmentStatusJSON", "EnrollTCP", "IdentityJSON",
-			"InvokeJSON", "Open", "OpenEnrollment", "OperateJSON", "PollSubscription", "SelectUploadFile", "SnapshotJSON",
-			"StartEnrolledTCP", "StartTCP", "StatusJSON", "Subscribe", "SubscribeCapability", "TrustParent",
-			"UploadFile", "WaitConnected",
+			"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "OperateJSON",
+			"PollSubscription", "SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected",
 		},
 		Resources: []Resource{
 			variable(protocol.BuiltinResourceCatalog, protocol.SchemaResourceCatalogV2),

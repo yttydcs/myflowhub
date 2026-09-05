@@ -153,12 +153,6 @@ func checkImport(t *testing.T, file, imported string) {
 	case strings.HasPrefix(file, "sdk/"):
 		for _, forbidden := range []string{"host/", "cmd/"} {
 			if strings.HasPrefix(internal, forbidden) {
-				if file == "sdk/bindings/android/host.go" {
-					switch internal {
-					case "host/hub", "host/nodehost":
-						continue
-					}
-				}
 				t.Errorf("%s: SDK cannot import %q", file, imported)
 			}
 		}

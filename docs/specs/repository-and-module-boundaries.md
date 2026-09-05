@@ -47,8 +47,7 @@ MyFlowHub/
 ├── feature/               File、Notification 等建立在核心原语上的能力
 ├── host/                  Hub 和其他运行时组合入口
 ├── sdk/                   第一方客户端 SDK
-├── apps/                  Desktop、Android 与节点应用
-├── embedded/              C 与 MicroPython SDK
+├── apps/                  Desktop 与 Windows 节点应用
 └── tests/                 contract、integration 与 transport matrix
 ```
 
@@ -59,7 +58,7 @@ MyFlowHub/
 1. 默认只有一个根 `go.mod`。
 2. 内部可替换性通过 interface、package 和测试实现，不通过独立 module 实现。
 3. 不为 Variable、Stream、Command、Subscription、Transport 或 Feature 分别建立 module。
-4. 嵌套 module 只允许用于已验证的工具链约束，例如某些 gomobile 或独立代码生成工具；每个例外必须记录所有者、原因和退出条件。
+4. 嵌套 module 只允许用于已验证的工具链约束，例如独立代码生成工具；每个例外必须记录所有者、原因和退出条件。
 5. 本地开发不得依赖长期 `replace => ../MyFlowHub-*` 维持正常构建。
 6. 禁止使用 Git submodule 或嵌套 `.git` 目录作为内部组件管理方式。
 
@@ -95,25 +94,20 @@ MyFlowHub/
 
 ### sdk
 
-- `sdk/go` 和普通 binding 是客户端层，不依赖 `host/`。
-- 唯一例外是 `sdk/bindings/android/host.go`：Android 产品需要在同一 gomobile artifact 中组合完整运行时，因此该文件是单文件平台组合根，只允许导入通用 leaf `host/nodehost` 与延期迁移的 in-process `host/hub`。architecture test 固定这两个精确 file/import pair，例外不得扩散。
-- 为保留既有 gomobile ABI，导出的 `android.Client` 是平台 lifecycle wrapper：`client.go` 不直接依赖 `host/`，而是调用 `host.go` 内的 leaf runtime factory，因而可以间接启动并在 `Close` 时关闭自己唯一拥有的 leaf Host。
-- `android.Client` 内部持有的通用 `bindings.Client` 才是 non-owning operation facade；它只清理 Client-local subscription/facade 状态，不拥有或关闭 Host。
-- 其他 `sdk/bindings/android` 文件、其他 binding 与 `sdk/go` 不得借平台组合需求新增 `host/` 依赖。Android 的单文件例外不改变 SDK 整体的 non-owning 定位。
-
-- 依赖 protocol 和面向客户端的公共契约。
-- 除上述精确 `android/host.go` 例外外，不依赖 host 或应用实现。
-- 第一方应用不得复制发送、等待、超时、重连或订阅生命周期逻辑。
+- `sdk/go` 与所有 bindings 不依赖 `host/` 或应用实现；Android 单文件组合例外已删除。
+- Go SDK 只操作现有 Node，不创建身份、父连接或 Listener，也不提供 Node Close。
+- 通用与 Desktop bindings 为 attached facade；Close 只清理本 facade 的订阅和状态。
+- 独立 EnrollmentBootstrap 只拥有注册握手与凭据持久化，不拥有普通 Node。
+- 产品在 host/app 组合层拥有 NodeHost，第一方应用不得复制数据发送、路由、重连或订阅恢复实现。
 
 ### apps
 
 - 根据角色依赖 sdk 或 host。
 - UI 和平台层只负责交互、权限申请、平台 Provider 和产品行为，不重新实现 runtime。
 
-### embedded
+### Deferred platforms
 
-- 复用 protocol schema、夹具和行为测试，但可以使用适合 C/MicroPython 的独立实现。
-- Embedded 实现必须通过相同 contract tests 验证，而不是维护一份仅靠文档同步的协议副本。
+Android 与 C/ESP32/MicroPython 实现及专属构建输入已移除。恢复条件见[重新设计需求](../requirements/mobile-embedded-redesign.md)；未来实现仍应复用共享协议与行为契约，具体技术路径尚未选定。
 
 ## Current-to-Target Mapping
 
@@ -129,9 +123,9 @@ MyFlowHub/
 | MyFlowHub-SubProto/broker | `runtime/subscription` 内部实现 |
 | MyFlowHub-SubProto/forward | `runtime/tree` 路由实现 |
 | MyFlowHub-SubProto/file、flow | File 位于 `feature/file`；Flow 已退役，见[重新设计待办](../requirements/flow-redesign.md) |
-| MyFlowHub-Win、Android | `apps/desktop`、`apps/android` |
+| MyFlowHub-Win、Android | Desktop 位于 `apps/desktop`；Android 已退役 |
 | MetricsNode、ClipboardNode | `apps/nodes` |
-| MyFlowHub-EmbeddedSDK | `embedded/` |
+| MyFlowHub-EmbeddedSDK | 旧实现已退役，保留 migration 审计 |
 
 上述映射表达职责去向，不要求机械复制旧目录。旧实现只有在符合新契约时才复用。
 
@@ -158,8 +152,8 @@ MyFlowHub/
 ## Build and Release Boundaries
 
 - 单一 Git 仓库不等于单一构建产物。
-- Hub、Desktop、Android、节点应用、Go SDK 和 EmbeddedSDK 可以使用独立入口、CI job 和版本号。
-- CI 应按依赖和路径选择任务，但合并门禁至少覆盖协议 contract、runtime 核心测试和受影响的集成闭环。
+- Hub、Desktop、Windows 节点应用和 Go SDK 可以使用独立入口、CI job 和版本号。
+- canonical CI 不使用 path filter；共享变更验证全部当前产品，具体门禁见 build-and-ci.md。
 - 内部 package 不单独发布标签；只有真正面向使用者的产物才形成发布单元。
 
 ## Non-goals

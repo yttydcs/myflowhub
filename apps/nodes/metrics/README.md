@@ -8,8 +8,6 @@
 - `notifications.go`：父节点通知 Stream 的 durable subscription 和有界 inbox。
 - `platform/windows`：Windows collector/actuator；平台写操作只发生在显式 Command 后。
 - `windows`：Wails UI，边界只暴露版本化 JSON。
-- `android/mobile`：gomobile JSON/primitive binding 和有界 platform action queue。
-- `android/app`：Compose UI、前台服务、Android collector/actuator 和系统通知呈现。
 - `cmd/mfh-metrics`：Windows 无 UI 运行入口。
 
 ## Build and test
@@ -23,16 +21,4 @@ go test -race ./apps/nodes/metrics/...
 
 Windows 产品在 `apps/nodes/metrics/windows` 运行 `wails generate module` 和 `wails build -clean`。
 
-Android AAR 从 monorepo 根生成：
-
-```text
-gomobile bind -target=android -androidapi=26 -o apps/nodes/metrics/android/app/libs/metricsmobile.aar github.com/yttydcs/myflowhub/apps/nodes/metrics/android/mobile
-```
-
-然后在 `apps/nodes/metrics/android` 使用 Gradle wrapper 运行：
-
-```text
-gradlew.bat testDebugUnitTest assembleDebug lintDebug
-```
-
-`app/libs/*.aar`、Gradle build 和 Wails binary 是可重建产物，不进入源代码。移动工具链版本由根 `go.mod` 的 `golang.org/x/mobile` 固定，避免 `gomobile`/`gobind` 生成器漂移。
+Android 实现和移动 binding 已移除，重新设计见 [待办](../../../docs/requirements/mobile-embedded-redesign.md)。Wails binary 是可重建产物，不进入源代码。

@@ -18,7 +18,9 @@ The checkout is kept below the workspace's `repo/MyFlowHub` directory. Additiona
 - `runtime/node/`: runtime composition and routing
 - `transport/`: concrete byte-stream drivers
 - `host/`, `sdk/`, and `cmd/`: composition roots and public entry points
-- `apps/` and `embedded/`: canonical first-party products and constrained leaf SDKs
+- `apps/`: canonical Desktop, Windows Metrics and Windows Clipboard products (Clipboard also has a Web UI preview)
+
+Android and embedded implementations are retired pending [redesign](docs/requirements/mobile-embedded-redesign.md). Ordinary Desktop/Metrics/Clipboard runtimes use NodeHost with an attached operation-only SDK; old runtime-owning SDK/binding entry points are removed.
 
 ## Local validation
 

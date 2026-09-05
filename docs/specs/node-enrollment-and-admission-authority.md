@@ -102,7 +102,7 @@ Enrollment bootstrap 只暴露状态检查、Enroll 和 Close。它不能 Catalo
 
 ## Compatibility
 
-迁移期间同一 listener 同时接受 `MFHE` Enrollment 与既有 `MFH4` Join。已有持久 Node ID、父公钥和旧版 `ProvisioningPermitV1` 的 Profile 继续工作。Android 与 Embedded 本阶段不发送 MFHE；删除兼容入口必须由后续单独迁移决策批准。
+迁移期间同一 listener 同时接受 `MFHE` Enrollment 与既有 `MFH4` Join。已有持久 Node ID、父公钥和旧版 `ProvisioningPermitV1` 的 Profile 继续工作。Android 与 Embedded 旧实现现已退役；保留的 Desktop/CLI Legacy 身份路径仍依赖 MFH4 Join，删除该兼容入口必须由后续单独迁移决策批准。
 
 ## Related Documents
 

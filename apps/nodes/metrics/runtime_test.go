@@ -171,10 +171,11 @@ func TestRuntimePreparationFailureReleasesHostStateDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stored, err := DefaultConfig("android")
+	stored, err := DefaultConfig("windows")
 	if err != nil {
 		t.Fatal(err)
 	}
+	stored.Platform = "unsupported"
 	if err := state.Store.Save("metrics.json", stored); err != nil {
 		t.Fatal(err)
 	}

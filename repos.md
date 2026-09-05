@@ -31,7 +31,7 @@ runtime/{link,tree,auth,resource,subscription,command,node}
   ↓
 transport · feature · host · sdk
   ↓
-cmd · apps · embedded
+cmd · apps
 ```
 
 - `protocol/` 只定义 transport-neutral envelope、codec 和版本化 payload schema。
@@ -39,17 +39,17 @@ cmd · apps · embedded
 - `runtime/tree/` 的父子边同时是路由边和 authority 边；节点拥有资源，资源不是树节点。
 - `runtime/resource/` 只提供 `Variable`、`Stream`、`Command`；订阅是 Variable/Stream 上的一等关系，Command 是有界补充手段。
 - `feature/` 提供 File、Notification、Management 等可组合能力，不创建第二套协议或 dispatcher。
-- `host/`、`sdk/` 负责稳定组合面；`cmd/`、`apps/`、`embedded/` 是最终产品入口，不反向成为底层依赖。
+- `host/`、`sdk/` 负责稳定组合面；`cmd/`、`apps/` 是最终产品入口，不反向成为底层依赖。
 
 ## 产品位置
 
 - Hub：`cmd/mfh-hub`、`host/hub`、`feature/management`；
 - 管理 CLI：`cmd/mfh-admin`；
 - Desktop：`apps/desktop`、`cmd/mfh-desktop`；
-- Android：`apps/android`；
-- Metrics：`apps/nodes/metrics/{windows,android}`；
+- Metrics：`apps/nodes/metrics/windows`；
 - Clipboard：`apps/nodes/clipboard`；
-- 受限设备 SDK：`embedded/{c,micropython,esp32}`。
+
+Android 与 C/ESP32/MicroPython 旧实现已移除，见[重新设计待办](docs/requirements/mobile-embedded-redesign.md)。
 
 所有产品必须复用 canonical runtime/SDK，不在 UI、平台 binding 或节点应用中复制 wire、路由、权限和订阅实现。
 

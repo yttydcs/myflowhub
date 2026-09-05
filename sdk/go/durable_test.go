@@ -41,7 +41,7 @@ func TestDurableVariableSubscriptionRecoversAfterParentRestart(t *testing.T) {
 	parent := startParent("one")
 	child, _ := node.New(ctx, node.Config{Identity: childIdentity, Trust: trust, Policy: auth.AllowAll{}, Subscriptions: subscription.Config{MinLease: time.Millisecond, MaxLease: time.Minute}})
 	defer child.Close()
-	client, _ := NewClient(child)
+	client, _ := NewAttachedClient(child)
 	supervisor, err := child.SuperviseParent(ctx, network, "durable-parent", 1, node.SupervisorConfig{MinBackoff: time.Millisecond, MaxBackoff: 5 * time.Millisecond})
 	if err != nil {
 		t.Fatal(err)

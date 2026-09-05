@@ -15,15 +15,15 @@
 
 - [Hub](hub.md)：权威根节点、准入、树管理和系统资源。
 - [Desktop](desktop.md)：独立 Parent-only 节点与本地资源工作台。
-- [Android](android.md)：共享 NodeHost 的移动 facade、前台服务和 RFCOMM 接入。
-- [MetricsNode](metrics-node.md)：独立指标节点、通知与平台控制。
-- [ClipboardNode](clipboard-node.md)：跨平台剪贴板同步与历史。
-- [Embedded leaf SDK](embedded.md)：C、ESP32 和 MicroPython 叶子节点能力。
+- [MetricsNode](metrics-node.md)：独立 Windows 指标节点、通知与平台控制。
+- [ClipboardNode](clipboard-node.md)：Windows 剪贴板同步与历史，Web 配置预览。
 
 ## Composed Capabilities
 
 - [File transfer](file-transfer.md)：基于资源与指令的文件传输。
 ## Retired / Deferred
+
+- [Android 历史](android.md)、[Embedded 历史](embedded.md)：实现已移除；[重新设计待办](../requirements/mobile-embedded-redesign.md)。
 
 - [Flow](flow.md)：旧实现已移除；[重新设计待办](../requirements/flow-redesign.md)。
 

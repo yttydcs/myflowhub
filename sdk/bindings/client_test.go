@@ -36,26 +36,36 @@ func TestBindingClientTCPJSONAndSubscriptionContract(t *testing.T) {
 	defer root.Close()
 
 	stateDirectory := t.TempDir()
-	client, err := NewClient(stateDirectory, 2)
+	state, err := auth.OpenState(stateDirectory, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
+	permit, err := root.Runtime.Admission.Issue(2, state.Identity.PublicKey, "binding-test", time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := state.Policy.Close(); err != nil {
+		t.Fatal(err)
+	}
+	host, err := nodehost.New(ctx, nodehost.Config{
+		StateDirectory: stateDirectory, NodeID: 2,
+		Parent: &nodehost.ParentConfig{NodeID: 1, PublicKey: root.Runtime.Identity.PublicKey,
+			Driver: tcp.Driver{}, Endpoint: root.Endpoint, Permit: &permit},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer host.Close()
+	connection, ok := host.ParentStatus()
+	if !ok {
+		t.Fatal("missing parent status")
+	}
+	client, err := NewAttachedClient(host.Client(), PublicIdentity{NodeID: host.ID(), PublicKey: host.PublicKey()}, connection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
 	identityJSON, err := client.IdentityJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
-	var identity struct {
-		NodeID    string `json:"node_id"`
-		PublicKey string `json:"public_key"`
-	}
-	if err := json.Unmarshal([]byte(identityJSON), &identity); err != nil {
-		t.Fatal(err)
-	}
-	publicKey, err := base64.RawStdEncoding.DecodeString(identity.PublicKey)
-	if err != nil || len(publicKey) != ed25519.PublicKeySize || identity.NodeID != "2" {
-		t.Fatalf("invalid binding identity: %s", identityJSON)
-	}
-	permit, err := root.Runtime.Admission.Issue(2, ed25519.PublicKey(publicKey), "binding-test", time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,14 +80,7 @@ func TestBindingClientTCPJSONAndSubscriptionContract(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := client.TrustParent(1, base64.RawStdEncoding.EncodeToString(root.Runtime.Identity.PublicKey)); err != nil {
-		t.Fatal(err)
-	}
-	permitPayload, err := protocol.EncodeJSONPayload(&permit, protocol.DefaultMaxPayload)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := client.StartTCP(string(root.Endpoint), 1, string(permitPayload)); err != nil {
+	if err := host.Start(); err != nil {
 		t.Fatal(err)
 	}
 	if err := client.WaitConnected(3_000); err != nil {
@@ -149,7 +152,15 @@ func TestBindingClientTCPJSONAndSubscriptionContract(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reopened, err := NewClient(stateDirectory, 2)
+	if err := host.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopenedHost, err := nodehost.New(ctx, nodehost.Config{StateDirectory: stateDirectory, NodeID: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopenedHost.Close()
+	reopened, err := NewAttachedClient(reopenedHost.Client(), PublicIdentity{NodeID: reopenedHost.ID(), PublicKey: reopenedHost.PublicKey()}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,19 +172,21 @@ func TestBindingClientTCPJSONAndSubscriptionContract(t *testing.T) {
 }
 
 func TestBindingRejectsInvalidBoundaryValues(t *testing.T) {
-	if _, err := NewClient(t.TempDir(), -1); err == nil {
-		t.Fatal("negative NodeID was accepted")
+	host, err := nodehost.New(context.Background(), nodehost.Config{StateDirectory: t.TempDir(), NodeID: 2})
+	if err != nil {
+		t.Fatal(err)
 	}
-	client, err := NewClient(t.TempDir(), 2)
+	defer host.Close()
+	client, err := NewAttachedClient(host.Client(), PublicIdentity{NodeID: host.ID(), PublicKey: host.PublicKey()}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	if err := client.TrustParent(1, "invalid"); err == nil {
-		t.Fatal("invalid parent key was accepted")
+	if _, err := client.CatalogJSON(-1, 1000); err == nil {
+		t.Fatal("negative NodeID accepted")
 	}
-	if err := client.StartTCP("", 1, ""); err == nil {
-		t.Fatal("empty endpoint was accepted")
+	if _, err := client.CatalogJSON(1, -1); err == nil {
+		t.Fatal("negative timeout accepted")
 	}
 	if _, err := client.InvokeJSON(1, "test/command", "not-json", 1_000); err == nil {
 		t.Fatal("invalid command JSON was accepted")
@@ -211,11 +224,10 @@ func TestAttachedBindingUsesHostClientAndOnlyClosesLocalFacade(t *testing.T) {
 	if err != nil || snapshot != `{"state":"ready"}` {
 		t.Fatalf("unexpected attached snapshot %q: %v", snapshot, err)
 	}
-	if err := facade.TrustParent(1, base64.RawStdEncoding.EncodeToString(host.State().Identity.PublicKey)); err == nil || !strings.Contains(err.Error(), "owned by the attached node host") {
-		t.Fatalf("attached facade allowed trust mutation: %v", err)
-	}
-	if err := facade.StartTCP("127.0.0.1:1", 1, ""); err == nil || !strings.Contains(err.Error(), "owned by the attached node host") {
-		t.Fatalf("attached facade allowed parent start: %v", err)
+	for _, method := range []string{"TrustParent", "StartTCP", "StartRFCOMM", "EnrollTCP", "StartEnrolledTCP"} {
+		if _, ok := reflect.TypeOf(facade).MethodByName(method); ok {
+			t.Fatalf("attached facade exposes runtime method %s", method)
+		}
 	}
 	if err := facade.Close(); err != nil {
 		t.Fatal(err)
@@ -394,7 +406,7 @@ func TestBindingEnrollmentNeedsNoClientNodeIDOrParentKey(t *testing.T) {
 	}
 	defer root.Close()
 	stateDirectory := t.TempDir()
-	client, err := NewEnrollmentClient(stateDirectory)
+	client, err := NewEnrollmentBootstrap(stateDirectory)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -432,16 +444,10 @@ func TestBindingEnrollmentNeedsNoClientNodeIDOrParentKey(t *testing.T) {
 	if err := json.Unmarshal([]byte(resultJSON), &result); err != nil || result.Status != "granted" || result.Grant == nil {
 		t.Fatalf("unexpected binding Enrollment result: %v (%s)", err, resultJSON)
 	}
-	if err := client.StartEnrolledTCP(string(root.Endpoint)); err != nil {
-		t.Fatal(err)
-	}
-	if err := client.WaitConnected(3_000); err != nil {
-		t.Fatal(err)
-	}
 	if err := client.Close(); err != nil {
 		t.Fatal(err)
 	}
-	reopened, err := NewEnrollmentClient(stateDirectory)
+	reopened, err := NewEnrollmentBootstrap(stateDirectory)
 	if err != nil {
 		t.Fatal(err)
 	}

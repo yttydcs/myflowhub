@@ -60,7 +60,7 @@ func TestClientCatalogSubscriptionInvokeAndTypedErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client, err := NewClient(child)
+	client, err := NewAttachedClient(child)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,55 +127,6 @@ func TestClientCatalogSubscriptionInvokeAndTypedErrors(t *testing.T) {
 	assertSDKError(t, err, protocol.CodeMalformed, false)
 }
 
-func TestManagedConnectionPublishesStateAndStops(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	rootIdentity, _ := auth.GenerateIdentity(1)
-	childIdentity, _ := auth.GenerateIdentity(2)
-	trust := auth.NewTrustStore()
-	_ = trust.Add(rootIdentity.NodeID, rootIdentity.PublicKey)
-	_ = trust.Add(childIdentity.NodeID, childIdentity.PublicKey)
-	config := func(identity auth.Identity) node.Config {
-		return node.Config{Identity: identity, Trust: trust, Policy: auth.AllowAll{}, Subscriptions: subscription.Config{MinLease: time.Millisecond, MaxLease: time.Minute}}
-	}
-	root, err := node.New(ctx, config(rootIdentity))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer root.Close()
-	child, err := node.New(ctx, config(childIdentity))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer child.Close()
-	network := memory.NewNetwork()
-	defer network.Close()
-	endpoint, err := root.Listen(network, "sdk-managed")
-	if err != nil {
-		t.Fatal(err)
-	}
-	client, _ := NewClient(child)
-	connection, err := client.ConnectManaged(ctx, network, endpoint, root.ID(), node.SupervisorConfig{MinBackoff: time.Millisecond, MaxBackoff: 5 * time.Millisecond})
-	if err != nil {
-		t.Fatal(err)
-	}
-	waitConnectionState(t, connection, ConnectionConnected)
-	connected := connection.Snapshot()
-	if connected.Parent != root.ID() || connected.Endpoint != string(endpoint) || connected.LinkGeneration == 0 {
-		t.Fatalf("incomplete connected snapshot: %+v", connected)
-	}
-	connection.Stop()
-	connection.Stop()
-	if snapshot := connection.Snapshot(); snapshot.State != ConnectionStopped {
-		t.Fatalf("connection did not stop: %+v", snapshot)
-	}
-	select {
-	case <-connection.Done():
-	default:
-		t.Fatal("connection Done was not closed")
-	}
-}
-
 func connectedSDKNodes(t *testing.T, ctx context.Context, endpoint string) (*node.Node, *node.Node, *memory.Network) {
 	t.Helper()
 	rootIdentity, _ := auth.GenerateIdentity(1)
@@ -203,8 +154,7 @@ func connectedSDKNodes(t *testing.T, ctx context.Context, endpoint string) (*nod
 		network.Close()
 		t.Fatal(err)
 	}
-	client, _ := NewClient(child)
-	if err := client.Connect(ctx, network, address, root.ID()); err != nil {
+	if err := child.ConnectParent(ctx, network, address, root.ID()); err != nil {
 		_ = child.Close()
 		_ = root.Close()
 		network.Close()
@@ -247,23 +197,5 @@ func assertSDKError(t *testing.T, err error, code protocol.ErrorCode, retryable 
 	}
 	if value.Code != code || value.Retryable != retryable {
 		t.Fatalf("unexpected SDK Error: %+v", value)
-	}
-}
-
-func waitConnectionState(t *testing.T, connection *Connection, state ConnectionState) {
-	t.Helper()
-	deadline := time.After(2 * time.Second)
-	for {
-		if connection.Snapshot().State == state {
-			return
-		}
-		select {
-		case _, ok := <-connection.Changes():
-			if !ok {
-				t.Fatalf("connection stopped before reaching %s: %+v", state, connection.Snapshot())
-			}
-		case <-deadline:
-			t.Fatalf("connection did not reach %s: %+v", state, connection.Snapshot())
-		}
 	}
 }

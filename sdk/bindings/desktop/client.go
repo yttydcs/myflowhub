@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yttydcs/myflowhub/runtime/auth"
 	"github.com/yttydcs/myflowhub/sdk/bindings"
 )
 
@@ -29,81 +28,12 @@ func NewAttachedClient(core *bindings.Client) (*Client, error) {
 	return &Client{core: core, subscriptions: make(map[int64]*subscription)}, nil
 }
 
-// OpenEnrollment installs the compatibility Enrollment lifecycle used before
-// a profile has a granted Node identity. Normal Desktop profiles use
-// NewAttachedClient with a product-owned NodeHost.
-func (c *Client) OpenEnrollment(stateDirectory string) error {
-	if c == nil {
-		return errors.New("desktop binding client is required")
-	}
-	core, err := bindings.NewEnrollmentClient(stateDirectory)
-	if err != nil {
-		return err
-	}
-	return c.install(core)
-}
-
-func (c *Client) OpenEnrollmentWithCredentialStore(stateDirectory string, store auth.EnrollmentCredentialStore) error {
-	if c == nil {
-		return errors.New("desktop binding client is required")
-	}
-	if store == nil {
-		return errors.New("desktop protected Enrollment credential store is required")
-	}
-	core, err := bindings.NewEnrollmentClientWithCredentialStore(stateDirectory, store)
-	if err != nil {
-		return err
-	}
-	return c.install(core)
-}
-
-func (c *Client) install(core *bindings.Client) error {
-	if c == nil {
-		_ = core.Close()
-		return errors.New("desktop binding client is required")
-	}
-	c.mu.Lock()
-	if c.core != nil {
-		c.mu.Unlock()
-		_ = core.Close()
-		return errors.New("desktop binding client is already open")
-	}
-	c.core = core
-	c.subscriptions = make(map[int64]*subscription)
-	c.mu.Unlock()
-	return nil
-}
-
 func (c *Client) IdentityJSON() (string, error) {
 	core, err := c.current()
 	if err != nil {
 		return "", err
 	}
 	return core.IdentityJSON()
-}
-
-func (c *Client) EnrollmentStatusJSON() (string, error) {
-	core, err := c.current()
-	if err != nil {
-		return "", err
-	}
-	return core.EnrollmentStatusJSON()
-}
-
-func (c *Client) EnrollTCP(endpoint, permitJSON string, allowTOFU bool, expectedParentID int64, expectedParentKey, expectedAuthorityKey string, timeoutMS int64) (string, error) {
-	core, err := c.current()
-	if err != nil {
-		return "", err
-	}
-	return core.EnrollTCP(endpoint, permitJSON, allowTOFU, expectedParentID, expectedParentKey, expectedAuthorityKey, timeoutMS)
-}
-
-func (c *Client) StartEnrolledTCP(endpoint string) error {
-	core, err := c.current()
-	if err != nil {
-		return err
-	}
-	return core.StartEnrolledTCP(endpoint)
 }
 
 func (c *Client) StatusJSON() (string, error) {

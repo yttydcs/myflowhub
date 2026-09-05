@@ -4,6 +4,8 @@
 
 ## Current Decisions
 
+- [移除移动与嵌入式旧实现，收敛 SDK 生命周期](2026-09-06_retire-mobile-embedded-and-owning-bindings.md)
+
 - [移除 Flow，延期重新设计](2026-09-06_retire-flow-pending-redesign.md)
 - [使用作用域 Policy Binding，而不是产品特权](2026-09-01_scoped-policy-bindings-over-product-privilege.md)
 - [Enrollment bootstrap → NodeHost handoff](2026-09-01_enrollment-bootstrap-nodehost-handoff.md)

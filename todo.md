@@ -2,6 +2,9 @@
 
 ## Deferred Product Work
 
+- [ ] ANDROID-REDESIGN — [重新设计 Android 节点](docs/requirements/mobile-embedded-redesign.md)；现有应用与移动绑定已移除。
+- [ ] EMBEDDED-REDESIGN — [重新定义受限硬件实现](docs/requirements/mobile-embedded-redesign.md)；C/ESP32/MicroPython 旧实现已移除。
+
 - [ ] FLOW-REDESIGN — [重新讨论通用自动化模型与语言](docs/requirements/flow-redesign.md)；旧 Flow 已移除，尚未选择替代方案。
 
 ## Approval Gate

@@ -110,7 +110,7 @@ func (bootstrap *EnrollmentBootstrap) EnrollTCP(endpoint, permitJSON string, all
 	}()
 	ctx, cancel := context.WithTimeout(runCtx, timeout)
 	defer cancel()
-	result, _, err := enrollStateTCP(ctx, state, address, permitJSON, allowTOFU, expectedParentID, expectedParentKey, expectedAuthorityKey)
+	result, err := enrollStateTCP(ctx, state, address, permitJSON, allowTOFU, expectedParentID, expectedParentKey, expectedAuthorityKey)
 	return result, err
 }
 
@@ -126,52 +126,6 @@ func (bootstrap *EnrollmentBootstrap) Close() error {
 	bootstrap.mu.Unlock()
 	bootstrap.wg.Wait()
 	return nil
-}
-
-func NewEnrollmentClient(stateDirectory string) (*Client, error) {
-	if stateDirectory == "" {
-		return nil, errors.New("binding state directory is required")
-	}
-	store, err := keystore.New(filepath.Join(stateDirectory, "state"))
-	if err != nil {
-		return nil, err
-	}
-	state, err := auth.LoadOrCreateEnrollmentClientState(store)
-	if err != nil {
-		return nil, err
-	}
-	return newEnrollmentBindingClient(state)
-}
-
-func NewEnrollmentClientWithCredentialStore(stateDirectory string, store auth.EnrollmentCredentialStore) (*Client, error) {
-	if stateDirectory == "" {
-		return nil, errors.New("binding state directory is required")
-	}
-	if store == nil {
-		return nil, errors.New("binding protected Enrollment credential store is required")
-	}
-	state, err := auth.LoadOrCreateEnrollmentClientStateWithStore(store)
-	if err != nil {
-		return nil, err
-	}
-	return newEnrollmentBindingClient(state)
-}
-
-func newEnrollmentBindingClient(enrollmentState *auth.EnrollmentClientState) (*Client, error) {
-	client := &Client{enrollment: enrollmentState, ownsRuntime: true, subscriptions: make(map[int64]context.CancelFunc)}
-	if err := client.installEnrolledState(); err != nil {
-		return nil, err
-	}
-	return client, nil
-}
-
-func (c *Client) EnrollmentStatusJSON() (string, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.closed || c.enrollment == nil {
-		return "", errors.New("binding Enrollment client is closed")
-	}
-	return enrollmentStatusJSON(c.enrollment.Snapshot())
 }
 
 func enrollmentStatusJSON(snapshot auth.EnrollmentClientSnapshot) (string, error) {
@@ -202,43 +156,7 @@ func enrollmentStatusJSON(snapshot auth.EnrollmentClientSnapshot) (string, error
 	})
 }
 
-func (c *Client) EnrollTCP(endpoint, permitJSON string, allowTOFU bool, expectedParentID int64, expectedParentKey, expectedAuthorityKey string, timeoutMS int64) (string, error) {
-	address := link.Endpoint(endpoint)
-	if err := address.Validate(); err != nil {
-		return "", err
-	}
-	ctx, cancel, err := bindingContext(timeoutMS)
-	if err != nil {
-		return "", err
-	}
-	defer cancel()
-	c.mu.Lock()
-	if c.closed || c.enrollment == nil {
-		c.mu.Unlock()
-		return "", errors.New("binding Enrollment client is closed")
-	}
-	if c.runtime != nil {
-		c.mu.Unlock()
-		return "", errors.New("binding client must stop before Enrollment")
-	}
-	enrollmentState := c.enrollment
-	c.mu.Unlock()
-	resultJSON, granted, err := enrollStateTCP(ctx, enrollmentState, address, permitJSON, allowTOFU, expectedParentID, expectedParentKey, expectedAuthorityKey)
-	if err != nil {
-		return "", err
-	}
-	if granted {
-		c.mu.Lock()
-		err = c.installEnrolledStateLocked()
-		c.mu.Unlock()
-		if err != nil {
-			return "", err
-		}
-	}
-	return resultJSON, nil
-}
-
-func enrollStateTCP(ctx context.Context, enrollmentState *auth.EnrollmentClientState, address link.Endpoint, permitJSON string, allowTOFU bool, expectedParentID int64, expectedParentKey, expectedAuthorityKey string) (string, bool, error) {
+func enrollStateTCP(ctx context.Context, enrollmentState *auth.EnrollmentClientState, address link.Endpoint, permitJSON string, allowTOFU bool, expectedParentID int64, expectedParentKey, expectedAuthorityKey string) (string, error) {
 	snapshot := enrollmentState.Snapshot()
 	options := enrollment.ClientOptions{RequestID: snapshot.RequestID, AllowTOFU: allowTOFU}
 	if snapshot.ParentNodeID != 0 {
@@ -248,7 +166,7 @@ func enrollStateTCP(ctx context.Context, enrollmentState *auth.EnrollmentClientS
 		options.ExpectedAuthorityPublicKey = snapshot.AuthorityPublicKey
 	} else {
 		if expectedParentID < 0 {
-			return "", false, errors.New("expected parent Node ID cannot be negative")
+			return "", errors.New("expected parent Node ID cannot be negative")
 		}
 		if expectedParentID > 0 {
 			options.ExpectedParentNodeID = protocol.NodeID(expectedParentID)
@@ -256,14 +174,14 @@ func enrollStateTCP(ctx context.Context, enrollmentState *auth.EnrollmentClientS
 		if expectedParentKey != "" {
 			key, err := bindingPublicKey("expected parent", expectedParentKey)
 			if err != nil {
-				return "", false, err
+				return "", err
 			}
 			options.ExpectedParentPublicKey = key
 		}
 		if expectedAuthorityKey != "" {
 			key, err := bindingPublicKey("expected Admission Authority", expectedAuthorityKey)
 			if err != nil {
-				return "", false, err
+				return "", err
 			}
 			options.ExpectedAuthorityPublicKey = key
 		}
@@ -271,73 +189,31 @@ func enrollStateTCP(ctx context.Context, enrollmentState *auth.EnrollmentClientS
 	if permitJSON != "" {
 		var permit protocol.EnrollmentPermitV1
 		if err := protocol.DecodeJSONPayload([]byte(permitJSON), protocol.EnrollmentMaxPayload, &permit); err != nil {
-			return "", false, fmt.Errorf("decode Enrollment Permit: %w", err)
+			return "", fmt.Errorf("decode Enrollment Permit: %w", err)
 		}
 		options.Permit = &permit
 	}
 	pipe, err := (tcp.Driver{}).Dial(ctx, address)
 	if err != nil {
-		return "", false, err
+		return "", err
 	}
 	result, err := enrollment.Enroll(ctx, pipe, enrollmentState.DeviceIdentity(), options)
 	_ = pipe.Close()
 	if err != nil {
-		return "", false, err
+		return "", err
 	}
 	if err := enrollmentState.RecordObservation(result.ParentNodeID, result.ParentPublicKey, result.AuthorityNodeID, result.AuthorityPublicKey); err != nil {
-		return "", false, err
+		return "", err
 	}
 	if result.Outcome.Status == "granted" {
 		if result.Outcome.Grant == nil {
-			return "", false, errors.New("Enrollment result is granted without a Grant")
+			return "", errors.New("Enrollment result is granted without a Grant")
 		}
 		if err := enrollmentState.RecordGrant(*result.Outcome.Grant); err != nil {
-			return "", false, err
+			return "", err
 		}
 	}
-	encoded, err := encodeJSON(result.Outcome)
-	return encoded, result.Outcome.Status == "granted", err
-}
-
-func (c *Client) StartEnrolledTCP(endpoint string) error {
-	c.mu.Lock()
-	if c.closed || c.enrollment == nil {
-		c.mu.Unlock()
-		return errors.New("binding Enrollment client is closed")
-	}
-	snapshot := c.enrollment.Snapshot()
-	c.mu.Unlock()
-	if snapshot.Status != "enrolled" || snapshot.ParentNodeID == 0 {
-		return errors.New("binding client has no granted Node ID; complete Enrollment first")
-	}
-	return c.start(tcp.Driver{}, endpoint, int64(snapshot.ParentNodeID), "")
-}
-
-func (c *Client) installEnrolledState() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.installEnrolledStateLocked()
-}
-
-func (c *Client) installEnrolledStateLocked() error {
-	if c.enrollment == nil {
-		return nil
-	}
-	identity, enrolled, err := c.enrollment.Identity()
-	if err != nil || !enrolled {
-		return err
-	}
-	snapshot := c.enrollment.Snapshot()
-	trust := auth.NewTrustStore()
-	if err := trust.Add(identity.NodeID, identity.PublicKey); err != nil {
-		return err
-	}
-	if err := trust.Add(snapshot.ParentNodeID, snapshot.ParentPublicKey); err != nil {
-		return err
-	}
-	c.state = &auth.State{Identity: identity, Trust: trust}
-	c.identity = PublicIdentity{NodeID: identity.NodeID, PublicKey: append(ed25519.PublicKey(nil), identity.PublicKey...)}
-	return nil
+	return encodeJSON(result.Outcome)
 }
 
 func bindingPublicKey(label, value string) (ed25519.PublicKey, error) {

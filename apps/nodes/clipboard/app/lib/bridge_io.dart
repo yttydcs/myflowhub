@@ -2,56 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/services.dart';
-
 import 'bridge_contract.dart';
 
 ClipboardBridge createPlatformBridge() {
-  if (Platform.isAndroid) {
-    return const MobileClipboardBridge();
-  }
   if (Platform.isWindows) {
     return ProcessClipboardBridge();
   }
   return const UnsupportedIOBridge();
-}
-
-class MobileClipboardBridge implements ClipboardBridge {
-  const MobileClipboardBridge();
-
-  static const MethodChannel _channel = MethodChannel(
-    'com.myflowhub.clipboard/bridge',
-  );
-
-  @override
-  bool get supported => true;
-
-  @override
-  String get platformLabel => 'Android · gomobile';
-
-  @override
-  String get defaultStateDirectory => '<app-data>';
-
-  @override
-  Future<dynamic> call(String operation, Map<String, dynamic> payload) async {
-    final response = await _channel.invokeMethod<String>(
-      'call',
-      jsonEncode(<String, dynamic>{'op': operation, 'payload': payload}),
-    );
-    if (response == null || response.isEmpty) {
-      return null;
-    }
-    return jsonDecode(response);
-  }
-
-  @override
-  Future<void> close() async {
-    try {
-      await call('stop', <String, dynamic>{'version': 1});
-    } on PlatformException {
-      // The native runtime may already be stopped during activity teardown.
-    }
-  }
 }
 
 class ProcessClipboardBridge implements ClipboardBridge {

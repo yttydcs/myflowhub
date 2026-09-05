@@ -11,7 +11,7 @@ import (
 func TestProductionInputsDoNotReferenceLegacyArchitecture(t *testing.T) {
 	root := repositoryRoot(t)
 	productionRoots := []string{
-		"cmd", "apps", "embedded", "feature", "host", "protocol", "runtime",
+		"cmd", "apps", "feature", "host", "protocol", "runtime",
 		"sdk", "transport", "scripts", ".github",
 	}
 	forbidden := []string{

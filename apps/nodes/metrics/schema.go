@@ -35,7 +35,6 @@ const (
 	VolumePercent     Name = "volume_percent"
 	VolumeMuted       Name = "volume_muted"
 	BrightnessPercent Name = "brightness_percent"
-	FlashlightEnabled Name = "flashlight_enabled"
 )
 
 type Definition struct {
@@ -47,17 +46,16 @@ type Definition struct {
 }
 
 var definitions = []Definition{
-	{Name: BatteryPercent, Unit: "percent", Platforms: platforms("windows", "android"), IntervalMS: 30_000},
-	{Name: BatteryCharging, Unit: "boolean", Platforms: platforms("windows", "android"), IntervalMS: 30_000},
-	{Name: BatteryOnAC, Unit: "boolean", Platforms: platforms("windows", "android"), IntervalMS: 30_000},
-	{Name: NetworkOnline, Unit: "boolean", Platforms: platforms("windows", "android"), IntervalMS: 5_000},
-	{Name: NetworkType, Unit: "label", Platforms: platforms("windows", "android"), IntervalMS: 5_000},
-	{Name: CPUPercent, Unit: "percent", Platforms: platforms("windows", "android"), IntervalMS: 2_000},
-	{Name: MemoryPercent, Unit: "percent", Platforms: platforms("windows", "android"), IntervalMS: 2_000},
-	{Name: VolumePercent, Unit: "percent", Controllable: true, Platforms: platforms("windows", "android"), IntervalMS: 1_000},
-	{Name: VolumeMuted, Unit: "boolean", Controllable: true, Platforms: platforms("windows", "android"), IntervalMS: 1_000},
-	{Name: BrightnessPercent, Unit: "percent", Controllable: true, Platforms: platforms("windows", "android"), IntervalMS: 2_000},
-	{Name: FlashlightEnabled, Unit: "boolean", Controllable: true, Platforms: platforms("android"), IntervalMS: 1_000},
+	{Name: BatteryPercent, Unit: "percent", Platforms: platforms("windows"), IntervalMS: 30_000},
+	{Name: BatteryCharging, Unit: "boolean", Platforms: platforms("windows"), IntervalMS: 30_000},
+	{Name: BatteryOnAC, Unit: "boolean", Platforms: platforms("windows"), IntervalMS: 30_000},
+	{Name: NetworkOnline, Unit: "boolean", Platforms: platforms("windows"), IntervalMS: 5_000},
+	{Name: NetworkType, Unit: "label", Platforms: platforms("windows"), IntervalMS: 5_000},
+	{Name: CPUPercent, Unit: "percent", Platforms: platforms("windows"), IntervalMS: 2_000},
+	{Name: MemoryPercent, Unit: "percent", Platforms: platforms("windows"), IntervalMS: 2_000},
+	{Name: VolumePercent, Unit: "percent", Controllable: true, Platforms: platforms("windows"), IntervalMS: 1_000},
+	{Name: VolumeMuted, Unit: "boolean", Controllable: true, Platforms: platforms("windows"), IntervalMS: 1_000},
+	{Name: BrightnessPercent, Unit: "percent", Controllable: true, Platforms: platforms("windows"), IntervalMS: 2_000},
 }
 
 type SampleV1 struct {
@@ -295,7 +293,7 @@ func ValidateValue(name Name, value string) error {
 	return nil
 }
 
-func validPlatform(value string) bool { return value == "windows" || value == "android" }
+func validPlatform(value string) bool { return value == "windows" }
 
 func platforms(values ...string) map[string]bool {
 	result := make(map[string]bool, len(values))

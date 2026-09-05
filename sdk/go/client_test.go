@@ -2,7 +2,7 @@ package sdk
 
 import (
 	"context"
-	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/yttydcs/myflowhub/protocol"
@@ -12,15 +12,12 @@ import (
 )
 
 func TestClientRequiresRuntime(t *testing.T) {
-	if _, err := NewClient(nil); err == nil {
-		t.Fatal("nil runtime was accepted")
-	}
 	if _, err := NewAttachedClient(nil); err == nil {
 		t.Fatal("nil attached runtime was accepted")
 	}
 }
 
-func TestAttachedClientCloseCannotCloseOrDetachRuntime(t *testing.T) {
+func TestAttachedClientHasNoRuntimeLifecycleSurface(t *testing.T) {
 	runtime := newLocalNode(t, 91)
 	defer runtime.Close()
 	variableID := protocol.ResourceID{Owner: runtime.ID(), Name: "test/status"}
@@ -38,46 +35,23 @@ func TestAttachedClientCloseCannotCloseOrDetachRuntime(t *testing.T) {
 	if id, err := client.NodeID(); err != nil || id != runtime.ID() {
 		t.Fatalf("unexpected attached client NodeID %d: %v", id, err)
 	}
-	if err := client.Close(); !errors.Is(err, ErrAttachedClientClose) {
-		t.Fatalf("attached Close returned %v", err)
-	}
-	if err := client.Connect(context.Background(), nil, "unused", 1); !errors.Is(err, ErrAttachedClientConnection) {
-		t.Fatalf("attached Connect returned %v", err)
-	}
-	if _, err := client.ConnectManaged(context.Background(), nil, "unused", 1, node.SupervisorConfig{}); !errors.Is(err, ErrAttachedClientConnection) {
-		t.Fatalf("attached ConnectManaged returned %v", err)
+	for _, method := range []string{"Close", "Connect", "ConnectManaged"} {
+		if _, ok := reflect.TypeOf(client).MethodByName(method); ok {
+			t.Fatalf("attached SDK exposes runtime lifecycle method %s", method)
+		}
 	}
 	select {
 	case <-runtime.Done():
-		t.Fatal("attached client Close closed the node")
+		t.Fatal("attached client closed the node")
 	default:
 	}
 	event, err := client.Snapshot(context.Background(), variableID)
 	if err != nil || string(event.Value) != "ready" {
-		t.Fatalf("attached client was not usable after guarded Close: event=%+v err=%v", event, err)
+		t.Fatalf("attached client was not usable through its host node: event=%+v err=%v", event, err)
 	}
 }
 
-func TestLegacyClientCloseStillOwnsRuntime(t *testing.T) {
-	runtime := newLocalNode(t, 92)
-	client, err := NewClient(runtime)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := client.Close(); err != nil {
-		t.Fatal(err)
-	}
-	select {
-	case <-runtime.Done():
-	default:
-		t.Fatal("legacy client Close did not close its node")
-	}
-	if err := client.Close(); err != nil {
-		t.Fatalf("repeated legacy Close returned %v", err)
-	}
-}
-
-func TestTypedCollectionOperationsShareDirectAndAttachedNodePath(t *testing.T) {
+func TestTypedCollectionOperationsShareAttachedNodePath(t *testing.T) {
 	runtime := newLocalNode(t, 93)
 	defer runtime.Close()
 	resourceID := protocol.ResourceID{Owner: runtime.ID(), Name: "test/collection"}
@@ -127,7 +101,7 @@ func TestTypedCollectionOperationsShareDirectAndAttachedNodePath(t *testing.T) {
 	if err := runtime.Registry().Register(collectionResource); err != nil {
 		t.Fatal(err)
 	}
-	direct, err := NewClient(runtime)
+	direct, err := NewAttachedClient(runtime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,11 +169,11 @@ func TestTypedCollectionOperationsShareDirectAndAttachedNodePath(t *testing.T) {
 	} else {
 		assertSDKError(t, err, protocol.CodeMalformed, false)
 	}
-	if err := direct.Close(); err != nil {
+	if err := runtime.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if err := direct.OperatePayload(context.Background(), resourceID, protocol.CapabilityList, &request, &response); err == nil {
-		t.Fatal("typed operation accepted closed client")
+		t.Fatal("typed operation accepted closed runtime")
 	}
 }
 

@@ -15,7 +15,7 @@
 - [desktop-profile-entry.md](desktop-profile-entry.md)
   - Existing Profile / 首次连接入口、受保护 Enrollment 状态投影、Profile ID 与非破坏性返回选择器契约
 - [node-host-runtime.md](node-host-runtime.md)
-  - 纯 Go NodeHost、Parent/Listeners 角色组合、attached SDK ownership、资源注册和薄平台适配契约
+  - 纯 Go NodeHost、Parent/Listeners 角色组合、仅 attached SDK、Clipboard 迁移及已退役平台边界
 - [node-enrollment-and-admission-authority.md](node-enrollment-and-admission-authority.md)
   - 首次 Enrollment、Permit/Pending、Authority、Node ID 分配、撤销和兼容 Join 的当前契约
 - [scoped-policy-authorization.md](scoped-policy-authorization.md)

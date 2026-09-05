@@ -65,7 +65,7 @@
 - 未知类型、未知 capability 和未知 major version 必须显式失败或降级为只读 descriptor，不得猜测行为。
 - Memory、TCP、QUIC、RFCOMM 等 Transport 不得泄漏到 Resource type 实现。
 - 类型注册不能制造 Core 到产品包的反向依赖或循环依赖。
-- Go SDK、bindings、Desktop、Android 和 Embedded contract 必须由同一 descriptor/operation schema 生成或验证。
+- Go SDK、bindings 与 Desktop contract 必须由同一 descriptor/operation schema 生成或验证；Android/Embedded 已退役，恢复时同样必须对齐，见[重新设计待办](mobile-embedded-redesign.md)。
 
 ## Edge Cases
 
@@ -106,4 +106,3 @@
 ## Related Intake
 
 - [可扩展资源平台与 Desktop 工作区重构](../intake/2026-08-28_extensible-resources-and-desktop-workspace-redesign.md)
-

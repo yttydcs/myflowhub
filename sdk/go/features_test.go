@@ -51,11 +51,11 @@ func TestFeatureClientsFileAndNotification(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer child.Close()
-	client, err := NewClient(child)
+	client, err := NewAttachedClient(child)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := client.Connect(ctx, network, root.Endpoint, 1); err != nil {
+	if err := child.ConnectParent(ctx, network, root.Endpoint, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -136,12 +136,12 @@ func TestPolicyClientUsesAttachedNodePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := NewClient(child)
+	client, err := NewAttachedClient(child)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close()
-	if err := client.Connect(ctx, network, root.Endpoint, 1); err != nil {
+	defer child.Close()
+	if err := child.ConnectParent(ctx, network, root.Endpoint, 1); err != nil {
 		t.Fatal(err)
 	}
 	policies, err := client.Policies(1)

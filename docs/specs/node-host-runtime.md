@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted design contract；首批实现和产品迁移进行中。本文定义完整 Go 节点的稳定组合边界，不取代 wire、Node、Resource 或产品 feature 规范。
+Accepted design contract；Desktop、Metrics、Clipboard 已使用 NodeHost，Hub 迁移延期。本文定义完整 Go 节点的稳定组合边界，不取代 wire、Node、Resource 或产品 feature 规范。
 
 ## Purpose
 
@@ -32,7 +32,7 @@ SDK Client 不拥有 Host。关闭或清理 Client-local subscription 不得关�
 
 | Parent | Listeners | Effective role | Typical product |
 | --- | --- | --- | --- |
-| configured | none | leaf | Desktop、MetricsNode |
+| configured | none | leaf | Desktop、MetricsNode、ClipboardNode |
 | configured | one or more | relay | 可同时接入上游和子节点的普通 Node |
 | none | one or more | root | authority root |
 | none | none | offline/local | 本地资源和测试 |
@@ -84,7 +84,7 @@ NodeHost 和 SDK 不增加第二套数据面队列、额外序列化或每次请
 
 ## Resource Registration
 
-`Host.Resources()` 暴露绑定本 Node owner 的 Registry facade。固定资源通常在 `Start` 前注册；插件或动态设备可以在 running 时注册/注销，Catalog 更新仍由 Registry 原子维护。
+`Host.Resources()` 暴露绑定本 Node owner 的 Registry facade。固定资源通常在 `Start` 前注册；产品的动态能力可以在 running 时注册/注销，Catalog 更新仍由 Registry 原子维护。
 
 Variable 便捷声明必须显式提供 local name、content type、schema、read permission、payload limit 和 initial payload；owner 自动取 Host NodeID。默认 Variable 对远端只读；只有显式 write permission 才能开放远端写入。
 
@@ -99,16 +99,13 @@ Variable 便捷声明必须显式提供 local name、content type、schema、rea
 
 - Desktop：拥有自己的 Profile identity 和 state；Legacy 与已经 granted 的 authority Profile 都使用 Parent-only NodeHost，不因 UI 或产品名获得 Listener/relay 权限。尚无 Node ID 的 authority Profile 只打开窄 Enrollment bootstrap；Grant 持久后先关闭 bootstrap，再以同一受保护凭据创建 NodeHost。
 - MetricsNode：拥有独立 NodeHost，在 `Start` 前注册指标、配置、控制和通知资源；不依赖 Desktop。
+- ClipboardNode：拥有 Parent-only NodeHost，在 Start 前注册剪贴板资源；使用 attached SDK 和只读 ConnectionStatus 恢复 peer 订阅，保留现有持久身份、配置与历史。
 - Hub：后续在 NodeHost 上组合 Management/File/Notification 等 feature；当前迁移延期。
 - Agent Gateway：后续作为普通 NodeHost 产品，在外层实现 Web/API/MCP、token 权限交集和审计；不成为树内特权。
 
-NodeHost 不导入 Wails、Kotlin、Android API、产品 controller 或具体 Transport。Windows/Linux/macOS 可直接组合 Host；Android/iOS 通过 gomobile 和薄 facade 复用它。
+NodeHost 不导入 UI 框架、平台 API、产品 controller 或具体 Transport。产品通过凭据、Driver 和 adapter 提供平台能力。`sdk/go` 与 bindings 不依赖 `host/`；原 Android 单文件 import 例外随实现删除。
 
-依赖方向仍要求 `sdk/go` 与普通 bindings 不依赖 `host/`。Android 的唯一受控 import/composition 例外是 `sdk/bindings/android/host.go`：它作为单文件 gomobile platform composition root，可以组合通用 leaf NodeHost 与延期迁移的 in-process Hub。为保留 gomobile ABI，导出的 `android.Client` 仍是平台 lifecycle wrapper；`client.go` 不直接导入 Host，而是通过 `host.go` 的 factory 间接启动并关闭其唯一 leaf Host。该 wrapper 内部持有的通用 `bindings.Client` 才是 non-owning operation facade；例外不得扩散到其他 SDK/binding 文件。
-
-移动平台外壳继续负责 Foreground Service/Activity、通知、权限、Doze/network callback 和进程生命周期。Keystore 通过 `IdentityStore`，RFCOMM 通过 Driver/provider，collector/actuator 通过产品 adapter 注入。每个新进程从 disconnected 开始，不能把持久 UI 状态当作 live session。
-
-不能嵌入 Go 的 C/ESP32/MicroPython 环境保留轻量 runtime，以协议和 contract tests 对齐。浏览器默认通过 Agent Gateway API；WASM/WebSocket 完整 Node 需要单独决策。
+Android、C/ESP32/MicroPython 的旧实现已移除，平台重启需按[重新设计待办](../requirements/mobile-embedded-redesign.md)另行确定方案。浏览器的完整节点运行方式仍需单独决策；现有 Clipboard Web 仅是 UI 预览。
 
 ## Error and Security Invariants
 
@@ -121,19 +118,23 @@ NodeHost 不导入 Wails、Kotlin、Android API、产品 controller 或具体 Tr
 
 ## Compatibility
 
-首批迁移保持 wire envelope、Resource descriptor/schema、NodeID、持久 identity、Profile/config schema 和 Parent supervision 行为。旧 runtime-owning SDK/binding API 可以暂时作为明确标记的兼容入口，但不能成为新产品的 canonical path，也不能静默改变关闭所有权。Desktop authority Enrollment 不再是 post-Grant 例外：bootstrap 只负责 MFHE 与 Grant 持久化，普通运行统一进入 NodeHost；旧 owning API 仅为未迁移调用方保持源码兼容。Android 的 Host 构造实现集中在 `sdk/bindings/android/host.go`；既有 `android.Client` 与 `android.Host` 可以作为 gomobile lifecycle wrapper 暴露 Start/Close，但其内部 portable SDK/bindings Client 始终 non-owning。
+保留 wire envelope、Resource descriptor/schema、NodeID、持久 identity、Profile/config schema 和 Parent supervision 行为。Clipboard 复用原持久目录。
 
-Android in-process Hub、现有 `host/hub` 和 ClipboardNode 不在首批迁移范围；其存在不改变本文的长期边界。
+SDK 源码 API 有意收敛：删除 Go SDK NewClient、Close、Connect、ConnectManaged 和 owning Connection，以及 bindings 的 NewClient/NewEnrollmentClient、TrustParent、StartTCP/StartRFCOMM/StartEnrolledTCP。调用方使用 NodeHost.New → 注册资源 → Start，获取 Host.Client 与 ParentStatus；Host owner 调用 Close。
+
+SDK Client 只有资源操作，不提供节点关闭方法。bindings.NewAttachedClient 包装现有 SDK；其 Close 只取消 facade 订阅。只读 ConnectionStatus 使用 Snapshot/WaitChange，不能启动或停止父连接。
+
+Desktop authority Enrollment 继续由独立 EnrollmentBootstrap 执行 MFHE 和 Grant 持久化，随后关闭 bootstrap 并创建 NodeHost。Legacy Join 与现有 host/hub 保留；后者迁移是独立工作。
 
 ## Verification
 
 - memory Driver 覆盖 leaf、relay、root、offline；
 - 覆盖 multiple Listener rollback、Parent reconnect/reparent、Start/Close race 和 goroutine cleanup；
-- 证明 `Host.Client()` pointer identity，以及 Client-local close 不影响 Host；
+- 证明 `Host.Client()` pointer identity，以及 bindings-local Close 不影响 Host，SDK 不再暴露节点生命周期方法；
 - 证明本地调用短路、远端调用仍走 Node route 与 Session queue；
 - 证明 Start 前/后资源注册、Variable Set、Catalog 和远端 subscription；
 - 证明 credential-backed Host 不创建 identity 文件、拒绝未 granted/冲突凭据，并让重复 Connect 复用同一 ParentSupervisor；
-- 产品门禁覆盖 Desktop Wails、Metrics TCP/process、gomobile AAR 与 Android Gradle；设备不可用时明确记为 unavailable。
+- 产品门禁覆盖 Desktop Wails、Metrics TCP/process、Clipboard 双节点同步、TCP/process、持久状态保留、失败回滚及 Flutter analyze/test/build。
 
 ## Related
 
@@ -147,3 +148,5 @@ Android in-process Hub、现有 `host/hub` 和 ClipboardNode 不在首批迁移�
 - [NodeHost runtime 与产品边界收敛 change](../change/2026-08-31_nodehost-runtime-and-product-boundaries.md)
 - [NodeHost、Enrollment 与 Profile 生命周期收敛](../change/2026-09-01_nodehost-enrollment-profile-convergence.md)
 - [Android Gradle daemon loopback 不可用 lesson](../lessons/android-gradle-loopback-daemon-unavailable.md)
+
+- [平台退役与 SDK 收敛决策](../decisions/2026-09-06_retire-mobile-embedded-and-owning-bindings.md)

@@ -1,5 +1,11 @@
 # Android
 
+## 当前状态：已退役
+
+2026-09-06 已删除本文对应的实现与专属构建/CI。以下内容仅保留退役前的行为和设计证据，其中路径、命令、能力和测试记录均不代表当前支持。恢复前需重新设计，见[待办](../requirements/mobile-embedded-redesign.md)与[退役决策](../decisions/2026-09-06_retire-mobile-embedded-and-owning-bindings.md).
+
+## 历史说明
+
 ## 定位
 
 Android 当前保留显式 Node ID、父节点公钥和既有 Join Permit 的兼容路径，不发送新的 `MFHE` Enrollment。无 Node ID 的首次注册由 Desktop/Go 路径先行落地，Android 迁移需单独批准。
