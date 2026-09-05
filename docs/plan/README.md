@@ -24,6 +24,8 @@
 - [MetricsNode](#metricsnode)
 
 ## Snapshots / Meta
+- [plan_archive_2026-09-06_depth-scoped-topology.md](plan_archive_2026-09-06_depth-scoped-topology.md)
+- [todo_archive_2026-09-06_depth-scoped-topology.md](todo_archive_2026-09-06_depth-scoped-topology.md)
 - [plan_archive_2026-09-01_scoped-policy-authority.md](plan_archive_2026-09-01_scoped-policy-authority.md)
 - [plan_archive_2026-09-01_nodehost-enrollment-profile-convergence.md](plan_archive_2026-09-01_nodehost-enrollment-profile-convergence.md)
 - [plan_archive_2026-08-31_resource-collections-and-actions-accepted-design.md](plan_archive_2026-08-31_resource-collections-and-actions-accepted-design.md)

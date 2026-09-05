@@ -25,6 +25,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-09-06_depth-scoped-topology-discovery.md](2026-09-06_depth-scoped-topology-discovery.md)
 - [2026-09-06_platform-retirement-and-attached-bindings.md](2026-09-06_platform-retirement-and-attached-bindings.md)
 - [2026-09-01_scoped-policy-authority.md](2026-09-01_scoped-policy-authority.md)
 - [2026-09-01_nodehost-enrollment-profile-convergence.md](2026-09-01_nodehost-enrollment-profile-convergence.md)

@@ -13,6 +13,8 @@
 
 ## Runtime And Architecture
 
+- [partial-discovery-and-async-ownership.md](partial-discovery-and-async-ownership.md)：部分树边界、排队请求清理、跨Profile View引用与迟到保存导致的状态/草稿覆盖。
+
 - [scoped-policy-state-migration-and-live-proof.md](scoped-policy-state-migration-and-live-proof.md)：exact Grants 升级为 scoped Definitions/Bindings 时的无损迁移、停机 bootstrap、权威树 scope 与 effective-source 真实证明。
 - [collection-browser-cross-runtime-contract-boundaries.md](collection-browser-cross-runtime-contract-boundaries.md)：Collection browser 跨 Go/JSON/JavaScript/Wails 时的原子状态、JSON 安全 revision、opaque cursor 与 envelope/content 分层。
 - [credential-status-inspection-must-be-read-only.md](credential-status-inspection-must-be-read-only.md)：Profile 状态列表与诊断必须使用非创建、fail-closed、secret-allowlist 的 credential 检查路径。
@@ -20,7 +22,7 @@
 - [authority-routing-and-subscription-state.md](authority-routing-and-subscription-state.md)：desired/attached 状态、relay 字段、pending 返程和 generation 边界。
 - [authority-local-admin-actions.md](authority-local-admin-actions.md)：remote authority 管理如何沿节点树路由并保留原始授权主体。
 - [session-replacement-generation-cleanup.md](session-replacement-generation-cleanup.md)：同父重连、epoch 与 generation-scoped cleanup。
-- [observable-side-effects-and-generated-contracts.md](observable-side-effects-and-generated-contracts.md)：替代 mutation 路径的订阅副作用与单一 contract 真相。
+- [observable-side-effects-and-generated-contracts.md](observable-side-effects-and-generated-contracts.md)：替代 mutation 路径的订阅副作用、重入版本倒退、超限终止与单一 contract 真相。
 
 ## Platform And Toolchain
 

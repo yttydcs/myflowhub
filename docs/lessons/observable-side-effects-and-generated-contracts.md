@@ -48,6 +48,12 @@
 
 ## Prevention / Guardrails
 
+### 快照发布重入与失败终止
+
+当wrapper更新Variable时，不能在controller全局锁中调用watcher；仅移到锁外仍不足以保证顺序：第一个watcher重入Refresh可能先向其他watcher发布新版本，然后外层继续发布旧版本。使用单一发布排空器，重入只更新待发布快照；双watcher回归应改变树并断言各自版本不倒退。
+
+当旧全量快照超过协议上限时，已有订阅必须明确终止，不能继续展示最后一个正常值。检查链路：`Observation.Failure → subscription.EventFailure → node.sendFailure`。终止应清空待发值、阻止晚到观察、取消watcher/interest/entry并释放客户端pending；慢消费者与即时失败的租约清理都应经过race验证。当前合同见[拓扑发现](../specs/topology-discovery.md)，本轮证据见[变更归档](../change/2026-09-06_depth-scoped-topology-discovery.md)。
+
 - 测试同时断言最终状态和 subscriber/audit 观察结果。
 - 新 provider 必须通过相同 contract suite，不能只做接口编译测试。
 - 不允许手写 action 表、本地 proto shadow type、foreign `wailsjs` 或 AAR stub fallback。

@@ -38,7 +38,7 @@
 
 ## 规划选择与待审批范围
 
-具体接口/capability、缓存与 UI 状态设计见 [plan.md](../../plan.md)。拟在同一个 system/topology Resource 上增加可分别授权的 children/subtree capability，对外 SDK 保持统一数值 depth 方法；不重构通用权限 evaluator。
+具体接口/capability、缓存与 UI 状态设计见 [计划快照](../plan/plan_archive_2026-09-06_depth-scoped-topology.md)。拟在同一个 system/topology Resource 上增加可分别授权的 children/subtree capability，对外 SDK 保持统一数值 depth 方法；不重构通用权限 evaluator。
 
 按需加载使本地搜索只覆盖已加载节点。计划明确显示该范围，完整服务器搜索另立后续；不把这一限制隐藏在“全树搜索”文案后。
 
@@ -48,7 +48,7 @@
 
 ## 文档关系
 
-- [执行控制](../../todo.md)
+- [执行验收快照](../plan/todo_archive_2026-09-06_depth-scoped-topology.md)
 - [Desktop 需求](../requirements/desktop-resource-workspace.md)
 - [当前 Desktop](../features/desktop.md)
 - [Resource/capability 契约](../specs/resource-platform-v2.md)
@@ -59,3 +59,7 @@
 - [Flow 待办](../requirements/flow-redesign.md)
 
 稳定 requirement/spec/ADR 的落地与索引更新在本计划 DOC01 中追踪，不把本 intake 当作已实现 feature 文档。
+
+## 归档请求
+
+用户随后显式调用 `$m-archive`，授权本地归档、提交、合入和本轮工作树清理。记录见[变更归档](../change/2026-09-06_depth-scoped-topology-discovery.md)，原执行批准及当时未提交状态保留为历史。
