@@ -1,51 +1,36 @@
 package contract
 
 import (
-	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/yttydcs/myflowhub/protocol"
 )
 
-func TestCanonicalFlowContractUsesOnlyCollections(t *testing.T) {
+func TestCanonicalOmitsRetiredFlowContract(t *testing.T) {
 	manifest, err := Canonical()
 	if err != nil {
 		t.Fatal(err)
 	}
-	flows := make(map[string]Resource)
 	for _, resource := range manifest.Resources {
-		if resource.Name == protocol.BuiltinFlowDefinitions || resource.Name == protocol.BuiltinFlowRuns {
-			flows[resource.Name] = resource
+		if strings.HasPrefix(resource.Name, "flow/") {
+			t.Errorf("retired Flow resource remains in canonical contract: %s", resource.Name)
 		}
-		if resource.Name == "flow/events" || resource.Name == "flow/create" || resource.Name == "flow/update" ||
-			resource.Name == "flow/run" || resource.Name == "flow/cancel" || resource.Name == "flow/archive" {
-			t.Fatalf("legacy Flow resource remains in canonical contract: %s", resource.Name)
+		for _, capability := range resource.Capabilities {
+			for _, schema := range []string{capability.InputSchema, capability.OutputSchema, capability.EventSchema} {
+				if strings.HasPrefix(schema, "mfh.flow.") {
+					t.Errorf("retired Flow schema referenced by %s: %s", resource.Name, schema)
+				}
+			}
 		}
 	}
-	if len(flows) != 2 {
-		t.Fatalf("canonical Flow resources = %v, want definitions and runs", flows)
+	schemas, err := protocol.BuiltinDataSchemas()
+	if err != nil {
+		t.Fatal(err)
 	}
-	wantDefinitions := []Capability{
-		capability(protocol.CapabilityFlowArchive, protocol.SchemaFlowArchiveV1, protocol.SchemaFlowArchiveV1, ""),
-		capability(protocol.CapabilityFlowCreate, protocol.SchemaFlowDefinitionV1, protocol.SchemaFlowDefinitionV1, ""),
-		capability(protocol.CapabilityGet, protocol.SchemaCollectionMemberRequestV1, protocol.SchemaFlowDefinitionV1, ""),
-		capability(protocol.CapabilityList, protocol.SchemaCollectionListRequestV1, protocol.SchemaCollectionPageV1, ""),
-		capability(protocol.CapabilityFlowRun, protocol.SchemaFlowRunV1, protocol.SchemaFlowRunSummaryV1, ""),
-		capability(protocol.CapabilityFlowUpdate, protocol.SchemaFlowDefinitionV1, protocol.SchemaFlowDefinitionV1, ""),
-	}
-	wantRuns := []Capability{
-		capability(protocol.CapabilityFlowCancel, protocol.SchemaFlowCancelV1, protocol.SchemaFlowRunSummaryV1, ""),
-		capability(protocol.CapabilityGet, protocol.SchemaCollectionMemberRequestV1, protocol.SchemaFlowRunSummaryV1, ""),
-		capability(protocol.CapabilityList, protocol.SchemaCollectionListRequestV1, protocol.SchemaCollectionPageV1, ""),
-		capability(protocol.CapabilitySubscribe, "", "", protocol.SchemaFlowEventV1),
-	}
-	for name, want := range map[string][]Capability{
-		protocol.BuiltinFlowDefinitions: wantDefinitions,
-		protocol.BuiltinFlowRuns:        wantRuns,
-	} {
-		got := flows[name]
-		if got.Type != string(protocol.ResourceTypeCollection) || !reflect.DeepEqual(got.Capabilities, want) {
-			t.Fatalf("canonical Flow resource %s = %#v, want capabilities %#v", name, got, want)
+	for _, schema := range schemas {
+		if strings.HasPrefix(schema.ID, "mfh.flow.") {
+			t.Errorf("retired Flow schema remains in builtin data schemas: %s", schema.ID)
 		}
 	}
 }

@@ -118,7 +118,7 @@ renderer 由 descriptor 的 type、capability、schema、operation result schema
   内容替换和组件卸载都会 revoke Blob URL；
 - File：通过原生文件选择、目标路径、in-flight/error 状态完成上传；owner 提供的 `file/progress` 与
   `file/transfers` 可作为独立 Widget 展示实际进度。当前阻塞式上传 binding 尚不提供单次 transfer cancel；
-- first-party catalog/topology/health/config/flow/audit/notification/file payload 使用 schema ID 选择结构化
+- first-party catalog/topology/health/config/audit/notification/file payload 使用 schema ID 选择结构化
   table/status/timeline/progress adapter；
 - unknown/unsupported：说明缺少或不支持的 schema，完整保留 descriptor、JSON tree/raw 数据和安全 fallback。
 

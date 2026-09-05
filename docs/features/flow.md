@@ -1,5 +1,17 @@
 # Flow
 
+## Current Status — Retired
+
+当前 Flow 已移除，重新设计列为[待办](../requirements/flow-redesign.md)。Hub 不再注册 Flow 资源，
+协议与生成契约不再导出 Flow schema，Go SDK 和 Android 不再提供 Flow 专属入口。
+已有 `flow.json` 原样保留但不再读取、执行或更新；通用资源调用、订阅、Collection 和授权继续保留。
+本次不引入替代执行器或内部语言。参见[移除决策](../decisions/2026-09-06_retire-flow-pending-redesign.md)。
+
+## Historical Reference
+
+以下保留退役前的描述，供重新设计时回顾。下文的“当前”“已实现”及 API/测试说明均属于历史状态，
+不代表当前版本能力，也不要求继续维护旧 Flow。
+
 ## Purpose
 
 Flow 保存有界的自动化定义，调用已有 Resource，并通过同一个运行集合的订阅 capability 暴露运行事件。

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/auth"
@@ -201,39 +200,6 @@ func TestTypedCollectionOperationsShareDirectAndAttachedNodePath(t *testing.T) {
 	}
 	if err := direct.OperatePayload(context.Background(), resourceID, protocol.CapabilityList, &request, &response); err == nil {
 		t.Fatal("typed operation accepted closed client")
-	}
-}
-
-func TestFlowClientPublicMethodsRejectNilReceiver(t *testing.T) {
-	var flows *FlowClient
-	checks := []func() error{
-		func() error {
-			_, err := flows.ListDefinitions(context.Background(), protocol.CollectionListRequestV1{})
-			return err
-		},
-		func() error {
-			_, err := flows.ListRuns(context.Background(), protocol.CollectionListRequestV1{})
-			return err
-		},
-		func() error {
-			_, err := flows.GetDefinition(context.Background(), protocol.CollectionMemberRequestV1{})
-			return err
-		},
-		func() error {
-			_, err := flows.GetRun(context.Background(), protocol.CollectionMemberRequestV1{})
-			return err
-		},
-		func() error { _, err := flows.Events(context.Background(), time.Second, 1); return err },
-		func() error { _, err := flows.Create(context.Background(), protocol.FlowDefinitionV1{}); return err },
-		func() error { _, err := flows.Update(context.Background(), protocol.FlowDefinitionV1{}); return err },
-		func() error { _, err := flows.Run(context.Background(), protocol.FlowRunV1{}); return err },
-		func() error { _, err := flows.Cancel(context.Background(), protocol.FlowCancelV1{}); return err },
-		func() error { return flows.Archive(context.Background(), protocol.FlowArchiveV1{}) },
-	}
-	for index, check := range checks {
-		if err := check(); err == nil {
-			t.Fatalf("nil Flow client method %d returned no error", index)
-		}
 	}
 }
 

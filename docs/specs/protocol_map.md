@@ -29,7 +29,7 @@ schema 与最大 payload。
 
 `permission` 仍保留在 v2 catalog 以兼容现有 descriptor/provider，并可描述领域意图；它不会进入 Envelope 成为
 第二个授权 selector。runtime policy 把 `Action` 规范化为当前 CapabilityID，并按 subject + ResourceID +
-CapabilityID 裁决。因此两个 capabilities 即使都写 `flow.read`，grant 也不互相继承。presentation、UI
+CapabilityID 裁决。因此两个 capabilities 即使都写 `filesystem.read`，grant 也不互相继承。presentation、UI
 namespace、物理 path 与产品名同样不构成权限。
 
 ## Resource types
@@ -68,25 +68,10 @@ filesystem schemas 是 canonical built-in data schemas，但 filesystem Resource
 | `list` | `filesystem.list` | `mfh.collection.list-request.v1` | `mfh.collection.page.v1` |
 | `read` | `filesystem.read` | `mfh.filesystem.read-request.v1` | `mfh.filesystem.content.v1` |
 
-## Flow domain schemas and Resources
+## Retired Flow
 
-| Schema | Use |
-| --- | --- |
-| `mfh.flow.definition.v1` | definition create/update/get |
-| `mfh.flow.run.v1` | start-run request |
-| `mfh.flow.run-summary.v1` | run/get/cancel result 与 persisted run summary |
-| `mfh.flow.cancel.v1` | cancel request |
-| `mfh.flow.event.v1` | `flow/runs.subscribe` event |
-| `mfh.flow.archive.v1` | archive request/result |
-
-| Resource | Type | Exact capabilities |
-| --- | --- | --- |
-| `flow/definitions` | `mfh.collection` | `archive/create/get/list/run/update` |
-| `flow/runs` | `mfh.collection` | `cancel/get/list/subscribe` |
-
-canonical runtime/binding/generated catalog 不再包含 `flow/create`、`flow/update`、`flow/run`、`flow/cancel`、
-`flow/archive` 或 `flow/events`；旧 `mfh.flow.definitions.v1` / `mfh.flow.runs.v1` aggregate schemas 也已从
-canonical built-in data schemas 移除。旧 Resource grant 不映射到新 capability grant。
+当前内置资源与生成契约不再包含 Flow 资源或 `mfh.flow.*` schema。旧调用不做兼容重定向，旧状态文件
+不再加载。历史契约见 [Flow vNext](flow-vnext.md)，后续范围见[重新设计待办](../requirements/flow-redesign.md)。
 
 ## Other built-in Resource families
 
@@ -115,10 +100,9 @@ runtime 先匹配 exact Grant，再按 Subject Binding、当前原子 topology s
 ## Current SDK and binding surface
 
 - Go SDK `OperatePayload` 在既有 Node optimized operation path 上完成 typed request/response 校验；
-- `CollectionClient` 提供通用 list/get，`FlowClient` 提供 definitions/runs，`PolicyClient` 提供 Authority policy Collections 的 typed operations；
+- `CollectionClient` 提供通用 list/get，`PolicyClient` 提供 Authority policy Collections 的 typed operations；
 - generic bindings 公开 `OperateJSON` 与 `SubscribeCapability`，Desktop/Android 不需要恢复 endpoint wrappers；
-- Android sample 已使用两个 Flow Collections 和 generic capability API；当前机器的 Android Gradle loopback gate
-  尚未验证，因此 Gradle/设备状态仍是 pending。
+- Android bindings 保留 generic capability API；Flow 专属页面已移除。
 
 ## Deferred and delivery boundary
 

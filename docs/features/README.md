@@ -23,7 +23,9 @@
 ## Composed Capabilities
 
 - [File transfer](file-transfer.md)：基于资源与指令的文件传输。
-- [Flow](flow.md)：流程定义、运行、状态和取消。
+## Retired / Deferred
+
+- [Flow](flow.md)：旧实现已移除；[重新设计待办](../requirements/flow-redesign.md)。
 
 ## Rules
 - 使用不带日期的稳定文件名。

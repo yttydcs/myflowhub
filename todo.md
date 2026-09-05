@@ -1,5 +1,9 @@
 # Todo - Scoped Policy Definitions And Authority Bindings
 
+## Deferred Product Work
+
+- [ ] FLOW-REDESIGN — [重新讨论通用自动化模型与语言](docs/requirements/flow-redesign.md)；旧 Flow 已移除，尚未选择替代方案。
+
 ## Approval Gate
 
 - [x] User explicitly approves `DOC01, PROTO01, AUTH01, TREE01, MGMT01, SDK01, DESK01, BOOT01, QA01, LIVE01`.

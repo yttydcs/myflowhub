@@ -15,7 +15,7 @@
 - Resource descriptor 声明版本化 type、capabilities、schemas、permissions、limits 和 presentation hints。
 - 第一阶段基础类型：Variable、Stream、Topic、Command。
 - File 使用 session-oriented 扩展类型迁移现有分块传输。
-- Collection 作为 Resource contract 表达文件目录、对象集合、Flow definitions/runs 等动态成员集合；
+- Collection 作为 Resource contract 表达文件目录、对象集合、Policy definitions/bindings 等动态成员集合；
   member 默认不逐项进入全局 catalog。
 - Media 能被 descriptor/session contract 表达；生产级实时音视频数据面单独交付。
 - 未知类型必须保持可发现，并能够通过通用 inspector 查看描述和执行被授权的通用操作。
@@ -28,7 +28,7 @@
 - 客户端发现一个 Command，按照 descriptor schema 调用并接收结果。
 - 客户端发现一个 Collection，按 provider 约束的 member locator 枚举和操作内部成员，而不需要把每个成员
   注册为全局 Resource。
-- Flow 客户端在 definitions Collection 创建、更新、归档或执行定义，并在 runs Collection 查询、订阅或取消运行实例。
+- Policy 客户端通过 definitions/bindings Collections 管理策略定义与绑定，操作权限仍由 Authority 裁决。
 - 文件发送方打开 File session，在独立有界数据 lane 上传内容，同时订阅进度。
 - Desktop 遇到未来新增的 Resource type 时仍能展示 descriptor，而不需要升级 Core 才能看见资源。
 
@@ -82,7 +82,7 @@
 - Topic 至少覆盖两个 publisher、两个 subscriber、拒绝未授权 publish/subscribe、断线恢复与默认无 replay。
 - 未知 Resource type 可以出现在 catalog 和 Desktop generic inspector 中，不能被错误调用。
 - filesystem fixture 可以把多个本地 root 注册为可分别授权的 Collection Resources，拒绝越界 member locator；
-  Flow fixture 通过 definitions/runs Collections 完成执行与运行管理，不再要求每个普通操作成为独立 Resource。
+  Policy Collections 验证领域成员操作，不要求每个普通操作成为独立 Resource。
 - File 迁移后保持 offer/cancel/checksum/atomic completion，并证明大传输期间控制消息仍可及时处理。
 - 固定三类型的 Core switch、旧 wire operation 和兼容桥从 canonical build 中移除。
 - `go test ./...`、`go vet ./...`、生成契约和全产品门禁通过。

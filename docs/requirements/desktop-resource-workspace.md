@@ -142,7 +142,7 @@
   失败或 revision conflict 后 draft 保留。Command form 只在显式 Execute 时调用；unsupported schema
   回退 Advanced JSON/descriptor inspector。
 - Stream/Topic 的 pause/filter/clear/rate/autoscroll 与 gap/expired 状态有界可测；File picker cancel、上传
-  progress 和 session error 明确；catalog/topology/health/config/flow/audit/notification/file schema 使用结构化
+  progress 和 session error 明确；catalog/topology/health/config/audit/notification/file schema 使用结构化
   adapter 而非 Resource path 特判。
 - 未知类型、离线、Forbidden、Expired、Gap 和 Schema mismatch 均有独立可测试状态。
 - Vitest/Testing Library、TypeScript、Vite production build、Wails production build、浏览器交互与真实 Wails GUI smoke 通过。

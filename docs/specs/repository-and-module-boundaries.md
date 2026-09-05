@@ -44,7 +44,7 @@ MyFlowHub/
 │   ├── resource/          Variable、Stream、Command
 │   └── subscription/      订阅、租约、聚合与背压
 ├── transport/             TCP、QUIC、RFCOMM、串口等适配器
-├── feature/               File、Flow 等建立在核心原语上的能力
+├── feature/               File、Notification 等建立在核心原语上的能力
 ├── host/                  Hub 和其他运行时组合入口
 ├── sdk/                   第一方客户端 SDK
 ├── apps/                  Desktop、Android 与节点应用
@@ -86,7 +86,7 @@ MyFlowHub/
 ### feature
 
 - 依赖 runtime 提供的 Resource、Subscription 和 Command 原语。
-- File、Flow 等不是新的核心路由或权限体系，不得重新建立 SubProto 风格的垂直协议栈。
+- File、Notification 等不是新的核心路由或权限体系，不得重新建立 SubProto 风格的垂直协议栈。
 
 ### host
 
@@ -128,7 +128,7 @@ MyFlowHub/
 | MyFlowHub-SubProto/exec | `runtime/resource` 中的 Command 与调用机制 |
 | MyFlowHub-SubProto/broker | `runtime/subscription` 内部实现 |
 | MyFlowHub-SubProto/forward | `runtime/tree` 路由实现 |
-| MyFlowHub-SubProto/file、flow | `feature/`，建立在核心原语之上 |
+| MyFlowHub-SubProto/file、flow | File 位于 `feature/file`；Flow 已退役，见[重新设计待办](../requirements/flow-redesign.md) |
 | MyFlowHub-Win、Android | `apps/desktop`、`apps/android` |
 | MetricsNode、ClipboardNode | `apps/nodes` |
 | MyFlowHub-EmbeddedSDK | `embedded/` |

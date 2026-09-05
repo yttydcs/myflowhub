@@ -38,7 +38,7 @@ cmd · apps · embedded
 - `runtime/link/` 消费抽象字节流；具体 TCP、QUIC、RFCOMM 实现在 `transport/`，不得把链路类型泄漏到资源或权限语义。
 - `runtime/tree/` 的父子边同时是路由边和 authority 边；节点拥有资源，资源不是树节点。
 - `runtime/resource/` 只提供 `Variable`、`Stream`、`Command`；订阅是 Variable/Stream 上的一等关系，Command 是有界补充手段。
-- `feature/` 提供 File、Flow、Notification、Management 等可组合能力，不创建第二套协议或 dispatcher。
+- `feature/` 提供 File、Notification、Management 等可组合能力，不创建第二套协议或 dispatcher。
 - `host/`、`sdk/` 负责稳定组合面；`cmd/`、`apps/`、`embedded/` 是最终产品入口，不反向成为底层依赖。
 
 ## 产品位置

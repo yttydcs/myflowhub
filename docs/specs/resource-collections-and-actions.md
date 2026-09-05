@@ -2,14 +2,14 @@
 
 ## Status
 
-Current implementation contract。Collection protocol、multi-capability runtime Resource、Flow definitions/runs、
+Current implementation contract。Collection protocol、multi-capability runtime Resource、Policy Collections、
 opt-in read-only filesystem provider、typed Go SDK、generic bindings/generated contracts、Desktop shared action seam
 与 Collection/content renderers 已实现，并已完成 full product、Wails package 与真实 browser/packaged GUI `QA01`。
 
 | Area | Current status |
 | --- | --- |
 | Collection schemas/runtime handler | current |
-| Flow definitions/runs Collections | current |
+| Policy definitions/bindings/grants Collections | current |
 | Filesystem `get/list/read` provider | current、opt-in |
 | Go SDK/bindings/generated contracts | current |
 | Desktop Resource action derivation/entry seam | current |
@@ -27,13 +27,12 @@ opt-in read-only filesystem provider、typed Go SDK、generic bindings/generated
 - Resource name 中的 `/` 只允许 Desktop 派生 presentation namespace；纯 namespace 不是 Resource、
   Collection、permission scope 或 routing hop。
 
-Collection 不等同于磁盘目录。它可以由本地目录、对象存储、数据库记录、Flow definition、运行实例、
-设备集合或动态生成内容提供。provider 的物理路径、表名、bucket 和其他部署细节不得成为网络 ResourceID。
+Collection 不等同于磁盘目录。它可以由本地目录、对象存储、数据库记录、策略定义或动态生成内容提供。provider 的物理路径、表名、bucket 和其他部署细节不得成为网络 ResourceID。
 
 ## Action ownership
 
-对现有对象的行为声明为该 Resource 的 Capability。例如取消运行是 `flow/runs` 的 `cancel` capability，
-不再默认建模为 `flow/cancel` Command Resource。
+对现有对象的行为声明为该 Resource 的 Capability。例如撤销策略绑定是 `system/policy/bindings` 的 `revoke` capability，
+不需要再为这个成员操作单独注册 Command Resource。
 
 只有当一个操作自身形成稳定、独立的寻址、schema、权限、生命周期和审计边界，并且没有自然目标 Resource
 时，才建模为独立 Command Resource。多个紧密相关的系统操作可以由一个 Service Resource 提供多个
@@ -121,17 +120,14 @@ HTML/SVG 在 wire 上只是非可执行数据。当前 Desktop renderer 会转�
 PNG/JPEG/GIF/WebP raster，并为未知或不支持的 binary 显示明确 fallback；HTML 只作为转义文本，SVG 不嵌入，
 二者都不执行。
 
-## Flow example
+## Policy example
 
-Flow 默认提供两个 Collection Resources：
+当前 Authority 提供 `system/policy/definitions`、`system/policy/bindings` 与 `system/policy/grants` Collections。
+定义支持 `list/get/create/update/delete`；绑定支持 `list/get/create/revoke/evaluate`。
+成员通过 Collection 内的 key 定位，不自动逐项注册到全局 catalog。完整 schema、权限与生命周期见
+[Scoped Policy Authorization](scoped-policy-authorization.md)。
 
-- `flow/definitions` 管理可执行定义，第一阶段提供 `list/get/create/update/archive/run`；
-- `flow/runs` 管理执行实例，第一阶段提供 `list/get/subscribe/cancel`。
-
-调用 `flow/definitions.run(definitionID, input)` 产生 `flow/runs` 中的 member。Definition 与 Run 默认不逐项
-进入全局 catalog；只有满足独立 Resource 提升条件时才注册为普通 Resource。
-Flow state load/commit 同样把 Collection revision 限定在 `1..9007199254740991`；越界持久状态拒绝加载，达到
-上限后的 mutation 明确失败且不回绕。
+旧 Flow Collections 已移除，相关设计见[历史规格](flow-vnext.md)与[重新设计待办](../requirements/flow-redesign.md)。
 
 ## Desktop interaction
 
@@ -158,15 +154,15 @@ packaged Wails/GUI `QA01` 已完成。
 ## SDK and platform callers
 
 - Go SDK `CollectionClient` 提供通用 list/get；domain-specific get 继续通过 typed `OperatePayload` 解码真实输出，
-  `FlowClient` 提供当前 definitions/runs 全部 typed operations；
+  `PolicyClient` 提供当前策略 Collections 的 typed operations；
 - bindings 保留 generic `OperateJSON` 与 `SubscribeCapability`，继续走同一个 Node operation/subscription path；
-- Android sample 已迁移到两个 Flow Collections 与 generic capability 操作/订阅，不再调用旧 Flow Commands；
+- Android bindings 保留 generic capability 操作/订阅；Flow 专属示例页面已移除；
 - Android 已完成双 ABI AAR 与离线 Gradle unit/lint/assemble gate；因没有连接物理设备，device smoke 明确记为
   unavailable，而不是 passed。
 
 ## Deferred protocol details
 
-第一阶段只交付上述通用 list/get/member/page schema、Flow clean-break 和只读 filesystem provider。以下边界
+第一阶段只交付上述通用 list/get/member/page schema 和只读 filesystem provider。以下边界
 明确延期，本文不把它们宣称为 current API：
 
 - `AUTHZ02`：generic member selector policy、filtered catalog 与 authoritative effective-capability discovery；
@@ -182,7 +178,7 @@ Forbidden 的最终反馈；UI 可见性不是授权。
 ## Related docs
 
 - [Resource Platform v2](resource-platform-v2.md)
-- [Flow vNext](flow-vnext.md)
+- [Flow vNext（历史）](flow-vnext.md)
 - [Desktop Resource Workspace v3](desktop-resource-workspace-v3.md)
 - [Desktop Schema Rendering](desktop-schema-rendering.md)
 - [可扩展资源平台 requirement](../requirements/extensible-resource-platform.md)

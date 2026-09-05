@@ -118,7 +118,7 @@ function ObjectTable({ values, schema }: { values: unknown[]; schema?: DataSchem
       <table className="structured-table">
         <thead><tr>{columns.map((column) => <th key={column} scope="col">{column}</th>)}</tr></thead>
         <tbody>{rows.slice(0, 100).map((row, index) => (
-          <tr key={String(row.id || row.flow_id || row.transfer_id || row.node_id || index)}>
+          <tr key={String(row.id || row.transfer_id || row.node_id || index)}>
             {columns.map((column) => <td key={column} title={typeof row[column] === 'string' ? String(row[column]) : undefined}>{summarizeCell(row[column])}</td>)}
           </tr>
         ))}</tbody>

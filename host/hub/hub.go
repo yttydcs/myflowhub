@@ -11,7 +11,6 @@ import (
 	"time"
 
 	filefeature "github.com/yttydcs/myflowhub/feature/file"
-	flowfeature "github.com/yttydcs/myflowhub/feature/flow"
 	"github.com/yttydcs/myflowhub/feature/management"
 	"github.com/yttydcs/myflowhub/feature/notification"
 	hostconfig "github.com/yttydcs/myflowhub/host/config"
@@ -42,7 +41,6 @@ type PersistentConfig struct {
 	RefreshInterval             time.Duration
 	FileRoot                    string
 	File                        filefeature.Config
-	Flow                        flowfeature.Config
 	AdmissionAuthorityNodeID    protocol.NodeID
 	AdmissionAuthorityPublicKey ed25519.PublicKey
 }
@@ -55,7 +53,6 @@ type Hub struct {
 	Management          *management.Controller
 	Notification        *notification.Controller
 	File                *filefeature.Controller
-	Flow                *flowfeature.Controller
 	EnrollmentAuthority *auth.EnrollmentAuthority
 
 	cancel    context.CancelFunc
@@ -193,18 +190,8 @@ func StartPersistent(ctx context.Context, config PersistentConfig) (*Hub, error)
 		_ = runtime.Close()
 		return nil, err
 	}
-	flowConfig := config.Flow
-	flowConfig.Node = runtime
-	flowConfig.Store = state.Store
-	flowController, err := flowfeature.Register(flowConfig)
-	if err != nil {
-		_ = fileController.Close()
-		_ = runtime.Close()
-		return nil, err
-	}
 	endpoints, err := listen(runtime, config.Listeners)
 	if err != nil {
-		_ = flowController.Close()
 		_ = fileController.Close()
 		_ = runtime.Close()
 		return nil, err
@@ -214,7 +201,6 @@ func StartPersistent(ctx context.Context, config PersistentConfig) (*Hub, error)
 		refreshInterval = time.Second
 	}
 	if refreshInterval < 10*time.Millisecond {
-		_ = flowController.Close()
 		_ = fileController.Close()
 		_ = runtime.Close()
 		return nil, errors.New("hub management refresh interval must be at least 10ms")
@@ -222,7 +208,7 @@ func StartPersistent(ctx context.Context, config PersistentConfig) (*Hub, error)
 	refreshCtx, cancel := context.WithCancel(ctx)
 	hub := &Hub{
 		Node: runtime, Endpoint: endpoints[0], Endpoints: endpoints, Runtime: state, Management: controller,
-		Notification: notificationController, File: fileController, Flow: flowController, EnrollmentAuthority: authority, cancel: cancel,
+		Notification: notificationController, File: fileController, EnrollmentAuthority: authority, cancel: cancel,
 	}
 	hub.wg.Add(1)
 	go func() {
@@ -275,11 +261,6 @@ func (h *Hub) Close() error {
 			h.cancel()
 		}
 		h.wg.Wait()
-		if h.Flow != nil {
-			if err := h.Flow.Close(); err != nil {
-				closeErr = err
-			}
-		}
 		if h.File != nil {
 			if err := h.File.Close(); err != nil && closeErr == nil {
 				closeErr = err

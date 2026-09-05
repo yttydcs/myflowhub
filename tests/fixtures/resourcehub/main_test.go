@@ -47,7 +47,7 @@ func TestParseOptionsRejectsUnsafeOrAmbiguousConfiguration(t *testing.T) {
 	}
 }
 
-func TestFixtureRegistersRealFlowAndFilesystemCollectionsWithoutRootLeak(t *testing.T) {
+func TestFixtureRegistersFilesystemCollectionsWithoutRootLeak(t *testing.T) {
 	config := testOptions(t)
 	if err := os.WriteFile(filepath.Join(config.mounts[0].root, "hello.txt"), []byte("fixture hello"), 0o600); err != nil {
 		t.Fatal(err)
@@ -71,10 +71,6 @@ func TestFixtureRegistersRealFlowAndFilesystemCollectionsWithoutRootLeak(t *test
 		config.mounts[1].name: false,
 		config.mounts[2].name: false,
 	}
-	wantFlow := map[string]bool{
-		protocol.BuiltinFlowDefinitions: false,
-		protocol.BuiltinFlowRuns:        false,
-	}
 	for _, descriptor := range catalog.Resources {
 		if _, exists := wantFilesystem[descriptor.ID.Name]; exists {
 			if descriptor.Type != protocol.ResourceTypeCollection {
@@ -82,21 +78,10 @@ func TestFixtureRegistersRealFlowAndFilesystemCollectionsWithoutRootLeak(t *test
 			}
 			wantFilesystem[descriptor.ID.Name] = true
 		}
-		if _, exists := wantFlow[descriptor.ID.Name]; exists {
-			if descriptor.Type != protocol.ResourceTypeCollection {
-				t.Fatalf("Flow descriptor %q type = %q", descriptor.ID.Name, descriptor.Type)
-			}
-			wantFlow[descriptor.ID.Name] = true
-		}
 	}
 	for name, found := range wantFilesystem {
 		if !found {
 			t.Errorf("filesystem Resource %q is missing from the catalog", name)
-		}
-	}
-	for name, found := range wantFlow {
-		if !found {
-			t.Errorf("Flow Resource %q is missing from the catalog", name)
 		}
 	}
 	for _, mount := range config.mounts {
@@ -113,10 +98,6 @@ func TestFixtureRegistersRealFlowAndFilesystemCollectionsWithoutRootLeak(t *test
 	filesystemPage := listCollection(t, node.Registry(), protocol.ResourceID{Owner: node.ID(), Name: config.mounts[0].name})
 	if len(filesystemPage.Members) != 1 || filesystemPage.Members[0].Key != "hello.txt" {
 		t.Fatalf("unexpected filesystem fixture page: %#v", filesystemPage)
-	}
-	flowPage := listCollection(t, node.Registry(), protocol.ResourceID{Owner: node.ID(), Name: protocol.BuiltinFlowDefinitions})
-	if len(flowPage.Members) != 0 {
-		t.Fatalf("new fixture Flow store is not empty: %#v", flowPage.Members)
 	}
 
 	resourceIDs := make([]protocol.ResourceID, 0, len(config.mounts))

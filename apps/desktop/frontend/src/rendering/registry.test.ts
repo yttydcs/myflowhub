@@ -18,7 +18,7 @@ function collection(name: string, permission: string, label: string): ResourceDe
 
 describe('Collection renderer matching', () => {
   it('depends on type and capability schemas, not Resource name, permission or label', () => {
-    const first = selectResourceRenderer(collection('flow/definitions', 'admin.everything', 'Flow Definitions'))
+    const first = selectResourceRenderer(collection('system/policy/definitions', 'admin.everything', 'Policy Definitions'))
     const second = selectResourceRenderer(collection('totally/arbitrary', 'guest.read', 'Unrelated label'))
     expect(first.selected.id).toBe('mfh.collection.browser.v1')
     expect(second.selected.id).toBe(first.selected.id)

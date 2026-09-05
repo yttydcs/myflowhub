@@ -415,13 +415,13 @@ describe('Collection renderer', () => {
   it('renders a domain get result according to the descriptor output schema', async () => {
     const api = mockAPI({
       operate: vi.fn().mockImplementation(async (_owner, _name, capability) => capability === 'list'
-        ? collectionPage('', [collectionMember('flow-1', { label: 'Flow one', schema: 'mfh.flow.definition.v1' })])
-        : { schema: 'mfh.flow.definition.v1', payload: { version: 1, flow_id: 'flow-1', revision: 3, name: 'Demo Flow', nodes: [], edges: [] } }),
+        ? collectionPage('', [collectionMember('policy-1', { label: 'Policy one', schema: 'mfh.policy.definition.v1' })])
+        : { schema: 'mfh.policy.definition.v1', payload: { version: 1, id: 'policy-1', revision: 3, label: 'Demo policy', immutable: false, rules: [] } }),
     })
-    render(<ResourceRenderer api={api} resource={collectionResource('any/provider-name', 'mfh.flow.definition.v1')} />)
-    fireEvent.click(await screen.findByRole('button', { name: /Flow one/ }))
-    expect(await screen.findByText('Demo Flow')).toBeInTheDocument()
-    expect(api.operate).toHaveBeenLastCalledWith('1', 'any/provider-name', 'get', 'mfh.collection.member-request.v1', { version: 1, key: 'flow-1' })
+    render(<ResourceRenderer api={api} resource={collectionResource('any/provider-name', 'mfh.policy.definition.v1')} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Policy one/ }))
+    expect(await screen.findByText('Demo policy')).toBeInTheDocument()
+    expect(api.operate).toHaveBeenLastCalledWith('1', 'any/provider-name', 'get', 'mfh.collection.member-request.v1', { version: 1, key: 'policy-1' })
   })
 
   it('gets then reads a member, warns about sniffed content type and keeps HTML escaped', async () => {

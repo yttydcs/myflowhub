@@ -7,7 +7,7 @@ Android 当前保留显式 Node ID、父节点公钥和既有 Join Permit 的兼
 Android 产品有两个明确模式：
 
 - **Client**：作为普通子节点加入父链，浏览和操作任意授权节点的资源；
-- **Host**：在应用进程中承载 persistent Hub，为移动或蓝牙邻近节点提供管理、通知、File 和 Flow resources，并可继续作为子节点连接上级。
+- **Host**：在应用进程中承载 persistent Hub，为移动或蓝牙邻近节点提供管理、通知和 File resources，并可继续作为子节点连接上级。
 
 两种模式使用同一 `runtime/node`、authority tree、ParentSupervisor 与资源模型。Android 不是一套独立协议实现。
 
@@ -43,14 +43,12 @@ wrapper 内部持有的通用 `bindings.Client` 才是 non-owning operation faca
 
 File 页面先通过 Android content resolver 把用户选定文档复制到随机 cache 文件，再由 SDK 执行 64 KiB 分块、逐块/最终 SHA-256、complete 和失败 cancel。临时文件在成功或失败后删除。
 
-Flow sample 页面通过 generic `OperateJSON` 列出 `flow/definitions` 与 `flow/runs` Collections，在
-`flow/runs.subscribe` 上接收事件，并按 Resource + capability + schema 准备/执行 domain operation；不再调用旧
-Flow Commands。MetricsNode、ClipboardNode 和未来节点应用通过相同 catalog/resource 页面接入，不硬编码旧
+Flow 示例页已移除。MetricsNode、ClipboardNode 和未来节点应用通过相同 catalog/resource 页面接入，不硬编码旧
 TopicBus/VarStore 协议。
 
 ## Local Hub Host
 
-Host 使用 `host/hub.StartPersistent`，因此本地 identity、trust、policy、admission、settings、File 和 Flow state 都保存在应用私有目录。可同时开启 TCP 与 RFCOMM listener；至少一个 listener 必须有效。父公钥与一次性 permit 必须在启动/连接边界设置，运行后不能静默更换 trust。
+Host 使用 `host/hub.StartPersistent`，因此本地 identity、trust、policy、admission、settings 和 File state 都保存在应用私有目录。可同时开启 TCP 与 RFCOMM listener；至少一个 listener 必须有效。父公钥与一次性 permit 必须在启动/连接边界设置，运行后不能静默更换 trust。
 
 这是首批 NodeHost 迁移期间的明确过渡例外：Android in-process Hub 与 `host/hub` 本轮不迁移。后续只在通用 Host 上组合 Hub feature，不为 Android 定义第二套 Node、权限或资源模型。
 
@@ -96,9 +94,7 @@ Gradle 缺少 AAR 时立即失败，不生成“可编译但运行时不可用�
 - artifact：双 ABI AAR/APK 原生库检查；
 - device：只有实际连接设备时才记录 install/TCP/RFCOMM socket smoke。没有设备时明确标为 unavailable，不用 host-side provider test 冒充设备证据。
 
-本轮 Flow Collection sample 的 Go/binding/generated contract、双 ABI AAR 与离线 JDK 21 Gradle
-`testDebugUnitTest/assembleDebug/lintDebug` 已验证。当前没有连接 Android 设备，因此 device smoke 明确记为
-unavailable，不能记为 pass；host-side provider test 也不替代设备证据。
+旧 Flow 示例的历史验证不代表当前功能；当前版本不再提供 Flow 入口，重新设计见[待办](../requirements/flow-redesign.md)。
 
 通用 Host 与移动平台 ownership 见 [NodeHost Runtime](../specs/node-host-runtime.md)。
 

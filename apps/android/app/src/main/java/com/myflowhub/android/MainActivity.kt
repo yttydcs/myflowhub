@@ -97,7 +97,7 @@ class MainActivity : ComponentActivity() {
                     Text("节点树控制台", color = Color(0xFFEAF1FC), style = MaterialTheme.typography.headlineLarge)
                     Text("${runtime.mode} · ${runtime.connection}", color = if (runtime.error.isBlank()) Color(0xFF93A5BE) else Color(0xFFFF879A))
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("会话", "资源", "文件", "Flow", "状态").forEach { item ->
+                        listOf("会话", "资源", "文件", "状态").forEach { item ->
                             Button(onClick = { tab = item }, colors = ButtonDefaults.buttonColors(containerColor = if (tab == item) Color(0xFF287D70) else Color(0xFF1A2B43))) { Text(item) }
                         }
                     }
@@ -105,7 +105,6 @@ class MainActivity : ComponentActivity() {
                         "会话" -> SessionPage(mode, { mode = it }, nodeId, { nodeId = it }, parentId, { parentId = it }, transport, { transport = it }, endpoint, { endpoint = it }, parentKey, { parentKey = it }, permit, { permit = it }, tcpListen, { tcpListen = it }, rfcommListen, { rfcommListen = it }, settings)
                         "资源" -> ResourcesPage(runtime)
                         "文件" -> FilesPage(runtime)
-                        "Flow" -> FlowPage(runtime)
                         else -> StatusPage(runtime)
                     }
                     if (runtime.error.isNotBlank()) JsonCard("错误（平台或 authority 明确返回）", runtime.error, Color(0xFF4B2330))
@@ -181,7 +180,7 @@ class MainActivity : ComponentActivity() {
             Input("Command JSON", request, { request = it }, 4)
             Button(onClick = { runIO { RuntimeBridge.invoke(owner.toLong(), name, request) } }) { Text("执行 Command") }
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("system/topology", "metrics/config", "clipboard/status", "file/transfers", "flow/definitions").forEach { resource ->
+                listOf("system/topology", "metrics/config", "clipboard/status", "file/transfers").forEach { resource ->
                     Button(onClick = { name = resource }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E3851))) { Text(resource) }
                 }
             }
@@ -211,49 +210,6 @@ class MainActivity : ComponentActivity() {
             }
         }
         JsonCard("文件结果", runtime.resultJson)
-    }
-
-    @Composable
-    private fun FlowPage(runtime: RuntimeState) {
-        var owner by remember { mutableStateOf("1") }
-        var resource by remember { mutableStateOf("flow/definitions") }
-        var capability by remember { mutableStateOf("list") }
-        var schema by remember { mutableStateOf("mfh.collection.list-request.v1") }
-        var request by remember { mutableStateOf("{\"version\":1,\"limit\":50}") }
-        CardPanel("Flow Collections") {
-            Input("Owner NodeID", owner, { owner = it })
-            Input("Collection Resource", resource, { resource = it })
-            Input("Capability", capability, { capability = it })
-            Input("请求 Schema", schema, { schema = it })
-            Input("请求 JSON", request, { request = it }, 6)
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { runIO {
-                    RuntimeBridge.operate(owner.toLong(), "flow/definitions", "list", "mfh.collection.list-request.v1", "{\"version\":1,\"limit\":50}")
-                } }) { Text("定义列表") }
-                Button(onClick = { runIO {
-                    RuntimeBridge.operate(owner.toLong(), "flow/runs", "list", "mfh.collection.list-request.v1", "{\"version\":1,\"limit\":50}")
-                } }) { Text("运行列表") }
-                Button(onClick = { runIO { RuntimeBridge.subscribe(owner.toLong(), "flow/runs") } }) { Text("订阅运行") }
-                Button(onClick = {
-                    resource = "flow/definitions"
-                    capability = "run"
-                    schema = "mfh.flow.run.v1"
-                    request = """
-                        {
-                          "version": 1,
-                          "run_id": "10112233445566778899aabbccddeeff",
-                          "flow_id": "00112233445566778899aabbccddeeff",
-                          "flow_revision": 1,
-                          "dedupe_key": "android-sample",
-                          "deadline_unix_ms": ${System.currentTimeMillis() + 300_000}
-                        }
-                    """.trimIndent()
-                }) { Text("准备运行") }
-            }
-            Button(onClick = { runIO { RuntimeBridge.operate(owner.toLong(), resource, capability, schema, request) } }) { Text("执行 Capability") }
-        }
-        JsonCard("Flow 结果", runtime.resultJson)
-        if (runtime.lastEventJson.isNotBlank()) JsonCard("Flow 事件", runtime.lastEventJson)
     }
 
     @Composable

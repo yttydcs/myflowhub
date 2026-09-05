@@ -99,7 +99,7 @@ Variable 便捷声明必须显式提供 local name、content type、schema、rea
 
 - Desktop：拥有自己的 Profile identity 和 state；Legacy 与已经 granted 的 authority Profile 都使用 Parent-only NodeHost，不因 UI 或产品名获得 Listener/relay 权限。尚无 Node ID 的 authority Profile 只打开窄 Enrollment bootstrap；Grant 持久后先关闭 bootstrap，再以同一受保护凭据创建 NodeHost。
 - MetricsNode：拥有独立 NodeHost，在 `Start` 前注册指标、配置、控制和通知资源；不依赖 Desktop。
-- Hub：后续在 NodeHost 上组合 Management/File/Flow/Notification 等 feature；当前迁移延期。
+- Hub：后续在 NodeHost 上组合 Management/File/Notification 等 feature；当前迁移延期。
 - Agent Gateway：后续作为普通 NodeHost 产品，在外层实现 Web/API/MCP、token 权限交集和审计；不成为树内特权。
 
 NodeHost 不导入 Wails、Kotlin、Android API、产品 controller 或具体 Transport。Windows/Linux/macOS 可直接组合 Host；Android/iOS 通过 gomobile 和薄 facade 复用它。

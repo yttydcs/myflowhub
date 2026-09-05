@@ -81,67 +81,6 @@
       ]
     },
     {
-      "name": "flow/definitions",
-      "type": "mfh.collection",
-      "capabilities": [
-        {
-          "name": "archive",
-          "input_schema": "mfh.flow.archive.v1",
-          "output_schema": "mfh.flow.archive.v1"
-        },
-        {
-          "name": "create",
-          "input_schema": "mfh.flow.definition.v1",
-          "output_schema": "mfh.flow.definition.v1"
-        },
-        {
-          "name": "get",
-          "input_schema": "mfh.collection.member-request.v1",
-          "output_schema": "mfh.flow.definition.v1"
-        },
-        {
-          "name": "list",
-          "input_schema": "mfh.collection.list-request.v1",
-          "output_schema": "mfh.collection.page.v1"
-        },
-        {
-          "name": "run",
-          "input_schema": "mfh.flow.run.v1",
-          "output_schema": "mfh.flow.run-summary.v1"
-        },
-        {
-          "name": "update",
-          "input_schema": "mfh.flow.definition.v1",
-          "output_schema": "mfh.flow.definition.v1"
-        }
-      ]
-    },
-    {
-      "name": "flow/runs",
-      "type": "mfh.collection",
-      "capabilities": [
-        {
-          "name": "cancel",
-          "input_schema": "mfh.flow.cancel.v1",
-          "output_schema": "mfh.flow.run-summary.v1"
-        },
-        {
-          "name": "get",
-          "input_schema": "mfh.collection.member-request.v1",
-          "output_schema": "mfh.flow.run-summary.v1"
-        },
-        {
-          "name": "list",
-          "input_schema": "mfh.collection.list-request.v1",
-          "output_schema": "mfh.collection.page.v1"
-        },
-        {
-          "name": "subscribe",
-          "event_schema": "mfh.flow.event.v1"
-        }
-      ]
-    },
-    {
       "name": "notifications/events",
       "type": "mfh.stream",
       "capabilities": [

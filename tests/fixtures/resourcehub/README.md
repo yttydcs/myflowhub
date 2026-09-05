@@ -2,7 +2,7 @@
 
 This test-only command starts a real persistent MyFlowHub Authority Hub and
 registers three real read-only filesystem Collection Resources on that Hub
-Node. It uses the production Hub, enrollment, policy, Flow, TCP and filesystem
+Node. It uses the production Hub, enrollment, policy, TCP and filesystem
 implementations. It does not mock the wire protocol or Desktop API.
 
 The caller owns all fixture directories. The command creates Hub state only
@@ -41,10 +41,10 @@ go run ./cmd/mfh-hub -id '<hub-node-id>' -state '<same-state>' -issue-public-key
 go run ./cmd/mfh-hub -id '<hub-node-id>' -state '<same-state>' -policy grant -subject '<desktop-node-id>' -action read -resource-node '<hub-node-id>' -resource system/catalog
 ```
 
-Repeat the offline policy command for the exact Flow and filesystem
+Repeat the offline policy command for the exact filesystem
 capabilities under test. A real Forbidden case should be created by omitting or
 revoking one exact grant, not by changing this fixture or mocking the frontend.
 
 Terminate the process with Ctrl+C or a normal process termination signal. The
-filesystem registration is removed first, then the Flow/File controllers and
+filesystem registration is removed first, then the File controller and
 Hub Node are closed through their production lifecycle.

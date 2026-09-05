@@ -12,6 +12,8 @@
 - 可被反复引用的验收标准
 
 ## Current Status
+- [flow-redesign.md](flow-redesign.md)
+  - 已移除旧 Flow；通用自动化模型、语言与执行语义的延期待办，尚未选型。
 - [brand-identity.md](brand-identity.md)
   - Coupled Seam 品牌主标、canonical 入口、多尺寸资产与平台派生的长期要求。
 - [extensible-resource-platform.md](extensible-resource-platform.md)

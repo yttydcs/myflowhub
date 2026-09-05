@@ -2,7 +2,6 @@ package protocoltest
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -55,11 +54,6 @@ func TestCrossLanguageGoldenPayloads(t *testing.T) {
 			value: &protocol.FileChunkV1{Version: 1, TransferID: "00112233445566778899aabbccddeeff", Offset: 0, Data: []byte("abc"), SHA256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"},
 			fresh: func() protocol.ValidatedPayload { return &protocol.FileChunkV1{} },
 		},
-		{
-			name:  "flow-definition-v1.json",
-			value: &protocol.FlowDefinitionV1{Version: 1, FlowID: "00112233445566778899aabbccddeeff", Revision: 1, Name: "sample", Nodes: []protocol.FlowNodeV1{{ID: "read", Kind: "variable-read", Resource: protocol.FlowResourceRefV1{OwnerNodeID: "2", Name: "metrics/cpu"}}, {ID: "notify", Kind: "command-call", Resource: protocol.FlowResourceRefV1{OwnerNodeID: "1", Name: "notifications/publish"}, Config: json.RawMessage(`{"channel":"system"}`)}}, Edges: []protocol.FlowEdgeV1{{From: "read", To: "notify"}}, Inputs: map[string]string{"threshold": "80"}},
-			fresh: func() protocol.ValidatedPayload { return &protocol.FlowDefinitionV1{} },
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -99,10 +93,6 @@ func TestSchemaValidationRejectsUnsafeInputs(t *testing.T) {
 	badOffer := &protocol.FileOfferV1{Version: 1, TransferID: "00112233445566778899aabbccddeeff", Path: "../escape", SHA256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", ChunkSize: 1, ExpiresAtUnixMS: 1}
 	if err := badOffer.Validate(); err == nil {
 		t.Fatal("path escape accepted")
-	}
-	cycle := &protocol.FlowDefinitionV1{Version: 1, FlowID: "00112233445566778899aabbccddeeff", Revision: 1, Name: "cycle", Nodes: []protocol.FlowNodeV1{{ID: "a", Kind: "transform"}, {ID: "b", Kind: "transform"}}, Edges: []protocol.FlowEdgeV1{{From: "a", To: "b"}, {From: "b", To: "a"}}}
-	if err := cycle.Validate(); err == nil {
-		t.Fatal("flow cycle accepted")
 	}
 	badPolicy := &protocol.ManagementPolicyRuleV1{Version: 1, Subject: "2", Action: "bad/action", ResourceNode: "1", ResourceName: "system/health"}
 	if err := badPolicy.Validate(); err == nil {

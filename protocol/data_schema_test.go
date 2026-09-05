@@ -112,7 +112,7 @@ func TestBuiltinFilesystemDataSchemaAnnotations(t *testing.T) {
 	if !ok {
 		t.Fatalf("missing filesystem content schema %q", SchemaFilesystemContentV1)
 	}
-	for _, schemaID := range []string{SchemaCollectionPageV1, SchemaFlowDefinitionV1, SchemaFlowRunV1} {
+	for _, schemaID := range []string{SchemaCollectionPageV1, SchemaPolicyDefinitionV1, SchemaPolicyBindingV1} {
 		if _, ok := byID[schemaID]; !ok {
 			t.Fatalf("existing schema %q regressed", schemaID)
 		}
