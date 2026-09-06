@@ -5,6 +5,7 @@ import { ProfileEditor, createEmptyProfile } from './ProfileEditor'
 import { AdmissionConsole } from './AdmissionConsole'
 import { PolicyConsole } from './PolicyConsole'
 import { Button } from './ui/button'
+import { Input } from './ui/input'
 import type { Theme } from '../preferences'
 import type { ConnectionStatus, Profile, Settings as SettingsDocument } from '../types'
 
@@ -24,6 +25,10 @@ export function Settings({
   onSaveProfile,
   onDeleteProfile,
   onThemeChange,
+  scopeRoot,
+  defaultRoot,
+  onScopeRootChange,
+  onLoadSubtree,
 }: {
   settings: SettingsDocument
   api: DesktopAPI
@@ -38,10 +43,17 @@ export function Settings({
   onSaveProfile(profile: Profile): Promise<boolean>
   onDeleteProfile(profileID: string): Promise<void>
   onThemeChange(theme: Theme): void
+  scopeRoot: string
+  defaultRoot: string
+  onScopeRootChange(root: string, followParent?: boolean): void
+  onLoadSubtree(): void
 }) {
   const [section, setSection] = useState<Section>('connection')
   const [draft, setDraft] = useState<Profile>({ ...activeProfile })
   const [isNew, setIsNew] = useState(false)
+  const [scopeInput, setScopeInput] = useState(scopeRoot)
+
+  useEffect(() => setScopeInput(scopeRoot), [scopeRoot, activeProfile.id])
 
   useEffect(() => {
     if (!isNew) setDraft({ ...activeProfile })
@@ -93,6 +105,22 @@ export function Settings({
                 : <Button disabled={busy || status.state === 'connecting'} onClick={() => void onConnect()}><PlugZap aria-hidden="true" size={14} />{status.state === 'connecting' ? '连接中…' : '连接'}</Button>}
               <Button variant="secondary" disabled={busy} onClick={() => void onDeactivateProfile()}><ArrowLeftToLine aria-hidden="true" size={14} />返回 Profile 选择</Button>
             </div>
+            <section className="settings-discovery" aria-labelledby="settings-discovery-title">
+              <h3 id="settings-discovery-title">节点浏览</h3>
+              <p>从指定节点向下浏览，默认使用直接父节点。</p>
+              <form className="settings-scope-form" onSubmit={(event) => { event.preventDefault(); onScopeRootChange(scopeInput.trim()) }}>
+                <label htmlFor="settings-scope-root">浏览起点</label>
+                <div>
+                  <Input id="settings-scope-root" aria-label="浏览起点 Node ID" inputMode="numeric" value={scopeInput} onChange={(event) => setScopeInput(event.target.value)} />
+                  <Button type="submit" variant="secondary">设为起点</Button>
+                  <Button type="button" variant="secondary" onClick={() => defaultRoot && onScopeRootChange(defaultRoot, true)}>直接父节点</Button>
+                </div>
+              </form>
+              <div className="settings-subtree-action">
+                <span>当前起点：{scopeRoot || '尚未确定'} · 按权限加载完整子树</span>
+                <Button variant="secondary" onClick={onLoadSubtree}>加载完整子树</Button>
+              </div>
+            </section>
           </div>
         )}
 

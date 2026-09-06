@@ -518,6 +518,15 @@ pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .settings-facts dd { display: flex; align-items: center; gap: 7px; min-width: 0; margin: 0; overflow-wrap: anywhere; }
 .settings-error { padding: 8px 10px; border-left: 2px solid var(--danger); background: color-mix(in srgb, var(--danger), transparent 92%); color: var(--danger); font-size: 10px; }
 .settings-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 18px; }
+.settings-discovery { margin-top: 32px; padding-top: 22px; border-top: 1px solid var(--border); }
+.settings-discovery h3 { margin-bottom: 6px; }
+.settings-discovery p { margin: 0 0 18px; color: var(--text-muted); font-size: 11px; }
+.settings-scope-form { display: grid; gap: 7px; }
+.settings-scope-form label { color: var(--text-muted); font-size: 11px; }
+.settings-scope-form > div, .settings-subtree-action { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.settings-scope-form input { flex: 1; min-width: 120px; }
+.settings-subtree-action { justify-content: space-between; margin-top: 18px; }
+.settings-subtree-action span { color: var(--text-muted); font-size: 10px; }
 .admission-console { width: min(980px, 100%); gap: 18px; }
 .admission-console > header > div { display: grid; gap: 3px; }
 .admission-console > header p, .admission-block-heading p { margin: 0; color: var(--text-faint); font-size: 9px; }
@@ -888,15 +897,7 @@ pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 }
 
 /* Scoped discovery status lives beside its owner, so failures are not empty results. */
-.discovery-scope { display: grid; gap: 6px; padding: 5px 10px; border-bottom: 1px solid var(--border); }
-.discovery-scope form, .discovery-scope-toolbar { display: flex; gap: 6px; }
-.discovery-scope .discovery-scope-toggle { display: flex; align-items: center; flex: 1; min-width: 0; }
-.discovery-scope-toggle span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.discovery-scope-options { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px; }
-.discovery-scope-options form { grid-column: 1 / -1; }
-.discovery-scope input { min-width: 0; }
-.discovery-scope button, .discovery-status button { flex-shrink: 0; font-size: 11px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; }
-.discovery-scope small { font-size: 10px; opacity: .7; }
+.discovery-status button { flex-shrink: 0; font-size: 11px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; }
 .discovery-status { padding: 8px; font-size: 11px; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .discovery-status[role="alert"] { color: var(--danger, #ba3030); }
 .node-discovery-error { grid-column: 1 / -1; }

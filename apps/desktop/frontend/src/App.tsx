@@ -774,18 +774,6 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                   topology={topology}
                   discovery={discoveryState}
                   scopeRoot={discoveryState.scope || status.parent_node_id || activeProfile.parent_node_id}
-                  defaultRoot={status.parent_node_id || activeProfile.parent_node_id}
-                  onScopeRootChange={(root, followParent) => {
-                    try {
-                      discovery.activate(activeProfile.id, connectionGeneration.current, root)
-                      browseRoot.current = followParent ? { profile: '', root: '' } : { profile: activeProfile.id, root }
-                      updatePreferences({ focused_node_id: undefined, expanded_node_ids: [...new Set([...(preferences.expanded_node_ids || []), root])] })
-                      setInspector({ selection: null, focusedAction: null })
-                      setCatalogOwner(root)
-                      void discovery.query(root)
-                    } catch (current) { setError(errorText(current)) }
-                  }}
-                  onLoadSubtree={() => void discovery.query(discoveryState.scope, 0, true)}
                   onExpandNode={(owner) => void discovery.query(owner)}
                   onRetryNode={(owner) => void discovery.query(owner, 1, true)}
                   onCatalogOwnerChange={setCatalogOwner}
@@ -852,6 +840,19 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                   onSaveProfile={saveProfile}
                   onDeleteProfile={deleteProfile}
                   onThemeChange={(theme: Theme) => updatePreferences({ theme })}
+                  scopeRoot={discoveryState.scope || status.parent_node_id || activeProfile.parent_node_id}
+                  defaultRoot={status.parent_node_id || activeProfile.parent_node_id}
+                  onScopeRootChange={(root, followParent) => {
+                    try {
+                      discovery.activate(activeProfile.id, connectionGeneration.current, root)
+                      browseRoot.current = followParent ? { profile: '', root: '' } : { profile: activeProfile.id, root }
+                      updatePreferences({ focused_node_id: undefined, expanded_node_ids: [...new Set([...(preferences.expanded_node_ids || []), root])] })
+                      setInspector({ selection: null, focusedAction: null })
+                      setCatalogOwner(root)
+                      void discovery.query(root)
+                    } catch (current) { setError(errorText(current)) }
+                  }}
+                  onLoadSubtree={() => void discovery.query(discoveryState.scope, 0, true)}
                 />
               )
               : !viewReady ? <section className="workspace" aria-label="资源工作区"><p className="discovery-status" role="status">正在加载当前 Profile 的视图…</p><button type="button" onClick={() => void loadViews(activeProfile.id).catch((current) => setError(errorText(current)))}>重新加载视图</button></section> : (

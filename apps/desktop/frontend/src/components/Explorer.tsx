@@ -45,9 +45,6 @@ type Props = {
   topology: Topology
   discovery?: DiscoverySnapshot
   scopeRoot?: string
-  defaultRoot?: string
-  onScopeRootChange?(root: string, followParent?: boolean): void
-  onLoadSubtree?(): void
   onExpandNode?(owner: string): void
   onRetryNode?(owner: string): void
   onCatalogOwnerChange?(owner: string): void
@@ -287,9 +284,6 @@ function ResourceRow(props: ResourceRowProps) {
 
 export function Explorer(props: Props) {
   const [nodeQuery, setNodeQuery] = useState('')
-  const [scopeInput, setScopeInput] = useState(props.scopeRoot || '')
-  const [scopeOpen, setScopeOpen] = useState(false)
-  useEffect(() => setScopeInput(props.scopeRoot || ''), [props.scopeRoot])
   const [resourceQuery, setResourceQuery] = useState('')
   const deferredNodeQuery = useDeferredValue(nodeQuery)
   const deferredResourceQuery = useDeferredValue(resourceQuery)
@@ -493,22 +487,6 @@ export function Explorer(props: Props) {
         </button>
       </header>
       <div id="explorer-node-content" className="explorer-pane-content" hidden={!nodePaneExpanded}>
-        {props.onScopeRootChange && <div className="discovery-scope">
-          <div className="discovery-scope-toolbar">
-            <button type="button" className="discovery-scope-toggle" aria-label={`修改浏览起点，当前 Node ${props.scopeRoot}`} aria-expanded={scopeOpen} aria-controls="discovery-scope-options" onClick={() => setScopeOpen((open) => !open)}>
-              {scopeOpen ? <ChevronDown aria-hidden="true" size={12} /> : <ChevronRight aria-hidden="true" size={12} />}<span>起点：{props.scopeRoot}</span>
-            </button>
-            <button type="button" onClick={props.onLoadSubtree}>加载完整子树</button>
-          </div>
-          {scopeOpen && <div id="discovery-scope-options" className="discovery-scope-options" role="region" aria-label="编辑浏览起点">
-            <form onSubmit={(event) => { event.preventDefault(); props.onScopeRootChange?.(scopeInput.trim()) }}>
-              <Input aria-label="浏览起点 Node ID" value={scopeInput} onChange={(event) => setScopeInput(event.target.value)} />
-              <button type="submit">设为起点</button>
-            </form>
-            <button type="button" onClick={() => props.defaultRoot && props.onScopeRootChange?.(props.defaultRoot, true)}>直接父节点</button>
-            <small>仅向下查询</small>
-          </div>}
-        </div>}
         {props.discovery?.limitError && <p className="discovery-status" role="alert">{props.discovery.limitError}</p>}
         {props.discovery && props.scopeRoot && (nodeRows.length === 0 || props.discovery.children.get(props.scopeRoot)?.status === 'loading') && <DiscoveryStatus state={props.discovery.children.get(props.scopeRoot)} label="节点树" onRetry={() => props.onRetryNode?.(props.scopeRoot!)} />}
         <div className="search-box">
