@@ -1,4 +1,4 @@
-import { DndContext } from '@dnd-kit/core'
+import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -33,10 +33,12 @@ const resources = [
   resource('system/regions/eu/rack/temperature', 'Rack temperature'),
 ]
 
-function Harness({ onAdd = vi.fn(), onAction = vi.fn() }: {
+function Harness({ onAdd = vi.fn(), onAction = vi.fn(), onDragStart = vi.fn() }: {
+  onDragStart?: () => void
   onAdd?: (resource: ResourceDescriptor) => void
   onAction?: (resource: ResourceDescriptor, action: { capability: string }) => void
 }) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const [selection, setSelection] = useState<WorkspaceSelection>(null)
   const [expandedNodes, setExpandedNodes] = useState<string[] | undefined>(['1', '2'])
   const [expandedResources, setExpandedResources] = useState<string[] | undefined>()
@@ -44,7 +46,7 @@ function Harness({ onAdd = vi.fn(), onAction = vi.fn() }: {
   const [ratio, setRatio] = useState(0.35)
   const [collapsedPane, setCollapsedPane] = useState<ExplorerCollapsedPane>()
   return (
-    <DndContext>
+    <DndContext sensors={sensors} onDragStart={onDragStart}>
       <button onClick={() => { setFocused('3'); setExpandedNodes(['3']) }}>聚焦叶节点</button>
       <output aria-label="当前分隔比例">{ratio}</output>
       <Explorer
@@ -81,6 +83,24 @@ function treeItemByPath(tree: HTMLElement, path: string): HTMLElement {
 }
 
 describe('split Node and Resource explorer', () => {
+  it('starts a resource drag from its name only after movement, while clicks still select it', async () => {
+    const onDragStart = vi.fn()
+    render(<Harness onDragStart={onDragStart} />)
+    await selectLeaf()
+    const item = screen.getByRole('treeitem', { name: /Temperature sensors\/temperature/ })
+    fireEvent.pointerDown(item, { button: 0, isPrimary: true, clientX: 40, clientY: 80 })
+    fireEvent.pointerMove(document, { clientX: 42, clientY: 80 })
+    expect(onDragStart).not.toHaveBeenCalled()
+    fireEvent.pointerUp(document)
+    fireEvent.click(item)
+    expect(item).toHaveAttribute('aria-selected', 'true')
+    fireEvent.pointerDown(item, { button: 0, isPrimary: true, clientX: 40, clientY: 80 })
+    fireEvent.pointerMove(document, { clientX: 60, clientY: 80 })
+    expect(onDragStart).toHaveBeenCalledTimes(1)
+    expect(item.closest('.resource-row')).toHaveClass('is-dragging')
+    expect((item.closest('.resource-row') as HTMLElement).style.transform).toBe('')
+    fireEvent.pointerUp(document)
+  })
   it('keeps a Node-only tree with a single roving tab stop and standard arrow navigation', async () => {
     render(<Harness />)
     const tree = screen.getByRole('tree', { name: '节点' })
@@ -195,7 +215,7 @@ describe('split Node and Resource explorer', () => {
 
   it('collapses either Explorer section, keeps one section available, and restores the split ratio', () => {
     render(<Harness />)
-    const nodeHeading = screen.getByRole('button', { name: /^节点 3$/ })
+    const nodeHeading = screen.getByRole('button', { name: /^节点$/ })
     fireEvent.click(nodeHeading)
     expect(nodeHeading).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('tree', { name: '节点' })).not.toBeInTheDocument()

@@ -16,6 +16,7 @@ import {
   Network,
   Plus,
   Radio,
+  RefreshCw,
   Search,
   Variable,
 } from 'lucide-react'
@@ -38,6 +39,7 @@ import type { ResourceDescriptor, Topology, TopologyNode, WorkspaceSelection } f
 import type { DiscoverySnapshot, LoadState } from '../discovery/controller'
 import { DiscoveryStatus } from '../discovery/DiscoveryStatus'
 import { ExplorerSplitPane } from './ExplorerSplitPane'
+import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { ScrollArea } from './ui/scroll-area'
 
@@ -45,6 +47,8 @@ type Props = {
   topology: Topology
   discovery?: DiscoverySnapshot
   scopeRoot?: string
+  onRefresh?(): void
+  refreshing?: boolean
   onExpandNode?(owner: string): void
   onRetryNode?(owner: string): void
   onCatalogOwnerChange?(owner: string): void
@@ -159,12 +163,7 @@ function ResourceRow(props: ResourceRowProps) {
   })
   const Icon = resource ? resourceIcons[resource.type] ?? Layers3 : FolderTree
   const actions = resource ? deriveResourceActions(resource.capabilities) : []
-  const style = {
-    ...rowIndent(props.row.depth),
-    ...(draggable.transform
-      ? { transform: `translate3d(${draggable.transform.x}px, ${draggable.transform.y}px, 0)` }
-      : {}),
-  }
+  const style = rowIndent(props.row.depth)
   const row = (
     <div
       ref={draggable.setNodeRef}
@@ -202,7 +201,7 @@ function ResourceRow(props: ResourceRowProps) {
           mainRef.current = element
           props.setRef(node.key, element)
         }}
-        className="tree-main"
+        className={`tree-main${resource ? ' resource-drag-source' : ''}`}
         role="treeitem"
         aria-level={props.row.depth}
         aria-posinset={props.row.posInSet}
@@ -211,6 +210,7 @@ function ResourceRow(props: ResourceRowProps) {
         aria-selected={resource ? props.selected : undefined}
         tabIndex={props.active ? 0 : -1}
         onFocus={() => props.onFocus(node.key)}
+        onPointerDown={resource ? (event) => draggable.listeners?.onPointerDown?.(event) : undefined}
         onClick={() => resource ? props.onSelect(resource) : props.onToggle(node.key)}
         onDoubleClick={() => props.expandable && props.onToggle(node.key)}
         onKeyDown={(event) => {
@@ -483,8 +483,8 @@ export function Explorer(props: Props) {
           {nodePaneExpanded ? <ChevronDown aria-hidden="true" size={13} /> : <ChevronRight aria-hidden="true" size={13} />}
           <Network aria-hidden="true" size={13} />
           <strong>节点</strong>
-          <small>{index.nodesByID.size}</small>
         </button>
+        {props.onRefresh && <Button className="explorer-heading-refresh" variant="ghost" size="icon" aria-label="刷新节点树" title="刷新节点树" disabled={props.refreshing} onClick={props.onRefresh}><RefreshCw aria-hidden="true" size={13} /></Button>}
       </header>
       <div id="explorer-node-content" className="explorer-pane-content" hidden={!nodePaneExpanded}>
         {props.discovery?.limitError && <p className="discovery-status" role="alert">{props.discovery.limitError}</p>}

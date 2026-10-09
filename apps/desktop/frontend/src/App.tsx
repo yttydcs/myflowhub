@@ -5,13 +5,17 @@ import {
   DragOverlay,
   closestCenter,
   pointerWithin,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
   type Announcements,
   type CollisionDetection,
   type DragEndEvent,
   type DragMoveEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { Boxes, GripVertical, Layers3, Moon, Plus, RefreshCw, Settings2, Sun } from 'lucide-react'
+import { Boxes, GripVertical, Layers3, Moon, Plus, Settings2, Sun } from 'lucide-react'
 import { api as productionApi, type DesktopAPI, type PreparedProfile } from './api'
 import { useConnectionMonitor } from './discovery/useConnectionMonitor'
 import { useDiscovery } from './discovery/useDiscovery'
@@ -138,6 +142,7 @@ function newView(index = 1): ViewDefinition {
 }
 
 export function App({ api = productionApi }: { api?: DesktopAPI }) {
+  const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor))
   const [settings, setSettings] = useState<Settings>()
   const [profileStates, setProfileStates] = useState<ProfileState[]>([])
   const [status, setStatus] = useState<ConnectionStatus>({ state: 'signed_out' })
@@ -748,6 +753,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
         screenReaderInstructions: { draggable: '按空格抓取面板或资源，使用方向键移动，按空格放置，按 Escape 取消。' },
       }}
       collisionDetection={workspaceCollisionDetection}
+      sensors={dragSensors}
       onDragStart={dragStart}
       onDragMove={dragMove}
       onDragEnd={dragEnd}
@@ -759,7 +765,6 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
           <h1 className="sr-only">MyFlowHub 资源工作区</h1>
           <div className="brand-lockup"><BrandMark size="compact" /><strong>MyFlowHub</strong></div>
           <div className="topbar-actions">
-            <Button variant="ghost" size="icon" aria-label="刷新节点树" disabled={busy} onClick={() => void refresh()}><RefreshCw aria-hidden="true" size={15} /></Button>
             <Button variant="ghost" size="icon" aria-label={preferences.theme === 'light' ? '切换到深色主题' : '切换到浅色主题'} onClick={() => updatePreferences({ theme: preferences.theme === 'light' ? 'dark' : 'light' })}>
               {preferences.theme === 'light' ? <Moon aria-hidden="true" size={15} /> : <Sun aria-hidden="true" size={15} />}
             </Button>
@@ -776,6 +781,8 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                   topology={topology}
                   discovery={discoveryState}
                   scopeRoot={discoveryState.scope || status.parent_node_id || activeProfile.parent_node_id}
+                  onRefresh={() => void refresh()}
+                  refreshing={busy || discoveryState.children.get(discoveryState.scope)?.status === 'loading'}
                   onExpandNode={(owner) => void discovery.query(owner)}
                   onRetryNode={(owner) => void discovery.query(owner, 1, true)}
                   onCatalogOwnerChange={setCatalogOwner}

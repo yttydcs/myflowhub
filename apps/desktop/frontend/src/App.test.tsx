@@ -385,7 +385,7 @@ describe('desktop resource workspace', () => {
     expect(window.localStorage.getItem('mfh.desktop.ui.v1:personal')).toContain('"theme":"dark"')
     fireEvent.keyDown(screen.getByRole('separator', { name: '调整节点列表和资源列表高度' }), { key: 'ArrowDown' })
     expect(window.localStorage.getItem('mfh.desktop.ui.v1:personal')).toContain('"explorer_split_ratio":0.38')
-    fireEvent.click(screen.getByRole('button', { name: /^节点 1$/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^节点$/ }))
     expect(window.localStorage.getItem('mfh.desktop.ui.v1:personal')).toContain('"collapsed_explorer_pane":"node"')
     fireEvent.click(screen.getByRole('button', { name: '折叠资源路径 metrics' }))
     expect(window.localStorage.getItem('mfh.desktop.ui.v1:personal')).toContain('"expanded_resource_paths":[]')

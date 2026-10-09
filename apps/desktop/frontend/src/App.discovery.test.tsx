@@ -27,6 +27,31 @@ function apiFixture(view?: ViewDefinition): DesktopAPI {
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); window.localStorage.clear() })
 
 describe('desktop discovery integration', () => {
+  it('refreshes an initially empty parent from the node heading without collapsing it or repeating in-flight requests', async () => {
+    const api = apiFixture()
+    render(<App api={api} />)
+    await screen.findByRole('treeitem', { name: /Node 10/ })
+    const pane = screen.getByRole('region', { name: '节点列表' })
+    const refresh = within(pane).getByRole('button', { name: '刷新节点树' })
+    const heading = refresh.closest('header')!
+    const disclosure = within(heading).getByRole('button', { name: /^节点$/ })
+    expect(heading).toHaveTextContent(/^节点$/)
+    expect(screen.getAllByRole('button', { name: '刷新节点树' })).toHaveLength(1)
+    expect(screen.queryByRole('treeitem', { name: /Node 7/ })).not.toBeInTheDocument()
+    const response = deferred<TopologyQuery>()
+    vi.mocked(api.topology).mockReturnValueOnce(response.promise)
+    fireEvent.click(refresh)
+    await waitFor(() => expect(api.topology).toHaveBeenCalledTimes(2))
+    expect(api.topology).toHaveBeenLastCalledWith('10', 1)
+    expect(refresh).toBeDisabled()
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(refresh)
+    expect(api.topology).toHaveBeenCalledTimes(2)
+    await act(async () => response.resolve(query('10', [node('10', undefined, true), node('7', '10')], 1, 2)))
+    expect(await screen.findByRole('treeitem', { name: /Node 7/ })).toBeInTheDocument()
+    expect(refresh).toBeEnabled()
+  })
+
   it('uses the current direct parent, renders a saved reference before topology, and loads catalogs only on usage', async () => {
     const api = apiFixture(savedView)
     const tree = deferred<TopologyQuery>()

@@ -98,6 +98,7 @@ function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove,
   })
   const paneRef = useRef<HTMLElement | null>(null)
   const [density, setDensity] = useState<PaneDensity>('normal')
+  const [variableHeaderTarget, setVariableHeaderTarget] = useState<HTMLDivElement | null>(null)
   const [focusedCapability, setFocusedCapability] = useState<string>()
   const setNodeRef = (node: HTMLElement | null) => {
     paneRef.current = node
@@ -147,8 +148,8 @@ function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove,
         >
           <GripVertical aria-hidden="true" size={14} />
         </button>
-        <div className="widget-title" title={`${widget.owner_node_id} / ${widget.resource_name}`}>
-          <strong>{label}</strong>
+        <div className="widget-title" ref={setVariableHeaderTarget} title={`${widget.owner_node_id} / ${widget.resource_name}`}>
+          {resource?.type !== 'mfh.variable' && <strong>{label}</strong>}
           <small className="sr-only">{widget.owner_node_id} / {widget.resource_name}</small>
         </div>
         {resource && <ResourceRendererSelector api={api} resource={resource} rendererID={widget.renderer} onRendererChange={onRendererChange} />}
@@ -166,7 +167,7 @@ function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove,
         {resource && unavailable && <DiscoveryStatus state={catalog?.status === 'loaded' ? { status: 'error', stale: true, error: '目录中已找不到该资源；保留未保存输入' } : catalog} label={`Node ${widget.owner_node_id} 资源目录`} onRetry={() => discovery?.retry(widget.owner_node_id)} />}
         {resource && focusedCapability && <div className="widget-action-focusbar"><strong>{focusedCapability}</strong><button type="button" aria-label="关闭操作面板" onClick={() => setFocusedCapability(undefined)}><X aria-hidden="true" size={13} /></button></div>}
         {resource
-          ? <fieldset className="discovery-renderer" disabled={unavailable}><ResourceRenderer api={api} resource={resource} rendererID={widget.renderer} density={density} focusedCapability={focusedCapability} showVariableFooter={false} autoApplyVariable focusedDisabledReason={unavailable ? '资源目录不可用，请刷新后重试' : undefined} /></fieldset>
+          ? <fieldset className="discovery-renderer" disabled={unavailable}><ResourceRenderer api={api} resource={resource} rendererID={widget.renderer} density={density} focusedCapability={focusedCapability} showVariableFooter={false} showVariableAdvancedEditor={false} autoApplyVariable variableHeaderTarget={variableHeaderTarget} focusedDisabledReason={unavailable ? '资源目录不可用，请刷新后重试' : undefined} /></fieldset>
           : (
             <MissingResource owner={widget.owner_node_id} name={widget.resource_name} />
           )}

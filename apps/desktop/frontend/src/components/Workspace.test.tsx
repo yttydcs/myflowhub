@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { DesktopAPI } from '../api'
 import type { ResourceDescriptor, ViewDefinition, ViewLayoutNode, ViewWidget } from '../types'
 import { Workspace } from './Workspace'
-import { variableAPI, variableResource } from '../variable/fixtures.test-support'
+import { snapshot, variableAPI, variableResource } from '../variable/fixtures.test-support'
 
 const widget = (id: string): ViewWidget => ({
   id,
@@ -74,6 +74,29 @@ function renderResourceWorkspace(
 }
 
 describe('workspace panels', () => {
+  it.each([
+    snapshot([1, 2], '1', { type: 'array', items: { type: 'integer' } }),
+    snapshot({ name: 'example' }, '1', { type: 'object', properties: [{ name: 'name', required: true, schema: { type: 'string' } }] }),
+  ])('keeps structured View forms without the advanced JSON option ($definition.type)', async (initial) => {
+    const { api } = variableAPI(initial)
+    const { container } = renderResourceWorkspace(variableResource(false), api)
+    await waitFor(() => expect(container.querySelector('.variable-form input')).not.toBeNull())
+    expect(screen.queryByRole('checkbox', { name: '高级 JSON 编辑' })).not.toBeInTheDocument()
+    expect(container.querySelector('.variable-advanced')).toBeNull()
+    expect(container.querySelector('.variable-form textarea')).toBeNull()
+  })
+  it.each(['通用数组', undefined])('places the variable title and state in the pane header, with no duplicate body heading (%s)', async (title) => {
+    const { api } = variableAPI(snapshot([1, 2], '1', { type: 'array', ...(title ? { title } : {}), items: { type: 'integer' } }))
+    const { container, unmount } = renderResourceWorkspace(variableResource(false), api)
+    const heading = await screen.findByRole('heading', { name: title || 'value' })
+    expect(heading.closest('.widget-header')).not.toBeNull()
+    expect(container.querySelector('.widget-header .variable-status-dot')).not.toBeNull()
+    await waitFor(() => expect(container.querySelector('.widget-header .variable-item-count')).toHaveTextContent('2 项'))
+    expect(container.querySelector('.widget-body .variable-header')).toBeNull()
+    expect(api.snapshot).toHaveBeenCalledTimes(1)
+    unmount()
+    expect(container.querySelector('.variable-header')).toBeNull()
+  })
   it.each(['horizontal', 'vertical'] as const)('keeps %s grid factors at least one when other tracks reach minimum size', (axis) => {
     const candidate = view({ kind: 'split', axis, weights: [0.1, 0.2, 0.7], children: [leaf('a'), leaf('b'), leaf('c')] }, ['a', 'b', 'c'])
     renderWorkspace(candidate, vi.fn(), candidate)

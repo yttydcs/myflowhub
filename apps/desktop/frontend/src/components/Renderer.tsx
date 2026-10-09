@@ -714,8 +714,10 @@ export function ResourceRenderer({
   focusedDisabledReason,
   showVariableFooter = true,
   autoApplyVariable = false,
-}: RendererProps & { focusedCapability?: string; focusedDisabledReason?: string; showVariableFooter?: boolean; autoApplyVariable?: boolean }) {
-  if (resource.type === 'mfh.variable') return <div className={`resource-renderer density-${density}`}><VariablePanel api={api} resource={resource} rendererID={rendererID ?? defaultRenderer(resource)} disabledReason={focusedDisabledReason} showFooter={showVariableFooter} autoApply={autoApplyVariable} /></div>
+  variableHeaderTarget,
+  showVariableAdvancedEditor = true,
+}: RendererProps & { focusedCapability?: string; focusedDisabledReason?: string; showVariableFooter?: boolean; autoApplyVariable?: boolean; variableHeaderTarget?: HTMLElement | null; showVariableAdvancedEditor?: boolean }) {
+  if (resource.type === 'mfh.variable') return <div className={`resource-renderer density-${density}`}><VariablePanel api={api} resource={resource} rendererID={rendererID ?? defaultRenderer(resource)} disabledReason={focusedDisabledReason} showFooter={showVariableFooter} autoApply={autoApplyVariable} headerTarget={variableHeaderTarget} showAdvancedEditor={showVariableAdvancedEditor} /></div>
   const selection = selectResourceRenderer(resource, rendererID)
   const selectedID = selection.selected.id
   if (focusedCapability) {
