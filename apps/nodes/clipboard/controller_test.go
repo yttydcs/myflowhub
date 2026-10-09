@@ -290,5 +290,19 @@ func resourceJSON(t *testing.T, runtime *node.Node, name string) string {
 	if !ok {
 		t.Fatalf("clipboard resource %s is missing", name)
 	}
-	return string(value.(*resource.Variable).Snapshot().Value)
+	result, err := value.Operate(context.Background(), resource.OperationRequest{Capability: protocol.CapabilityRead})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Schema != protocol.SchemaVariableValueV1 {
+		t.Fatalf("clipboard variable has nonstandard schema %s", result.Schema)
+	}
+	var state protocol.VariableValueV1
+	if err := protocol.DecodeJSONPayload(result.Payload, protocol.DefaultMaxPayload, &state); err != nil {
+		t.Fatal(err)
+	}
+	if state.Definition == nil || state.Status != "ready" {
+		t.Fatal("clipboard variable omitted ready state or definition")
+	}
+	return string(state.Value)
 }

@@ -30,7 +30,7 @@ export function Inspector({ api, selection, resources, focusedAction, onClose, o
   return (
     <aside className="inspector" aria-label={`${title} 预览`}>
       <header className="inspector-header">
-        <div><h2>{title}</h2>{selection.kind === 'resource' && <code>{selection.resource.type}</code>}</div>
+        <div><h2>{title}</h2></div>
         <button className="icon-button" onClick={onClose} aria-label="关闭预览"><X aria-hidden="true" size={15} /></button>
       </header>
       <div className="inspector-body">
@@ -38,15 +38,14 @@ export function Inspector({ api, selection, resources, focusedAction, onClose, o
           ? <NodeRenderer node={selection.node} resources={nodeResources} />
           : (
             <>
-              <dl className="inspector-facts">
+              {selection.resource.type !== 'mfh.variable' && <details className="resource-metadata"><summary>资源信息</summary><dl className="inspector-facts">
                 <div><dt>所有者</dt><dd>{selection.resource.id.owner_node_id}</dd></div>
                 <div><dt>资源名</dt><dd><code>{selection.resource.id.name}</code></dd></div>
                 <div><dt>版本</dt><dd>{selection.resource.type_version}</dd></div>
               </dl>
-              {selection.resource.presentation?.description && <p className="resource-description">{selection.resource.presentation.description}</p>}
               <div className="capability-list" aria-label="资源能力">
                 {selection.resource.capabilities.map((capability) => <span key={capability.name}>{capability.name}</span>)}
-              </div>
+              </div></details>}
               {focusedForResource && (
                 <section className="focused-resource-action" aria-label={`已聚焦 capability ${focusedAction.capability}`}>
                   <header>

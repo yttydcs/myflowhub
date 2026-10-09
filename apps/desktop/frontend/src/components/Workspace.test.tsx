@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { DesktopAPI } from '../api'
 import type { ResourceDescriptor, ViewDefinition, ViewLayoutNode, ViewWidget } from '../types'
 import { Workspace } from './Workspace'
+import { variableAPI, variableResource } from '../variable/fixtures.test-support'
 
 const widget = (id: string): ViewWidget => ({
   id,
@@ -73,6 +74,31 @@ function renderResourceWorkspace(
 }
 
 describe('workspace panels', () => {
+  it.each(['horizontal', 'vertical'] as const)('keeps %s grid factors at least one when other tracks reach minimum size', (axis) => {
+    const candidate = view({ kind: 'split', axis, weights: [0.1, 0.2, 0.7], children: [leaf('a'), leaf('b'), leaf('c')] }, ['a', 'b', 'c'])
+    renderWorkspace(candidate, vi.fn(), candidate)
+    for (const element of document.querySelectorAll<HTMLElement>('.workspace-layout-split, .workspace-preview-split')) {
+      const template = axis === 'horizontal' ? element.style.gridTemplateColumns : element.style.gridTemplateRows
+      const factors = [...template.matchAll(/([\d.e+-]+)fr/g)].map(match => Number(match[1]))
+      expect(factors).toHaveLength(3)
+      expect(Math.min(...factors)).toBeGreaterThanOrEqual(1)
+      expect(factors[1]! / factors[0]!).toBeCloseTo(2)
+      expect(factors[2]! / factors[0]!).toBeCloseTo(7)
+    }
+    expect(candidate.layout_root).toMatchObject({ weights: [0.1, 0.2, 0.7] })
+  })
+  it('automatically applies Variable changes in a View without the detail and action footer', async () => {
+    const { api } = variableAPI()
+    renderResourceWorkspace(variableResource(false), api)
+    const toggle = await screen.findByRole('switch')
+    expect(document.querySelector('.variable-footer')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('技术信息')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '应用' })).not.toBeInTheDocument()
+    fireEvent.click(toggle)
+    expect(screen.queryByText('未应用')).not.toBeInTheDocument()
+    await waitFor(() => expect(api.operate).toHaveBeenCalledTimes(1))
+    expect(api.operate).toHaveBeenCalledWith(expect.any(String), expect.any(String), 'write', 'mfh.variable-write.v3', expect.objectContaining({ value: true }))
+  })
   it('renders one widget as the only full layout leaf', () => {
     renderWorkspace(view(leaf('a'), ['a']))
     expect(screen.getByRole('article', { name: '组件 a' })).toBeInTheDocument()
@@ -146,7 +172,8 @@ describe('workspace panels', () => {
     fireEvent.pointerMove(separator, { pointerId: 1, clientX: 400, clientY: 350 })
     act(() => frames.shift()?.(16))
     expect(onChange).not.toHaveBeenCalled()
-    expect(grid.style.gridTemplateColumns).toContain('0.39919354838709675fr')
+    const factors = [...grid.style.gridTemplateColumns.matchAll(/([\d.e+-]+)fr/g)].map(match => Number(match[1]))
+    expect(factors[0]! / (factors[0]! + factors[1]!)).toBeCloseTo(396 / 992)
     fireEvent.pointerUp(separator, { pointerId: 1, clientX: 400, clientY: 350 })
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
       layout_root: expect.objectContaining({ weights: [expect.closeTo(396 / 992, 5), expect.closeTo(596 / 992, 5)] }),
@@ -167,18 +194,18 @@ describe('workspace panels', () => {
   it('persists renderer selection on the matching View widget', async () => {
     const onChange = vi.fn()
     const candidate = view(leaf('health'), ['health'])
-    candidate.widgets[0] = { ...candidate.widgets[0]!, resource_name: 'system/health', renderer: 'mfh.structured.health.v1' }
+    candidate.widgets[0] = { ...candidate.widgets[0]!, resource_name: 'system/health', renderer: 'mfh.variable.auto.v2' }
     const descriptor: ResourceDescriptor = {
       id: { owner_node_id: '2', name: 'system/health' },
       type: 'mfh.variable',
-      type_version: 1,
-      capabilities: [{ name: 'read', permission: 'system.health.read', output_schema: 'mfh.management.health.v1', max_payload_bytes: 4096 }],
+      type_version: 2,
+      capabilities: [{ name: 'read', permission: 'system.health.read', output_schema: 'mfh.variable-value.v1', max_payload_bytes: 4096 }],
       limits: { max_payload_bytes: 4096 },
     }
     render(
       <DndContext>
         <Workspace
-          api={{ snapshot: vi.fn().mockResolvedValue({ version: 1, state: 'running' }) } as unknown as DesktopAPI}
+          api={{ snapshot: vi.fn().mockResolvedValue({ version: 1, instance_id: 'a'.repeat(32), revision: '1', definition: { type: 'boolean' }, value: false, status: 'ready', observed_at_unix_ms: 1 }) } as unknown as DesktopAPI}
           resources={[descriptor]}
           view={candidate}
           dirty
@@ -194,9 +221,10 @@ describe('workspace panels', () => {
     expect(selector.closest('.widget-header')).not.toBeNull()
     expect(document.querySelector('.widget-body .widget-renderer-selector')).not.toBeInTheDocument()
     expect(screen.queryByText('突出运行状态与组件检查')).not.toBeInTheDocument()
-    fireEvent.change(selector, { target: { value: 'mfh.variable.raw.v1' } })
+    fireEvent.keyDown(selector, { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('option', { name: '文本' }))
     await waitFor(() => expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
-      widgets: [expect.objectContaining({ id: 'health', renderer: 'mfh.variable.raw.v1' })],
+      widgets: [expect.objectContaining({ id: 'health', renderer: 'mfh.variable.text.v2' })],
     })))
   })
 
@@ -229,7 +257,7 @@ describe('workspace panels', () => {
     const descriptor: ResourceDescriptor = {
       id: { owner_node_id: '2', name: 'arbitrary/provider' },
       type: 'example.custom',
-      type_version: 1,
+      type_version: 2,
       capabilities: [{ name: 'custom', permission: 'not-used-for-dispatch', max_payload_bytes: 4096 }],
       limits: { max_payload_bytes: 4096 },
     }
@@ -251,7 +279,7 @@ describe('workspace panels', () => {
     const descriptor: ResourceDescriptor = {
       id: { owner_node_id: '2', name: 'channels' },
       type: 'example.custom',
-      type_version: 1,
+      type_version: 2,
       capabilities: [
         { name: 'open', permission: 'ignored.open', input_schema: 'open.v1', max_payload_bytes: 4096 },
         { name: 'subscribe', permission: 'ignored.subscribe', event_schema: 'event.v1', max_payload_bytes: 4096 },
@@ -271,7 +299,7 @@ describe('workspace panels', () => {
     const descriptor: ResourceDescriptor = {
       id: { owner_node_id: '2', name: 'transient' },
       type: 'example.custom',
-      type_version: 1,
+      type_version: 2,
       capabilities: [{ name: 'custom', permission: 'ignored.custom', max_payload_bytes: 4096 }],
       limits: { max_payload_bytes: 4096 },
     }
@@ -293,7 +321,7 @@ describe('workspace panels', () => {
     const descriptor: ResourceDescriptor = {
       id: { owner_node_id: '2', name: 'collection' },
       type: 'mfh.collection',
-      type_version: 1,
+      type_version: 2,
       capabilities: [
         { name: 'list', permission: 'ignored.list', input_schema: 'mfh.collection.list-request.v1', output_schema: 'mfh.collection.page.v1', max_payload_bytes: 4096 },
         { name: 'get', permission: 'ignored.get', input_schema: 'mfh.collection.member-request.v1', output_schema: 'mfh.collection.member.v1', max_payload_bytes: 4096 },
@@ -331,7 +359,7 @@ describe('workspace panels', () => {
     const descriptor: ResourceDescriptor = {
       id: { owner_node_id: '2', name: 'many-actions' },
       type: 'example.custom',
-      type_version: 1,
+      type_version: 2,
       capabilities: ['a', 'b', 'c', 'd', 'e'].map((name) => ({ name, permission: `ignored.${name}`, max_payload_bytes: 4096 })),
       limits: { max_payload_bytes: 4096 },
     }

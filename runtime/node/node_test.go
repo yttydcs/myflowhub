@@ -42,7 +42,10 @@ func TestJoinedNodeUsesRemoteVariableAndCommand(t *testing.T) {
 	}
 	waitRoute(t, root.Tree(), child.ID())
 	variableID := protocol.ResourceID{Owner: root.ID(), Name: "status"}
-	variable, _ := resource.NewVariable(resource.VariableDescriptor(variableID, "application/octet-stream", "test.raw.v1", "test.read", 64), []byte("ready"))
+	variable, err := resource.NewVariable(resource.VariableDescriptor(variableID, "test.read", 512), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Value: []byte(`"ready"`), Status: "ready"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := root.Registry().Register(variable); err != nil {
 		t.Fatal(err)
 	}
@@ -58,11 +61,13 @@ func TestJoinedNodeUsesRemoteVariableAndCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer remote.Cancel()
-	if event := receiveRemote(t, remote); event.Kind != subscription.EventSnapshot || string(event.Value) != "ready" {
+	if event := receiveRemote(t, remote); event.Kind != subscription.EventSnapshot || variableEventString(t, event) != "ready" {
 		t.Fatalf("unexpected snapshot: %#v", event)
 	}
-	_, _ = variable.Set([]byte("updated"))
-	if event := receiveRemote(t, remote); event.Kind != subscription.EventData || string(event.Value) != "updated" {
+	if _, err := variable.Set(resource.VariableState{Value: []byte(`"updated"`), Status: "ready"}); err != nil {
+		t.Fatal(err)
+	}
+	if event := receiveRemote(t, remote); event.Kind != subscription.EventData || variableEventString(t, event) != "updated" {
 		t.Fatalf("unexpected update: %#v", event)
 	}
 	output, err := child.Invoke(ctx, commandID, []byte("hi"))
@@ -106,7 +111,10 @@ func TestReconnectCleansSubscriptionsBoundToReplacedLink(t *testing.T) {
 	}
 	waitRoute(t, root.Tree(), child.ID())
 	variableID := protocol.ResourceID{Owner: child.ID(), Name: "status"}
-	variable, _ := resource.NewVariable(resource.VariableDescriptor(variableID, "application/octet-stream", "test.raw.v1", "test.read", 64), []byte("ready"))
+	variable, err := resource.NewVariable(resource.VariableDescriptor(variableID, "test.read", 512), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Value: []byte(`"ready"`), Status: "ready"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := child.Registry().Register(variable); err != nil {
 		t.Fatal(err)
 	}

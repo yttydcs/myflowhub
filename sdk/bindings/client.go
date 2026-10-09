@@ -1,6 +1,6 @@
 package bindings
 
-//go:generate go run ./cmd/mfh-bindgen -out ./generated/contracts.json -schemas-out ../../apps/desktop/frontend/src/generated/resource-schemas.generated.json
+//go:generate go run ./cmd/mfh-bindgen -out ./generated/contracts.json -schemas-out ../../apps/desktop/frontend/src/generated/resource-schemas.generated.json -types-out ./generated/variable-contract.generated.ts -types-out ../../apps/desktop/frontend/src/generated/variable-contract.generated.ts -types-out ../../apps/nodes/metrics/windows/frontend/src/generated/variable-contract.generated.ts
 
 import (
 	"context"
@@ -167,14 +167,32 @@ func (c *Client) SnapshotJSON(ownerID int64, name string, timeoutMS int64) (stri
 	if err != nil {
 		return "", err
 	}
-	event, err := client.Snapshot(ctx, resourceID)
+	state, err := client.Snapshot(ctx, resourceID)
 	if err != nil {
 		return "", err
 	}
-	if !json.Valid(event.Value) {
-		return "", errors.New("snapshot payload is not valid JSON")
+	return encodeJSON(state)
+}
+
+func (c *Client) WriteVariableJSON(ownerID int64, name, expectedInstanceID, expectedRevision, valueJSON string, timeoutMS int64) (string, error) {
+	resourceID, err := bindingResource(ownerID, name)
+	if err != nil {
+		return "", err
 	}
-	return string(event.Value), nil
+	ctx, cancel, err := bindingContext(timeoutMS)
+	if err != nil {
+		return "", err
+	}
+	defer cancel()
+	client, err := c.operationClient()
+	if err != nil {
+		return "", err
+	}
+	state, err := client.WriteVariable(ctx, resourceID, expectedInstanceID, expectedRevision, json.RawMessage(valueJSON))
+	if err != nil {
+		return "", err
+	}
+	return encodeJSON(state)
 }
 
 func (c *Client) InvokeJSON(ownerID int64, name, requestJSON string, timeoutMS int64) (string, error) {
@@ -197,7 +215,7 @@ func (c *Client) OperateJSON(ownerID int64, name, capability, schema, requestJSO
 		return "", err
 	}
 	request := []byte(requestJSON)
-	if len(request) == 0 || len(request) > protocol.DefaultMaxPayload || !json.Valid(request) {
+	if len(request) > protocol.DefaultMaxPayload || len(request) == 0 && capability != string(protocol.CapabilityRead) || len(request) != 0 && !json.Valid(request) {
 		return "", errors.New("resource operation request must be valid JSON within the protocol payload limit")
 	}
 	capabilityID := protocol.CapabilityID(capability)
@@ -405,21 +423,49 @@ func (c *Client) forwardSubscription(id int64, ctx context.Context, subscription
 		delete(c.subscriptions, id)
 		c.mu.Unlock()
 	}()
+	var variableDecoder sdk.VariableEventDecoder
+	variable := false
+	errorSource := subscription.Errors
 	for {
 		select {
 		case event, ok := <-subscription.Events:
 			if !ok {
+				// DurableSubscription closes Errors before Events; preserve any
+				// terminal validation error buffered when both become ready.
+				if errorSource != nil {
+					for failure := range errorSource {
+						if failure != nil {
+							callListenerError(listener, bindingErrorJSON(failure))
+						}
+					}
+				}
 				return
+			}
+			if variable || event.Kind == sdk.EventSnapshot || event.Revision != 0 || event.Schema == protocol.SchemaVariableValueV1 {
+				variable = true
+				if event.Resource != subscription.Resource {
+					callListenerError(listener, bindingErrorJSON(errors.New("variable event resource does not match subscription")))
+					return
+				}
+				if _, err := variableDecoder.Decode(event); err != nil {
+					callListenerError(listener, bindingErrorJSON(err))
+					return
+				}
 			}
 			publisher := ""
 			if event.Publisher != 0 {
 				publisher = strconv.FormatUint(uint64(event.Publisher), 10)
 			}
+			value, err := bindingEventValue(event.Value, variable)
+			if err != nil {
+				callListenerError(listener, bindingErrorJSON(err))
+				return
+			}
 			payload, err := encodeJSON(bindingEvent{
 				Kind: string(event.Kind), OwnerNodeID: strconv.FormatUint(uint64(event.Resource.Owner), 10), ResourceName: event.Resource.Name,
-				Capability: string(event.Capability), Schema: event.Schema, Revision: event.Revision, Sequence: event.Sequence,
+				Capability: string(event.Capability), Schema: event.Schema, Revision: bindingRevision(event.Revision), Sequence: event.Sequence,
 				PublisherNodeID: publisher, PublisherSequence: event.PublisherSequence,
-				GapFrom: event.GapFrom, GapTo: event.GapTo, Value: event.Value, Reason: event.Reason,
+				GapFrom: event.GapFrom, GapTo: event.GapTo, Value: value, Reason: event.Reason,
 			})
 			if err != nil {
 				callListenerError(listener, bindingErrorJSON(err))
@@ -429,9 +475,10 @@ func (c *Client) forwardSubscription(id int64, ctx context.Context, subscription
 				callListenerError(listener, bindingErrorJSON(err))
 				return
 			}
-		case err, ok := <-subscription.Errors:
+		case err, ok := <-errorSource:
 			if !ok {
-				return
+				errorSource = nil
+				continue
 			}
 			if err != nil {
 				callListenerError(listener, bindingErrorJSON(err))
@@ -491,7 +538,7 @@ func terminalSubscriptionError(err error) bool {
 		return false
 	}
 	switch value.Code {
-	case protocol.CodeMalformed, protocol.CodeForbidden, protocol.CodeNotFound, protocol.CodeConflict:
+	case protocol.CodeMalformed, protocol.CodeUnsupported, protocol.CodeForbidden, protocol.CodeNotFound, protocol.CodeConflict:
 		return true
 	default:
 		return false

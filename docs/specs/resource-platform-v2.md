@@ -31,7 +31,7 @@ Node 是提供能力的逻辑对象，与物理设备无一一对应关系；设
 
 ## Built-in types
 
-- Variable：`read`/可选条件 `write`/`subscribe`；写入携带 expected revision，快照先于更新，revision 单调递增。
+- Variable：`type_version=2`，`read`/可选条件 `write`/`subscribe` 使用平台统一格式；写入携带 instance identity 与字符串 expected revision，快照含 definition，后续更新复用实例定义。完整契约见 [Unified Variable Resource](unified-variable-resource.md)。
 - Stream：`subscribe`，可选 `publish`；事件 sequence 单调，丢失必须以 gap 表达。
 - Topic：`publish`/`subscribe`；多个发布者和订阅者，按 publisher 分别排序，默认无持久化和回放。
 - Command：`invoke`；输入与输出 schema 独立声明，支持有界输入输出、deadline、dedupe 与 panic 隔离。
@@ -44,14 +44,14 @@ renderer；不得要求修改 Core type switch。
 
 ## Catalog
 
-每个 Node 的 `system/catalog` 是一个 Variable，内容按资源名稳定排序并携带非零 revision。
+每个 Node 的 `system/catalog` 是一个标准 Variable，envelope 的 value 保留 ResourceCatalogV2；资源按名字稳定排序并携带非零 revision。SDK 直接解码标准 envelope，再验证目录对象，不先请求目录来发现目录本身的格式。
 注册、注销或 descriptor 变化必须原子更新目录。目录自身也必须被目录描述。
 
 ## Owner-bound declaration
 
-Host 可以提供绑定本 NodeID 的 Registry facade，减少 Variable descriptor boilerplate。声明者仍必须显式提供 local name、content type、schema、read permission、payload limit 和 initial payload；默认只允许 owner 本地更新，远端写必须显式提供 write permission。
+Host 可以提供绑定本 NodeID 的 Registry facade，减少 Variable descriptor boilerplate。声明者仍必须显式提供 local name、标准 definition、read permission、payload limit 和 initial state；默认只允许 owner 本地更新，远端写必须显式提供 write permission。
 
-该 helper 只是构造并注册标准 Resource：不得接受 foreign owner，不得绕过 descriptor/payload validation、重名检查或 `system/catalog` 原子更新。返回的 Variable 继续使用既有 `Set`、revision、watcher 与 snapshot-first subscription 语义。固定资源可以在 Host `Start` 前注册，动态资源可以在运行期按相同 Registry 契约注册或注销。
+该 helper 只是构造并注册标准 Resource：不得接受 foreign owner，不得绕过 descriptor/payload validation、重名检查或 `system/catalog` 原子更新。返回的 Variable 使用统一 `Set`、`Apply`、CAS、revision、watcher 与 snapshot-first subscription 管线；所有入口均先验证值、状态和完整 envelope，再提交。旧任意 byte payload 接口不保留。固定资源可以在 Host `Start` 前注册，动态资源可以在运行期按相同 Registry 契约注册或注销。
 
 ## Topic contract
 

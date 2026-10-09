@@ -318,7 +318,7 @@ func decodePolicyRule(input []byte) (auth.Request, error) {
 }
 
 func (c *Controller) refreshConfigLocked() error {
-	payload, err := protocol.EncodeJSONPayload(configPointer(c.settings.Snapshot()), protocol.DefaultMaxPayload)
+	payload, err := protocol.EncodeVariablePayload(*c.config.Snapshot().State.Definition, configPointer(c.settings.Snapshot()), protocol.DefaultMaxPayload)
 	if err != nil {
 		return err
 	}
@@ -340,7 +340,7 @@ func (c *Controller) refreshHealthLocked() error {
 			"trust":     fmt.Sprintf("generation:%d", c.trust.Generation()),
 		},
 	}
-	payload, err := protocol.EncodeJSONPayload(&health, protocol.DefaultMaxPayload)
+	payload, err := protocol.EncodeVariablePayload(*c.health.Snapshot().State.Definition, &health, protocol.DefaultMaxPayload)
 	if err != nil {
 		return err
 	}
@@ -348,18 +348,22 @@ func (c *Controller) refreshHealthLocked() error {
 }
 
 func newJSONVariable(owner protocol.NodeID, name, schema, permission string, initial protocol.ValidatedPayload) (*resource.Variable, error) {
-	payload, err := protocol.EncodeJSONPayload(initial, protocol.DefaultMaxPayload)
+	definition, err := protocol.DataSchemaByID(schema)
+	if err != nil {
+		return nil, fmt.Errorf("define management variable %s: %w", name, err)
+	}
+	payload, err := protocol.EncodeVariablePayload(definition, initial, protocol.DefaultMaxPayload)
 	if err != nil {
 		return nil, err
 	}
-	return resource.NewVariable(resource.VariableDescriptor(protocol.ResourceID{Owner: owner, Name: name}, contentTypeJSON, schema, permission, protocol.DefaultMaxPayload), payload)
+	return resource.NewVariable(resource.VariableDescriptor(protocol.ResourceID{Owner: owner, Name: name}, permission, protocol.DefaultMaxPayload), definition, resource.VariableState{Value: payload, Status: "ready"}, nil)
 }
 
 func setIfChanged(variable *resource.Variable, payload []byte) error {
-	if bytes.Equal(variable.Snapshot().Value, payload) {
+	if bytes.Equal(variable.Snapshot().State.Value, payload) {
 		return nil
 	}
-	_, err := variable.Set(payload)
+	_, err := variable.Set(resource.VariableState{Value: payload, Status: "ready"})
 	return err
 }
 

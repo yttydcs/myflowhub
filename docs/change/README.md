@@ -89,6 +89,8 @@
 - [2026-02-18_docs-consistency.md](2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+
+- [2026-10-09 统一 Variable 与 Desktop 通用交互](2026-10-09_unified-variable-contract.md)
 - [2026-08-31_nodehost-runtime-and-product-boundaries.md](2026-08-31_nodehost-runtime-and-product-boundaries.md)
 - [2026-04-05_embedded-sdk-c-ws2812.md](2026-04-05_embedded-sdk-c-ws2812.md)
 - [2026-04-02_core-flow-permission-defaults.md](2026-04-02_core-flow-permission-defaults.md)

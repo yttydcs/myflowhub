@@ -96,12 +96,7 @@ func (c *Client) runDurableSubscription(ctx context.Context, status ConnectionSt
 				return
 			}
 		}
-		runtime, runtimeErr := c.runtimeNode()
-		if runtimeErr != nil {
-			sendTerminalError(errorsOut, wrapError(runtimeErr))
-			return
-		}
-		remote, err := runtime.SubscribeCapability(ctx, resource, capability, lease, queue)
+		remote, err := c.SubscribeCapability(ctx, resource, capability, lease, queue)
 		if err != nil {
 			if permanentSubscriptionError(err) {
 				sendTerminalError(errorsOut, wrapError(err))
@@ -128,11 +123,23 @@ func (c *Client) runDurableSubscription(ctx context.Context, status ConnectionSt
 			select {
 			case event, ok := <-eventSource:
 				if !ok {
+					// Subscribe closes Errors before Events. Drain a buffered
+					// validation failure before considering this a reconnect.
+					if errorSource != nil {
+						for failure := range errorSource {
+							if permanentSubscriptionError(failure) {
+								remote.Cancel()
+								timer.Stop()
+								sendTerminalError(errorsOut, wrapError(failure))
+								return
+							}
+						}
+					}
 					attemptDone = true
 					eventSource = nil
 					break
 				}
-				converted := convertEvent(event)
+				converted := event
 				if converted.Kind == EventData && converted.Sequence != 0 {
 					sawStream = true
 					lastSequence = converted.Sequence
@@ -217,10 +224,17 @@ func (s runtimeConnectionStatus) WaitChange(ctx context.Context, after uint64) (
 }
 
 func permanentSubscriptionError(err error) bool {
+	var sdkError *Error
+	if errors.As(err, &sdkError) {
+		switch sdkError.Code {
+		case protocol.CodeMalformed, protocol.CodeUnsupported, protocol.CodeForbidden, protocol.CodeNotFound, protocol.CodeConflict:
+			return true
+		}
+	}
 	var payload protocol.ErrorPayload
 	if errors.As(err, &payload) {
 		switch payload.Code {
-		case protocol.CodeMalformed, protocol.CodeForbidden, protocol.CodeNotFound, protocol.CodeConflict:
+		case protocol.CodeMalformed, protocol.CodeUnsupported, protocol.CodeForbidden, protocol.CodeNotFound, protocol.CodeConflict:
 			return true
 		}
 	}

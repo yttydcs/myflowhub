@@ -165,7 +165,8 @@ func TestTransferExpiresWithoutAnotherCommand(t *testing.T) {
 	for time.Now().Before(deadline) {
 		value, _ := runtime.Registry().Resolve(protocol.ResourceID{Owner: 1, Name: protocol.BuiltinFileTransfers})
 		var transfers protocol.FileTransfersV1
-		if err := protocol.DecodeJSONPayload(value.(*resource.Variable).Snapshot().Value, protocol.DefaultMaxPayload, &transfers); err != nil {
+		state := value.(*resource.Variable).Snapshot().State
+		if err := protocol.DecodeVariablePayload(*state.Definition, state.Value, protocol.DefaultMaxPayload, &transfers); err != nil {
 			t.Fatal(err)
 		}
 		if len(transfers.Transfers) == 1 && transfers.Transfers[0].State == "failed" {
@@ -181,9 +182,14 @@ func TestTransferExpiresWithoutAnotherCommand(t *testing.T) {
 
 func localNode(t *testing.T) (*node.Node, string) {
 	t.Helper()
-	identity, _ := auth.GenerateIdentity(1)
+	return localNodeWithID(t, 1)
+}
+
+func localNodeWithID(t *testing.T, nodeID protocol.NodeID) (*node.Node, string) {
+	t.Helper()
+	identity, _ := auth.GenerateIdentity(nodeID)
 	trust := auth.NewTrustStore()
-	_ = trust.Add(1, identity.PublicKey)
+	_ = trust.Add(nodeID, identity.PublicKey)
 	runtime, err := node.New(context.Background(), node.Config{Identity: identity, Trust: trust})
 	if err != nil {
 		t.Fatal(err)
@@ -209,11 +215,16 @@ func connectedChild(t *testing.T, network *memory.Network, parent auth.Identity,
 
 func openSession(t *testing.T, runtime *node.Node, offer protocol.FileOfferV1) *node.RemoteSession {
 	t.Helper()
+	return openSessionAtOwner(t, runtime, 1, offer)
+}
+
+func openSessionAtOwner(t *testing.T, runtime *node.Node, owner protocol.NodeID, offer protocol.FileOfferV1) *node.RemoteSession {
+	t.Helper()
 	payload, err := protocol.EncodeJSONPayload(&offer, protocol.DefaultMaxPayload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := runtime.OpenSession(context.Background(), protocol.ResourceID{Owner: 1, Name: protocol.BuiltinFileUpload}, protocol.CapabilityOpen, protocol.SchemaFileOfferV1, payload)
+	session, err := runtime.OpenSession(context.Background(), protocol.ResourceID{Owner: owner, Name: protocol.BuiltinFileUpload}, protocol.CapabilityOpen, protocol.SchemaFileOfferV1, payload)
 	if err != nil {
 		t.Fatal(err)
 	}

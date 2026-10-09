@@ -105,10 +105,14 @@ func (o *subscriptionFailureObservable) Observe(observer func(resource.Observati
 	if o.observeErr != nil {
 		return nil, nil, o.observeErr
 	}
-	o.observer = observer
 	snapshot := o.Snapshot()
+	payload, err := protocol.EncodeJSONPayload(&snapshot.State, o.Descriptor().Limits.MaxPayloadBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	o.observer = observer
 	var once sync.Once
-	return &resource.Observation{Snapshot: true, Revision: snapshot.Revision, Schema: "test.raw.v1", Value: snapshot.Value}, func() {
+	return &resource.Observation{Snapshot: true, Revision: snapshot.Revision, Schema: protocol.SchemaVariableValueV1, Value: payload}, func() {
 		once.Do(func() {
 			o.mu.Lock()
 			o.observer = nil
@@ -159,7 +163,7 @@ func newSubscriptionFailureNodes(t *testing.T) (context.Context, *Node, *Node, *
 	}
 	waitRoute(t, root.Tree(), child.ID())
 	id := protocol.ResourceID{Owner: root.ID(), Name: "failure-state"}
-	variable, err := resource.NewVariable(resource.VariableDescriptor(id, "application/octet-stream", "test.raw.v1", "test.read", 64), []byte("ready"))
+	variable, err := resource.NewVariable(resource.VariableDescriptor(id, "test.read", 512), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Value: []byte(`"ready"`), Status: "ready"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

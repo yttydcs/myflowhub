@@ -20,7 +20,9 @@ func TestBuiltinSchemasCoverCanonicalResourceContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	known := make(map[string]struct{}, len(definitions))
+	// Dynamic variable envelopes have canonical recursive Go/TS wire types;
+	// they cannot be represented by a finite builtin business-value schema.
+	known := map[string]struct{}{protocol.SchemaVariableValueV1: {}, protocol.SchemaVariableWriteV3: {}}
 	for _, definition := range definitions {
 		known[definition.ID] = struct{}{}
 	}
@@ -42,7 +44,8 @@ func TestGeneratedContractIsCurrent(t *testing.T) {
 	temporaryRoot := t.TempDir()
 	temporary := filepath.Join(temporaryRoot, "contracts.json")
 	temporarySchemas := filepath.Join(temporaryRoot, "resource-schemas.generated.json")
-	command := exec.Command("go", "run", "./cmd/mfh-bindgen", "-out", temporary, "-schemas-out", temporarySchemas)
+	temporaryTypes := filepath.Join(temporaryRoot, "variable-contract.generated.ts")
+	command := exec.Command("go", "run", "./cmd/mfh-bindgen", "-out", temporary, "-schemas-out", temporarySchemas, "-types-out", temporaryTypes)
 	command.Env = append(os.Environ(), "GOWORK=off")
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("regenerate binding contract: %v\n%s", err, output)
@@ -57,6 +60,23 @@ func TestGeneratedContractIsCurrent(t *testing.T) {
 	}
 	if !bytes.Equal(got, want) {
 		t.Fatal("generated binding contract is stale; run go generate ./sdk/bindings")
+	}
+	for _, path := range []string{
+		filepath.Join("generated", "variable-contract.generated.ts"),
+		filepath.Join("..", "..", "apps", "desktop", "frontend", "src", "generated", "variable-contract.generated.ts"),
+		filepath.Join("..", "..", "apps", "nodes", "metrics", "windows", "frontend", "src", "generated", "variable-contract.generated.ts"),
+	} {
+		want, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := os.ReadFile(temporaryTypes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Errorf("generated variable types %s are stale; run go generate ./sdk/bindings", path)
+		}
 	}
 	wantSchemas, err := os.ReadFile(filepath.Join("..", "..", "apps", "desktop", "frontend", "src", "generated", "resource-schemas.generated.json"))
 	if err != nil {

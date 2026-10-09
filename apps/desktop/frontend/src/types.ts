@@ -1,3 +1,5 @@
+import type { VariableValueV1 } from './generated/variable-contract.generated'
+
 export type Profile = {
   id: string
   name: string
@@ -131,12 +133,12 @@ export type ResourceEvent = {
   resource_name: string
   capability: string
   schema?: string
-  revision?: number
+  revision?: string
   sequence?: number
   publisher_node_id?: string
   publisher_sequence?: number
   gap_from?: number
   gap_to?: number
-  value?: string
+  value?: string | VariableValueV1
   reason?: string
 }

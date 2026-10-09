@@ -96,15 +96,25 @@ View 使用任意深度的 n 元 horizontal/vertical split tree。所有相邻 p
 资源引用、renderer、布局和 allowlisted 局部设置；当前 View document 保持 version 3，Collection member 选择、
 已读取内容和 operation draft 都只存在于组件内存中，不进入 View。资源暂不可用时保留 leaf 并显示 detached 状态。
 
+分栏达到最小尺寸后，其余面板仍按相对权重铺满剩余空间；渲染与停靠预览共用同一比例换算，不改变保存的权重。布局结构变化时废弃旧结构的临时拖动比例，避免新旧子节点数量不一致。
+
 ## Renderer
 
+Variable 的只读和可写界面共用标题行：优先显示 definition.title，未提供时显示资源名最后一段；订阅状态点紧邻标题右侧，数组数量同排显示。根编辑器不再重复视觉标题，字段辅助技术标签与嵌套结构标题保留。
+
+只读对象与数组使用独立的通用结构展示：复杂字段占满内容宽度，数组中的对象默认折叠，逐项展开后再显示字段，避免侧栏中递归的标签/值双列不断压缩内容。空对象和空数组明确标识；数组、字段数量和展示深度均有上限。读取成功但订阅被拒绝时保留快照，显示“没有订阅权限，当前显示已读取的快照；可手动刷新”，原始订阅诊断保留在详情中；展示层不改变权限。
+
+工作视图中的 Variable 编辑区填满卡片内容宽度，开关对齐右侧。常态不显示底部分隔线、详情与刷新/重置/应用操作；右侧 Inspector 保留手动应用。同一资源的 View 与 Inspector 共享草稿，但仅 View 内的新操作触发自动应用：开关和枚举选择点击提交，数字和单行文本按 Enter 或失焦提交，滑块结束拖动或键盘调整后提交；多行文本与高级 JSON 保留 Enter 换行、失焦提交。中文输入法确认键不触发提交，Enter 紧接失焦只写一次，未改变的值不重复写入。加载态位于控件内部，等待期间禁用重复操作；开关和枚举显示上次确认值，写入完成后采用服务端确认值。正常输入和提交不在标题行闪现“未应用/正在应用”，无效输入和失败仍明确显示。读取、加载已有草稿、Inspector 编辑和重置不会触发自动应用；关闭 View、切换会话或资源实例会取消待提交操作。无效输入、不可用、撤权和冲突阻止提交，写入仍使用精确 CAS 并以服务端确认值为准。失败不自动重试，View 显示原因并按状态提供重试应用或放弃修改入口。
+
 renderer 由 descriptor 的 type、capability、schema、operation result schema 和 content type 驱动：
+
+所有可写 Variable 只展示一组编辑控件，不提供重复的“查看当前值”区域；修改先形成草稿，Inspector 手动应用、View 自动应用；尚未通过校验或未确认写入的输入仍标记为“未应用”。最外层对象/数组仅展示标题和数量并保持展开，嵌套结构仍可折叠。数组每项使用紧凑输入行，序号只展示一次，完整字段标签仍供辅助技术使用。枚举切换为文本编辑后继续按原 enum 校验；代码文本采用等宽字体。只读数据保持直接展示，长文本使用正文排版。过期、不可用和冲突提示不会收进折叠区域；尚未取得可编辑值时只保留刷新入口，已有草稿因不可用而被禁用时仍保留以便恢复。
 
 - Resource provider 通过 schema 定义值类型、范围、步长、枚举、格式、字段和校验约束；Desktop 不从
   Resource name 猜测这些语义；
 - Desktop renderer registry 根据 schema、capability 和 pane 尺寸过滤兼容组件并选择安全默认项；用户可在
   Widget 标题区切换兼容 renderer，切换只更新 View 展示设置，不调用 Resource operation；
-- Variable：布尔、枚举、数字、文本、时间、对象和数组使用对应展示/控件；可写值先形成 draft，Reset/Apply
+- Variable：从标准快照直接取得 definition，布尔、枚举、数字、文本、对象和数组使用通用展示/控件，无需节点专用 schema。正常订阅状态用小圆点表示，悬停或聚焦可查看状态与更新时间；owner、revision、instance、capability 等技术信息收进默认折叠的“详情”，订阅失败、数据不可用与写入冲突仍直接显示。Inspector/View 共用持续订阅与会话控制器；可写值先形成 draft，Reset/Apply
   后通过 `expected_revision` 条件写入，失败或冲突保留 draft；
 - Stream/Topic：使用有界 log/table/timeline，支持 pause、clear、filter、autoscroll，并明确显示
   publisher/sequence、gap、expired 和 subscription state；Topic publish 复用 schema form；
@@ -142,7 +152,7 @@ discovery 落地前，Desktop 只能展示 descriptor 声明的“受支持操�
 激活手柄和添加按钮等价路径；Node tree 与 Resource path tree 都使用 roving focus，并实现 Arrow
 Up/Down/Left/Right、Home、End、Enter 与 Space 的 WAI-ARIA 键盘路径。分区标题使用 button、
 `aria-expanded` 和 `aria-controls`；上下区分隔条使用 horizontal separator 语义，支持方向键、Home/End
-与双击复位；Tabs、表单和动作有辅助技术标签。视觉使用 Radix/shadcn 风格 primitives、CSS tokens、
+与双击复位；Tabs、表单和动作有辅助技术标签。通用表单采用项目内维护的 shadcn/ui 组件源码（Radix 交互基础），统一下拉、开关、复选框、滑块、进度与输入框；Tailwind 样式映射到现有 CSS tokens，不引入全局 preflight。视觉使用
 浅色默认、完整深色重配色与 reduced-motion，不维护第二套旧 UI。主题、Node 展开/聚焦、Resource path
 展开、Explorer 收起状态与分区比例作为版本化非秘密 UI preference 按 Profile 保存，损坏 preference
 只回退到显式默认值。
@@ -199,3 +209,5 @@ wails build -clean
 - settings version 1 的猜测迁移；
 - 明文持久 permit/private identity 和前端权限裁决；
 - Desktop 内置 MCP/stdio 自动化入口；未来对外 Agent 接口作为独立产品重新设计。
+
+统一 Variable 当前合同见 [规格](../specs/unified-variable-resource.md)：仅 type_version=2，read 携带实例和精确字符串 revision；元数据更新保留草稿并推进基准，值变化提示冲突，撤权/重建禁止提交旧草稿。

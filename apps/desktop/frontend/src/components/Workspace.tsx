@@ -147,12 +147,12 @@ function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove,
         >
           <GripVertical aria-hidden="true" size={14} />
         </button>
-        <div className="widget-title">
+        <div className="widget-title" title={`${widget.owner_node_id} / ${widget.resource_name}`}>
           <strong>{label}</strong>
-          <small>{widget.owner_node_id} / {widget.resource_name}</small>
+          <small className="sr-only">{widget.owner_node_id} / {widget.resource_name}</small>
         </div>
-        {resource && <ResourceRendererSelector resource={resource} rendererID={widget.renderer} onRendererChange={onRendererChange} />}
-        {resource && actions.length > 0 && (
+        {resource && <ResourceRendererSelector api={api} resource={resource} rendererID={widget.renderer} onRendererChange={onRendererChange} />}
+        {resource && resource.type !== 'mfh.variable' && actions.length > 0 && (
           <div className="widget-actions" aria-label="Resource actions">
             {visibleActions.map((action) => <button type="button" className={focusedCapability === action.capability ? 'is-active' : ''} disabled={action.disabled} title={action.label} aria-label={action.label} key={action.capability} onClick={() => setFocusedCapability(action.capability)}>{action.capability}</button>)}
             {overflowActions.length > 0 && <details><summary aria-label="更多 Resource actions">+{overflowActions.length}</summary><div>{overflowActions.map((action) => <button type="button" disabled={action.disabled} title={action.label} key={action.capability} onClick={() => setFocusedCapability(action.capability)}>{action.capability}</button>)}</div></details>}
@@ -166,7 +166,7 @@ function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove,
         {resource && unavailable && <DiscoveryStatus state={catalog?.status === 'loaded' ? { status: 'error', stale: true, error: '目录中已找不到该资源；保留未保存输入' } : catalog} label={`Node ${widget.owner_node_id} 资源目录`} onRetry={() => discovery?.retry(widget.owner_node_id)} />}
         {resource && focusedCapability && <div className="widget-action-focusbar"><strong>{focusedCapability}</strong><button type="button" aria-label="关闭操作面板" onClick={() => setFocusedCapability(undefined)}><X aria-hidden="true" size={13} /></button></div>}
         {resource
-          ? <fieldset className="discovery-renderer" disabled={unavailable}><ResourceRenderer api={api} resource={resource} rendererID={widget.renderer} density={density} focusedCapability={focusedCapability} /></fieldset>
+          ? <fieldset className="discovery-renderer" disabled={unavailable}><ResourceRenderer api={api} resource={resource} rendererID={widget.renderer} density={density} focusedCapability={focusedCapability} showVariableFooter={false} autoApplyVariable focusedDisabledReason={unavailable ? '资源目录不可用，请刷新后重试' : undefined} /></fieldset>
           : (
             <MissingResource owner={widget.owner_node_id} name={widget.resource_name} />
           )}
@@ -191,10 +191,14 @@ function LayoutLeaf({ api, widget, resource, onRemove, onRendererChange }: {
 
 function splitGridStyle(node: Extract<ViewLayoutNode, { kind: 'split' }>, weights: number[]): CSSProperties {
   const tracks: string[] = []
+  // Once a track reaches its minimum, CSS can leave free space unused when
+  // the remaining fr factors sum to less than one. Keep every factor >= 1
+  // while preserving the stored ratios, including in docking previews.
+  const unit = Math.min(...weights)
   node.children.forEach((child, index) => {
     const minimum = workspaceLayoutMinimumSize(child)
     const pixels = node.axis === 'horizontal' ? minimum.width : minimum.height
-    tracks.push(`minmax(${pixels}px, ${weights[index]}fr)`)
+    tracks.push(`minmax(${pixels}px, ${weights[index]! / unit}fr)`)
     if (index < node.children.length - 1) tracks.push(`${WORKSPACE_SEPARATOR_SIZE}px`)
   })
   return node.axis === 'horizontal'
@@ -371,8 +375,8 @@ function LayoutSplit({
   onResize,
 }: LayoutRenderProps & { node: Extract<ViewLayoutNode, { kind: 'split' }> }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [draftWeights, setDraftWeights] = useState(node.weights)
-  useEffect(() => setDraftWeights(node.weights), [node.weights])
+  const [preview, setPreview] = useState<{ node: typeof node; weights: number[] }>()
+  const draftWeights = preview?.node === node ? preview.weights : node.weights
   return (
     <div
       ref={containerRef}
@@ -404,12 +408,12 @@ function LayoutSplit({
               index={index}
               containerRef={containerRef}
               draftWeights={draftWeights}
-              onDraft={setDraftWeights}
+              onDraft={(weights) => setPreview({ node, weights })}
               onCommit={(ratio, minimum, maximum) => {
-                setDraftWeights(node.weights)
+                setPreview(undefined)
                 onResize(path, index, ratio, minimum, maximum)
               }}
-              onCancel={() => setDraftWeights(node.weights)}
+              onCancel={() => setPreview(undefined)}
             />,
           )
         }

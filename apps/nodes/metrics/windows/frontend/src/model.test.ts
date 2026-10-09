@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import {metricState} from './fixtures.test-support'
 import {
   connectionStateLabel,
   formatInterval,
@@ -18,27 +19,24 @@ describe('metrics presentation model', () => {
   })
 
   it('keeps unavailable and missing values explicit', () => {
-    const base = {version: 1, metric: 'cpu_usage', unit: '%', observed_at_unix_ms: 1}
     expect(metricLabel('cpu_percent')).toBe('处理器')
-    expect(metricLabel(base.metric)).toBe('cpu usage')
-    expect(sampleValue({...base, status: 'unavailable', value: '91'})).toBe('—')
-    expect(sampleValue({...base, status: 'stale'})).toBe('—')
-    expect(sampleValue({...base, status: 'fresh', value: '17'})).toBe('17')
+    expect(sampleValue(metricState('cpu_percent', undefined, 'unavailable'))).toBe('—')
+    expect(sampleValue(metricState('cpu_percent', 0, 'stale'))).toBe('0')
+    expect(sampleValue(metricState('volume_muted', false))).toBe('false')
+    expect(sampleValue(metricState('network_type', ''))).toBe('')
   })
 
-  it('formats boolean and percent readings without inventing unavailable values', () => {
-    expect(sampleReading({version: 1, metric: 'network_online', unit: 'boolean', status: 'fresh', value: 'true', observed_at_unix_ms: 1})).toEqual({value: '在线', suffix: ''})
-    expect(sampleReading({version: 1, metric: 'cpu_percent', unit: 'percent', status: 'fresh', value: '117', observed_at_unix_ms: 1})).toEqual({value: '117', suffix: '%', progress: 100})
-    expect(sampleReading({version: 1, metric: 'cpu_percent', unit: 'percent', status: 'unavailable', observed_at_unix_ms: 1})).toEqual({value: '—', suffix: ''})
+  it('formats real booleans and percentages without inventing unavailable values', () => {
+    expect(sampleReading(metricState('network_online', true))).toEqual({value: '在线', suffix: ''})
+    expect(sampleReading(metricState('network_online', false))).toEqual({value: '离线', suffix: ''})
+    expect(sampleReading(metricState('cpu_percent', 0))).toEqual({value: '0', suffix: '%', progress: 0})
+    expect(sampleReading(metricState('cpu_percent', undefined, 'unavailable'))).toEqual({value: '—', suffix: ''})
   })
 
   it('reconciles selection and presents timing and connection state', () => {
-    const samples = [
-      {version: 1, metric: 'cpu_percent', unit: 'percent', status: 'fresh' as const, value: '17', observed_at_unix_ms: 1},
-      {version: 1, metric: 'memory_percent', unit: 'percent', status: 'fresh' as const, value: '52', observed_at_unix_ms: 1},
-    ]
-    expect(reconcileSelectedMetric(samples, 'memory_percent')).toBe('memory_percent')
-    expect(reconcileSelectedMetric(samples, 'missing')).toBe('cpu_percent')
+    const states = [metricState('cpu_percent', 17), metricState('memory_percent', 52)]
+    expect(reconcileSelectedMetric(states, 'memory_percent')).toBe('memory_percent')
+    expect(reconcileSelectedMetric(states, 'missing')).toBe('cpu_percent')
     expect(reconcileSelectedMetric([], 'memory_percent')).toBeUndefined()
     expect(formatInterval(2000)).toBe('2 s')
     expect(formatInterval(750)).toBe('750 ms')

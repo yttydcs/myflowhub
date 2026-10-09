@@ -1,10 +1,10 @@
 package metrics
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -12,11 +12,8 @@ import (
 )
 
 const (
-	SchemaSampleV1        = "mfh.metrics.sample.v1"
-	SchemaControlV1       = "mfh.metrics.control.v1"
-	SchemaControlResultV1 = "mfh.metrics.control-result.v1"
-	SchemaConfigV1        = "mfh.metrics.config.v1"
-	SchemaConfigUpdateV1  = "mfh.metrics.config-update.v1"
+	SchemaConfigV1       = "mfh.metrics.config.v1"
+	SchemaConfigUpdateV1 = "mfh.metrics.config-update.v1"
 
 	ResourceConfig       = "metrics/config"
 	ResourceConfigUpdate = "metrics/config/update"
@@ -56,93 +53,6 @@ var definitions = []Definition{
 	{Name: VolumePercent, Unit: "percent", Controllable: true, Platforms: platforms("windows"), IntervalMS: 1_000},
 	{Name: VolumeMuted, Unit: "boolean", Controllable: true, Platforms: platforms("windows"), IntervalMS: 1_000},
 	{Name: BrightnessPercent, Unit: "percent", Controllable: true, Platforms: platforms("windows"), IntervalMS: 2_000},
-}
-
-type SampleV1 struct {
-	Version          int    `json:"version"`
-	Metric           string `json:"metric"`
-	Value            string `json:"value,omitempty"`
-	Unit             string `json:"unit"`
-	Status           string `json:"status"`
-	SampledAtUnixMS  int64  `json:"sampled_at_unix_ms,omitempty"`
-	ObservedAtUnixMS int64  `json:"observed_at_unix_ms"`
-	Error            string `json:"error,omitempty"`
-}
-
-func (s SampleV1) Validate() error {
-	if s.Version != 1 {
-		return errors.New("metrics sample version must be 1")
-	}
-	definition, ok := DefinitionFor(Name(s.Metric))
-	if !ok || s.Unit != definition.Unit {
-		return errors.New("metrics sample metric or unit is invalid")
-	}
-	if s.Status != "fresh" && s.Status != "stale" && s.Status != "unavailable" {
-		return errors.New("metrics sample status is invalid")
-	}
-	if s.ObservedAtUnixMS <= 0 || s.SampledAtUnixMS < 0 || s.SampledAtUnixMS > s.ObservedAtUnixMS {
-		return errors.New("metrics sample timestamps are invalid")
-	}
-	if s.Status == "fresh" {
-		if s.SampledAtUnixMS == 0 || s.Error != "" {
-			return errors.New("fresh metrics sample must have a sample time and no error")
-		}
-		if err := ValidateValue(definition.Name, s.Value); err != nil {
-			return err
-		}
-	} else {
-		if s.Error == "" {
-			return errors.New("non-fresh metrics sample requires an error summary")
-		}
-		if s.Status == "stale" && s.SampledAtUnixMS == 0 {
-			return errors.New("stale metrics sample requires a previous sample")
-		}
-		if s.Status == "unavailable" && (s.SampledAtUnixMS != 0 || s.Value != "") {
-			return errors.New("unavailable metrics sample must not contain a value")
-		}
-	}
-	if len(s.Error) > 1024 {
-		return errors.New("metrics sample error exceeds 1024 bytes")
-	}
-	return nil
-}
-
-type ControlV1 struct {
-	Version int    `json:"version"`
-	Value   string `json:"value"`
-}
-
-func (c ControlV1) Validate() error {
-	if c.Version != 1 || c.Value == "" || len(c.Value) > 128 {
-		return errors.New("metrics control version or value is invalid")
-	}
-	return nil
-}
-
-type ControlResultV1 struct {
-	Version        int    `json:"version"`
-	Metric         string `json:"metric"`
-	RequestedValue string `json:"requested_value"`
-	AppliedValue   string `json:"applied_value,omitempty"`
-	Accepted       bool   `json:"accepted"`
-	Applied        bool   `json:"applied"`
-}
-
-func (r ControlResultV1) Validate() error {
-	definition, ok := DefinitionFor(Name(r.Metric))
-	if r.Version != 1 || !ok || !definition.Controllable || !r.Accepted {
-		return errors.New("metrics control result is invalid")
-	}
-	if err := ValidateValue(definition.Name, r.RequestedValue); err != nil {
-		return err
-	}
-	if r.Applied {
-		return ValidateValue(definition.Name, r.AppliedValue)
-	}
-	if r.AppliedValue != "" {
-		return errors.New("pending metrics control result must not have an applied value")
-	}
-	return nil
 }
 
 type SettingV1 struct {
@@ -250,7 +160,6 @@ func DefinitionFor(name Name) (Definition, bool) {
 }
 
 func ResourceName(name Name) string { return "metrics/" + string(name) }
-func CommandName(name Name) string  { return ResourceName(name) + "/set" }
 
 func DefaultConfig(platform string) (ConfigV1, error) {
 	if !validPlatform(platform) {
@@ -267,30 +176,66 @@ func DefaultConfig(platform string) (ConfigV1, error) {
 	return value, value.Validate()
 }
 
-func ValidateValue(name Name, value string) error {
+// ValueDefinition declares the actual JSON value; resource schemas remain platform-owned.
+func ValueDefinition(name Name) (protocol.DataSchemaDefinition, error) {
 	definition, ok := DefinitionFor(name)
 	if !ok {
-		return errors.New("metrics value has an unknown metric")
+		return protocol.DataSchemaDefinition{}, ErrUnsupported
 	}
-	value = strings.TrimSpace(value)
+	value := protocol.DataSchemaDefinition{Title: string(name)}
 	switch definition.Unit {
 	case "percent":
-		number, err := strconv.ParseFloat(value, 64)
-		if err != nil || number < 0 || number > 100 {
-			return errors.New("metrics percent value must be between 0 and 100")
+		minimum, maximum := 0.0, 100.0
+		value.Type, value.Unit, value.Minimum, value.Maximum = "number", "%", &minimum, &maximum
+		if definition.Controllable {
+			value.Type = "integer"
 		}
 	case "boolean":
-		if value != "true" && value != "false" {
-			return errors.New("metrics boolean value must be true or false")
-		}
+		value.Type = "boolean"
 	case "label":
-		if value == "" || len(value) > protocol.MaxLabelBytes {
-			return errors.New("metrics label value is invalid")
-		}
+		value.Type = "string"
+		value.Enum = []string{"cellular", "ethernet", "none", "unknown", "wifi"}
 	default:
-		return errors.New("metrics unit is unsupported")
+		return protocol.DataSchemaDefinition{}, ErrUnsupported
 	}
-	return nil
+	return value, nil
+}
+
+func ValidateValue(name Name, value any) error {
+	definition, err := ValueDefinition(name)
+	if err != nil {
+		return err
+	}
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("encode metric value: %w", err)
+	}
+	return protocol.ValidateVariableValue(definition, payload)
+}
+
+func ConfigDefinition() protocol.DataSchemaDefinition {
+	integer := func(minimum, maximum float64) *protocol.DataSchemaDefinition {
+		return &protocol.DataSchemaDefinition{Type: "integer", Minimum: &minimum, Maximum: &maximum}
+	}
+	boolean := &protocol.DataSchemaDefinition{Type: "boolean"}
+	names := make([]string, 0, len(definitions))
+	for _, definition := range Definitions("windows") {
+		names = append(names, string(definition.Name))
+	}
+	count, channels, label := len(names), 64, protocol.MaxIdentifierBytes
+	setting := &protocol.DataSchemaDefinition{Type: "object", Properties: []protocol.DataSchemaProperty{
+		{Name: "metric", Required: true, Schema: &protocol.DataSchemaDefinition{Type: "string", Enum: names}},
+		{Name: "enabled", Required: true, Schema: boolean},
+		{Name: "writable", Required: true, Schema: boolean},
+		{Name: "interval_ms", Required: true, Schema: integer(250, 86_400_000)},
+	}}
+	return protocol.DataSchemaDefinition{ID: SchemaConfigV1, Type: "object", Title: "Metrics configuration", Properties: []protocol.DataSchemaProperty{
+		{Name: "version", Required: true, Schema: integer(1, 1)},
+		{Name: "revision", Required: true, Schema: &protocol.DataSchemaDefinition{Type: "string", Format: "uint64"}},
+		{Name: "platform", Required: true, Schema: &protocol.DataSchemaDefinition{Type: "string", Enum: []string{"windows"}}},
+		{Name: "settings", Required: true, Schema: &protocol.DataSchemaDefinition{Type: "array", Items: setting, MinItems: &count, MaxItems: &count}},
+		{Name: "notification_channels", Required: true, Schema: &protocol.DataSchemaDefinition{Type: "array", MaxItems: &channels, Items: &protocol.DataSchemaDefinition{Type: "string", MaxLength: &label}}},
+	}}
 }
 
 func validPlatform(value string) bool { return value == "windows" }

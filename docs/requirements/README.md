@@ -13,6 +13,7 @@
 
 ## Current Status
 
+- [unified-variable-resource.md](unified-variable-resource.md)：已确认的平台通用变量、未发布阶段无需兼容；R2 已获执行批准。
 - [topology-discovery.md](topology-discovery.md)：当前按深度发现、权限边界与 Desktop 按需导航。
 
 - [Android 与嵌入式重新设计](mobile-embedded-redesign.md)：已退役实现，重新设计延期。

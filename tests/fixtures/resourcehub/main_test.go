@@ -63,7 +63,7 @@ func TestFixtureRegistersFilesystemCollectionsWithoutRootLeak(t *testing.T) {
 
 	snapshot := node.Registry().Catalog().Snapshot()
 	var catalog protocol.ResourceCatalogV2
-	if err := protocol.DecodeJSONPayload(snapshot.Value, protocol.DefaultMaxPayload, &catalog); err != nil {
+	if err := protocol.DecodeVariablePayload(*snapshot.State.Definition, snapshot.State.Value, protocol.DefaultMaxPayload, &catalog); err != nil {
 		t.Fatal(err)
 	}
 	wantFilesystem := map[string]bool{
@@ -90,7 +90,7 @@ func TestFixtureRegistersFilesystemCollectionsWithoutRootLeak(t *testing.T) {
 			t.Fatal(err)
 		}
 		needle := encoded[1 : len(encoded)-1]
-		if bytes.Contains(snapshot.Value, needle) || bytes.Contains(snapshot.Value, []byte(filepath.ToSlash(mount.root))) {
+		if bytes.Contains(snapshot.State.Value, needle) || bytes.Contains(snapshot.State.Value, []byte(filepath.ToSlash(mount.root))) {
 			t.Fatalf("catalog leaked physical root for Resource %q", mount.name)
 		}
 	}

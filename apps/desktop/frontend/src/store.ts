@@ -181,6 +181,7 @@ export function indexResources(resources: ResourceDescriptor[]): Map<string, Res
 }
 
 export function defaultRenderer(resource: ResourceDescriptor | undefined): string {
+  if (resource?.type === 'mfh.variable') return 'mfh.variable.auto.v2'
   return resource?.presentation?.renderer || resource?.type || 'mfh.unknown'
 }
 

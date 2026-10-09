@@ -6,16 +6,16 @@ MetricsNode 是独立 Node 产品，采集设备指标，并在平台允许时�
 
 ## Observable behavior
 
-- CPU、内存、电池、显示等只读指标表现为带 schema、单位和采样元数据的 Variables。
-- 可控指标表现为状态 Variable 加独立 Command；Command 输入经过范围与平台能力校验。
+- CPU、内存、电池、显示等只读指标表现为携带平台标准 definition、真实 JSON 值、单位与状态的 Variables。
+- 可控指标在同一 Variable 上声明 write；平台先验证实例、revision 和值约束，再交给 owner 执行并返回实际确认值。旧 `/set` 资源和专用采样/控制协议已移除。
 - collector 失败不会伪造数值，状态 Variable 暴露 unavailable/stale 和最近错误摘要。
 - 采样节奏、启用项与父节点配置持久化；敏感身份材料不进入普通配置或日志。
 - 通知频道是同一版本化配置的一部分；节点消费父节点的 `notifications/events` Stream，并由 Windows 宿主呈现系统通知。
 
 ## Windows UI
 
-- Windows Wails 产品默认进入“资源状态”，以表格展示真实 `Status.samples`；没有 sample 时显示 idle/等待空态，不生成演示值或 fallback 指标。
-- 资源行同时表达 `fresh`、`stale`、`unavailable`、单位、采样间隔和错误摘要；宽屏检查器补充 schema、采样时间、观察时间与写入边界，但不承载唯一操作。
+- Windows Wails 产品默认进入“资源状态”，以表格展示真实 `Status.metrics`（由统一 Variable 状态派生）；没有 sample 时显示 idle/等待空态，不生成演示值或 fallback 指标。
+- 资源行同时表达 `ready`、`stale`、`unavailable`、单位、采样间隔和错误摘要；宽屏检查器补充 schema、采样时间、观察时间与写入边界，但不承载唯一操作。
 - “采集策略”继续编辑版本化 configuration，包括 enabled、writable、interval 与 notification channels；保存沿用 revision 冲突和 backend validation。
 - “连接与身份”继续使用独立 Metrics state directory、Node identity、父节点 trust 和 provisioning permit；permit 仅驻留当前表单，连接成功或应用释放时清空。
 - 界面使用 Metrics 自有的 Desktop-aligned token、品牌静态资源和 light/dark 偏好；只共享视觉规范，不依赖 Desktop 私有组件、状态、IPC 或生命周期。
@@ -33,7 +33,7 @@ MetricsNode 是独立 Node 产品，采集设备指标，并在平台允许时�
 ## Architecture disposition
 
 - 指标状态：每个指标一个 `Variable`，失败时显式进入 `stale` 或 `unavailable`，不再用 `-1` 等伪值表示错误。
-- 设备控制：可写指标由独立 `Command` 接收请求；Windows 在受控 platform adapter 内执行并回报实际状态。
+- 设备控制：可写指标通过标准 `write` 接收请求；Windows 在受控 platform adapter 内执行并回报实际状态。采集与写入有序协调，过期写入不执行 actuator，不确定结果明确报错并等待后续采样校正。
 - 配置：`metrics/config` Variable 加 `metrics/config/update` Command，revision 冲突、平台能力、采样间隔、可写性与通知频道都经过严格校验并原子持久化。
 - 通知：旧 TopicBus 订阅被 durable Stream subscription 取代；频道切换会重建订阅，断线恢复由 SDK 管理，宿主只处理已经通过 schema 校验的事件。
 - 链路：产品 runtime 只依赖可替换 `link.Driver`；当前命令行和 UI 使用 TCP，未来链路可在不改变资源模型的情况下替换 driver。

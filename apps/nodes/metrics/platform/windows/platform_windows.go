@@ -4,11 +4,11 @@ package windows
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"runtime"
-	"strconv"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -28,9 +28,9 @@ type Platform struct {
 
 func New() *Platform { return &Platform{} }
 
-func (p *Platform) Collect(ctx context.Context, name metrics.Name) (string, error) {
+func (p *Platform) Collect(ctx context.Context, name metrics.Name) (any, error) {
 	if err := ctx.Err(); err != nil {
-		return "", err
+		return nil, err
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -38,64 +38,64 @@ func (p *Platform) Collect(ctx context.Context, name metrics.Name) (string, erro
 	case metrics.BatteryPercent:
 		status, err := readPowerStatus()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if status.BatteryFlag == 128 || status.BatteryLifePercent == 255 {
-			return "", errors.New("system battery is unavailable")
+			return nil, errors.New("system battery is unavailable")
 		}
 		if status.BatteryLifePercent > 100 {
-			return "", errors.New("battery percentage is out of range")
+			return nil, errors.New("battery percentage is out of range")
 		}
-		return strconv.Itoa(int(status.BatteryLifePercent)), nil
+		return int(status.BatteryLifePercent), nil
 	case metrics.BatteryCharging:
 		status, err := readPowerStatus()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if status.BatteryFlag == 128 {
-			return "", errors.New("system battery is unavailable")
+			return nil, errors.New("system battery is unavailable")
 		}
-		return strconv.FormatBool(status.BatteryFlag&8 != 0), nil
+		return status.BatteryFlag&8 != 0, nil
 	case metrics.BatteryOnAC:
 		status, err := readPowerStatus()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if status.ACLineStatus > 1 {
-			return "", errors.New("AC line status is unknown")
+			return nil, errors.New("AC line status is unknown")
 		}
-		return strconv.FormatBool(status.ACLineStatus == 1), nil
+		return status.ACLineStatus == 1, nil
 	case metrics.CPUPercent:
 		current, err := readSystemTimes()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if !p.hasCPUBase {
 			p.previous = current
 			p.hasCPUBase = true
-			return "", errors.New("CPU sampling baseline initialized")
+			return nil, errors.New("CPU sampling baseline initialized")
 		}
 		previous := p.previous
 		p.previous = current
 		if current.idle < previous.idle || current.kernel < previous.kernel || current.user < previous.user {
-			return "", errors.New("CPU counters regressed")
+			return nil, errors.New("CPU counters regressed")
 		}
 		total := current.kernel - previous.kernel + current.user - previous.user
 		idle := current.idle - previous.idle
 		if total == 0 || idle > total {
-			return "", errors.New("CPU sampling interval has no valid delta")
+			return nil, errors.New("CPU sampling interval has no valid delta")
 		}
 		percent := math.Round(float64(total-idle) * 100 / float64(total))
-		return strconv.FormatFloat(percent, 'f', 0, 64), nil
+		return percent, nil
 	case metrics.MemoryPercent:
 		return readMemoryPercent()
 	case metrics.NetworkOnline, metrics.NetworkType:
 		online, networkType, err := readNetwork()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if name == metrics.NetworkOnline {
-			return strconv.FormatBool(online), nil
+			return online, nil
 		}
 		return networkType, nil
 	case metrics.VolumePercent, metrics.VolumeMuted:
@@ -111,63 +111,92 @@ func (p *Platform) Collect(ctx context.Context, name metrics.Name) (string, erro
 			return err
 		})
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if name == metrics.VolumePercent {
-			return strconv.Itoa(percent), nil
+			return percent, nil
 		}
-		return strconv.FormatBool(muted), nil
+		return muted, nil
 	case metrics.BrightnessPercent:
 		return readBrightnessPercent()
 	default:
-		return "", metrics.ErrUnsupported
+		return nil, metrics.ErrUnsupported
 	}
 }
 
-func (p *Platform) Set(ctx context.Context, name metrics.Name, value string) (metrics.ApplyResult, error) {
+func (p *Platform) Set(ctx context.Context, name metrics.Name, value any) (metrics.ApplyResult, error) {
 	if err := ctx.Err(); err != nil {
 		return metrics.ApplyResult{}, err
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	if err := metrics.ValidateValue(name, value); err != nil {
+		return metrics.ApplyResult{}, err
+	}
+	var percent int
+	var muted bool
 	switch name {
-	case metrics.VolumePercent:
-		percent, _ := strconv.Atoi(value)
-		err := withCOM(func() error {
-			endpoint, release, err := openDefaultEndpointVolume()
-			if err != nil {
-				return err
-			}
-			defer release()
-			return endpoint.SetMasterVolumeLevelScalar(float32(percent)/100, nil)
-		})
+	case metrics.VolumePercent, metrics.BrightnessPercent:
+		number, ok := value.(json.Number)
+		if !ok {
+			return metrics.ApplyResult{}, errors.New("metric percent write requires json.Number")
+		}
+		parsed, err := number.Float64()
 		if err != nil {
 			return metrics.ApplyResult{}, err
 		}
-		return metrics.ApplyResult{Applied: true, Value: strconv.Itoa(percent)}, nil
+		percent = int(parsed) // Validated integer in [0,100].
 	case metrics.VolumeMuted:
-		muted, _ := strconv.ParseBool(value)
-		err := withCOM(func() error {
-			endpoint, release, err := openDefaultEndpointVolume()
-			if err != nil {
-				return err
-			}
-			defer release()
-			return endpoint.SetMute(muted, nil)
-		})
-		if err != nil {
-			return metrics.ApplyResult{}, err
+		var ok bool
+		muted, ok = value.(bool)
+		if !ok {
+			return metrics.ApplyResult{}, errors.New("metric mute write requires boolean")
 		}
-		return metrics.ApplyResult{Applied: true, Value: strconv.FormatBool(muted)}, nil
-	case metrics.BrightnessPercent:
-		percent, _ := strconv.Atoi(value)
-		if err := setBrightnessPercent(percent); err != nil {
-			return metrics.ApplyResult{}, err
-		}
-		return metrics.ApplyResult{Applied: true, Value: strconv.Itoa(percent)}, nil
 	default:
 		return metrics.ApplyResult{}, metrics.ErrUnsupported
 	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return metrics.ApplyResult{}, err
+	}
+	switch name {
+	case metrics.VolumePercent, metrics.VolumeMuted:
+		var actualPercent int
+		var actualMuted bool
+		err := withCOM(func() error {
+			endpoint, release, err := openDefaultEndpointVolume()
+			if err != nil {
+				return err
+			}
+			defer release()
+			if name == metrics.VolumePercent {
+				err = endpoint.SetMasterVolumeLevelScalar(float32(percent)/100, nil)
+			} else {
+				err = setEndpointMute(endpoint, muted)
+			}
+			if err != nil {
+				return err
+			}
+			actualPercent, actualMuted, err = readEndpointVolume(endpoint)
+			return err
+		})
+		if err != nil {
+			return metrics.ApplyResult{}, err
+		}
+		if name == metrics.VolumeMuted {
+			return metrics.ApplyResult{Applied: true, Value: actualMuted}, nil
+		}
+		return metrics.ApplyResult{Applied: true, Value: actualPercent}, nil
+	case metrics.BrightnessPercent:
+		if err := setBrightnessPercent(percent); err != nil {
+			return metrics.ApplyResult{}, err
+		}
+		actual, err := readBrightnessPercent()
+		if err != nil {
+			return metrics.ApplyResult{}, err
+		}
+		return metrics.ApplyResult{Applied: true, Value: actual}, nil
+	}
+	return metrics.ApplyResult{}, metrics.ErrUnsupported
 }
 
 type powerStatus struct {
@@ -241,17 +270,17 @@ func readSystemTimes() (systemTimes, error) {
 	return systemTimes{idle: idle.value(), kernel: kernel.value(), user: user.value()}, nil
 }
 
-func readMemoryPercent() (string, error) {
+func readMemoryPercent() (int, error) {
 	var value memoryStatus
 	value.Length = uint32(unsafe.Sizeof(value))
 	result, _, callErr := globalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&value)))
 	if result == 0 {
-		return "", callError("GlobalMemoryStatusEx", callErr)
+		return 0, callError("GlobalMemoryStatusEx", callErr)
 	}
 	if value.MemoryLoad > 100 {
-		return "", errors.New("memory percentage is out of range")
+		return 0, errors.New("memory percentage is out of range")
 	}
-	return strconv.Itoa(int(value.MemoryLoad)), nil
+	return int(value.MemoryLoad), nil
 }
 
 const (
@@ -338,16 +367,40 @@ func readEndpointVolume(endpoint *wca.IAudioEndpointVolume) (int, bool, error) {
 		return 0, false, err
 	}
 	level = max(0, min(1, level))
-	var muted bool
-	if err := endpoint.GetMute(&muted); err != nil {
+	muted, err := readEndpointMute(endpoint)
+	if err != nil {
 		return 0, false, err
 	}
 	return int(math.Round(float64(level * 100))), muted, nil
 }
 
-func readBrightnessPercent() (string, error) {
+// Win32 GetMute writes a four-byte BOOL. go-wca v0.3.0 takes *bool,
+// which allocates only one byte and can corrupt adjacent Go values.
+func readEndpointMute(endpoint *wca.IAudioEndpointVolume) (bool, error) {
+	var muted int32
+	hr, _, _ := syscall.SyscallN(endpoint.VTable().GetMute, uintptr(unsafe.Pointer(endpoint)), uintptr(unsafe.Pointer(&muted)))
+	if int32(hr) < 0 {
+		return false, ole.NewError(uintptr(uint32(hr)))
+	}
+	return muted != 0, nil
+}
+
+func setEndpointMute(endpoint *wca.IAudioEndpointVolume, muted bool) error {
+	var value int32
+	if muted {
+		value = 1
+	}
+	hr, _, _ := syscall.SyscallN(endpoint.VTable().SetMute, uintptr(unsafe.Pointer(endpoint)), uintptr(value), 0)
+	// S_FALSE is successful when mute already has the requested value.
+	if int32(hr) < 0 {
+		return ole.NewError(uintptr(uint32(hr)))
+	}
+	return nil
+}
+
+func readBrightnessPercent() (int, error) {
 	if percent, err := readBrightnessDXVA2(); err == nil {
-		return strconv.Itoa(percent), nil
+		return percent, nil
 	} else {
 		var percent int
 		wmiErr := withCOM(func() error {
@@ -359,9 +412,9 @@ func readBrightnessPercent() (string, error) {
 			return err
 		})
 		if wmiErr != nil {
-			return "", fmt.Errorf("read brightness: DXVA2: %v; WMI: %w", err, wmiErr)
+			return 0, fmt.Errorf("read brightness: DXVA2: %v; WMI: %w", err, wmiErr)
 		}
-		return strconv.Itoa(percent), nil
+		return percent, nil
 	}
 }
 
@@ -386,33 +439,23 @@ func readBrightnessDXVA2() (int, error) {
 }
 
 func setBrightnessPercent(percent int) error {
-	if err := setBrightnessDXVA2(percent); err == nil {
-		return nil
-	} else if wmiErr := withCOM(func() error { return setBrightnessWMI(percent) }); wmiErr != nil {
-		return fmt.Errorf("set brightness: DXVA2: %v; WMI: %w", err, wmiErr)
-	}
-	return nil
-}
-
-func setBrightnessDXVA2(percent int) error {
 	monitor, release, err := primaryPhysicalMonitor()
 	if err != nil {
-		return err
+		// No write has been attempted, so selecting the WMI provider is safe.
+		return withCOM(func() error { return setBrightnessWMI(percent) })
 	}
 	defer release()
 	var minimum, current, maximum uint32
 	result, _, callErr := getMonitorBrightness.Call(
 		uintptr(monitor), uintptr(unsafe.Pointer(&minimum)), uintptr(unsafe.Pointer(&current)), uintptr(unsafe.Pointer(&maximum)),
 	)
-	if result == 0 {
-		return callError("GetMonitorBrightness", callErr)
-	}
-	if maximum <= minimum {
-		return errors.New("monitor brightness range is invalid")
+	if result == 0 || maximum <= minimum {
+		return withCOM(func() error { return setBrightnessWMI(percent) })
 	}
 	target := minimum + uint32((uint64(maximum-minimum)*uint64(percent)+50)/100)
 	result, _, callErr = setMonitorBrightness.Call(uintptr(monitor), uintptr(target))
 	if result == 0 {
+		// The hardware may already have changed; never retry on another backend.
 		return callError("SetMonitorBrightness", callErr)
 	}
 	return nil
@@ -527,19 +570,17 @@ func setBrightnessWMI(percent int) error {
 		if item == nil {
 			return nil
 		}
-		attempts := [][2]any{{uint32(0), uint8(percent)}, {int32(0), int32(percent)}, {int(0), int(percent)}}
-		for _, arguments := range attempts {
-			response, err := oleutil.CallMethod(item, "WmiSetBrightness", arguments[0], arguments[1])
-			if response != nil {
-				_ = response.Clear()
-			}
-			if err == nil {
-				called = true
-				return errWMIFound
-			}
-			lastErr = err
+		response, err := oleutil.CallMethod(item, "WmiSetBrightness", uint32(0), uint8(percent))
+		if response != nil {
+			_ = response.Clear()
 		}
-		return nil
+		if err != nil {
+			lastErr = err
+		} else {
+			called = true
+		}
+		// One external invocation, including when its outcome is uncertain.
+		return errWMIFound
 	})
 	if err != nil && !errors.Is(err, errWMIFound) {
 		return err

@@ -97,7 +97,7 @@ type statusV1 struct {
 	Running        bool                       `json:"running"`
 	Connection     *connectionStatusV1        `json:"connection,omitempty"`
 	Configuration  *metrics.ConfigV1          `json:"configuration,omitempty"`
-	Samples        []metrics.SampleV1         `json:"samples"`
+	Metrics        []metrics.MetricState      `json:"metrics"`
 	Notifications  metrics.NotificationStatus `json:"notifications"`
 	PresenterError string                     `json:"presenter_error,omitempty"`
 }
@@ -236,7 +236,7 @@ func (a *App) Definitions() (string, error) {
 }
 
 func (a *App) statusLocked() statusV1 {
-	status := statusV1{Version: 1, Running: a.runtime != nil, Samples: []metrics.SampleV1{}}
+	status := statusV1{Version: 1, Running: a.runtime != nil, Metrics: []metrics.MetricState{}}
 	if a.runtime == nil {
 		return status
 	}
@@ -251,7 +251,7 @@ func (a *App) statusLocked() statusV1 {
 	configuration := a.runtime.Metrics.Config()
 	status.Connection = connection
 	status.Configuration = &configuration
-	status.Samples = a.runtime.Metrics.Samples()
+	status.Metrics = a.runtime.Metrics.States()
 	status.Notifications = a.runtime.Notifications.Status()
 	status.PresenterError = a.presenterError
 	return status

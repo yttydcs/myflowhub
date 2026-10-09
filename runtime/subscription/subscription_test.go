@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -14,11 +15,15 @@ func newManager(t *testing.T, typeID protocol.ResourceTypeID, lease time.Duratio
 	id := protocol.ResourceID{Owner: 1, Name: "test"}
 	registry, _ := resource.NewRegistry(1)
 	var value resource.Resource
+	var err error
 	switch typeID {
 	case protocol.ResourceTypeVariable:
-		value, _ = resource.NewVariable(resource.VariableDescriptor(id, "application/octet-stream", "test.raw.v1", "test.read", 64), []byte("initial"))
+		value, err = resource.NewVariable(resource.VariableDescriptor(id, "test.read", 512), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Value: []byte(`"initial"`), Status: "ready"}, nil)
 	case protocol.ResourceTypeStream:
-		value, _ = resource.NewStream(resource.StreamDescriptor(id, "application/octet-stream", "test.raw.v1", "test.read", 64))
+		value, err = resource.NewStream(resource.StreamDescriptor(id, "application/octet-stream", "test.raw.v1", "test.read", 64))
+	}
+	if err != nil {
+		t.Fatal(err)
 	}
 	if err := registry.Register(value); err != nil {
 		t.Fatal(err)
@@ -57,16 +62,16 @@ func TestVariableSnapshotBeforeCoalescedChange(t *testing.T) {
 	}
 	variable := value.(*resource.Variable)
 	for _, next := range []string{"one", "two", "three"} {
-		if _, err := variable.Set([]byte(next)); err != nil {
+		if _, err := variable.Set(resource.VariableState{Value: []byte(strconv.Quote(next)), Status: "ready"}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	snapshot := receive(t, subscription.Events)
-	if snapshot.Kind != EventSnapshot || string(snapshot.Value) != "initial" {
+	if snapshot.Kind != EventSnapshot || variableEventString(t, snapshot) != "initial" {
 		t.Fatalf("unexpected snapshot: %#v", snapshot)
 	}
 	update := receive(t, subscription.Events)
-	if update.Kind != EventData || string(update.Value) != "three" || update.Revision != 4 {
+	if update.Kind != EventData || variableEventString(t, update) != "three" || update.Revision != 4 {
 		t.Fatalf("unexpected coalesced update: %#v", update)
 	}
 }
@@ -170,11 +175,13 @@ func TestMultipleSubscribersReceiveIndependentUpdates(t *testing.T) {
 	}
 	_ = receive(t, one.Events)
 	_ = receive(t, two.Events)
-	_, _ = value.(*resource.Variable).Set([]byte("shared"))
-	if got := receive(t, one.Events); string(got.Value) != "shared" {
+	if _, err := value.(*resource.Variable).Set(resource.VariableState{Value: []byte(`"shared"`), Status: "ready"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := receive(t, one.Events); variableEventString(t, got) != "shared" {
 		t.Fatalf("first subscriber got %#v", got)
 	}
-	if got := receive(t, two.Events); string(got.Value) != "shared" {
+	if got := receive(t, two.Events); variableEventString(t, got) != "shared" {
 		t.Fatalf("second subscriber got %#v", got)
 	}
 }

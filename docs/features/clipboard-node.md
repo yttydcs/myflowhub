@@ -69,3 +69,5 @@ flutter build windows --release
 - 不把物理链路名称写入剪贴板资源和权限。
 - 不承诺平台禁止后台剪贴板访问时仍可自动同步。
 - 不在 FM10 发布、签名或上传安装包。
+
+本产品的 Variable 使用平台 [统一变量契约](../specs/unified-variable-resource.md)，业务对象作为标准 envelope 的 value；读取、发布和领域 SDK 解包均验证当前格式，其他 Command/session 与持久化职责保持。

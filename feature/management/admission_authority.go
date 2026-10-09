@@ -72,7 +72,7 @@ func (c *Controller) refreshAdmissionStatusLocked() error {
 	if c.admissionStatus == nil {
 		return nil
 	}
-	payload, err := protocol.EncodeJSONPayload(c.admissionStatusSnapshot(), protocol.DefaultMaxPayload)
+	payload, err := protocol.EncodeVariablePayload(*c.admissionStatus.Snapshot().State.Definition, c.admissionStatusSnapshot(), protocol.DefaultMaxPayload)
 	if err != nil {
 		return err
 	}

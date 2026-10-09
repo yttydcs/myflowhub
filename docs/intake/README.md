@@ -4,6 +4,9 @@
 
 ## Current Records
 
+- [Desktop 通用变量手动验收追加请求（已实施）](2026-10-09_desktop-variable-manual-acceptance.md)
+
+- [平台统一变量与通用消费（R2：无需兼容，已实施归档）](2026-09-06_unified-variable-contract.md)
 - [带深度的拓扑查询与 Desktop 按展开加载（规划中）](2026-09-06_depth-scoped-topology-discovery.md)
 - [Android、嵌入式退役与运行时收敛](2026-09-06_android-embedded-retirement-and-runtime-convergence.md)
 

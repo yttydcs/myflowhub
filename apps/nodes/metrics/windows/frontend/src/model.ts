@@ -1,4 +1,4 @@
-import { Sample } from './contracts'
+import type {MetricState} from './contracts'
 
 export type Theme = 'light' | 'dark'
 
@@ -40,8 +40,9 @@ export function metricDescription(metric: string): string {
   return metricDescriptions[metric] ?? '由 Metrics 节点报告的设备资源。'
 }
 
-export function sampleValue(sample: Sample): string {
-  return sample.status === 'unavailable' ? '—' : (sample.value ?? '—')
+export function sampleValue(sample: MetricState): string {
+  if (sample.state.status === 'unavailable' || sample.state.value === undefined) return '—'
+  return typeof sample.state.value === 'string' ? sample.state.value : JSON.stringify(sample.state.value)
 }
 
 export interface SampleReading {
@@ -60,11 +61,11 @@ function booleanReading(metric: string, value: string): string {
   return enabled ? '是' : '否'
 }
 
-export function sampleReading(sample: Sample): SampleReading {
+export function sampleReading(sample: MetricState): SampleReading {
   const value = sampleValue(sample)
   if (value === '—') return {value, suffix: ''}
-  if (sample.unit === 'boolean') return {value: booleanReading(sample.metric, value), suffix: ''}
-  if (sample.unit === 'percent') {
+  if (sample.state.definition?.type === 'boolean') return {value: booleanReading(sample.metric, value), suffix: ''}
+  if (sample.state.definition?.unit === '%') {
     const parsed = Number(value)
     return {
       value,
@@ -75,13 +76,13 @@ export function sampleReading(sample: Sample): SampleReading {
   return {value, suffix: ''}
 }
 
-export function sampleStatusLabel(status: Sample['status']): string {
-  if (status === 'fresh') return '新鲜'
+export function sampleStatusLabel(status: MetricState['state']['status']): string {
+  if (status === 'ready') return '新鲜'
   if (status === 'stale') return '陈旧'
   return '不可用'
 }
 
-export function reconcileSelectedMetric(samples: Sample[], selectedMetric?: string): string | undefined {
+export function reconcileSelectedMetric(samples: MetricState[], selectedMetric?: string): string | undefined {
   if (selectedMetric && samples.some(sample => sample.metric === selectedMetric)) return selectedMetric
   return samples[0]?.metric
 }

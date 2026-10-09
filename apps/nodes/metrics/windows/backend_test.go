@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/yttydcs/myflowhub/sdk/bindings/contract"
 )
 
 func TestIdentityIsDurableAndUsesStringNodeID(t *testing.T) {
@@ -57,7 +61,7 @@ func TestIdleStatusAndConfigurationGuard(t *testing.T) {
 	if err := json.Unmarshal([]byte(statusJSON), &status); err != nil {
 		t.Fatal(err)
 	}
-	if status.Version != 1 || status.Running || status.Samples == nil {
+	if status.Version != 1 || status.Running || status.Metrics == nil {
 		t.Fatalf("unexpected status: %+v", status)
 	}
 	if _, err := app.Configuration(); err == nil {
@@ -68,4 +72,18 @@ func TestIdleStatusAndConfigurationGuard(t *testing.T) {
 func quote(value string) string {
 	payload, _ := json.Marshal(value)
 	return string(payload)
+}
+
+func TestMetricsVariableContractIsCanonicalAndFresh(t *testing.T) {
+	expected, err := contract.VariableTypescript()
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, err := os.ReadFile("frontend/src/generated/variable-contract.generated.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(actual, expected) {
+		t.Fatal("Metrics Variable contract is stale; run GOWORK=off go generate ./sdk/bindings")
+	}
 }

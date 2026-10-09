@@ -393,14 +393,15 @@ func (*profileCredentialStore) Mode() string {
 }
 
 type App struct {
-	mu          sync.Mutex
-	lifecycleMu sync.Mutex
-	ctx         context.Context
-	store       *settingsStore
-	credentials CredentialStore
-	settings    Settings
-	active      *profileRuntime
-	logs        []logEntry
+	mu            sync.Mutex
+	lifecycleMu   sync.Mutex
+	ctx           context.Context
+	store         *settingsStore
+	credentials   CredentialStore
+	settings      Settings
+	active        *profileRuntime
+	logs          []logEntry
+	subscriptions desktopSubscriptions
 }
 
 func NewApp(configRoot string) (*App, error) {
@@ -1078,7 +1079,12 @@ func (a *App) SubscribeCapability(ownerNodeID, name, capability string, leaseMS 
 	if err != nil {
 		return 0, a.fail("subscribe "+name+"/"+capability, err)
 	}
-	return id, nil
+	desktopID, err := a.subscriptions.add(client, id)
+	if err != nil {
+		client.CancelSubscription(id)
+		return 0, err
+	}
+	return desktopID, nil
 }
 
 func (a *App) Subscribe(ownerNodeID, name string, leaseMS int64) (int64, error) {
@@ -1086,18 +1092,11 @@ func (a *App) Subscribe(ownerNodeID, name string, leaseMS int64) (int64, error) 
 }
 
 func (a *App) PollSubscription(subscriptionID, timeoutMS int64) (string, error) {
-	client, err := a.currentClient()
-	if err != nil {
-		return "", err
-	}
-	return client.PollSubscription(subscriptionID, timeoutMS)
+	return a.subscriptions.poll(subscriptionID, timeoutMS)
 }
 
 func (a *App) CancelSubscription(subscriptionID int64) {
-	client, err := a.currentClient()
-	if err == nil {
-		client.CancelSubscription(subscriptionID)
-	}
+	a.subscriptions.cancel(subscriptionID)
 }
 
 func (a *App) TopologyJSON(ownerNodeID string) (string, error) {
@@ -1217,6 +1216,7 @@ func (a *App) LogsJSON() (string, error) {
 }
 
 func (a *App) Close() error {
+	a.subscriptions.close()
 	a.lifecycleMu.Lock()
 	defer a.lifecycleMu.Unlock()
 	a.mu.Lock()

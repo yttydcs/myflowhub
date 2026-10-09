@@ -14,12 +14,23 @@ import (
 	"github.com/yttydcs/myflowhub/protocol"
 )
 
-func DecodeEvent(event Event, target protocol.ValidatedPayload) error {
-	if target == nil {
+// DecodeVariableEvent decodes a state returned by VariableEventDecoder. The
+// session decoder supplies the snapshot definition when data events omit it.
+func DecodeVariableEvent(state protocol.VariableValueV1, target protocol.ValidatedPayload) error {
+	if isNilValidatedPayload(target) {
 		return errors.New("SDK event target is required")
 	}
-	if err := protocol.DecodeJSONPayload(event.Value, protocol.DefaultMaxPayload, target); err != nil {
-		return &Error{Code: protocol.CodeMalformed, Message: fmt.Sprintf("decode %s event: %v", event.Resource.Name, err), cause: err}
+	if state.Definition == nil {
+		return &Error{Code: protocol.CodeMalformed, Message: "variable event requires its subscription definition"}
+	}
+	if err := state.Validate(); err != nil {
+		return &Error{Code: protocol.CodeMalformed, Message: fmt.Sprintf("invalid variable event state: %v", err), cause: err}
+	}
+	if state.Status == "unavailable" {
+		return &Error{Message: "variable event has no available value"}
+	}
+	if err := protocol.DecodeVariablePayload(*state.Definition, state.Value, protocol.DefaultMaxPayload, target); err != nil {
+		return &Error{Code: protocol.CodeMalformed, Message: fmt.Sprintf("decode variable event: %v", err), cause: err}
 	}
 	return nil
 }

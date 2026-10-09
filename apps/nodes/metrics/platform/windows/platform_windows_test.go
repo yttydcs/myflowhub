@@ -4,6 +4,11 @@ package windows
 
 import (
 	"context"
+	"syscall"
+	"unsafe"
+
+	"github.com/go-ole/go-ole"
+	"github.com/moutend/go-wca/pkg/wca"
 	"testing"
 	"time"
 
@@ -46,5 +51,35 @@ func TestWindowsNetworkTypeAndVariantConversion(t *testing.T) {
 	}
 	if value, ok := numericVariant(uint8(75)); !ok || value != 75 {
 		t.Fatalf("unexpected WMI variant conversion: %d %v", value, ok)
+	}
+}
+
+func TestEndpointMuteUsesWin32BOOLAndSuccessHRESULT(t *testing.T) {
+	var muteValue int32 = 1
+	var calls int
+	var result uintptr = 1 // S_FALSE: already requested mute state.
+	table := &wca.IAudioEndpointVolumeVtbl{}
+	table.GetMute = syscall.NewCallback(func(_ uintptr, output *int32) uintptr { *output = muteValue; return 0 })
+	table.GetMasterVolumeLevelScalar = syscall.NewCallback(func(_ uintptr, output *float32) uintptr { *output = 0.38; return 0 })
+	table.SetMute = syscall.NewCallback(func(_ uintptr, value int32, _ uintptr) uintptr { calls++; muteValue = value; return result })
+	endpoint := &wca.IAudioEndpointVolume{IUnknown: ole.IUnknown{RawVTable: (*interface{})(unsafe.Pointer(table))}}
+	for _, expected := range []bool{true, false, true} {
+		if err := setEndpointMute(endpoint, expected); err != nil {
+			t.Fatalf("successful S_FALSE was rejected: %v", err)
+		}
+		percent, muted, err := readEndpointVolume(endpoint)
+		if err != nil || percent != 38 || muted != expected {
+			t.Fatalf("BOOL output corrupted adjacent volume: percent=%d muted=%t err=%v", percent, muted, err)
+		}
+	}
+	if calls != 3 {
+		t.Fatalf("mute calls=%d, want 3", calls)
+	}
+	result = 0x80004005
+	if err := setEndpointMute(endpoint, false); err == nil {
+		t.Fatal("failed HRESULT was accepted")
+	}
+	if calls != 4 {
+		t.Fatal("failed mute was retried")
 	}
 }

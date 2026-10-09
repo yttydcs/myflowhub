@@ -68,6 +68,14 @@ func (c *Client) SnapshotJSON(ownerID int64, name string, timeoutMS int64) (stri
 	return core.SnapshotJSON(ownerID, name, timeoutMS)
 }
 
+func (c *Client) WriteVariableJSON(ownerID int64, name, expectedInstanceID, expectedRevision, valueJSON string, timeoutMS int64) (string, error) {
+	core, err := c.current()
+	if err != nil {
+		return "", err
+	}
+	return core.WriteVariableJSON(ownerID, name, expectedInstanceID, expectedRevision, valueJSON, timeoutMS)
+}
+
 func (c *Client) InvokeJSON(ownerID int64, name, requestJSON string, timeoutMS int64) (string, error) {
 	core, err := c.current()
 	if err != nil {

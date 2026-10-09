@@ -277,7 +277,7 @@ func DefaultConfig() ConfigV1 {
 }
 
 func configFromUpdate(revision uint64, update ConfigUpdateV1) ConfigV1 {
-	peers := append([]PeerV1(nil), update.Peers...)
+	peers := append([]PeerV1{}, update.Peers...)
 	sortPeers(peers)
 	return ConfigV1{
 		Version: 1, Revision: revision, Enabled: update.Enabled, MaxInlineBytes: update.MaxInlineBytes,
@@ -287,7 +287,7 @@ func configFromUpdate(revision uint64, update ConfigUpdateV1) ConfigV1 {
 }
 
 func cloneConfig(value ConfigV1) ConfigV1 {
-	value.Peers = append([]PeerV1(nil), value.Peers...)
+	value.Peers = append([]PeerV1{}, value.Peers...)
 	return value
 }
 

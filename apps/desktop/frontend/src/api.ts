@@ -1,3 +1,4 @@
+import { parseBoundedJSON, parseVariableEnvelopeJSON, parseVariableOperationPayload } from './variable/protocol'
 import * as App from '../wailsjs/go/main/App'
 import type {
   ConnectionStatus,
@@ -44,7 +45,7 @@ export interface DesktopAPI {
 }
 
 function parseOperation(raw: string): OperationResult {
-  const value = JSON.parse(raw) as { schema?: string; payload: unknown }
+  const value = parseVariableOperationPayload(raw)
   return { schema: value.schema, payload: value.payload }
 }
 
@@ -70,12 +71,12 @@ export const api: DesktopAPI = {
     if (result.schema !== TOPOLOGY_QUERY_SCHEMA) throw new Error('topology 响应 schema 不匹配')
     return parseTopology(result.payload, ownerNodeID, depth)
   },
-  snapshot: async (ownerNodeID, name) => JSON.parse(await App.SnapshotJSON(ownerNodeID, name)),
+  snapshot: async (ownerNodeID, name) => parseVariableEnvelopeJSON(await App.SnapshotJSON(ownerNodeID, name)),
   operate: async (ownerNodeID, name, capability, schema, input) =>
     parseOperation(await App.OperateJSON(ownerNodeID, name, capability, schema, JSON.stringify(input))),
   subscribe: (ownerNodeID, name, capability, leaseMS = 60_000) =>
     App.SubscribeCapability(ownerNodeID, name, capability, leaseMS),
-  poll: async (subscriptionID, timeoutMS) => JSON.parse(await App.PollSubscription(subscriptionID, timeoutMS)),
+  poll: async (subscriptionID, timeoutMS) => parseBoundedJSON(await App.PollSubscription(subscriptionID, timeoutMS), 1024 * 1024 + 4096).value as PollResult,
   cancel: async (subscriptionID) => App.CancelSubscription(subscriptionID),
   pickFile: App.SelectUploadFile,
   uploadFile: async (ownerNodeID, source, destination, contentType) =>

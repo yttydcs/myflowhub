@@ -1,3 +1,4 @@
+import { Checkbox } from './ui/checkbox'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { ArrowRight, Check, Clock3, Copy, Moon, Pencil, Plus, ShieldCheck, Sun, Trash2 } from 'lucide-react'
 import { BrandMark } from './BrandMark'
@@ -236,7 +237,7 @@ export function LoginScreen({ settings, profileStates, busy, error, theme, onThe
             )}
 
             {isAuthority && needsTrustConfirmation && (
-              <label className="check-row trust-confirmation"><input name="allow-tofu" type="checkbox" checked={allowTOFU} onChange={(event) => { setAllowTOFU(event.target.checked); setValidationError('') }} />首次连接时信任该端点返回的父节点与 Authority 公钥</label>
+              <label className="check-row trust-confirmation"><Checkbox name="allow-tofu" checked={allowTOFU} onCheckedChange={(checked) => { setAllowTOFU(checked); setValidationError('') }} />首次连接时信任该端点返回的父节点与 Authority 公钥</label>
             )}
 
             {enrollmentMode === 'legacy' && (

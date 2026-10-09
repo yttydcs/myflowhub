@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { ResourceDescriptor } from '../types'
 import { defaultDataValue, resolveSchema, validateDataValue } from './schema'
-import { rendererChoices, selectResourceRenderer, validateRendererSettings } from './registry'
+import { rendererChoices, selectVariableRenderer, selectResourceRenderer, validateRendererSettings } from './registry'
 
 const resource = (type: string, schema: string, writable = false): ResourceDescriptor => ({
   id: { owner_node_id: '1', name: 'example/value' },
   type,
-  type_version: 1,
+  type_version: type === 'mfh.variable' ? 2 : 1,
   capabilities: [
-    { name: 'read', permission: 'read', output_schema: schema, max_payload_bytes: 1024 },
-    ...(writable ? [{ name: 'write', permission: 'write', input_schema: 'mfh.variable-write.v2', max_payload_bytes: 1024 }] : []),
+    { name: 'read', permission: 'read', output_schema: type === 'mfh.variable' ? 'mfh.variable-value.v1' : schema, max_payload_bytes: 1024 },
+    ...(writable ? [{ name: 'write', permission: 'write', input_schema: 'mfh.variable-write.v3', output_schema: 'mfh.variable-value.v1', max_payload_bytes: 1024 }] : []),
   ],
   schemas: [{ id: schema, content_type: 'application/json' }],
   limits: { max_payload_bytes: 1024 },
@@ -20,7 +20,7 @@ describe('schema resolver and renderer registry', () => {
     const result = resolveSchema('mfh.management.health.v1')
     expect(result.status).toBe('resolved')
     if (result.status === 'resolved') expect(result.schema.properties?.some((property) => property.name === 'state')).toBe(true)
-    expect(selectResourceRenderer(resource('mfh.variable', 'mfh.management.health.v1')).selected.id).toBe('mfh.structured.health.v1')
+    expect(selectResourceRenderer(resource('mfh.variable', 'mfh.management.health.v1')).selected.id).toBe('mfh.variable.auto.v2')
   })
 
   it('returns an actionable unsupported result', () => {
@@ -54,20 +54,11 @@ describe('schema resolver and renderer registry', () => {
   })
 
   it('only offers a slider when provider bounds make it meaningful', () => {
-    const bounded = rendererChoices(resource('mfh.variable', 'example.bounded.v1', true), {
-      status: 'resolved',
-      schemaID: 'example.bounded.v1',
-      source: 'test',
-      schema: { type: 'integer', minimum: 0, maximum: 100, multiple_of: 1 },
-    })
-    const unbounded = rendererChoices(resource('mfh.variable', 'example.unbounded.v1', true), {
-      status: 'resolved',
-      schemaID: 'example.unbounded.v1',
-      source: 'test',
-      schema: { type: 'integer', multiple_of: 1 },
-    })
-    expect(bounded.map((choice) => choice.id)).toContain('mfh.variable.slider.v1')
-    expect(unbounded.map((choice) => choice.id)).not.toContain('mfh.variable.slider.v1')
+    const descriptor = resource('mfh.variable', 'ignored', true)
+    const bounded = selectVariableRenderer(descriptor, { type: 'integer', minimum: 0, maximum: 100, multiple_of: 1 })
+    const unbounded = selectVariableRenderer(descriptor, { type: 'integer', multiple_of: 1 })
+    expect(bounded.choices.map((choice) => choice.id)).toContain('mfh.variable.slider.v2')
+    expect(unbounded.choices.map((choice) => choice.id)).not.toContain('mfh.variable.slider.v2')
   })
 
   it('builds required object defaults and validates missing fields', () => {
@@ -76,16 +67,16 @@ describe('schema resolver and renderer registry', () => {
     expect(validateDataValue(schema, {})).toEqual([{ path: '$.version', message: '必填' }])
   })
 
-  it('keeps unknown schemas on raw fallback', () => {
+  it('defers Variable controls until an instance definition arrives', () => {
     const selection = selectResourceRenderer(resource('mfh.variable', 'example.scalar.v1'), 'mfh.variable.slider.v1')
-    expect(selection.selected.id).toBe('mfh.variable.raw.v1')
-    expect(selection.fallbackReason).toContain('不兼容')
+    expect(selection.selected.id).toBe('mfh.variable.auto.v2')
+    expect(selection.fallbackReason).toContain('不受当前 definition 支持')
   })
 
   it('rejects renderer settings outside the phase-1 empty allowlist', () => {
-    expect(validateRendererSettings('mfh.variable.number.v1', undefined)).toEqual({})
-    expect(validateRendererSettings('mfh.variable.number.v1', {})).toEqual({})
-    expect(validateRendererSettings('mfh.variable.number.v1', { value: 42 }).reason).toContain('不接受')
+    expect(validateRendererSettings('mfh.variable.number.v2', undefined)).toEqual({})
+    expect(validateRendererSettings('mfh.variable.number.v2', {})).toEqual({})
+    expect(validateRendererSettings('mfh.variable.number.v2', { value: 42 }).reason).toContain('不接受')
   })
 
   it('offers generated form and JSON modes for known commands', () => {

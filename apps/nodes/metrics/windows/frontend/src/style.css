@@ -204,7 +204,7 @@ pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .node-copy strong { font-size: 11px; }
 .node-copy small { display: flex; align-items: center; gap: 5px; color: var(--text-muted); font-size: 10px; }
 .status-dot { width: 7px; height: 7px; display: inline-block; flex: 0 0 auto; border-radius: 50%; background: var(--text-faint); }
-.status-dot.connected, .status-dot.fresh { background: var(--success); }
+.status-dot.connected, .status-dot.ready { background: var(--success); }
 .status-dot.connecting, .status-dot.stale { background: var(--warning); }
 .status-dot.stopped, .status-dot.unavailable { background: var(--danger); }
 
@@ -292,7 +292,7 @@ pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .inspector-heading h2 { font-size: 15px; font-weight: 650; }
 .inspector-heading code { display: block; margin-top: 3px; color: var(--text-faint); font-size: 9px; }
 .status-text { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); font-size: 10px; font-weight: 650; }
-.status-text.connected, .status-text.fresh { color: var(--success); }
+.status-text.connected, .status-text.ready { color: var(--success); }
 .status-text.connecting, .status-text.stale { color: var(--warning); }
 .status-text.stopped, .status-text.unavailable { color: var(--danger); }
 .inspector-section { padding: 12px 0; border-top: 1px solid var(--border); }

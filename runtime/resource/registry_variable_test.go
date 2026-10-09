@@ -1,7 +1,6 @@
 package resource
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -12,11 +11,10 @@ import (
 func testVariableSpec(name string) VariableSpec {
 	return VariableSpec{
 		Name:            name,
-		ContentType:     "application/json",
-		Schema:          "test.status.v1",
+		Definition:      protocol.DataSchemaDefinition{Type: "object", Properties: []protocol.DataSchemaProperty{{Name: "online", Required: true, Schema: &protocol.DataSchemaDefinition{Type: "boolean"}}}},
 		ReadPermission:  "test.status.read",
-		MaxPayloadBytes: 64,
-		Initial:         []byte(`{"online":true}`),
+		MaxPayloadBytes: 1024,
+		Initial:         testReady(`{"online":true}`),
 	}
 }
 
@@ -41,10 +39,10 @@ func TestRegistryVariableBindsOwnerAndDefaultsToReadOnly(t *testing.T) {
 		t.Fatal("variable without an explicit write permission became remotely writable")
 	}
 	read, ok := descriptor.Capability(protocol.CapabilityRead)
-	if !ok || read.Permission != "test.status.read" || read.OutputSchema != "test.status.v1" {
+	if !ok || read.Permission != "test.status.read" || read.OutputSchema != protocol.SchemaVariableValueV1 {
 		t.Fatalf("unexpected read capability: %#v", read)
 	}
-	if descriptor.Limits.MaxPayloadBytes != 64 {
+	if descriptor.Limits.MaxPayloadBytes != 1024 {
 		t.Fatalf("unexpected payload limit: %d", descriptor.Limits.MaxPayloadBytes)
 	}
 	resolved, ok := registry.Resolve(descriptor.ID)
@@ -74,8 +72,7 @@ func TestRegistryVariableRejectsMissingRequiredFields(t *testing.T) {
 		want   string
 	}{
 		{name: "name", mutate: func(spec *VariableSpec) { spec.Name = "" }, want: "name is required"},
-		{name: "content type", mutate: func(spec *VariableSpec) { spec.ContentType = "" }, want: "content type is required"},
-		{name: "schema", mutate: func(spec *VariableSpec) { spec.Schema = "" }, want: "schema is required"},
+		{name: "definition", mutate: func(spec *VariableSpec) { spec.Definition = protocol.DataSchemaDefinition{} }, want: "definition"},
 		{name: "read permission", mutate: func(spec *VariableSpec) { spec.ReadPermission = "" }, want: "read permission is required"},
 		{name: "payload limit", mutate: func(spec *VariableSpec) { spec.MaxPayloadBytes = 0 }, want: "max payload bytes must be positive"},
 	}
@@ -97,8 +94,10 @@ func TestRegistryVariableRejectsInvalidDescriptorFields(t *testing.T) {
 		mutate func(*VariableSpec)
 	}{
 		{name: "name", mutate: func(spec *VariableSpec) { spec.Name = "/status" }},
-		{name: "content type", mutate: func(spec *VariableSpec) { spec.ContentType = strings.Repeat("c", protocol.MaxContentTypeBytes+1) }},
-		{name: "schema", mutate: func(spec *VariableSpec) { spec.Schema = strings.Repeat("s", protocol.MaxSchemaBytes+1) }},
+		{name: "definition title", mutate: func(spec *VariableSpec) {
+			spec.Definition.Title = strings.Repeat("c", protocol.MaxAttributeValueBytes+1)
+		}},
+		{name: "definition id", mutate: func(spec *VariableSpec) { spec.Definition.ID = strings.Repeat("s", protocol.MaxSchemaBytes+1) }},
 		{name: "read permission", mutate: func(spec *VariableSpec) { spec.ReadPermission = strings.Repeat("r", protocol.MaxIdentifierBytes+1) }},
 		{name: "write permission", mutate: func(spec *VariableSpec) { spec.WritePermission = strings.Repeat("w", protocol.MaxIdentifierBytes+1) }},
 		{name: "payload limit", mutate: func(spec *VariableSpec) { spec.MaxPayloadBytes = protocol.DefaultMaxPayload + 1 }},
@@ -119,7 +118,7 @@ func TestRegistryVariableRejectsInitialPayloadOverLimit(t *testing.T) {
 	registry, _ := NewRegistry(1)
 	spec := testVariableSpec("status")
 	spec.MaxPayloadBytes = 4
-	spec.Initial = []byte("large")
+	spec.Initial = testReady(`{"online":true}`)
 	if _, err := registry.Variable(spec); !errors.Is(err, ErrValueTooLarge) {
 		t.Fatalf("expected value-too-large error, got %v", err)
 	}
@@ -144,7 +143,7 @@ func TestRegistryVariableUsesAtomicRegistrationAndCatalogUpdate(t *testing.T) {
 	}
 
 	var catalog protocol.ResourceCatalogV2
-	if err := json.Unmarshal(after.Value, &catalog); err != nil {
+	if err := protocol.DecodeVariablePayload(*after.State.Definition, after.State.Value, protocol.DefaultMaxPayload, &catalog); err != nil {
 		t.Fatal(err)
 	}
 	if catalog.Revision != 2 {
@@ -174,10 +173,10 @@ func TestRegistryVariableRetainsSetAndObserveSemantics(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer cancel()
-	if !initial.Snapshot || initial.Revision != 1 || string(initial.Value) != `{"online":true}` {
+	if !initial.Snapshot || initial.Revision != 1 || string(testObservationState(t, *initial).Value) != `{"online":true}` {
 		t.Fatalf("unexpected initial observation: %#v", initial)
 	}
-	update, err := variable.Set([]byte(`{"online":false}`))
+	update, err := variable.Set(testReady(`{"online":false}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +184,7 @@ func TestRegistryVariableRetainsSetAndObserveSemantics(t *testing.T) {
 		t.Fatalf("unexpected update revision: %d", update.Revision)
 	}
 	event := <-observed
-	if event.Snapshot || event.Revision != update.Revision || string(event.Value) != `{"online":false}` {
+	if event.Snapshot || event.Revision != update.Revision || string(testObservationState(t, event).Value) != `{"online":false}` {
 		t.Fatalf("unexpected observation: %#v", event)
 	}
 }
@@ -195,4 +194,16 @@ func TestNilRegistryCannotDeclareVariable(t *testing.T) {
 	if _, err := registry.Variable(testVariableSpec("status")); err == nil {
 		t.Fatal("nil registry accepted variable declaration")
 	}
+}
+
+func testObservationState(t *testing.T, event Observation) protocol.VariableValueV1 {
+	t.Helper()
+	var state protocol.VariableValueV1
+	if event.Schema != protocol.SchemaVariableValueV1 {
+		t.Fatalf("unexpected schema %q", event.Schema)
+	}
+	if err := protocol.DecodeJSONPayload(event.Value, protocol.DefaultMaxPayload, &state); err != nil {
+		t.Fatal(err)
+	}
+	return state
 }

@@ -1,3 +1,5 @@
+import type { DataSchemaDefinition } from '../generated/variable-contract.generated'
+import { descriptorError } from '../variable/protocol'
 import type { ResourceDescriptor } from '../types'
 import type { DataSchema, SchemaResolution, SchemaUse } from './schema'
 import { resolveResourceSchema } from './schema'
@@ -10,7 +12,7 @@ export type RendererChoice = {
   description: string
 }
 
-const legacyAliases = new Set(['mfh.variable', 'mfh.stream', 'mfh.topic', 'mfh.command', 'mfh.file', 'mfh.collection', 'mfh.auto'])
+const typeHints = new Set([ 'mfh.stream', 'mfh.topic', 'mfh.command', 'mfh.file', 'mfh.collection', 'mfh.auto'])
 
 export type RendererSettingsValidation = { settings?: Record<string, never>; reason?: string }
 
@@ -32,27 +34,27 @@ const specialized: Record<string, RendererChoice> = {
 
 function scalarChoices(schema: DataSchema, writable: boolean): RendererChoice[] {
   if (schema.type === 'boolean') return [
-    { id: writable ? 'mfh.variable.switch.v1' : 'mfh.variable.status.v1', label: writable ? '开关' : '状态', description: writable ? '暂存布尔修改后应用' : '以明确文字展示布尔状态' },
-    ...(!writable ? [{ id: 'mfh.variable.text.v1', label: '文本', description: '以文本展示值' }] : []),
+    { id: writable ? 'mfh.variable.switch.v2' : 'mfh.variable.status.v2', label: writable ? '开关' : '状态', description: writable ? '暂存布尔修改后应用' : '以明确文字展示布尔状态' },
+    ...(!writable ? [{ id: 'mfh.variable.text.v2', label: '文本', description: '以文本展示值' }] : []),
   ]
   if (schema.type === 'integer' || schema.type === 'number') {
     const choices: RendererChoice[] = [
-      { id: 'mfh.variable.number.v1', label: writable ? '数字输入' : '数值', description: writable ? '使用有约束的数字输入' : '突出显示数值' },
+      { id: 'mfh.variable.number.v2', label: writable ? '数字输入' : '数值', description: writable ? '使用有约束的数字输入' : '突出显示数值' },
     ]
     if (schema.minimum !== undefined && schema.maximum !== undefined) {
-      choices.push({ id: writable ? 'mfh.variable.slider.v1' : 'mfh.variable.progress.v1', label: writable ? '滑块' : '进度', description: '使用 provider 声明的上下限和步长' })
+      choices.push({ id: writable ? 'mfh.variable.slider.v2' : 'mfh.variable.progress.v2', label: writable ? '滑块' : '进度', description: '使用 provider 声明的上下限和步长' })
     }
     return choices
   }
   if (schema.type === 'string') {
     if (schema.enum?.length) return [
-      { id: writable ? 'mfh.variable.select.v1' : 'mfh.variable.status.v1', label: writable ? '选项' : '状态', description: '使用 provider 声明的枚举' },
-      { id: 'mfh.variable.text.v1', label: '文本', description: '以普通文本展示' },
+      { id: writable ? 'mfh.variable.select.v2' : 'mfh.variable.status.v2', label: writable ? '选项' : '状态', description: '使用 provider 声明的枚举' },
+      { id: 'mfh.variable.text.v2', label: '文本', description: '以普通文本展示' },
     ]
     return [
-      { id: 'mfh.variable.text.v1', label: writable ? '单行文本' : '文本', description: '紧凑文本展示或编辑' },
-      { id: 'mfh.variable.multiline.v1', label: '多行文本', description: '用于较长的自然语言文本' },
-      { id: 'mfh.variable.code.v1', label: '代码文本', description: '使用等宽多行编辑器' },
+      { id: 'mfh.variable.text.v2', label: writable ? '单行文本' : '文本', description: '紧凑文本展示或编辑' },
+      { id: 'mfh.variable.multiline.v2', label: '多行文本', description: '用于较长的自然语言文本' },
+      { id: 'mfh.variable.code.v2', label: '代码文本', description: '使用等宽多行编辑器' },
     ]
   }
   return []
@@ -94,19 +96,7 @@ export function rendererChoices(resource: ResourceDescriptor, resolution: Schema
       { id: 'mfh.event.log.v1', label: '日志', description: '紧凑查看原始事件' },
     ])
   }
-  if (resource.type === 'mfh.variable') {
-    if (resolution.status !== 'resolved') return [{ id: 'mfh.variable.raw.v1', label: 'Raw JSON', description: resolution.reason }]
-    const first = specialized[resolution.schemaID]
-    const writable = resource.capabilities.some((candidate) => candidate.name === 'write')
-    return unique([
-      ...(first ? [first] : []),
-      ...scalarChoices(resolution.schema, writable),
-      ...(resolution.schema.type === 'object' || resolution.schema.type === 'array'
-        ? [{ id: 'mfh.variable.structured.v1', label: '结构化', description: '按字段、列表或表格展示' }]
-        : []),
-      { id: 'mfh.variable.raw.v1', label: 'Raw JSON', description: '高级诊断与不支持结构的安全后备' },
-    ])
-  }
+  if (resource.type === 'mfh.variable') return selectVariableRenderer(resource).choices
   return [{ id: 'mfh.unknown.raw.v1', label: 'Descriptor', description: '保留未知 Resource 的完整描述' }]
 }
 
@@ -118,10 +108,14 @@ export type RendererSelection = {
 }
 
 export function selectResourceRenderer(resource: ResourceDescriptor, requested?: string): RendererSelection {
+  if (resource.type === 'mfh.variable') {
+    const selection = selectVariableRenderer(resource, undefined, requested)
+    return { ...selection, resolution: { status: 'missing', reason: '等待实例快照 definition' } }
+  }
   const resolution = resolveResourceSchema(resource, resourceSchemaUse(resource))
   const choices = rendererChoices(resource, resolution)
   const providerHint = resource.presentation?.renderer
-  const candidate = requested && !legacyAliases.has(requested) ? requested : providerHint && !legacyAliases.has(providerHint) ? providerHint : undefined
+  const candidate = requested && !typeHints.has(requested) ? requested : providerHint && !typeHints.has(providerHint) ? providerHint : undefined
   const selected = choices.find((choice) => choice.id === candidate) || choices[0]!
   return {
     choices,
@@ -129,4 +123,17 @@ export function selectResourceRenderer(resource: ResourceDescriptor, requested?:
     resolution,
     fallbackReason: candidate && selected.id !== candidate ? `已保存的显示方式 ${candidate} 与当前 schema/capability 不兼容，暂时使用 ${selected.label}` : undefined,
   }
+}
+
+export function selectVariableRenderer(resource: ResourceDescriptor, definition?: DataSchemaDefinition, requested?: string): Pick<RendererSelection, 'choices' | 'selected' | 'fallbackReason'> {
+  const reason = descriptorError(resource)
+  const choices: RendererChoice[] = reason
+    ? [{ id: 'mfh.variable.unsupported.v2', label: 'Unsupported Variable', description: reason }]
+    : !definition
+      ? [{ id: 'mfh.variable.auto.v2', label: '自动', description: '随实例快照选择控件' }]
+      : [...scalarChoices(definition as DataSchema, resource.capabilities.some((item) => item.name === 'write') && !definition.read_only),
+          ...(['object', 'array', 'null'].includes(definition.type) ? [{ id: 'mfh.variable.structured.v2', label: '结构化', description: '按实例定义展示与编辑' }] : [])]
+  const candidate = requested || resource.presentation?.renderer
+  const selected = choices.find((choice) => choice.id === candidate) || choices[0]!
+  return { choices, selected, fallbackReason: reason || (candidate && candidate !== 'mfh.variable.auto.v2' && selected.id !== candidate ? `显示方式 ${candidate} 不受当前 definition 支持，使用 ${selected.label}` : undefined) }
 }

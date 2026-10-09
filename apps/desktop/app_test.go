@@ -904,120 +904,36 @@ func TestViewLayoutValidation(t *testing.T) {
 	}
 }
 
-func TestLegacyViewDocumentMigratesBeforeSave(t *testing.T) {
-	store, err := newViewStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	legacy := `{"version":2,"views":[{"id":"dashboard","name":"Dashboard","revision":1,"widgets":[{"id":"cpu","owner_node_id":"3","resource_name":"metrics/cpu","renderer":"mfh.variable","x":0,"y":0,"w":7,"h":12},{"id":"memory","owner_node_id":"3","resource_name":"metrics/memory","renderer":"mfh.variable","x":7,"y":0,"w":5,"h":12},{"id":"events","owner_node_id":"3","resource_name":"metrics/events","renderer":"mfh.stream","x":0,"y":12,"w":12,"h":12}],"created_at_unix_ms":1,"updated_at_unix_ms":1}]}`
-	legacyData := []byte(legacy)
-	if err := os.WriteFile(store.path(), legacyData, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	document, err := store.load()
-	if err != nil {
-		t.Fatalf("load legacy view: %v", err)
-	}
-	root := document.Views[0].LayoutRoot
-	if document.Version != desktopViewsVersion || root == nil || root.Kind != "split" || root.Axis != "vertical" || len(root.Children) != 2 {
-		t.Fatalf("legacy view was not migrated in memory: %+v", document)
-	}
-	if root.Children[0].Axis != "horizontal" || len(root.Children[0].Children) != 2 || root.Children[1].WidgetID != "events" {
-		t.Fatalf("legacy grid topology changed unexpectedly: %+v", root)
-	}
-	saved, err := store.saveView(document.Views[0])
-	if err != nil {
-		t.Fatalf("save migrated view: %v", err)
-	}
-	if saved.Revision != 2 {
-		t.Fatalf("migrated view revision = %d, want 2", saved.Revision)
-	}
-	data, err := os.ReadFile(store.path())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(data), `"version": 3`) || strings.Contains(string(data), `"x":`) {
-		t.Fatalf("migrated document was not persisted as canonical v3: %s", data)
-	}
-	snapshot, err := os.ReadFile(store.preV3SnapshotPath())
-	if err != nil {
-		t.Fatalf("read pre-v3 snapshot: %v", err)
-	}
-	if string(snapshot) != legacy {
-		t.Fatalf("pre-v3 snapshot changed: %s", snapshot)
-	}
-	saved.Name = "Dashboard 2"
-	if _, err := store.saveView(saved); err != nil {
-		t.Fatalf("save v3 view: %v", err)
-	}
-	snapshotAgain, err := os.ReadFile(store.preV3SnapshotPath())
-	if err != nil || string(snapshotAgain) != legacy {
-		t.Fatalf("pre-v3 snapshot was overwritten: %v %s", err, snapshotAgain)
-	}
-}
-
-func TestViewMigrationVariantsAndStrictFailures(t *testing.T) {
-	for _, test := range []struct {
-		name string
-		raw  string
-		axis string
-	}{
-		{
-			name: "v1 two widget grid",
-			raw:  `{"version":1,"views":[{"id":"dashboard","name":"Dashboard","revision":1,"widgets":[{"id":"cpu","owner_node_id":"3","resource_name":"metrics/cpu","renderer":"mfh.variable","x":0,"y":0,"w":8,"h":24},{"id":"memory","owner_node_id":"3","resource_name":"metrics/memory","renderer":"mfh.variable","x":8,"y":0,"w":4,"h":24}],"created_at_unix_ms":1,"updated_at_unix_ms":1}]}`,
-			axis: "horizontal",
-		},
-		{
-			name: "v2 vertical layout",
-			raw:  `{"version":2,"views":[{"id":"dashboard","name":"Dashboard","revision":1,"widgets":[{"id":"cpu","owner_node_id":"3","resource_name":"metrics/cpu","renderer":"mfh.variable","x":0,"y":0,"w":7,"h":24},{"id":"memory","owner_node_id":"3","resource_name":"metrics/memory","renderer":"mfh.variable","x":7,"y":0,"w":5,"h":24}],"layout":{"direction":"vertical","split_ratio":0.637},"created_at_unix_ms":1,"updated_at_unix_ms":1}]}`,
-			axis: "vertical",
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			document, source, err := decodeViewDocument([]byte(test.raw))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if source >= desktopViewsVersion || document.Views[0].LayoutRoot == nil || document.Views[0].LayoutRoot.Axis != test.axis {
-				t.Fatalf("unexpected migration: source=%d document=%+v", source, document)
-			}
-		})
-	}
-
-	for _, raw := range []string{
-		`{"version":99,"views":[]}`,
-		`{"version":1,"views":[],"unknown":true}`,
-		`{"version":1,"views":[{"id":"dashboard","name":"Dashboard","revision":1,"widgets":[],"layout":{"direction":"horizontal","split_ratio":0.5},"created_at_unix_ms":1,"updated_at_unix_ms":1}]}`,
-		`{"version":3,"views":[{"id":"dashboard","name":"Dashboard","revision":1,"widgets":[{"id":"cpu","owner_node_id":"3","resource_name":"metrics/cpu","renderer":"mfh.variable"}],"layout_root":{"kind":"leaf","widget_id":"missing"},"created_at_unix_ms":1,"updated_at_unix_ms":1}]}`,
-	} {
-		if _, _, err := decodeViewDocument([]byte(raw)); err == nil {
-			t.Fatalf("invalid view document accepted: %s", raw)
+func TestUnsupportedViewVersionsRemainUntouched(t *testing.T) {
+	for _, raw := range []string{`{"version":1,"views":[]}`, `{"version":2,"views":[]}`, `{"version":99,"views":[]}`} {
+		store, err := newViewStore(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(store.path(), []byte(raw), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.load(); err == nil {
+			t.Fatal("unsupported view loaded")
+		}
+		if _, err := store.saveView(ViewDefinition{}); err == nil {
+			t.Fatal("unsupported view overwritten")
+		}
+		after, err := os.ReadFile(store.path())
+		if err != nil || string(after) != raw {
+			t.Fatalf("file changed: %s, %v", after, err)
 		}
 	}
 }
 
-func TestInvalidPreV3SnapshotBlocksMigrationWrite(t *testing.T) {
-	store, err := newViewStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	legacy := []byte(`{"version":1,"views":[{"id":"dashboard","name":"Dashboard","revision":1,"widgets":[{"id":"cpu","owner_node_id":"3","resource_name":"metrics/cpu","renderer":"mfh.variable","x":0,"y":0,"w":12,"h":24}],"created_at_unix_ms":1,"updated_at_unix_ms":1}]}`)
-	if err := os.WriteFile(store.path(), legacy, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(store.preV3SnapshotPath(), []byte("broken"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	document, err := store.load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.saveView(document.Views[0]); err == nil || !strings.Contains(err.Error(), "snapshot is invalid") {
-		t.Fatalf("invalid snapshot did not block migration: %v", err)
-	}
-	current, err := os.ReadFile(store.path())
-	if err != nil || string(current) != string(legacy) {
-		t.Fatalf("legacy file changed after failed migration: %v %s", err, current)
+func TestViewDocumentStrictFailures(t *testing.T) {
+	for _, raw := range []string{
+		`{"version":3,"views":[],"unknown":true}`,
+		`{"version":3,"views":[{"id":"dashboard","name":"Dashboard","revision":1,"widgets":[{"id":"value","owner_node_id":"3","resource_name":"sample","renderer":"mfh.variable.auto.v2"}],"layout_root":{"kind":"leaf","widget_id":"missing"},"created_at_unix_ms":1,"updated_at_unix_ms":1}]}`,
+	} {
+		if _, err := decodeViewDocument([]byte(raw)); err == nil {
+			t.Fatalf("invalid document accepted: %s", raw)
+		}
 	}
 }
 

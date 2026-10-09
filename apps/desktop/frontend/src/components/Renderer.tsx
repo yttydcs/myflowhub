@@ -1,3 +1,7 @@
+import { Select } from './ui/select'
+import { Switch } from './ui/switch'
+import { Checkbox } from './ui/checkbox'
+import { Slider } from './ui/slider'
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import {
   AlertTriangle,
@@ -21,6 +25,8 @@ import {
   Send,
   SquareTerminal,
 } from 'lucide-react'
+import { VariablePanel, VariableRendererSelector } from '../variable/VariablePanel'
+import { defaultRenderer } from '../store'
 import type { DesktopAPI, OperationResult } from '../api'
 import { deriveResourceActions } from '../lib/resource-actions'
 import { errorText } from '../lib/utils'
@@ -56,22 +62,13 @@ import { Input, Textarea } from './ui/input'
 
 function pretty(value: unknown) { return JSON.stringify(value, null, 2) }
 
-function encodeJSONBytes(value: unknown) {
-  const bytes = new TextEncoder().encode(JSON.stringify(value))
-  let binary = ''
-  bytes.forEach((byte) => { binary += String.fromCharCode(byte) })
-  return btoa(binary)
-}
-
 function decodeEventPayload(event: ResourceEvent): unknown {
-  if (!event.value) return null
+  if (typeof event.value !== 'string') return null
   try {
     const binary = atob(event.value)
     const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
     return JSON.parse(new TextDecoder().decode(bytes))
-  } catch {
-    return event.value
-  }
+  } catch { return event.value }
 }
 
 function StateMessage({ kind, children }: { kind?: 'error' | 'loading'; children: ReactNode }) {
@@ -222,10 +219,10 @@ export function SchemaEditor({ schema, value, onChange, errors = [], path = '$',
   const errorID = error ? `${fieldID}-error` : undefined
   if (schema.read_only) return <div className="schema-field"><span>{label}</span><DataDisplay value={value} schema={schema} /></div>
   if (schema.type === 'boolean') {
-    return <label className="schema-field schema-toggle"><input type="checkbox" checked={Boolean(value)} aria-invalid={Boolean(error)} aria-describedby={errorID} onChange={(event) => onChange(event.target.checked)} /><span><strong>{label}</strong><small>{schema.description || (value ? '开启' : '关闭')}</small></span>{error && <small className="field-error" id={errorID}>{error}</small>}</label>
+    return <label className="schema-field schema-toggle"><Switch aria-label={label} checked={Boolean(value)} aria-invalid={Boolean(error)} aria-describedby={errorID} onCheckedChange={onChange} /><span><strong>{label}</strong><small>{schema.description || (value ? '开启' : '关闭')}</small></span>{error && <small className="field-error" id={errorID}>{error}</small>}</label>
   }
   if (schema.enum?.length && !rendererID.includes('text')) {
-    return <label className="schema-field">{label}<select className="input" value={String(value ?? '')} aria-invalid={Boolean(error)} aria-describedby={errorID} onChange={(event) => onChange(event.target.value)}>{schema.enum.map((option) => <option key={option} value={option}>{option}</option>)}</select>{error && <small className="field-error" id={errorID}>{error}</small>}</label>
+    return <label className="schema-field">{label}<Select aria-label={label} value={String(value ?? '')} aria-invalid={Boolean(error)} aria-describedby={errorID} onValueChange={onChange} options={schema.enum.map((option) => ({ value: option, label: option || '空文本' }))} />{error && <small className="field-error" id={errorID}>{error}</small>}</label>
   }
   if (schema.type === 'integer' || schema.type === 'number') {
     const current = typeof value === 'number' ? value : Number(value || schema.minimum || 0)
@@ -233,7 +230,7 @@ export function SchemaEditor({ schema, value, onChange, errors = [], path = '$',
     return <div className="schema-field"><span id={fieldID}>{label}</span>
       {schema.format?.includes('unix-ms')
         ? <Input aria-labelledby={fieldID} type="datetime-local" value={Number.isFinite(current) ? formatDateTimeLocal(current) : ''} aria-invalid={Boolean(error)} aria-describedby={errorID} onChange={(event) => onChange(event.target.value === '' ? '' : new Date(event.target.value).getTime())} />
-        : <>{rendererID.includes('slider') && schema.minimum !== undefined && schema.maximum !== undefined && <input className="schema-slider" type="range" min={schema.minimum} max={schema.maximum} step={step} value={current} aria-labelledby={fieldID} aria-invalid={Boolean(error)} aria-describedby={errorID} onChange={(event) => onChange(Number(event.target.value))} />}<span className="number-input-line"><Input aria-label={`${label} 数值`} type="number" min={schema.minimum} max={schema.maximum} step={step} value={Number.isFinite(current) ? current : ''} aria-invalid={Boolean(error)} aria-describedby={errorID} onChange={(event) => onChange(event.target.value === '' ? '' : Number(event.target.value))} />{schema.unit && <span>{schema.unit}</span>}</span></>}
+        : <>{rendererID.includes('slider') && schema.minimum !== undefined && schema.maximum !== undefined && <Slider min={schema.minimum} max={schema.maximum} step={typeof step === 'number' ? step : 0.01} value={current} aria-labelledby={fieldID} aria-invalid={Boolean(error)} aria-describedby={errorID} onValueChange={onChange} />}<span className="number-input-line"><Input aria-label={`${label} 数值`} type="number" min={schema.minimum} max={schema.maximum} step={step} value={Number.isFinite(current) ? current : ''} aria-invalid={Boolean(error)} aria-describedby={errorID} onChange={(event) => onChange(event.target.value === '' ? '' : Number(event.target.value))} />{schema.unit && <span>{schema.unit}</span>}</span></>}
       {schema.description && <small>{schema.description}</small>}{error && <small className="field-error" id={errorID}>{error}</small>}
     </div>
   }
@@ -261,73 +258,6 @@ type RendererProps = {
   resource: ResourceDescriptor
   rendererID?: string
   density?: PaneDensity
-}
-
-function VariableRenderer({ api, resource, rendererID = 'mfh.variable.raw.v1', density = 'normal' }: RendererProps) {
-  const [value, setValue] = useState<unknown>()
-  const [revision, setRevision] = useState(0)
-  const [draft, setDraft] = useState<unknown>()
-  const [rawDraft, setRawDraft] = useState('')
-  const [validationErrors, setValidationErrors] = useState<DataValidationError[]>([])
-  const [loadError, setLoadError] = useState('')
-  const [actionError, setActionError] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [writing, setWriting] = useState(false)
-  const writable = resource.capabilities.find((item) => item.name === 'write')
-  const schemaID = resource.capabilities.find((item) => item.name === 'read')?.output_schema || resource.capabilities.find((item) => item.name === 'subscribe')?.event_schema
-  const resolution = resolveSchema(schemaID)
-  const schema = resolution.status === 'resolved' ? resolution.schema : undefined
-  const refresh = async () => {
-    setLoading(true); setLoadError('')
-    try {
-      let next: unknown
-      let nextRevision = 0
-      if (writable) {
-        const subscriptionID = await api.subscribe(resource.id.owner_node_id, resource.id.name, 'subscribe', 5_000)
-        try {
-          const result = await api.poll(subscriptionID, 5_000)
-          if (result.kind !== 'event') throw new Error('未收到 Variable 快照')
-          const event = result.payload as ResourceEvent
-          next = decodeEventPayload(event)
-          nextRevision = event.revision || 0
-        } finally { await api.cancel(subscriptionID) }
-      } else next = await api.snapshot(resource.id.owner_node_id, resource.id.name)
-      setRevision(nextRevision); setValue(next); setDraft(next); setRawDraft(pretty(next)); setValidationErrors([]); setActionError('')
-    } catch (current) { setLoadError(errorText(current)) }
-    finally { setLoading(false) }
-  }
-  const reset = () => { setDraft(value); setRawDraft(pretty(value)); setValidationErrors([]); setActionError('') }
-  const write = async () => {
-    setWriting(true); setActionError('')
-    try {
-      let next = draft
-      if (rendererID.includes('raw')) next = JSON.parse(rawDraft)
-      if (schema) {
-        const errors = validateDataValue(schema, next)
-        setValidationErrors(errors)
-        if (errors.length) throw new Error(`请先修正 ${errors.length} 个字段错误`)
-      }
-      await api.operate(resource.id.owner_node_id, resource.id.name, 'write', writable?.input_schema || 'mfh.variable-write.v2', {
-        version: 2, expected_revision: revision, value: encodeJSONBytes(next),
-      })
-      await refresh()
-    } catch (current) { setActionError(errorText(current)) }
-    finally { setWriting(false) }
-  }
-  useEffect(() => { void refresh() }, [resource.id.owner_node_id, resource.id.name])
-  if (loading) return <StateMessage kind="loading">正在读取快照…</StateMessage>
-  if (loadError) return <StateMessage kind="error">{loadError}</StateMessage>
-  const raw = rendererID.includes('raw') || !schema
-  return <div className="value-renderer">
-    {resolution.status !== 'resolved' && <p className="renderer-note"><AlertTriangle aria-hidden="true" size={14} />{resolution.reason}</p>}
-    {writable
-      ? raw
-        ? <label className="schema-field is-code">当前值 · revision {revision}<Textarea name="variable-value" autoComplete="off" value={rawDraft} onChange={(event) => setRawDraft(event.target.value)} rows={density === 'compact' ? 4 : 8} spellCheck={false} /></label>
-        : <SchemaEditor schema={schema!} value={draft} onChange={(next) => { setDraft(next); setRawDraft(pretty(next)); setValidationErrors(validateDataValue(schema!, next)) }} errors={validationErrors} rendererID={rendererID} />
-      : raw ? <pre>{pretty(value)}</pre> : <DataDisplay value={value} schema={schema} density={density} rendererID={rendererID} />}
-    {actionError && <p className="form-error" role="alert" aria-live="polite">{actionError}</p>}
-    <div className="value-actions"><Button variant="ghost" size="sm" onClick={() => void refresh()}><RefreshCw aria-hidden="true" size={14} />刷新</Button>{writable && <><Button variant="secondary" size="sm" disabled={writing} onClick={reset}><RotateCcw aria-hidden="true" size={14} />重置</Button><Button size="sm" disabled={writing || revision === 0} onClick={() => void write()}><Check aria-hidden="true" size={14} />{writing ? '应用中…' : '应用'}</Button></>}</div>
-  </div>
 }
 
 function EventTable({ events, schema }: { events: ResourceEvent[]; schema?: DataSchema }) {
@@ -425,7 +355,7 @@ function EventRenderer({ api, resource, rendererID = 'mfh.event.timeline.v1', de
       <div className="live-line" role="status" aria-live="polite"><span className={`live-dot ${state}`} aria-hidden="true" />{{ connecting: '正在建立订阅…', live: '实时订阅中', paused: '显示已暂停', stopped: '订阅已停止' }[state]}<Badge>{received} · {rate.toFixed(1)}/s</Badge></div>
       <div className="event-actions"><Button variant="ghost" size="sm" onClick={togglePause}>{paused.current ? <CirclePlay aria-hidden="true" size={14} /> : <CirclePause aria-hidden="true" size={14} />}{paused.current ? '继续' : '暂停'}</Button><Button variant="ghost" size="sm" onClick={() => { pendingEvents.current = []; setEvents([]) }}><Eraser aria-hidden="true" size={14} />清空</Button></div>
     </div>
-    <label className="event-filter"><Search aria-hidden="true" size={14} /><Input aria-label="筛选事件" placeholder="筛选事件" value={filter} onChange={(event) => setFilter(event.target.value)} /><span><input type="checkbox" checked={autoscroll} onChange={(event) => setAutoscroll(event.target.checked)} />自动跟随</span></label>
+    <label className="event-filter"><Search aria-hidden="true" size={14} /><Input aria-label="筛选事件" placeholder="筛选事件" value={filter} onChange={(event) => setFilter(event.target.value)} /><span><Checkbox aria-label="自动跟随" checked={autoscroll} onCheckedChange={setAutoscroll} />自动跟随</span></label>
     {resolution.status !== 'resolved' && <p className="renderer-note">{resolution.reason}</p>}
     {visible.some((event) => event.kind === 'gap' || event.kind === 'expired') && <p className="event-gap" role="status"><AlertTriangle aria-hidden="true" size={14} />订阅存在 gap 或已过期；当前列表可能不连续。</p>}
     <div className="event-content" ref={contentRef}>
@@ -522,7 +452,7 @@ function FilesystemContentView({ content, label }: { content: SafeFilesystemCont
       {content.warnings.map((warning) => <p className="renderer-note" key={warning}><AlertTriangle aria-hidden="true" size={14} />{warning}</p>)}
       {content.mode === 'json' && (
         <div className="safe-json-view">
-          <DataDisplay value={content.value} rendererID="mfh.variable.code.v1" />
+          <DataDisplay value={content.value} rendererID="mfh.content.code.v1" />
         </div>
       )}
       {content.mode === 'text' && <pre className="safe-text-view">{content.text}</pre>}
@@ -782,7 +712,10 @@ export function ResourceRenderer({
   density = 'normal',
   focusedCapability,
   focusedDisabledReason,
-}: RendererProps & { focusedCapability?: string; focusedDisabledReason?: string }) {
+  showVariableFooter = true,
+  autoApplyVariable = false,
+}: RendererProps & { focusedCapability?: string; focusedDisabledReason?: string; showVariableFooter?: boolean; autoApplyVariable?: boolean }) {
+  if (resource.type === 'mfh.variable') return <div className={`resource-renderer density-${density}`}><VariablePanel api={api} resource={resource} rendererID={rendererID ?? defaultRenderer(resource)} disabledReason={focusedDisabledReason} showFooter={showVariableFooter} autoApply={autoApplyVariable} /></div>
   const selection = selectResourceRenderer(resource, rendererID)
   const selectedID = selection.selected.id
   if (focusedCapability) {
@@ -806,7 +739,6 @@ export function ResourceRenderer({
   return <div className={`resource-renderer density-${density}`}>
     {selection.fallbackReason && <p className="renderer-note"><AlertTriangle aria-hidden="true" size={14} />{selection.fallbackReason}</p>}
     {publishable && <details className="publish-box"><summary><Radio aria-hidden="true" size={14} />发布到 Topic</summary><ResourceOperationPanel api={api} resource={resource} capabilityName="publish" rendererID="mfh.operation.form.v1" density={density} /></details>}
-    {resource.type === 'mfh.variable' && <VariableRenderer api={api} resource={resource} rendererID={selectedID} density={density} />}
     {(resource.type === 'mfh.stream' || resource.type === 'mfh.topic') && <EventRenderer api={api} resource={resource} rendererID={selectedID} density={density} />}
     {resource.type === 'mfh.command' && <ResourceOperationPanel api={api} resource={resource} rendererID={selectedID} density={density} />}
     {resource.type === 'mfh.file' && <FileRenderer api={api} resource={resource} rendererID={selectedID} density={density} />}
@@ -816,15 +748,14 @@ export function ResourceRenderer({
   </div>
 }
 
-export function ResourceRendererSelector({ resource, rendererID, onRendererChange }: Pick<RendererProps, 'resource' | 'rendererID'> & { onRendererChange(rendererID: string): void }) {
+export function ResourceRendererSelector({ api, resource, rendererID, onRendererChange }: Pick<RendererProps, 'resource' | 'rendererID'> & { api?: DesktopAPI; onRendererChange(rendererID: string): void }) {
+  if (resource.type === 'mfh.variable') return api ? <VariableRendererSelector api={api} resource={resource} rendererID={rendererID ?? defaultRenderer(resource)} onRendererChange={onRendererChange} /> : null
   const selection = selectResourceRenderer(resource, rendererID)
   if (selection.choices.length < 2) return null
   return (
     <label className="widget-renderer-selector">
       <span className="sr-only">显示方式</span>
-      <select aria-label="显示方式" value={selection.selected.id} onChange={(event) => onRendererChange(event.target.value)}>
-        {selection.choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
-      </select>
+      <Select aria-label="显示方式" value={selection.selected.id} onValueChange={onRendererChange} options={selection.choices.map((choice) => ({ value: choice.id, label: choice.label }))} />
     </label>
   )
 }

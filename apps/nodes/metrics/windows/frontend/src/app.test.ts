@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MetricsAPI } from './api'
 import type { Configuration, Definition, Status } from './contracts'
 import { createMetricsApp } from './app'
+import {metricState} from './fixtures.test-support'
 
 const definitions: Definition[] = [
   {name: 'cpu_percent', unit: 'percent', controllable: false, interval_ms: 2000},
@@ -28,11 +29,11 @@ function statusValue(running = true): Status {
     ...(running ? {
       connection: {state: 'connected', parent_node_id: '1', endpoint: '127.0.0.1:7341', attempt: 1, link_generation: 7},
       configuration,
-      samples: [
-        {version: 1, metric: 'cpu_percent', value: '18', unit: 'percent', status: 'fresh', sampled_at_unix_ms: 1000, observed_at_unix_ms: 1001},
-        {version: 1, metric: 'volume_percent', value: '34', unit: 'percent', status: 'stale', sampled_at_unix_ms: 900, observed_at_unix_ms: 1001, error: 'collector timeout'},
+      metrics: [
+        metricState('cpu_percent', 18),
+        metricState('volume_percent', 34, 'stale', 'collector timeout'),
       ],
-    } : {samples: []}),
+    } : {metrics: []}),
     notifications: {queue_depth: 0, dropped: 0},
   }
 }

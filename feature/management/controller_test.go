@@ -28,7 +28,12 @@ type fixture struct {
 
 func newFixture(t *testing.T) fixture {
 	t.Helper()
-	state, err := hostconfig.Open(t.TempDir(), 1)
+	return newFixtureWithNodeID(t, 1)
+}
+
+func newFixtureWithNodeID(t *testing.T, nodeID protocol.NodeID) fixture {
+	t.Helper()
+	state, err := hostconfig.Open(t.TempDir(), nodeID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,9 +51,9 @@ func newFixture(t *testing.T) fixture {
 		t.Fatal(err)
 	}
 	if _, err := state.Policy.CreateBinding(protocol.PolicyBindingCreateV1{
-		Version: 1, BindingID: strings.Repeat("1", 32), Subject: "1", DefinitionID: protocol.BuiltinPolicySuperadmin,
-		Scope: protocol.PolicyOwnerScopeV1{Kind: protocol.PolicyScopeAuthorityDomain, NodeID: "1"},
-	}, 1); err != nil {
+		Version: 1, BindingID: strings.Repeat("1", 32), Subject: strconv.FormatUint(uint64(nodeID), 10), DefinitionID: protocol.BuiltinPolicySuperadmin,
+		Scope: protocol.PolicyOwnerScopeV1{Kind: protocol.PolicyScopeAuthorityDomain, NodeID: strconv.FormatUint(uint64(nodeID), 10)},
+	}, nodeID); err != nil {
 		t.Fatal(err)
 	}
 	controller, err := management.Register(management.Config{Node: runtime, Admission: state.Admission, EnrollmentAuthority: authority, Trust: state.Trust, Policy: state.Policy, Settings: state.Settings, RevokeNode: state.RevokeNode, Audit: audit})
@@ -62,7 +67,7 @@ func TestManagementCatalogAndTopologyUseCanonicalTree(t *testing.T) {
 	value := newFixture(t)
 	catalogSnapshot := value.node.Registry().Catalog().Snapshot()
 	var catalog protocol.ResourceCatalogV2
-	decode(t, catalogSnapshot.Value, &catalog)
+	decodeVariableDomain(t, catalogSnapshot.State, &catalog)
 	for _, name := range []string{
 		protocol.BuiltinManagementIssuePermit,
 		protocol.BuiltinManagementAudit,
@@ -548,7 +553,25 @@ func decodeVariable(t *testing.T, runtime *node.Node, name string, target protoc
 	if err != nil {
 		t.Fatal(err)
 	}
-	decode(t, result.Payload, target)
+	if result.Schema != protocol.SchemaVariableValueV1 {
+		t.Fatalf("variable %s returned schema %s", name, result.Schema)
+	}
+	var state protocol.VariableValueV1
+	decode(t, result.Payload, &state)
+	if state.Definition == nil || state.Status != "ready" {
+		t.Fatalf("variable %s missing ready state or definition: %+v", name, state)
+	}
+	decodeVariableDomain(t, state, target)
+}
+
+func decodeVariableDomain(t *testing.T, state protocol.VariableValueV1, target protocol.ValidatedPayload) {
+	t.Helper()
+	if state.Definition == nil {
+		t.Fatal("variable domain decode requires snapshot definition")
+	}
+	if err := protocol.DecodeVariablePayload(*state.Definition, state.Value, protocol.DefaultMaxPayload, target); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func encode(t *testing.T, value protocol.ValidatedPayload) []byte {

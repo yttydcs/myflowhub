@@ -51,7 +51,7 @@ func TestOfflineHostOwnsOneNodeClientAndRegistry(t *testing.T) {
 	}
 
 	variableID := protocol.ResourceID{Owner: host.ID(), Name: "device/status"}
-	variable, err := resource.NewVariable(resource.VariableDescriptor(variableID, "application/octet-stream", "test.status.v1", "test.status.read", 64), []byte("ready"))
+	variable, err := resource.NewVariable(resource.VariableDescriptor(variableID, "test.status.read", 512), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Value: []byte(`"ready"`), Status: "ready"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestOfflineHostOwnsOneNodeClientAndRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 	event, err := host.Client().Snapshot(context.Background(), variableID)
-	if err != nil || string(event.Value) != "ready" {
+	if err != nil || string(event.Value) != `"ready"` || event.Definition == nil || event.Status != "ready" || event.InstanceID == "" || event.Revision != "1" {
 		t.Fatalf("attached client did not use the host node: event=%+v err=%v", event, err)
 	}
 	if err := host.Start(); !errors.Is(err, ErrAlreadyStarted) {

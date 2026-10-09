@@ -1,3 +1,4 @@
+import { VariableProfileContext } from './variable/useVariable'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   DndContext,
@@ -739,6 +740,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
 
   const inspectorVisible = activeContent === 'workspace' && selection !== null
   return (
+    <VariableProfileContext.Provider value={`${activeProfile?.id || "signed-out"}/${profileGeneration.current}/${status.generation || 0}/${status.link_generation || 0}`}>
     <CatalogContext.Provider value={{ states: discoveryState.catalogs, retry: (owner) => void discovery.catalog(owner, true) }}>
     <DndContext
       accessibility={{
@@ -899,6 +901,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
       </DragOverlay>
     </DndContext>
     </CatalogContext.Provider>
+    </VariableProfileContext.Provider>
   )
 }
 

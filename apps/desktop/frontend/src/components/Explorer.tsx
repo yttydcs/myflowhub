@@ -231,9 +231,9 @@ function ResourceRow(props: ResourceRowProps) {
         }}
       >
         <Icon aria-hidden="true" size={14} />
-        <span className="tree-label">
+        <span className="tree-label" title={node.path}>
           <strong>{resource?.presentation?.label || node.segment}</strong>
-          <small>{node.path}</small>
+          <small className="sr-only">{node.path}</small>
         </span>
       </button>
       {resource

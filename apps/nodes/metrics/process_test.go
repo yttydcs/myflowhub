@@ -108,11 +108,11 @@ func TestMetricsCommandProcessPublishesToPersistentHub(t *testing.T) {
 				if !ok {
 					continue
 				}
-				var sample metrics.SampleV1
+				var sample protocol.VariableValueV1
 				if err := protocol.DecodeJSONPayload(event.Value, protocol.DefaultMaxPayload, &sample); err != nil {
 					t.Fatal(err)
 				}
-				if sample.Metric != string(metrics.CPUPercent) || sample.Value == "-1" {
+				if sample.Definition == nil || sample.Definition.Type != "number" || string(sample.Value) == "-1" {
 					t.Fatalf("unexpected process metric: %+v", sample)
 				}
 				return

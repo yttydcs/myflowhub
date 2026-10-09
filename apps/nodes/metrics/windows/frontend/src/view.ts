@@ -237,7 +237,7 @@ export function createMetricsView(root: HTMLElement, handlers: MetricsViewHandle
   function renderSamples(state: MetricsViewState): void {
     const container = requiredElement<HTMLElement>(root, '#metric-rows')
     const focusedMetric = (document.activeElement as HTMLElement | null)?.dataset.metric
-    if (state.status.samples.length === 0) {
+    if (state.status.metrics.length === 0) {
       const empty = document.createElement('div')
       empty.className = 'empty-state'
       empty.append(
@@ -250,7 +250,7 @@ export function createMetricsView(root: HTMLElement, handlers: MetricsViewHandle
 
     const settings = new Map(state.status.configuration?.settings.map(setting => [setting.metric, setting]))
     const definitions = new Map(state.definitions.map(definition => [definition.name, definition]))
-    const rows = state.status.samples.map(sample => {
+    const rows = state.status.metrics.map(sample => {
       const button = document.createElement('button')
       button.type = 'button'
       button.className = `metric-row${sample.metric === state.selectedMetric ? ' selected' : ''}`
@@ -260,7 +260,7 @@ export function createMetricsView(root: HTMLElement, handlers: MetricsViewHandle
       const name = document.createElement('span')
       name.className = 'metric-name'
       name.append(createText(document, 'strong', '', metricLabel(sample.metric)), createText(document, 'code', '', `metrics/${sample.metric}`))
-      if (sample.error) name.append(createText(document, 'small', 'metric-error', sample.error))
+      if (sample.state.error?.message) name.append(createText(document, 'small', 'metric-error', sample.state.error?.message))
 
       const readingCell = document.createElement('span')
       readingCell.className = 'metric-reading'
@@ -281,13 +281,13 @@ export function createMetricsView(root: HTMLElement, handlers: MetricsViewHandle
 
       const status = document.createElement('span')
       status.className = 'metric-status'
-      status.append(createText(document, 'span', `status-dot ${sample.status}`, ''), createText(document, 'span', '', sampleStatusLabel(sample.status)))
+      status.append(createText(document, 'span', `status-dot ${sample.state.status}`, ''), createText(document, 'span', '', sampleStatusLabel(sample.state.status)))
       const intervalMS = settings.get(sample.metric)?.interval_ms ?? definitions.get(sample.metric)?.interval_ms
       const interval = createText(document, 'span', 'metric-interval', formatInterval(intervalMS))
       const chevron = createText(document, 'span', 'chevron', '›')
       chevron.setAttribute('aria-hidden', 'true')
       button.append(name, readingCell, status, interval, chevron)
-      button.setAttribute('aria-label', `${metricLabel(sample.metric)}，${reading.value}${reading.suffix}，${sampleStatusLabel(sample.status)}${sample.error ? `，${sample.error}` : ''}`)
+      button.setAttribute('aria-label', `${metricLabel(sample.metric)}，${reading.value}${reading.suffix}，${sampleStatusLabel(sample.state.status)}${sample.state.error?.message ? `，${sample.state.error?.message}` : ''}`)
       button.addEventListener('click', () => handlers.selectMetric(sample.metric))
       return button
     })
@@ -343,7 +343,7 @@ export function createMetricsView(root: HTMLElement, handlers: MetricsViewHandle
     const context = requiredElement<HTMLElement>(root, '#inspector-context')
     if (state.activePage === 'resources') {
       context.textContent = 'Variable'
-      const sample = state.status.samples.find(item => item.metric === state.selectedMetric)
+      const sample = state.status.metrics.find(item => item.metric === state.selectedMetric)
       if (!sample) {
         container.replaceChildren(createText(document, 'div', 'empty-state inspector-empty', '选择资源后查看采样详情。'))
         return
@@ -355,19 +355,19 @@ export function createMetricsView(root: HTMLElement, handlers: MetricsViewHandle
       heading.className = 'inspector-heading'
       const copy = document.createElement('div')
       copy.append(createText(document, 'h2', '', metricLabel(sample.metric)), createText(document, 'code', '', `metrics/${sample.metric}`))
-      const status = createText(document, 'span', `status-text ${sample.status}`, sampleStatusLabel(sample.status))
+      const status = createText(document, 'span', `status-text ${sample.state.status}`, sampleStatusLabel(sample.state.status))
       heading.append(copy, status)
       const current = inspectorSection(document, '当前样本')
       appendProperty(document, current.list, '值', `${reading.value}${reading.suffix}`)
-      appendProperty(document, current.list, '单位', sample.unit)
-      appendProperty(document, current.list, '采样于', formatTimestamp(sample.sampled_at_unix_ms))
-      appendProperty(document, current.list, '观察于', formatTimestamp(sample.observed_at_unix_ms))
-      if (sample.error) appendProperty(document, current.list, '错误', sample.error)
+      appendProperty(document, current.list, '单位', sample.state.definition?.unit ?? sample.state.definition?.type ?? '—')
+      appendProperty(document, current.list, '采样于', formatTimestamp(sample.state.source_time_unix_ms))
+      appendProperty(document, current.list, '观察于', formatTimestamp(sample.state.observed_at_unix_ms))
+      if (sample.state.error?.message) appendProperty(document, current.list, '错误', sample.state.error?.message)
       const resource = inspectorSection(document, '资源描述')
-      appendProperty(document, resource.list, 'Schema', 'mfh.metrics.sample.v1')
+      appendProperty(document, resource.list, 'Schema', 'mfh.variable-value.v1')
       appendProperty(document, resource.list, '采样间隔', formatInterval(setting?.interval_ms ?? definition?.interval_ms))
       appendProperty(document, resource.list, '平台可控', definition?.controllable ? '是' : '否')
-      appendProperty(document, resource.list, '远端可写', setting?.writable ? '是' : '否')
+      appendProperty(document, resource.list, '配置允许写入', setting?.enabled && setting?.writable ? '是' : '否')
       appendProperty(document, resource.list, 'Owner', `Node ${state.nodeID}`)
       const note = document.createElement('section')
       note.className = 'inspector-section'
@@ -419,7 +419,7 @@ export function createMetricsView(root: HTMLElement, handlers: MetricsViewHandle
     for (const page of root.querySelectorAll<HTMLElement>('[data-page]')) page.hidden = page.dataset.page !== state.activePage
     setText(root, '#tab-title', pageTitles[state.activePage])
     requiredElement<HTMLElement>(root, '#tab-icon').innerHTML = icons[state.activePage]
-    setText(root, '#resource-count', String(state.status.samples.length))
+    setText(root, '#resource-count', String(state.status.metrics.length))
     setText(root, '#policy-revision', state.status.configuration ? `rev ${state.status.configuration.revision}` : '—')
     setText(root, '#connection-node-id', state.nodeID)
     setText(root, '#sidebar-node-name', `Metrics · Node ${state.nodeID}`)

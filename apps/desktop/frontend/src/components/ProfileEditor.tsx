@@ -1,3 +1,4 @@
+import { Checkbox } from './ui/checkbox'
 import { Input } from './ui/input'
 import type { Profile } from '../types'
 
@@ -146,7 +147,7 @@ export function ProfileEditor({ profile, onChange, lockID = false, hideID = fals
             </details>
           )}
       <label className="check-row">
-        <input name="auto-connect" type="checkbox" checked={profile.auto_connect} onChange={(event) => update('auto_connect', event.target.checked)} />
+        <Checkbox name="auto-connect" checked={profile.auto_connect} onCheckedChange={(checked) => update('auto_connect', checked)} />
         应用启动后自动连接此 Profile
       </label>
     </div>

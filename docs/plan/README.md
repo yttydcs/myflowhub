@@ -68,6 +68,8 @@
 - [plan_archive_2026-02-18_docs-consistency.md](plan_archive_2026-02-18_docs-consistency.md)
 
 ## Protocol / Core / SDK
+
+- [统一 Variable R2 与 Desktop 验收计划](plan_archive_2026-10-09_unified-variable-contract.md) / [Checklist](todo_archive_2026-10-09_unified-variable-contract.md)
 - [plan_archive_2026-04-05_embedded-sdk-c-ws2812.md](plan_archive_2026-04-05_embedded-sdk-c-ws2812.md)
 - [plan_archive_2026-04-02_embedded-auth-persistence-profile.md](plan_archive_2026-04-02_embedded-auth-persistence-profile.md)
 - [plan_archive_2026-04-02_proto-flow-detail.md](plan_archive_2026-04-02_proto-flow-detail.md)

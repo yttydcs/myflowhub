@@ -18,15 +18,17 @@ const (
 )
 
 // DataSchemaDefinition is the bounded, declarative shape exported to display
-// clients. Runtime payload validation remains authoritative in each payload's
-// Validate method; this contract exists so clients do not need to infer data
-// semantics from resource names or current values.
+// clients. Variables use ValidateVariableDefinition and ValidateVariableValue;
+// domain payloads may impose further rules in their Validate methods. Clients
+// do not need to infer semantics from resource names or current values.
 type DataSchemaDefinition struct {
 	ID                   string                `json:"id,omitempty"`
 	Type                 string                `json:"type"`
+	Nullable             bool                  `json:"nullable,omitempty"`
 	Title                string                `json:"title,omitempty"`
 	Description          string                `json:"description,omitempty"`
 	Format               string                `json:"format,omitempty"`
+	ContentType          string                `json:"content_type,omitempty"`
 	Unit                 string                `json:"unit,omitempty"`
 	Precision            *int                  `json:"precision,omitempty"`
 	Minimum              *float64              `json:"minimum,omitempty"`
@@ -57,10 +59,10 @@ func (s DataSchemaDefinition) Validate() error {
 		return err
 	}
 	properties := 0
-	return s.validateNode(1, &properties)
+	return s.validateNode(1, &properties, false)
 }
 
-func (s DataSchemaDefinition) validateNode(depth int, properties *int) error {
+func (s DataSchemaDefinition) validateNode(depth int, properties *int, variable bool) error {
 	if depth > MaxDataSchemaDepth {
 		return fmt.Errorf("data schema exceeds depth %d", MaxDataSchemaDepth)
 	}
@@ -101,7 +103,7 @@ func (s DataSchemaDefinition) validateNode(depth int, properties *int) error {
 		return fmt.Errorf("data schema enum exceeds %d entries", MaxDataSchemaEnumValues)
 	}
 	for index, value := range s.Enum {
-		if err := validateText("data schema enum", value, MaxAttributeValueBytes, true); err != nil {
+		if err := validateText("data schema enum", value, MaxAttributeValueBytes, !variable); err != nil {
 			return fmt.Errorf("enum[%d]: %w", index, err)
 		}
 		if index > 0 && s.Enum[index-1] >= value {
@@ -132,12 +134,12 @@ func (s DataSchemaDefinition) validateNode(depth int, properties *int) error {
 			if *properties > MaxDataSchemaProperties {
 				return fmt.Errorf("data schema exceeds %d properties", MaxDataSchemaProperties)
 			}
-			if err := property.Schema.validateNode(depth+1, properties); err != nil {
+			if err := property.Schema.validateNode(depth+1, properties, variable); err != nil {
 				return fmt.Errorf("property %q: %w", property.Name, err)
 			}
 		}
 		if s.AdditionalProperties != nil {
-			if err := s.AdditionalProperties.validateNode(depth+1, properties); err != nil {
+			if err := s.AdditionalProperties.validateNode(depth+1, properties, variable); err != nil {
 				return fmt.Errorf("additional_properties: %w", err)
 			}
 		}
@@ -148,7 +150,7 @@ func (s DataSchemaDefinition) validateNode(depth int, properties *int) error {
 		if len(s.Properties) != 0 || s.AdditionalProperties != nil {
 			return errors.New("array data schema must not declare object properties")
 		}
-		if err := s.Items.validateNode(depth+1, properties); err != nil {
+		if err := s.Items.validateNode(depth+1, properties, variable); err != nil {
 			return fmt.Errorf("items: %w", err)
 		}
 	default:
@@ -175,10 +177,8 @@ type dataSchemaType struct {
 	typeOf reflect.Type
 }
 
-// BuiltinDataSchemas returns the provider-owned descriptions for canonical
-// protocol payloads. The slice is sorted by schema ID for deterministic output.
-func BuiltinDataSchemas() ([]DataSchemaDefinition, error) {
-	types := []dataSchemaType{
+func builtinDataSchemaTypes() []dataSchemaType {
+	return []dataSchemaType{
 		{SchemaResourceCatalogV2, "Resource catalog", reflect.TypeOf(ResourceCatalogV2{})},
 		{SchemaCollectionListRequestV1, "List collection members", reflect.TypeOf(CollectionListRequestV1{})},
 		{SchemaCollectionMemberRequestV1, "Get collection member", reflect.TypeOf(CollectionMemberRequestV1{})},
@@ -240,8 +240,14 @@ func BuiltinDataSchemas() ([]DataSchemaDefinition, error) {
 		{SchemaSessionGrantV2, "Session grant", reflect.TypeOf(SessionGrantV2{})},
 		{SchemaSessionDataV2, "Session data", reflect.TypeOf(SessionDataV2{})},
 		{SchemaSessionCloseV2, "Session close", reflect.TypeOf(SessionCloseV2{})},
-		{SchemaVariableWriteV2, "Variable write", reflect.TypeOf(VariableWriteV2{})},
 	}
+}
+
+// BuiltinDataSchemas describes ordinary domain JSON. Variable providers obtain
+// their precision-safe wire view through DataSchemaByID instead.
+// The slice is sorted by schema ID for deterministic output.
+func BuiltinDataSchemas() ([]DataSchemaDefinition, error) {
+	types := builtinDataSchemaTypes()
 	result := make([]DataSchemaDefinition, 0, len(types))
 	for _, item := range types {
 		schema, err := dataSchemaFromType(item.typeOf, 1)
@@ -261,11 +267,20 @@ func BuiltinDataSchemas() ([]DataSchemaDefinition, error) {
 }
 
 func dataSchemaFromType(value reflect.Type, depth int) (DataSchemaDefinition, error) {
+	return dataSchemaFromTypeMode(value, depth, false)
+}
+
+func dataSchemaFromTypeMode(value reflect.Type, depth int, variable bool) (schema DataSchemaDefinition, err error) {
 	if depth > MaxDataSchemaDepth {
 		return DataSchemaDefinition{}, fmt.Errorf("Go payload exceeds data schema depth %d", MaxDataSchemaDepth)
 	}
+	nullable := value.Kind() == reflect.Pointer || value.Kind() == reflect.Slice || value.Kind() == reflect.Map
+	defer func() { schema.Nullable = nullable }()
 	for value.Kind() == reflect.Pointer {
 		value = value.Elem()
+	}
+	if variable && value == reflect.TypeFor[NodeID]() {
+		return DataSchemaDefinition{Type: "string", Format: "node-id"}, nil
 	}
 	if value.PkgPath() == "encoding/json" && value.Name() == "RawMessage" {
 		return DataSchemaDefinition{Type: "string", Format: "json"}, nil
@@ -275,10 +290,12 @@ func dataSchemaFromType(value reflect.Type, depth int) (DataSchemaDefinition, er
 		return DataSchemaDefinition{Type: "boolean"}, nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		step := 1.0
-		return DataSchemaDefinition{Type: "integer", MultipleOf: &step}, nil
+		minimum, maximum := -float64(MaxVariableSafeInteger), float64(MaxVariableSafeInteger)
+		return DataSchemaDefinition{Type: "integer", Minimum: &minimum, Maximum: &maximum, MultipleOf: &step}, nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		minimum, step := 0.0, 1.0
-		return DataSchemaDefinition{Type: "integer", Minimum: &minimum, MultipleOf: &step}, nil
+		maximum := float64(MaxVariableSafeInteger)
+		return DataSchemaDefinition{Type: "integer", Minimum: &minimum, Maximum: &maximum, MultipleOf: &step}, nil
 	case reflect.Float32, reflect.Float64:
 		return DataSchemaDefinition{Type: "number"}, nil
 	case reflect.String:
@@ -287,7 +304,7 @@ func dataSchemaFromType(value reflect.Type, depth int) (DataSchemaDefinition, er
 		if value.Elem().Kind() == reflect.Uint8 {
 			return DataSchemaDefinition{Type: "string", Format: "base64"}, nil
 		}
-		items, err := dataSchemaFromType(value.Elem(), depth+1)
+		items, err := dataSchemaFromTypeMode(value.Elem(), depth+1, variable)
 		if err != nil {
 			return DataSchemaDefinition{}, err
 		}
@@ -297,7 +314,7 @@ func dataSchemaFromType(value reflect.Type, depth int) (DataSchemaDefinition, er
 		if value.Key().Kind() != reflect.String {
 			return DataSchemaDefinition{}, errors.New("only string-keyed maps are supported")
 		}
-		additional, err := dataSchemaFromType(value.Elem(), depth+1)
+		additional, err := dataSchemaFromTypeMode(value.Elem(), depth+1, variable)
 		if err != nil {
 			return DataSchemaDefinition{}, err
 		}
@@ -316,7 +333,7 @@ func dataSchemaFromType(value reflect.Type, depth int) (DataSchemaDefinition, er
 			if name == "" {
 				name = field.Name
 			}
-			child, err := dataSchemaFromType(field.Type, depth+1)
+			child, err := dataSchemaFromTypeMode(field.Type, depth+1, variable)
 			if err != nil {
 				return DataSchemaDefinition{}, fmt.Errorf("field %s: %w", field.Name, err)
 			}
@@ -423,8 +440,6 @@ func annotateBuiltinDataSchema(schema *DataSchemaDefinition) {
 		setDataSchemaMaxLength(schema, "body", MaxNotificationBodyBytes)
 	case SchemaManagementAdmitV1, SchemaAdmissionSubmitV1, SchemaEnrollmentClientInitV1:
 		setDataSchemaSensitive(schema, "permit")
-	case SchemaVariableWriteV2:
-		setDataSchemaFormat(schema, "value", "json-base64")
 	}
 }
 

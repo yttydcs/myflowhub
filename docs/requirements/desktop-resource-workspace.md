@@ -4,6 +4,10 @@
 
 当前 Desktop 已能连接父 Hub、浏览 catalog、订阅和调用资源，但前端仍是 Vanilla TypeScript 与固定产品页面。新的产品方向要求 Desktop 成为 Node/Resource 平台的主要可视化入口，支持多个连接身份、资源树、类型化预览、拖放组合和可持久化 View。
 
+## Standard Variable boundary
+
+Variable 的格式和校验语法由平台统一定义，提供者声明某个实例的类型、范围、单位与业务行为。Desktop 从标准 read/订阅快照取得 definition、instance_id 和字符串 revision，通用渲染与编辑不依赖节点名称、Metrics 私有 schema 或预装注册表。实现与完整验收见 [统一变量要求](unified-variable-resource.md) 和 [接口规格](../specs/unified-variable-resource.md)。
+
 ## Goal
 
 提供极简、舒适、可访问的 Desktop 工作区，让用户可以安全登录不同 Profile，在授权范围内按需发现 Node 和 Resource，预览资源，并把资源组合成可恢复的 View。节点发现的范围、深度、缓存及目录独立性以[拓扑发现需求](topology-discovery.md)为准。
@@ -138,7 +142,7 @@
 - `integer 0..100 step 1` fixture 只提供能遵循约束的 renderer，slider/stepper 的 pointer 与键盘变化均为
   1；string fixture 可在兼容的单行、多行、code/text renderer 间切换。切换不调用 Resource API，保存并
   重开 View 后恢复一致。
-- read-only Variable 无写控件；writable draft 通过 Reset/Apply 和 `expected_revision` 写入，Forbidden、校验
+- read-only Variable 无写控件；Inspector 通过 Reset/Apply，View 按控件提交时机自动应用（见 [统一变量需求](unified-variable-resource.md)）；两者都使用 `expected_instance_id` 和字符串 `expected_revision` 写入，Forbidden、校验
   失败或 revision conflict 后 draft 保留。Command form 只在显式 Execute 时调用；unsupported schema
   回退 Advanced JSON/descriptor inspector。
 - Stream/Topic 的 pause/filter/clear/rate/autoscroll 与 gap/expired 状态有界可测；File picker cancel、上传

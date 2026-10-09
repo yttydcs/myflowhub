@@ -229,11 +229,15 @@ func TestTopologyDiscovery(t *testing.T) {
 				}
 				defer remote.Cancel()
 				event := receiveProductEvent(t, ctx, remote)
-				if event.Kind != sdk.EventSnapshot || event.Schema != protocol.SchemaManagementTopologyV1 {
+				if event.Kind != sdk.EventSnapshot || event.Schema != protocol.SchemaVariableValueV1 {
 					t.Fatalf("legacy subscription lost its snapshot contract: %+v", event)
 				}
+				var envelope protocol.VariableValueV1
+				if err := protocol.DecodeJSONPayload(event.Value, protocol.DefaultMaxPayload, &envelope); err != nil || envelope.Definition == nil {
+					t.Fatalf("topology snapshot envelope: %+v (%v)", envelope, err)
+				}
 				var subscribed protocol.ManagementTopologyV1
-				if err := protocol.DecodeJSONPayload(event.Value, protocol.DefaultMaxPayload, &subscribed); err != nil {
+				if err := protocol.DecodeJSONPayload(envelope.Value, protocol.DefaultMaxPayload, &subscribed); err != nil {
 					t.Fatal(err)
 				}
 				if !reflect.DeepEqual(subscribed, value) {

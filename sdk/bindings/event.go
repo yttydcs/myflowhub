@@ -40,19 +40,38 @@ type bindingConnection struct {
 }
 
 type bindingEvent struct {
-	Kind              string `json:"kind"`
-	OwnerNodeID       string `json:"owner_node_id"`
-	ResourceName      string `json:"resource_name"`
-	Capability        string `json:"capability"`
-	Schema            string `json:"schema,omitempty"`
-	Revision          uint64 `json:"revision,omitempty"`
-	Sequence          uint64 `json:"sequence,omitempty"`
-	PublisherNodeID   string `json:"publisher_node_id,omitempty"`
-	PublisherSequence uint64 `json:"publisher_sequence,omitempty"`
-	GapFrom           uint64 `json:"gap_from,omitempty"`
-	GapTo             uint64 `json:"gap_to,omitempty"`
-	Value             []byte `json:"value,omitempty"`
-	Reason            string `json:"reason,omitempty"`
+	Kind              string          `json:"kind"`
+	OwnerNodeID       string          `json:"owner_node_id"`
+	ResourceName      string          `json:"resource_name"`
+	Capability        string          `json:"capability"`
+	Schema            string          `json:"schema,omitempty"`
+	Revision          string          `json:"revision,omitempty"`
+	Sequence          uint64          `json:"sequence,omitempty"`
+	PublisherNodeID   string          `json:"publisher_node_id,omitempty"`
+	PublisherSequence uint64          `json:"publisher_sequence,omitempty"`
+	GapFrom           uint64          `json:"gap_from,omitempty"`
+	GapTo             uint64          `json:"gap_to,omitempty"`
+	Value             json.RawMessage `json:"value,omitempty"`
+	Reason            string          `json:"reason,omitempty"`
+}
+
+func bindingRevision(revision uint64) string {
+	if revision == 0 {
+		return ""
+	}
+	return strconv.FormatUint(revision, 10)
+}
+
+func bindingEventValue(value []byte, variable bool) (json.RawMessage, error) {
+	if len(value) == 0 {
+		return nil, nil
+	}
+	if variable {
+		return json.RawMessage(value), nil
+	}
+	// Stream payloads are arbitrary bytes. Preserve their established base64
+	// transport; only the standard Variable envelope is native binding JSON.
+	return json.Marshal(value)
 }
 
 type bindingError struct {

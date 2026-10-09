@@ -13,6 +13,8 @@
 
 ## Runtime And Architecture
 
+- [desktop-variable-confirmation-and-split-layout.md](desktop-variable-confirmation-and-split-layout.md)：共享变量提交归属、控件加载/确认时机与最小尺寸下 fr 分栏留白。
+
 - [partial-discovery-and-async-ownership.md](partial-discovery-and-async-ownership.md)：部分树边界、排队请求清理、跨Profile View引用与迟到保存导致的状态/草稿覆盖。
 
 - [scoped-policy-state-migration-and-live-proof.md](scoped-policy-state-migration-and-live-proof.md)：exact Grants 升级为 scoped Definitions/Bindings 时的无损迁移、停机 bootstrap、权威树 scope 与 effective-source 真实证明。

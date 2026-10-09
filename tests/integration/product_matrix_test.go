@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -60,6 +61,10 @@ func TestCanonicalProductMatrixSharesAuthoritativeTree(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	for _, provider := range []*node.Node{root.Node, metricsNode, clipboardNode} {
+		assertProductVariableCatalog(t, ctx, provider)
+	}
+
 	for _, child := range []*node.Node{clientNode, metricsNode, clipboardNode} {
 		if err := child.ConnectParent(ctx, network, root.Endpoint, root.Node.ID()); err != nil {
 			t.Fatal(err)
@@ -90,7 +95,7 @@ func TestCanonicalProductMatrixSharesAuthoritativeTree(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := metricsController.Update(metrics.CPUPercent, "37", nil); err != nil {
+	if err := metricsController.Update(metrics.CPUPercent, 37, nil); err != nil {
 		t.Fatal(err)
 	}
 	metricSubscription, err := client.Subscribe(ctx, metricID, time.Minute, 8)
@@ -101,7 +106,7 @@ func TestCanonicalProductMatrixSharesAuthoritativeTree(t *testing.T) {
 	assertMetricEvent(t, receiveProductEvent(t, ctx, metricSubscription), "37")
 	for index := 0; index < 256; index++ {
 		value := fmt.Sprintf("%d", index%101)
-		if err := metricsController.Update(metrics.CPUPercent, value, nil); err != nil {
+		if err := metricsController.Update(metrics.CPUPercent, json.Number(value), nil); err != nil {
 			t.Fatal(err)
 		}
 		assertMetricEvent(t, receiveProductEvent(t, ctx, metricSubscription), value)
@@ -203,7 +208,7 @@ func TestScopedBindingCoversCurrentAndFutureMetricsNodes(t *testing.T) {
 	}, 1); err != nil {
 		t.Fatal(err)
 	}
-	if err := metricsController.Update(metrics.CPUPercent, "42", nil); err != nil {
+	if err := metricsController.Update(metrics.CPUPercent, 42, nil); err != nil {
 		t.Fatal(err)
 	}
 	firstSubscription, err := client.Subscribe(ctx, firstMetric, time.Minute, 8)
@@ -224,7 +229,7 @@ func TestScopedBindingCoversCurrentAndFutureMetricsNodes(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitDownRoute(t, root.Node.Tree(), futureNode.ID())
-	if err := futureController.Update(metrics.CPUPercent, "43", nil); err != nil {
+	if err := futureController.Update(metrics.CPUPercent, 43, nil); err != nil {
 		t.Fatal(err)
 	}
 	futureMetric := protocol.ResourceID{Owner: 43, Name: metrics.ResourceName(metrics.CPUPercent)}
@@ -300,13 +305,58 @@ func receiveProductError(t *testing.T, ctx context.Context, subscription *sdk.Su
 
 func assertMetricEvent(t *testing.T, event sdk.Event, want string) {
 	t.Helper()
-	var sample metrics.SampleV1
+	var sample protocol.VariableValueV1
+	if event.Schema != protocol.SchemaVariableValueV1 {
+		t.Fatalf("unexpected metric variable schema: %q", event.Schema)
+	}
 	if err := protocol.DecodeJSONPayload(event.Value, protocol.DefaultMaxPayload, &sample); err != nil {
 		t.Fatal(err)
 	}
-	if sample.Status != "fresh" || sample.Value != want {
+	if sample.Status != "ready" || string(sample.Value) != want {
 		t.Fatalf("unexpected metric sample: %+v", sample)
 	}
+}
+
+func assertProductVariableCatalog(t *testing.T, ctx context.Context, provider *node.Node) {
+	t.Helper()
+	client, err := sdk.NewAttachedClient(provider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := client.Catalog(ctx, provider.ID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	variables := 0
+	for _, descriptor := range catalog.Resources {
+		if descriptor.Type != protocol.ResourceTypeVariable {
+			continue
+		}
+		variables++
+		runtimeDescriptor, exists := provider.Registry().Descriptor(descriptor.ID)
+		if !exists {
+			t.Fatalf("catalog variable cannot be resolved: %+v", descriptor)
+		}
+		_, writable := runtimeDescriptor.Capability(protocol.CapabilityWrite)
+		assertVariableDescriptor(t, runtimeDescriptor, writable)
+		state, err := client.Snapshot(ctx, descriptor.ID)
+		if err != nil || state.Definition == nil {
+			t.Fatalf("provider %s read is not a complete standard variable: %+v (%v)", descriptor.ID.Name, state, err)
+		}
+		remote, err := client.SubscribeVariable(ctx, descriptor.ID, time.Minute, 4)
+		if err != nil {
+			t.Fatalf("provider %s subscribe: %v", descriptor.ID.Name, err)
+		}
+		snapshot := decodeVariableEvent(t, receiveProductEvent(t, ctx, remote), sdk.EventSnapshot)
+		remote.Cancel()
+		if snapshot.InstanceID != state.InstanceID || snapshot.Definition == nil {
+			t.Fatalf("provider %s snapshot lost instance or definition: %+v", descriptor.ID.Name, snapshot)
+		}
+	}
+	if variables == 0 {
+		t.Fatalf("provider %d has no variables to audit", provider.ID())
+	}
+	t.Logf("provider %d: audited %d standard variable catalog/read/subscribe entries", provider.ID(), variables)
 }
 
 func isSDKCode(err error, code protocol.ErrorCode) bool {

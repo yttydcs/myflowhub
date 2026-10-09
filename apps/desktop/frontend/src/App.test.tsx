@@ -11,9 +11,9 @@ const secondProfile: Profile = {
   ...profile, id: 'work', name: 'Work', node_id: '3',
 }
 const resource: ResourceDescriptor = {
-  id: { owner_node_id: '1', name: 'metrics/cpu' }, type: 'mfh.variable', type_version: 1,
-  capabilities: [{ name: 'subscribe', permission: 'metrics.read', event_schema: 'metrics.v1', max_payload_bytes: 1024 }],
-  limits: { max_payload_bytes: 1024 }, presentation: { label: 'CPU', renderer: 'mfh.variable' },
+  id: { owner_node_id: '1', name: 'metrics/cpu' }, type: 'mfh.variable', type_version: 2,
+  capabilities: [{ name: 'read', permission: 'metrics.read', output_schema: 'mfh.variable-value.v1', max_payload_bytes: 1024 }],
+  limits: { max_payload_bytes: 1024 }, presentation: { label: 'CPU', renderer: 'mfh.variable.auto.v2' },
 }
 
 const allowedFiles: ResourceDescriptor = {
@@ -51,7 +51,7 @@ function mockAPI(settings: Settings): DesktopAPI {
     status: vi.fn().mockResolvedValue({ state: 'connected', endpoint: 'localhost:9540' }),
     catalog: vi.fn().mockResolvedValue({ version: 2, revision: 1, resources: [resource] }),
     topology: vi.fn().mockResolvedValue({ version: 1, root_node_id: '1', depth: 1, instance_id: 'a'.repeat(32), revision: 1, nodes: [{ node_id: '1', role: 'root', generation: 1, has_children: false }] }),
-    snapshot: vi.fn().mockResolvedValue({ value: 42 }),
+    snapshot: vi.fn().mockResolvedValue({ version: 1, instance_id: 'a'.repeat(32), revision: '1', definition: { type: 'number' }, value: 42, status: 'ready', observed_at_unix_ms: 1 }),
     operate: vi.fn(),
     subscribe: vi.fn(),
     poll: vi.fn(),

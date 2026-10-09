@@ -36,7 +36,7 @@ namespace、物理 path 与产品名同样不构成权限。
 
 | Type | Capability shape | Current semantics |
 | --- | --- | --- |
-| `mfh.variable` | `read`、可选 `write`、`subscribe` | snapshot-first、revision、expected-revision 条件写 |
+| `mfh.variable` type_version=2 | `read`、可选 `write`、`subscribe` | 标准 definition/value/status/instance；字符串 revision；snapshot-first、实例+版本条件写 |
 | `mfh.stream` | `subscribe` | owner sequence、有界 delivery、explicit gap |
 | `mfh.topic` | `publish`、`subscribe` | Node-owned broker、多 publisher、per-publisher sequence、默认无 replay |
 | `mfh.command` | `invoke` | 独立 input/output schema、deadline、dedupe、panic isolation |
@@ -46,6 +46,13 @@ namespace、物理 path 与产品名同样不构成权限。
 类型 ID 与 CapabilityID 都是受限的可扩展字符串。未知 type 仍能进入 catalog 与 generic inspector；未声明的
 capability、schema mismatch 或未知 major 明确失败。Core 通过 `Resource`、`Observable`、`SessionResource`
 与 exact-handler Resource 扩展，不维护产品 type switch。
+
+## Standard Variable schemas
+
+- read、write 输出和 subscribe event：`mfh.variable-value.v1`。read/初始快照含 definition，后续 data 复用同实例定义。
+- write 输入：`mfh.variable-write.v3`，仅 version=3、expected_instance_id、字符串 expected_revision、真实 JSON value。
+- 定义、精度、状态、大小和实例生命周期见 [Unified Variable Resource](unified-variable-resource.md)。目录的业务 value 保持 ResourceCatalogV2 结构，NodeID 字段使用标准十进制字符串，由公共 domain codec 无损映射至 Go NodeID。
+- 不提供旧变量格式/写请求的协商或转换；Metrics 可控值通过原变量 write，旧 `/set` 资源移除。非 Variable 的现有协议与身份/策略保存格式保持自身合同。
 
 ## Collection and filesystem schemas
 
@@ -81,7 +88,7 @@ filesystem schemas 是 canonical built-in data schemas，但 filesystem Resource
 | notifications | `notifications/events` Stream、`notifications/publish` Command |
 | file | `file/transfers` Variable、`file/progress` Stream、`file/upload` File session |
 
-`system/topology` 已提供 children/subtree 深度查询，具体 schema、数值 depth 和权限兼容边界见[拓扑发现合同](topology-discovery.md)。旧 read/subscribe 仍为完整快照。
+`system/topology` 已提供 children/subtree 深度查询，具体 schema、数值 depth 和权限兼容边界见[拓扑发现合同](topology-discovery.md)。read/subscribe 的业务值仍为完整拓扑，外层统一为标准变量 envelope。
 
 Management、Admission 与 Notification 中仍存在的 endpoint-style Commands 保持 current；全量 capability 迁移属于
 延期的 `CMD02`，本文不把目标形态伪装成现状。

@@ -39,3 +39,5 @@ segment、非法 UTF-8、symlink escape 和非普通源文件。
 - Media/WebRTC/编解码与平台 capture 属于独立后续计划。
 
 完整 session 契约见 [Resource Sessions v2](../specs/resource-sessions-v2.md)。
+
+本产品的 Variable 使用平台 [统一变量契约](../specs/unified-variable-resource.md)，业务对象作为标准 envelope 的 value；读取、发布和领域 SDK 解包均验证当前格式，其他 Command/session 与持久化职责保持。

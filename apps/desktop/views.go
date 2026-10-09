@@ -13,9 +13,7 @@ import (
 )
 
 const (
-	desktopViewsVersion        = 3
-	legacyDesktopViewsVersion  = 1
-	legacyDesktopViewsVersion2 = 2
+	desktopViewsVersion = 3
 
 	maxViewsPerProfile  = 32
 	maxWidgetsPerView   = 64
@@ -55,38 +53,6 @@ type ViewWidget struct {
 	Settings     json.RawMessage `json:"settings,omitempty"`
 }
 
-type legacyViewDocument struct {
-	Version int                    `json:"version"`
-	Views   []legacyViewDefinition `json:"views"`
-}
-
-type legacyViewDefinition struct {
-	ID              string             `json:"id"`
-	Name            string             `json:"name"`
-	Revision        uint64             `json:"revision"`
-	Widgets         []legacyViewWidget `json:"widgets"`
-	Layout          *legacyViewLayout  `json:"layout,omitempty"`
-	CreatedAtUnixMS int64              `json:"created_at_unix_ms"`
-	UpdatedAtUnixMS int64              `json:"updated_at_unix_ms"`
-}
-
-type legacyViewLayout struct {
-	Direction  string  `json:"direction"`
-	SplitRatio float64 `json:"split_ratio"`
-}
-
-type legacyViewWidget struct {
-	ID           string          `json:"id"`
-	OwnerNodeID  string          `json:"owner_node_id"`
-	ResourceName string          `json:"resource_name"`
-	Renderer     string          `json:"renderer"`
-	X            int             `json:"x"`
-	Y            int             `json:"y"`
-	W            int             `json:"w"`
-	H            int             `json:"h"`
-	Settings     json.RawMessage `json:"settings,omitempty"`
-}
-
 type viewStore struct{ root string }
 
 func newViewStore(root string) (*viewStore, error) {
@@ -104,62 +70,36 @@ func newViewStore(root string) (*viewStore, error) {
 }
 
 func (s *viewStore) load() (ViewDocument, error) {
-	document, _, err := s.loadWithSourceVersion()
-	return document, err
-}
-
-func (s *viewStore) loadWithSourceVersion() (ViewDocument, int, error) {
 	data, err := os.ReadFile(s.path())
 	if errors.Is(err, os.ErrNotExist) {
-		return ViewDocument{Version: desktopViewsVersion, Views: []ViewDefinition{}}, desktopViewsVersion, nil
+		return ViewDocument{Version: desktopViewsVersion, Views: []ViewDefinition{}}, nil
 	}
 	if err != nil {
-		return ViewDocument{}, 0, fmt.Errorf("read views: %w", err)
+		return ViewDocument{}, fmt.Errorf("read views: %w", err)
 	}
-	document, sourceVersion, err := decodeViewDocument(data)
+	document, err := decodeViewDocument(data)
 	if err != nil {
-		return ViewDocument{}, 0, fmt.Errorf("view store is corrupt and was not overwritten: %w", err)
+		return ViewDocument{}, fmt.Errorf("view store is corrupt or unsupported and was not overwritten: %w", err)
 	}
-	return document, sourceVersion, nil
+	return document, nil
 }
 
-func decodeViewDocument(data []byte) (ViewDocument, int, error) {
-	var header struct {
-		Version int `json:"version"`
+func decodeViewDocument(data []byte) (ViewDocument, error) {
+	var document ViewDocument
+	if err := decodeStrictJSON(data, &document); err != nil {
+		return ViewDocument{}, err
 	}
-	if err := json.Unmarshal(data, &header); err != nil {
-		return ViewDocument{}, 0, err
+	if document.Version != desktopViewsVersion {
+		return ViewDocument{}, fmt.Errorf("unsupported views version %d; expected %d", document.Version, desktopViewsVersion)
 	}
-	switch header.Version {
-	case desktopViewsVersion:
-		var document ViewDocument
-		if err := decodeStrictJSON(data, &document); err != nil {
-			return ViewDocument{}, 0, err
-		}
-		if err := validateViewDocument(document); err != nil {
-			return ViewDocument{}, 0, err
-		}
-		return document, desktopViewsVersion, nil
-	case legacyDesktopViewsVersion, legacyDesktopViewsVersion2:
-		var legacy legacyViewDocument
-		if err := decodeStrictJSON(data, &legacy); err != nil {
-			return ViewDocument{}, 0, err
-		}
-		if err := validateLegacyViewDocument(legacy); err != nil {
-			return ViewDocument{}, 0, err
-		}
-		document := migrateLegacyViewDocument(legacy)
-		if err := validateViewDocument(document); err != nil {
-			return ViewDocument{}, 0, fmt.Errorf("migrate views version %d: %w", legacy.Version, err)
-		}
-		return document, legacy.Version, nil
-	default:
-		return ViewDocument{}, 0, fmt.Errorf("views version must be %d, %d, or %d", legacyDesktopViewsVersion, legacyDesktopViewsVersion2, desktopViewsVersion)
+	if err := validateViewDocument(document); err != nil {
+		return ViewDocument{}, err
 	}
+	return document, nil
 }
 
 func (s *viewStore) saveView(next ViewDefinition) (ViewDefinition, error) {
-	document, sourceVersion, err := s.loadWithSourceVersion()
+	document, err := s.load()
 	if err != nil {
 		return ViewDefinition{}, err
 	}
@@ -202,14 +142,14 @@ func (s *viewStore) saveView(next ViewDefinition) (ViewDefinition, error) {
 		return ViewDefinition{}, err
 	}
 	sort.Slice(document.Views, func(i, j int) bool { return document.Views[i].ID < document.Views[j].ID })
-	if err := s.save(document, sourceVersion); err != nil {
+	if err := s.save(document); err != nil {
 		return ViewDefinition{}, err
 	}
 	return next, nil
 }
 
 func (s *viewStore) deleteView(id string, revision uint64) error {
-	document, sourceVersion, err := s.loadWithSourceVersion()
+	document, err := s.load()
 	if err != nil {
 		return err
 	}
@@ -221,12 +161,12 @@ func (s *viewStore) deleteView(id string, revision uint64) error {
 			return fmt.Errorf("view revision conflict: current %d, got %d", current.Revision, revision)
 		}
 		document.Views = append(document.Views[:index], document.Views[index+1:]...)
-		return s.save(document, sourceVersion)
+		return s.save(document)
 	}
 	return errors.New("view not found")
 }
 
-func (s *viewStore) save(document ViewDocument, sourceVersion int) error {
+func (s *viewStore) save(document ViewDocument) error {
 	document.Version = desktopViewsVersion
 	if err := validateViewDocument(document); err != nil {
 		return err
@@ -235,70 +175,10 @@ func (s *viewStore) save(document ViewDocument, sourceVersion int) error {
 	if err != nil {
 		return fmt.Errorf("encode views: %w", err)
 	}
-	if sourceVersion < desktopViewsVersion {
-		if err := s.ensurePreV3Snapshot(); err != nil {
-			return err
-		}
-	}
 	return writeAtomicDesktop(s.root, s.path(), append(data, '\n'))
 }
 
-func (s *viewStore) ensurePreV3Snapshot() error {
-	snapshotPath := s.preV3SnapshotPath()
-	if snapshot, err := os.ReadFile(snapshotPath); err == nil {
-		_, version, decodeErr := decodeViewDocument(snapshot)
-		if decodeErr != nil || version >= desktopViewsVersion {
-			return errors.New("existing pre-v3 view snapshot is invalid; refusing to overwrite it")
-		}
-		return nil
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("read pre-v3 view snapshot: %w", err)
-	}
-
-	data, err := os.ReadFile(s.path())
-	if err != nil {
-		return fmt.Errorf("read views for pre-v3 snapshot: %w", err)
-	}
-	_, version, err := decodeViewDocument(data)
-	if err != nil {
-		return fmt.Errorf("validate views for pre-v3 snapshot: %w", err)
-	}
-	if version >= desktopViewsVersion {
-		return nil
-	}
-
-	file, err := os.OpenFile(snapshotPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
-	if errors.Is(err, os.ErrExist) {
-		return s.ensurePreV3Snapshot()
-	}
-	if err != nil {
-		return fmt.Errorf("create pre-v3 view snapshot: %w", err)
-	}
-	removeOnFailure := true
-	defer func() {
-		_ = file.Close()
-		if removeOnFailure {
-			_ = os.Remove(snapshotPath)
-		}
-	}()
-	if _, err := file.Write(data); err != nil {
-		return fmt.Errorf("write pre-v3 view snapshot: %w", err)
-	}
-	if err := file.Sync(); err != nil {
-		return fmt.Errorf("sync pre-v3 view snapshot: %w", err)
-	}
-	if err := file.Close(); err != nil {
-		return fmt.Errorf("close pre-v3 view snapshot: %w", err)
-	}
-	removeOnFailure = false
-	return nil
-}
-
 func (s *viewStore) path() string { return filepath.Join(s.root, "views.json") }
-
-func (s *viewStore) preV3SnapshotPath() string {
-	return filepath.Join(s.root, "views.pre-v3.json")
-}
 
 func validateViewDocument(document ViewDocument) error {
 	if document.Version != desktopViewsVersion {
@@ -443,170 +323,4 @@ func validateLayoutNode(node ViewLayoutNode, depth int, parentAxis string, nodeC
 	default:
 		return fmt.Errorf("unknown layout node kind %q", node.Kind)
 	}
-}
-
-func validateLegacyViewDocument(document legacyViewDocument) error {
-	if document.Version != legacyDesktopViewsVersion && document.Version != legacyDesktopViewsVersion2 {
-		return errors.New("legacy views version is invalid")
-	}
-	if len(document.Views) > maxViewsPerProfile {
-		return fmt.Errorf("view count exceeds %d", maxViewsPerProfile)
-	}
-	seenViews := make(map[string]struct{}, len(document.Views))
-	for viewIndex, view := range document.Views {
-		if !profileIDPattern.MatchString(view.ID) {
-			return fmt.Errorf("views[%d] id is invalid", viewIndex)
-		}
-		if name := strings.TrimSpace(view.Name); name == "" || len(name) > 80 {
-			return fmt.Errorf("views[%d] name must contain between 1 and 80 bytes", viewIndex)
-		}
-		if view.Revision == 0 {
-			return fmt.Errorf("views[%d] persisted revision must be non-zero", viewIndex)
-		}
-		if _, exists := seenViews[view.ID]; exists {
-			return fmt.Errorf("duplicate view %q", view.ID)
-		}
-		seenViews[view.ID] = struct{}{}
-		if len(view.Widgets) > maxWidgetsPerView {
-			return fmt.Errorf("views[%d] supports at most %d widgets", viewIndex, maxWidgetsPerView)
-		}
-		if document.Version == legacyDesktopViewsVersion && view.Layout != nil {
-			return fmt.Errorf("views[%d] uses layout with legacy version", viewIndex)
-		}
-		if view.Layout != nil {
-			if view.Layout.Direction != "horizontal" && view.Layout.Direction != "vertical" {
-				return fmt.Errorf("views[%d] layout direction must be horizontal or vertical", viewIndex)
-			}
-			if math.IsNaN(view.Layout.SplitRatio) || math.IsInf(view.Layout.SplitRatio, 0) || view.Layout.SplitRatio < 0.2 || view.Layout.SplitRatio > 0.8 {
-				return fmt.Errorf("views[%d] layout split ratio must be between 0.2 and 0.8", viewIndex)
-			}
-		}
-		seenWidgets := make(map[string]struct{}, len(view.Widgets))
-		for widgetIndex, widget := range view.Widgets {
-			current := ViewWidget{
-				ID: widget.ID, OwnerNodeID: widget.OwnerNodeID, ResourceName: widget.ResourceName,
-				Renderer: widget.Renderer, Settings: widget.Settings,
-			}
-			if err := validateViewWidget(current, widgetIndex); err != nil {
-				return fmt.Errorf("views[%d]: %w", viewIndex, err)
-			}
-			if _, exists := seenWidgets[widget.ID]; exists {
-				return fmt.Errorf("views[%d] duplicate widget %q", viewIndex, widget.ID)
-			}
-			seenWidgets[widget.ID] = struct{}{}
-			if widget.X < 0 || widget.X >= 12 || widget.Y < 0 || widget.W < 1 || widget.W > 12 || widget.H < 1 || widget.H > 24 || widget.X+widget.W > 12 {
-				return fmt.Errorf("views[%d] widgets[%d] layout is outside the 12-column grid", viewIndex, widgetIndex)
-			}
-		}
-	}
-	return nil
-}
-
-func migrateLegacyViewDocument(legacy legacyViewDocument) ViewDocument {
-	document := ViewDocument{Version: desktopViewsVersion, Views: make([]ViewDefinition, len(legacy.Views))}
-	for index, view := range legacy.Views {
-		widgets := make([]ViewWidget, len(view.Widgets))
-		for widgetIndex, widget := range view.Widgets {
-			widgets[widgetIndex] = ViewWidget{
-				ID: widget.ID, OwnerNodeID: widget.OwnerNodeID, ResourceName: widget.ResourceName,
-				Renderer: widget.Renderer, Settings: widget.Settings,
-			}
-		}
-		document.Views[index] = ViewDefinition{
-			ID: view.ID, Name: view.Name, Revision: view.Revision, Widgets: widgets,
-			LayoutRoot: migrateLegacyLayout(view), CreatedAtUnixMS: view.CreatedAtUnixMS, UpdatedAtUnixMS: view.UpdatedAtUnixMS,
-		}
-	}
-	return document
-}
-
-func migrateLegacyLayout(view legacyViewDefinition) *ViewLayoutNode {
-	if len(view.Widgets) == 0 {
-		return nil
-	}
-	leaf := func(widget legacyViewWidget) ViewLayoutNode {
-		return ViewLayoutNode{Kind: "leaf", WidgetID: widget.ID}
-	}
-	if len(view.Widgets) == 1 {
-		node := leaf(view.Widgets[0])
-		return &node
-	}
-	if len(view.Widgets) == 2 {
-		axis := "horizontal"
-		ratio := float64(view.Widgets[0].W) / float64(view.Widgets[0].W+view.Widgets[1].W)
-		if view.Layout != nil {
-			axis = view.Layout.Direction
-			ratio = view.Layout.SplitRatio
-		}
-		node := ViewLayoutNode{
-			Kind: "split", Axis: axis,
-			Children: []ViewLayoutNode{leaf(view.Widgets[0]), leaf(view.Widgets[1])},
-			Weights:  normalizeWeights([]float64{ratio, 1 - ratio}),
-		}
-		return &node
-	}
-
-	type positionedWidget struct {
-		widget legacyViewWidget
-		index  int
-	}
-	positioned := make([]positionedWidget, len(view.Widgets))
-	for index, widget := range view.Widgets {
-		positioned[index] = positionedWidget{widget: widget, index: index}
-	}
-	sort.SliceStable(positioned, func(i, j int) bool {
-		if positioned[i].widget.Y != positioned[j].widget.Y {
-			return positioned[i].widget.Y < positioned[j].widget.Y
-		}
-		if positioned[i].widget.X != positioned[j].widget.X {
-			return positioned[i].widget.X < positioned[j].widget.X
-		}
-		return positioned[i].index < positioned[j].index
-	})
-
-	var rows [][]positionedWidget
-	for _, item := range positioned {
-		if len(rows) == 0 || rows[len(rows)-1][0].widget.Y != item.widget.Y {
-			rows = append(rows, []positionedWidget{item})
-		} else {
-			rows[len(rows)-1] = append(rows[len(rows)-1], item)
-		}
-	}
-	rowNodes := make([]ViewLayoutNode, 0, len(rows))
-	rowSizes := make([]float64, 0, len(rows))
-	for _, row := range rows {
-		children := make([]ViewLayoutNode, len(row))
-		widths := make([]float64, len(row))
-		maxHeight := 0
-		for index, item := range row {
-			children[index] = leaf(item.widget)
-			widths[index] = float64(item.widget.W)
-			if item.widget.H > maxHeight {
-				maxHeight = item.widget.H
-			}
-		}
-		if len(children) == 1 {
-			rowNodes = append(rowNodes, children[0])
-		} else {
-			rowNodes = append(rowNodes, ViewLayoutNode{Kind: "split", Axis: "horizontal", Children: children, Weights: normalizeWeights(widths)})
-		}
-		rowSizes = append(rowSizes, float64(maxHeight))
-	}
-	if len(rowNodes) == 1 {
-		return &rowNodes[0]
-	}
-	root := ViewLayoutNode{Kind: "split", Axis: "vertical", Children: rowNodes, Weights: normalizeWeights(rowSizes)}
-	return &root
-}
-
-func normalizeWeights(weights []float64) []float64 {
-	total := 0.0
-	for _, weight := range weights {
-		total += weight
-	}
-	normalized := make([]float64, len(weights))
-	for index, weight := range weights {
-		normalized[index] = weight / total
-	}
-	return normalized
 }

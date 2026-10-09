@@ -13,7 +13,8 @@
     "Subscribe",
     "SubscribeCapability",
     "UploadFile",
-    "WaitConnected"
+    "WaitConnected",
+    "WriteVariableJSON"
   ],
   "desktop_methods": [
     "CancelSubscription",
@@ -28,7 +29,8 @@
     "Subscribe",
     "SubscribeCapability",
     "UploadFile",
-    "WaitConnected"
+    "WaitConnected",
+    "WriteVariableJSON"
   ],
   "resources": [
     {
@@ -47,11 +49,11 @@
       "capabilities": [
         {
           "name": "read",
-          "output_schema": "mfh.file.transfers.v1"
+          "output_schema": "mfh.variable-value.v1"
         },
         {
           "name": "subscribe",
-          "event_schema": "mfh.file.transfers.v1"
+          "event_schema": "mfh.variable-value.v1"
         }
       ]
     },
@@ -192,11 +194,11 @@
       "capabilities": [
         {
           "name": "read",
-          "output_schema": "mfh.admission.status.v1"
+          "output_schema": "mfh.variable-value.v1"
         },
         {
           "name": "subscribe",
-          "event_schema": "mfh.admission.status.v1"
+          "event_schema": "mfh.variable-value.v1"
         }
       ]
     },
@@ -216,11 +218,11 @@
       "capabilities": [
         {
           "name": "read",
-          "output_schema": "mfh.catalog.v2"
+          "output_schema": "mfh.variable-value.v1"
         },
         {
           "name": "subscribe",
-          "event_schema": "mfh.catalog.v2"
+          "event_schema": "mfh.variable-value.v1"
         }
       ]
     },
@@ -230,11 +232,11 @@
       "capabilities": [
         {
           "name": "read",
-          "output_schema": "mfh.management.config.v1"
+          "output_schema": "mfh.variable-value.v1"
         },
         {
           "name": "subscribe",
-          "event_schema": "mfh.management.config.v1"
+          "event_schema": "mfh.variable-value.v1"
         }
       ]
     },
@@ -255,11 +257,11 @@
       "capabilities": [
         {
           "name": "read",
-          "output_schema": "mfh.management.health.v1"
+          "output_schema": "mfh.variable-value.v1"
         },
         {
           "name": "subscribe",
-          "event_schema": "mfh.management.health.v1"
+          "event_schema": "mfh.variable-value.v1"
         }
       ]
     },
@@ -395,11 +397,11 @@
         },
         {
           "name": "read",
-          "output_schema": "mfh.management.topology.v1"
+          "output_schema": "mfh.variable-value.v1"
         },
         {
           "name": "subscribe",
-          "event_schema": "mfh.management.topology.v1"
+          "event_schema": "mfh.variable-value.v1"
         },
         {
           "name": "subtree",

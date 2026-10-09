@@ -43,7 +43,8 @@ func TestPersistentHubRetiresFlowWithoutTouchingLegacyState(t *testing.T) {
 			}
 			defer value.Close()
 			var catalog protocol.ResourceCatalogV2
-			if err := protocol.DecodeJSONPayload(value.Node.Registry().Catalog().Snapshot().Value, protocol.DefaultMaxPayload, &catalog); err != nil {
+			snapshot := value.Node.Registry().Catalog().Snapshot().State
+			if err := protocol.DecodeVariablePayload(*snapshot.Definition, snapshot.Value, protocol.DefaultMaxPayload, &catalog); err != nil {
 				t.Fatal(err)
 			}
 			present := make(map[string]bool)

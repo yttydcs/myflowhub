@@ -93,7 +93,7 @@ func runSubscriptionLatencyBudget(t *testing.T, driver link.Driver, endpoint fun
 	policy.Allow(auth.Request{Subject: 3, Action: auth.ActionSubscribe, Resource: resourceID})
 	graph := buildTopology(t, ctx, driver, endpoint, policy)
 	defer closeTopology(graph)
-	variable, err := resource.NewVariable(resource.VariableDescriptor(resourceID, "application/octet-stream", "test.raw.v1", "test.read", 128), []byte("initial"))
+	variable, err := resource.NewVariable(resource.VariableDescriptor(resourceID, "test.read", 512), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Value: []byte(`"initial"`), Status: "ready"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func runSubscriptionLatencyBudget(t *testing.T, driver link.Driver, endpoint fun
 	totalStarted := time.Now()
 	for index := 0; index < samples; index++ {
 		started := time.Now()
-		if _, err := variable.Set([]byte(fmt.Sprintf("value-%d", index))); err != nil {
+		if _, err := variable.Set(resource.VariableState{Value: []byte(fmt.Sprintf(`"value-%d"`, index)), Status: "ready"}); err != nil {
 			t.Fatal(err)
 		}
 		event := receiveEvent(t, remote)
@@ -151,7 +151,10 @@ func runVerticalSlice(t *testing.T, driver link.Driver, endpoint func(string) li
 	}
 	graph := buildTopology(t, ctx, driver, endpoint, policy)
 	defer closeTopology(graph)
-	variable, _ := resource.NewVariable(resource.VariableDescriptor(variableID, "application/octet-stream", "test.raw.v1", "test.read", 128), []byte("initial"))
+	variable, err := resource.NewVariable(resource.VariableDescriptor(variableID, "test.read", 512), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Value: []byte(`"initial"`), Status: "ready"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	stream, _ := resource.NewStream(resource.StreamDescriptor(streamID, "application/octet-stream", "test.raw.v1", "test.read", 128))
 	topic, _ := resource.NewTopic(resource.TopicDescriptor(topicID, "application/octet-stream", "test.raw.v1", "test.publish", "test.subscribe", 128), resource.TopicConfig{})
 	echo, _ := resource.NewCommand(resource.CommandDescriptor(echoID, "application/octet-stream", "test.raw.v1", "test.invoke", 128), func(_ context.Context, input []byte) ([]byte, error) {
@@ -173,11 +176,13 @@ func runVerticalSlice(t *testing.T, driver link.Driver, endpoint func(string) li
 	if err != nil {
 		t.Fatal(err)
 	}
-	if event := receiveEvent(t, variableSub); event.Kind != subscription.EventSnapshot || string(event.Value) != "initial" {
+	if event := receiveEvent(t, variableSub); event.Kind != subscription.EventSnapshot || variableEventString(t, event) != "initial" {
 		t.Fatalf("unexpected variable snapshot: %#v", event)
 	}
-	_, _ = variable.Set([]byte("changed"))
-	if event := receiveEvent(t, variableSub); event.Kind != subscription.EventData || string(event.Value) != "changed" {
+	if _, err := variable.Set(resource.VariableState{Value: []byte(`"changed"`), Status: "ready"}); err != nil {
+		t.Fatal(err)
+	}
+	if event := receiveEvent(t, variableSub); event.Kind != subscription.EventData || variableEventString(t, event) != "changed" {
 		t.Fatalf("unexpected variable update: %#v", event)
 	}
 	streamSub, err := graph.leafA.Subscribe(ctx, streamID, 5*time.Second, 4)

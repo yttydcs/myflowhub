@@ -36,21 +36,21 @@ func Canonical() (Manifest, error) {
 		API:     APIVersion,
 		Methods: []string{
 			"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "OperateJSON",
-			"SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected",
+			"SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected", "WriteVariableJSON",
 		},
 		DesktopMethods: []string{
 			"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "OperateJSON",
-			"PollSubscription", "SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected",
+			"PollSubscription", "SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected", "WriteVariableJSON",
 		},
 		Resources: []Resource{
-			variable(protocol.BuiltinResourceCatalog, protocol.SchemaResourceCatalogV2),
+			variable(protocol.BuiltinResourceCatalog),
 			topology(),
-			variable(protocol.BuiltinManagementHealth, protocol.SchemaManagementHealthV1),
-			variable(protocol.BuiltinManagementConfig, protocol.SchemaManagementConfigV1),
+			variable(protocol.BuiltinManagementHealth),
+			variable(protocol.BuiltinManagementConfig),
 			stream(protocol.BuiltinManagementAudit, protocol.SchemaManagementAuditV1),
 			command(protocol.BuiltinManagementIssuePermit, protocol.SchemaAdmissionIssuePermitV1, protocol.SchemaEnrollmentPermitV1),
 			command(protocol.BuiltinManagementRevokePermit, protocol.SchemaManagementRevokePermitV1, protocol.SchemaManagementResultV1),
-			variable(protocol.BuiltinAdmissionStatus, protocol.SchemaAdmissionStatusV1),
+			variable(protocol.BuiltinAdmissionStatus),
 			command(protocol.BuiltinAdmissionListPermits, protocol.SchemaAdmissionListV1, protocol.SchemaAdmissionPermitListV1),
 			command(protocol.BuiltinAdmissionRevokePermit, protocol.SchemaAdmissionRevokePermitV1, protocol.SchemaManagementResultV1),
 			command(protocol.BuiltinAdmissionListRequests, protocol.SchemaAdmissionListV1, protocol.SchemaAdmissionRequestListV1),
@@ -84,7 +84,7 @@ func Canonical() (Manifest, error) {
 			),
 			stream(protocol.BuiltinNotificationEvents, protocol.SchemaNotificationEventV1),
 			command(protocol.BuiltinNotificationPublish, protocol.SchemaNotificationPublishV1, protocol.SchemaNotificationEventV1),
-			variable(protocol.BuiltinFileTransfers, protocol.SchemaFileTransfersV1),
+			variable(protocol.BuiltinFileTransfers),
 			stream(protocol.BuiltinFileProgress, protocol.SchemaFileProgressV1),
 			session(protocol.BuiltinFileUpload, protocol.SchemaFileOfferV1, protocol.SchemaFileProgressV1),
 		},
@@ -105,15 +105,15 @@ func Canonical() (Manifest, error) {
 	return manifest, nil
 }
 
-func variable(name, schema string) Resource {
+func variable(name string) Resource {
 	return Resource{Name: name, Type: string(protocol.ResourceTypeVariable), Capabilities: []Capability{
-		{Name: string(protocol.CapabilityRead), OutputSchema: schema},
-		{Name: string(protocol.CapabilitySubscribe), EventSchema: schema},
+		{Name: string(protocol.CapabilityRead), OutputSchema: protocol.SchemaVariableValueV1},
+		{Name: string(protocol.CapabilitySubscribe), EventSchema: protocol.SchemaVariableValueV1},
 	}}
 }
 
 func topology() Resource {
-	value := variable(protocol.BuiltinManagementTopology, protocol.SchemaManagementTopologyV1)
+	value := variable(protocol.BuiltinManagementTopology)
 	value.Capabilities = append(value.Capabilities,
 		capability(protocol.CapabilityChildren, protocol.SchemaManagementTopologyChildrenRequestV1, protocol.SchemaManagementTopologyQueryV1, ""),
 		capability(protocol.CapabilitySubtree, protocol.SchemaManagementTopologyQueryRequestV1, protocol.SchemaManagementTopologyQueryV1, ""),

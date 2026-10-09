@@ -31,8 +31,13 @@ func TestPolicyGenerationChangeExpiresExistingSubscription(t *testing.T) {
 	}
 	parent, _ := New(ctx, Config{Identity: parentIdentity, Trust: trust, Policy: policy, Subscriptions: subscription.Config{MinLease: time.Millisecond, MaxLease: time.Minute}})
 	defer parent.Close()
-	variable, _ := resource.NewVariable(resource.VariableDescriptor(resourceID, "application/octet-stream", "test.raw.v1", "test.read", 64), []byte("ready"))
-	_ = parent.Registry().Register(variable)
+	variable, err := resource.NewVariable(resource.VariableDescriptor(resourceID, "test.read", 512), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Value: []byte(`"ready"`), Status: "ready"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := parent.Registry().Register(variable); err != nil {
+		t.Fatal(err)
+	}
 	child, _ := New(ctx, Config{Identity: childIdentity, Trust: trust, Policy: auth.AllowAll{}, Subscriptions: subscription.Config{MinLease: time.Millisecond, MaxLease: time.Minute}})
 	defer child.Close()
 	network := memory.NewNetwork()

@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -25,7 +26,7 @@ func TestClientCatalogSubscriptionInvokeAndTypedErrors(t *testing.T) {
 	defer child.Close()
 
 	statusID := protocol.ResourceID{Owner: root.ID(), Name: "test/status"}
-	status, err := resource.NewVariable(resource.VariableDescriptor(statusID, "application/json", "test.status.v1", "test.read", 128), []byte(`{"version":1,"state":"ready"}`))
+	status, err := resource.NewVariable(resource.VariableDescriptor(statusID, "test.read", 2048), testObjectDefinition(map[string]string{"version": "integer", "state": "string"}), resource.VariableState{Status: "ready", Value: json.RawMessage(`{"version":1,"state":"ready"}`)}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +34,7 @@ func TestClientCatalogSubscriptionInvokeAndTypedErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	writableID := protocol.ResourceID{Owner: root.ID(), Name: "test/writable"}
-	writable, err := resource.NewVariable(resource.WritableVariableDescriptor(writableID, "application/json", "test.settings.v1", "test.read", "test.write", 256), []byte(`{"enabled":false}`))
+	writable, err := resource.NewVariable(resource.WritableVariableDescriptor(writableID, "test.read", "test.write", 2048), testObjectDefinition(map[string]string{"enabled": "boolean"}), resource.VariableState{Status: "ready", Value: json.RawMessage(`{"enabled":false}`)}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +56,10 @@ func TestClientCatalogSubscriptionInvokeAndTypedErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	malformedID := protocol.ResourceID{Owner: root.ID(), Name: "test/malformed"}
-	malformed, _ := resource.NewVariable(resource.VariableDescriptor(malformedID, "application/json", "test.malformed.v1", "test.read", 128), []byte(`{"version":1,"unexpected":true}`))
+	malformed, err := resource.NewVariable(resource.VariableDescriptor(malformedID, "test.read", 2048), testObjectDefinition(map[string]string{"version": "integer", "unexpected": "boolean"}), resource.VariableState{Status: "ready", Value: json.RawMessage(`{"version":1,"unexpected":true}`)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := root.Registry().Register(malformed); err != nil {
 		t.Fatal(err)
 	}
@@ -76,10 +80,10 @@ func TestClientCatalogSubscriptionInvokeAndTypedErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if event := receiveEvent(t, current); event.Kind != EventSnapshot || string(event.Value) != `{"version":1,"state":"ready"}` {
+	if event := receiveEvent(t, current); event.Kind != EventSnapshot || string(decodeTestEvent(t, event).Value) != `{"version":1,"state":"ready"}` {
 		t.Fatalf("unexpected snapshot: %+v", event)
 	}
-	if _, err := status.Set([]byte(`{"version":1,"state":"updated"}`)); err != nil {
+	if _, err := status.Set(resource.VariableState{Status: "ready", Value: json.RawMessage(`{"version":1,"state":"updated"}`)}); err != nil {
 		t.Fatal(err)
 	}
 	if event := receiveEvent(t, current); event.Kind != EventData || event.Revision != 2 {
@@ -99,15 +103,15 @@ func TestClientCatalogSubscriptionInvokeAndTypedErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writableSnapshot := receiveEvent(t, writableSub)
+	writableSnapshot := decodeTestEvent(t, receiveEvent(t, writableSub))
 	writableSub.Cancel()
-	if _, err := client.WriteVariable(ctx, writableID, writableSnapshot.Revision, []byte(`{"enabled":true}`)); err != nil {
+	if _, err := client.WriteVariable(ctx, writableID, writableSnapshot.InstanceID, writableSnapshot.Revision, json.RawMessage(`{"enabled":true}`)); err != nil {
 		t.Fatalf("conditional SDK write failed: %v", err)
 	}
-	if string(writable.Snapshot().Value) != `{"enabled":true}` {
-		t.Fatalf("conditional SDK write did not update owner: %s", writable.Snapshot().Value)
+	if string(writable.Snapshot().State.Value) != `{"enabled":true}` {
+		t.Fatalf("conditional SDK write did not update owner: %s", writable.Snapshot().State.Value)
 	}
-	_, err = client.WriteVariable(ctx, writableID, writableSnapshot.Revision, []byte(`{"enabled":false}`))
+	_, err = client.WriteVariable(ctx, writableID, writableSnapshot.InstanceID, writableSnapshot.Revision, json.RawMessage(`{"enabled":false}`))
 	assertSDKError(t, err, protocol.CodeConflict, false)
 
 	output, err := client.Invoke(ctx, echoID, []byte("hello"))

@@ -1,12 +1,8 @@
-export interface Sample {
-  version: number
+import type {VariableValueV1} from './generated/variable-contract.generated'
+
+export interface MetricState {
   metric: string
-  value?: string
-  unit: string
-  status: 'fresh' | 'stale' | 'unavailable'
-  sampled_at_unix_ms?: number
-  observed_at_unix_ms: number
-  error?: string
+  state: VariableValueV1
 }
 
 export interface Definition {
@@ -60,7 +56,7 @@ export interface Status {
   running: boolean
   connection?: Connection
   configuration?: Configuration
-  samples: Sample[]
+  metrics: MetricState[]
   notifications: {queue_depth: number; dropped: number; last_error?: string}
   presenter_error?: string
 }

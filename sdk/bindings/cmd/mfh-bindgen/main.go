@@ -16,6 +16,14 @@ import (
 func main() {
 	out := flag.String("out", "", "output contract manifest")
 	schemasOut := flag.String("schemas-out", "", "optional output for Desktop data schemas")
+	var typesOut []string
+	flag.Func("types-out", "optional TypeScript variable wire types output; may be repeated", func(path string) error {
+		if path == "" {
+			return errors.New("-types-out path is required")
+		}
+		typesOut = append(typesOut, path)
+		return nil
+	})
 	flag.Parse()
 	if *out == "" {
 		fatal(errors.New("-out is required"))
@@ -39,6 +47,17 @@ func main() {
 		schemaBytes = append(schemaBytes, '\n')
 		if err := writeAtomic(*schemasOut, schemaBytes); err != nil {
 			fatal(err)
+		}
+	}
+	if len(typesOut) != 0 {
+		content, err := contract.VariableTypescript()
+		if err != nil {
+			fatal(fmt.Errorf("build variable TypeScript types: %w", err))
+		}
+		for _, path := range typesOut {
+			if err := writeAtomic(path, content); err != nil {
+				fatal(err)
+			}
 		}
 	}
 }

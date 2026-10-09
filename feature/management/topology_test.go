@@ -159,7 +159,7 @@ func TestTopologyOverflowDoesNotDisableShallowQuery(t *testing.T) {
 		if cancel != nil {
 			cancel()
 		}
-		t.Fatalf("new legacy observer received stale full snapshot: %v", err)
+		t.Fatalf("new value observer received stale full snapshot: %v", err)
 	}
 	var health protocol.ManagementHealthV1
 	decodeVariable(t, value.node, protocol.BuiltinManagementHealth, &health)
@@ -170,10 +170,10 @@ func TestTopologyOverflowDoesNotDisableShallowQuery(t *testing.T) {
 	if err := value.controller.Refresh(); err != nil {
 		t.Fatal(err)
 	}
-	var legacy protocol.ManagementTopologyV1
-	decodeVariable(t, value.node, protocol.BuiltinManagementTopology, &legacy)
-	if len(legacy.Nodes) != 1 {
-		t.Fatal("legacy snapshot did not recover")
+	var topology protocol.ManagementTopologyV1
+	decodeVariable(t, value.node, protocol.BuiltinManagementTopology, &topology)
+	if len(topology.Nodes) != 1 {
+		t.Fatal("value snapshot did not recover")
 	}
 	health = protocol.ManagementHealthV1{}
 	decodeVariable(t, value.node, protocol.BuiltinManagementHealth, &health)
@@ -229,7 +229,7 @@ func TestTopologyObserveAllowsReentrantRefreshAndConcurrentQueries(t *testing.T)
 	}
 	defer cancel()
 	if initial == nil || !initial.Snapshot {
-		t.Fatal("legacy initial snapshot missing")
+		t.Fatal("value initial snapshot missing")
 	}
 	if err := value.node.Tree().AttachChild(2, 1); err != nil {
 		t.Fatal(err)
@@ -250,7 +250,7 @@ func TestTopologyObserveAllowsReentrantRefreshAndConcurrentQueries(t *testing.T)
 			t.Fatal(err)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("legacy observer missed refresh")
+		t.Fatal("value observer missed refresh")
 	}
 	var workers sync.WaitGroup
 	for worker := 0; worker < 4; worker++ {
@@ -367,7 +367,12 @@ func TestTopologyExistingSubscriptionFailsOnOverflowAndCanRecover(t *testing.T) 
 	select {
 	case event := <-recovered.Events:
 		var topology protocol.ManagementTopologyV1
-		if err := sdk.DecodeEvent(event, &topology); err != nil {
+		var decoder sdk.VariableEventDecoder
+		state, err := decoder.Decode(event)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := sdk.DecodeVariableEvent(state, &topology); err != nil {
 			t.Fatal(err)
 		}
 		if len(topology.Nodes) != 1 {

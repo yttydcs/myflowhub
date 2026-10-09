@@ -111,15 +111,19 @@ func NewRegistry(owner protocol.NodeID) (*Registry, error) {
 	}
 	descriptor := VariableDescriptor(
 		protocol.ResourceID{Owner: owner, Name: protocol.BuiltinResourceCatalog},
-		"application/json", protocol.SchemaResourceCatalogV2, "resource.catalog.read", protocol.DefaultMaxPayload,
+		"resource.catalog.read", protocol.DefaultMaxPayload,
 	)
 	catalogValue := protocol.ResourceCatalogV2{Version: protocol.SchemaVersionV2, Revision: 1, Resources: []protocol.ResourceDescriptorV2{descriptor}}
 	catalogValue.Sort()
-	payload, err := protocol.EncodeJSONPayload(&catalogValue, protocol.DefaultMaxPayload)
+	definition, err := protocol.DataSchemaByID(protocol.SchemaResourceCatalogV2)
+	if err != nil {
+		return nil, fmt.Errorf("catalog definition: %w", err)
+	}
+	payload, err := protocol.EncodeVariablePayload(definition, &catalogValue, protocol.DefaultMaxPayload)
 	if err != nil {
 		return nil, fmt.Errorf("create resource catalog: %w", err)
 	}
-	catalog, err := NewVariable(descriptor, payload)
+	catalog, err := NewVariable(descriptor, definition, VariableState{Value: payload, Status: "ready"}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create resource catalog: %w", err)
 	}
@@ -140,32 +144,49 @@ func (r *Registry) Register(value Resource) error {
 	if descriptor.ID.Name == protocol.BuiltinResourceCatalog {
 		return fmt.Errorf("%w: %s", ErrReservedResource, descriptor.ID.Name)
 	}
+	if lifecycle, ok := value.(interface{ Retired() bool }); ok && lifecycle.Retired() {
+		return errors.New("register resource: retired variable requires a new instance")
+	}
 	r.catalogUpdateMu.Lock()
-	defer r.catalogUpdateMu.Unlock()
+	if err := r.catalog.acquire(context.Background()); err != nil {
+		r.catalogUpdateMu.Unlock()
+		return err
+	}
 	r.mu.Lock()
+	fail := func(err error) error { r.mu.Unlock(); r.catalog.release(); r.catalogUpdateMu.Unlock(); return err }
+	if lifecycle, ok := value.(interface{ Retired() bool }); ok && lifecycle.Retired() {
+		return fail(errors.New("register resource: retired variable requires a new instance"))
+	}
 	if _, exists := r.resources[descriptor.ID.Name]; exists {
-		r.mu.Unlock()
-		return fmt.Errorf("%w: %s", ErrDuplicate, descriptor.ID.Name)
+		return fail(fmt.Errorf("%w: %s", ErrDuplicate, descriptor.ID.Name))
 	}
 	if len(r.resources) >= protocol.MaxItems {
-		r.mu.Unlock()
-		return ErrResourceLimit
+		return fail(ErrResourceLimit)
 	}
+	// The tentative table is invisible while mu is held. Both domain encoding
+	// and complete standard envelope encoding must succeed before publication.
 	r.resources[descriptor.ID.Name] = value
 	payload, revision, err := r.buildCatalogLocked()
+	var prepared preparedVariable
+	if err == nil {
+		prepared, err = r.catalog.prepareNext(0, VariableState{Value: payload, Status: "ready"})
+	}
 	if err != nil {
 		delete(r.resources, descriptor.ID.Name)
-		r.mu.Unlock()
-		return fmt.Errorf("register resource catalog update: %w", err)
+		return fail(fmt.Errorf("register resource catalog preflight: %w", err))
 	}
-	r.mu.Unlock()
-	if _, err := r.catalog.Set(payload); err != nil {
-		r.mu.Lock()
+	_, drain, err := r.catalog.commit(prepared)
+	if err != nil {
 		delete(r.resources, descriptor.ID.Name)
-		r.mu.Unlock()
-		return fmt.Errorf("register resource catalog publish: %w", err)
+		return fail(err)
 	}
 	r.catalogRevision = revision
+	r.mu.Unlock()
+	r.catalog.release()
+	r.catalogUpdateMu.Unlock()
+	if drain {
+		r.catalog.drain()
+	}
 	return nil
 }
 
@@ -262,28 +283,47 @@ func (r *Registry) Remove(id protocol.ResourceID) error {
 		return fmt.Errorf("%w: %s", ErrReservedResource, id.Name)
 	}
 	r.catalogUpdateMu.Lock()
-	defer r.catalogUpdateMu.Unlock()
-	r.mu.Lock()
-	if _, exists := r.resources[id.Name]; !exists {
-		r.mu.Unlock()
-		return ErrNotFound
+	if err := r.catalog.acquire(context.Background()); err != nil {
+		r.catalogUpdateMu.Unlock()
+		return err
 	}
-	removed := r.resources[id.Name]
+	r.mu.Lock()
+	fail := func(err error) error { r.mu.Unlock(); r.catalog.release(); r.catalogUpdateMu.Unlock(); return err }
+	removed, exists := r.resources[id.Name]
+	if !exists {
+		return fail(ErrNotFound)
+	}
 	delete(r.resources, id.Name)
 	payload, revision, err := r.buildCatalogLocked()
+	var prepared preparedVariable
+	if err == nil {
+		prepared, err = r.catalog.prepareNext(0, VariableState{Value: payload, Status: "ready"})
+	}
 	if err != nil {
 		r.resources[id.Name] = removed
-		r.mu.Unlock()
-		return fmt.Errorf("remove resource catalog update: %w", err)
+		return fail(fmt.Errorf("remove resource catalog preflight: %w", err))
 	}
-	r.mu.Unlock()
-	if _, err := r.catalog.Set(payload); err != nil {
-		r.mu.Lock()
+	_, drain, err := r.catalog.commit(prepared)
+	if err != nil {
 		r.resources[id.Name] = removed
-		r.mu.Unlock()
-		return fmt.Errorf("remove resource catalog publish: %w", err)
+		return fail(err)
 	}
 	r.catalogRevision = revision
+	var finishRetire func()
+	if lifecycle, ok := removed.(interface{ PrepareRetire() func() }); ok {
+		finishRetire = lifecycle.PrepareRetire()
+	}
+	r.mu.Unlock()
+	r.catalog.release()
+	r.catalogUpdateMu.Unlock()
+	if finishRetire != nil {
+		finishRetire()
+	} else if lifecycle, ok := removed.(interface{ Retire() }); ok {
+		lifecycle.Retire()
+	}
+	if drain {
+		r.catalog.drain()
+	}
 	return nil
 }
 
@@ -315,26 +355,25 @@ func (r *Registry) buildCatalogLocked() ([]byte, uint64, error) {
 	revision := r.catalogRevision + 1
 	catalog := protocol.ResourceCatalogV2{Version: protocol.SchemaVersionV2, Revision: revision, Resources: descriptors}
 	catalog.Sort()
-	payload, err := protocol.EncodeJSONPayload(&catalog, protocol.DefaultMaxPayload)
+	payload, err := protocol.EncodeVariablePayload(r.catalog.definition, &catalog, protocol.DefaultMaxPayload)
 	return payload, revision, err
 }
 
-func VariableDescriptor(id protocol.ResourceID, contentType, schema, permission string, maxPayload int) Descriptor {
-	return descriptorFor(id, protocol.ResourceTypeVariable, contentType, schema, permission, maxPayload,
-		protocol.CapabilityDescriptorV2{Name: protocol.CapabilityRead, OutputSchema: schema},
-		protocol.CapabilityDescriptorV2{Name: protocol.CapabilitySubscribe, EventSchema: schema})
+func VariableDescriptor(id protocol.ResourceID, permission string, maxPayload int) Descriptor {
+	descriptor := descriptorFor(id, protocol.ResourceTypeVariable, "application/json", protocol.SchemaVariableValueV1, permission, maxPayload,
+		protocol.CapabilityDescriptorV2{Name: protocol.CapabilityRead, OutputSchema: protocol.SchemaVariableValueV1},
+		protocol.CapabilityDescriptorV2{Name: protocol.CapabilitySubscribe, EventSchema: protocol.SchemaVariableValueV1})
+	descriptor.TypeVersion = 2
+	return descriptor
 }
 
-func WritableVariableDescriptor(id protocol.ResourceID, contentType, schema, readPermission, writePermission string, maxPayload int) Descriptor {
-	descriptor := VariableDescriptor(id, contentType, schema, readPermission, maxPayload)
-	if writePermission == "" {
-		writePermission = "resource.write"
-	}
+func WritableVariableDescriptor(id protocol.ResourceID, readPermission, writePermission string, maxPayload int) Descriptor {
+	descriptor := VariableDescriptor(id, readPermission, maxPayload)
 	descriptor.Capabilities = append(descriptor.Capabilities, protocol.CapabilityDescriptorV2{
-		Name: protocol.CapabilityWrite, Permission: writePermission, InputSchema: protocol.SchemaVariableWriteV2,
-		OutputSchema: schema, MaxPayloadBytes: descriptor.Limits.MaxPayloadBytes,
+		Name: protocol.CapabilityWrite, Permission: writePermission, InputSchema: protocol.SchemaVariableWriteV3,
+		OutputSchema: protocol.SchemaVariableValueV1, MaxPayloadBytes: descriptor.Limits.MaxPayloadBytes,
 	})
-	descriptor.Schemas = append(descriptor.Schemas, protocol.SchemaDescriptorV2{ID: protocol.SchemaVariableWriteV2, ContentType: "application/json"})
+	descriptor.Schemas = append(descriptor.Schemas, protocol.SchemaDescriptorV2{ID: protocol.SchemaVariableWriteV3, ContentType: "application/json"})
 	descriptor.Sort()
 	return descriptor
 }
@@ -457,6 +496,11 @@ func normalizeDescriptor(descriptor Descriptor) (Descriptor, error) {
 	descriptor.Sort()
 	if err := descriptor.Validate(); err != nil {
 		return Descriptor{}, err
+	}
+	if descriptor.Type == protocol.ResourceTypeVariable {
+		if err := validateVariableDescriptor(descriptor); err != nil {
+			return Descriptor{}, err
+		}
 	}
 	return descriptor, nil
 }

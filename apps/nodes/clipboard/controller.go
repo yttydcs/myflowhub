@@ -360,9 +360,9 @@ func (c *Controller) registerResources() error {
 		return err
 	}
 	c.statusVariable, err = resource.NewVariable(resource.VariableDescriptor(
-		protocol.ResourceID{Owner: owner, Name: ResourceStatus}, "application/json", SchemaStatusV1,
+		protocol.ResourceID{Owner: owner, Name: ResourceStatus},
 		"clipboard.status.read", protocol.DefaultMaxPayload,
-	), statusPayload)
+	), statusDefinition(), resource.VariableState{Value: statusPayload, Status: "ready"}, nil)
 	if err != nil {
 		return err
 	}
@@ -374,9 +374,9 @@ func (c *Controller) registerResources() error {
 		return err
 	}
 	c.configVariable, err = resource.NewVariable(resource.VariableDescriptor(
-		protocol.ResourceID{Owner: owner, Name: ResourceConfig}, "application/json", SchemaConfigV1,
+		protocol.ResourceID{Owner: owner, Name: ResourceConfig},
 		"clipboard.config.read", protocol.DefaultMaxPayload,
-	), configPayload)
+	), configDefinition(), resource.VariableState{Value: configPayload, Status: "ready"}, nil)
 	if err != nil {
 		return err
 	}
@@ -487,6 +487,9 @@ func (c *Controller) updateConfig(_ context.Context, input []byte) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
+	if err := protocol.ValidateVariableValue(configDefinition(), payload); err != nil {
+		return nil, fmt.Errorf("validate clipboard config variable: %w", err)
+	}
 	previousConfig := cloneConfig(c.config)
 	previousHistory := c.history.snapshot()
 	if err := c.history.normalize(next, c.now()); err != nil {
@@ -497,7 +500,7 @@ func (c *Controller) updateConfig(_ context.Context, input []byte) ([]byte, erro
 		_ = c.history.persist()
 		return nil, fmt.Errorf("persist clipboard config: %w", err)
 	}
-	if _, err := c.configVariable.Set(payload); err != nil {
+	if _, err := c.configVariable.Set(resource.VariableState{Value: payload, Status: "ready"}); err != nil {
 		_ = c.store.Save("clipboard.json", previousConfig)
 		c.history.entries = previousHistory
 		_ = c.history.persist()
@@ -596,7 +599,7 @@ func (c *Controller) publishStatusLocked() error {
 		return err
 	}
 	if c.statusVariable != nil {
-		_, err = c.statusVariable.Set(payload)
+		_, err = c.statusVariable.Set(resource.VariableState{Value: payload, Status: "ready"})
 	}
 	return err
 }
@@ -683,7 +686,7 @@ func loadConfig(store *keystore.Store) (ConfigV1, error) {
 			return ConfigV1{}, fmt.Errorf("initialize clipboard config: %w", err)
 		}
 	}
-	return value, nil
+	return cloneConfig(value), nil
 }
 
 func waitController(ctx context.Context, duration time.Duration) bool {

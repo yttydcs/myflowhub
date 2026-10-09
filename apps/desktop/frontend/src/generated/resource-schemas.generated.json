@@ -13,6 +13,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -60,6 +61,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -70,6 +72,7 @@
             "type": "integer",
             "title": "Authority Epoch",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -78,6 +81,7 @@
           "required": true,
           "schema": {
             "type": "array",
+            "nullable": true,
             "title": "Items",
             "max_items": 4096,
             "items": {
@@ -89,6 +93,8 @@
                   "schema": {
                     "type": "integer",
                     "title": "Version",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -139,6 +145,8 @@
                     "type": "integer",
                     "title": "Created At Unix Ms",
                     "format": "unix-ms",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -156,6 +164,8 @@
                     "type": "integer",
                     "title": "Revoked At Unix Ms",
                     "format": "unix-ms",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -191,6 +201,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -241,6 +252,8 @@
             "type": "integer",
             "title": "Created At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -262,6 +275,8 @@
             "type": "integer",
             "title": "Revoked At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -286,6 +301,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -335,6 +351,8 @@
             "type": "integer",
             "title": "Ttl Ms",
             "unit": "ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         }
@@ -352,6 +370,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -393,6 +412,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -403,6 +423,7 @@
             "type": "integer",
             "title": "Authority Epoch",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -411,6 +432,7 @@
           "required": true,
           "schema": {
             "type": "array",
+            "nullable": true,
             "title": "Items",
             "max_items": 4096,
             "items": {
@@ -422,6 +444,8 @@
                   "schema": {
                     "type": "integer",
                     "title": "Version",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -471,6 +495,8 @@
                     "type": "integer",
                     "title": "Issued At Unix Ms",
                     "format": "unix-ms",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -481,6 +507,8 @@
                     "type": "integer",
                     "title": "Expires At Unix Ms",
                     "format": "unix-ms",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -517,6 +545,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -566,6 +595,8 @@
             "type": "integer",
             "title": "Issued At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -576,6 +607,8 @@
             "type": "integer",
             "title": "Expires At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -607,6 +640,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -617,6 +651,7 @@
             "type": "integer",
             "title": "Authority Epoch",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -625,6 +660,7 @@
           "required": true,
           "schema": {
             "type": "array",
+            "nullable": true,
             "title": "Items",
             "max_items": 4096,
             "items": {
@@ -636,6 +672,8 @@
                   "schema": {
                     "type": "integer",
                     "title": "Version",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -670,6 +708,8 @@
                     "type": "integer",
                     "title": "Created At Unix Ms",
                     "format": "unix-ms",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -680,6 +720,8 @@
                     "type": "integer",
                     "title": "Updated At Unix Ms",
                     "format": "unix-ms",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -690,6 +732,8 @@
                     "type": "integer",
                     "title": "Expires At Unix Ms",
                     "format": "unix-ms",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -733,6 +777,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -767,6 +812,8 @@
             "type": "integer",
             "title": "Created At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -777,6 +824,8 @@
             "type": "integer",
             "title": "Updated At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -787,6 +836,8 @@
             "type": "integer",
             "title": "Expires At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -825,6 +876,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -866,6 +918,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -907,6 +960,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -925,6 +979,7 @@
             "type": "integer",
             "title": "Authority Epoch",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -935,6 +990,7 @@
             "type": "integer",
             "title": "Permits",
             "minimum": 0,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -945,6 +1001,7 @@
             "type": "integer",
             "title": "Pending Requests",
             "minimum": 0,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -955,6 +1012,7 @@
             "type": "integer",
             "title": "Enrollments",
             "minimum": 0,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -965,6 +1023,7 @@
             "type": "integer",
             "title": "Revocations",
             "minimum": 0,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         }
@@ -982,6 +1041,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1048,6 +1108,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1058,6 +1119,7 @@
             "type": "integer",
             "title": "Revision",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1066,6 +1128,7 @@
           "required": true,
           "schema": {
             "type": "array",
+            "nullable": true,
             "title": "Resources",
             "max_items": 4096,
             "items": {
@@ -1085,6 +1148,7 @@
                           "type": "integer",
                           "title": "Owner",
                           "minimum": 0,
+                          "maximum": 9007199254740991,
                           "multiple_of": 1
                         }
                       },
@@ -1114,6 +1178,7 @@
                     "type": "integer",
                     "title": "Type Version",
                     "minimum": 0,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -1122,6 +1187,7 @@
                   "required": true,
                   "schema": {
                     "type": "array",
+                    "nullable": true,
                     "title": "Capabilities",
                     "max_items": 4096,
                     "items": {
@@ -1170,6 +1236,8 @@
                           "schema": {
                             "type": "integer",
                             "title": "Max Payload Bytes",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
                             "multiple_of": 1
                           }
                         }
@@ -1181,6 +1249,7 @@
                   "name": "schemas",
                   "schema": {
                     "type": "array",
+                    "nullable": true,
                     "title": "Schemas",
                     "max_items": 4096,
                     "items": {
@@ -1219,6 +1288,8 @@
                         "schema": {
                           "type": "integer",
                           "title": "Max Payload Bytes",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
                           "multiple_of": 1
                         }
                       },
@@ -1227,6 +1298,8 @@
                         "schema": {
                           "type": "integer",
                           "title": "Max Subscribers",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
                           "multiple_of": 1
                         }
                       },
@@ -1235,6 +1308,8 @@
                         "schema": {
                           "type": "integer",
                           "title": "Max Sessions",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
                           "multiple_of": 1
                         }
                       },
@@ -1243,6 +1318,8 @@
                         "schema": {
                           "type": "integer",
                           "title": "Max Queue",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
                           "multiple_of": 1
                         }
                       }
@@ -1304,6 +1381,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1348,6 +1426,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1414,6 +1493,7 @@
           "name": "capabilities",
           "schema": {
             "type": "array",
+            "nullable": true,
             "title": "Capabilities",
             "max_items": 64,
             "items": {
@@ -1425,6 +1505,7 @@
           "name": "attributes",
           "schema": {
             "type": "object",
+            "nullable": true,
             "title": "Attributes",
             "additional_properties": {
               "type": "string",
@@ -1446,6 +1527,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1473,6 +1555,7 @@
           "required": true,
           "schema": {
             "type": "array",
+            "nullable": true,
             "title": "Members",
             "max_items": 256,
             "items": {
@@ -1525,6 +1608,7 @@
                   "name": "capabilities",
                   "schema": {
                     "type": "array",
+                    "nullable": true,
                     "title": "Capabilities",
                     "max_items": 64,
                     "items": {
@@ -1536,6 +1620,7 @@
                   "name": "attributes",
                   "schema": {
                     "type": "object",
+                    "nullable": true,
                     "title": "Attributes",
                     "additional_properties": {
                       "type": "string",
@@ -1569,6 +1654,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1626,6 +1712,8 @@
             "type": "integer",
             "title": "Expires At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1651,6 +1739,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1707,6 +1796,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1781,6 +1871,7 @@
             "type": "integer",
             "title": "Authority Epoch",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1791,6 +1882,8 @@
             "type": "integer",
             "title": "Issued At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1816,6 +1909,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1881,6 +1975,8 @@
             "type": "integer",
             "title": "Issued At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1891,6 +1987,8 @@
             "type": "integer",
             "title": "Expires At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1901,6 +1999,7 @@
             "type": "integer",
             "title": "Authority Epoch",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1926,6 +2025,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1967,6 +2067,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -1996,6 +2097,7 @@
           "name": "grant",
           "schema": {
             "type": "object",
+            "nullable": true,
             "title": "Grant",
             "properties": [
               {
@@ -2004,6 +2106,8 @@
                 "schema": {
                   "type": "integer",
                   "title": "Version",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
                   "multiple_of": 1
                 }
               },
@@ -2078,6 +2182,7 @@
                   "type": "integer",
                   "title": "Authority Epoch",
                   "minimum": 0,
+                  "maximum": 9007199254740991,
                   "multiple_of": 1
                 }
               },
@@ -2088,6 +2193,8 @@
                   "type": "integer",
                   "title": "Issued At Unix Ms",
                   "format": "unix-ms",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
                   "multiple_of": 1
                 }
               },
@@ -2106,6 +2213,7 @@
           "name": "error",
           "schema": {
             "type": "object",
+            "nullable": true,
             "title": "Error",
             "properties": [
               {
@@ -2135,6 +2243,7 @@
                 "name": "details",
                 "schema": {
                   "type": "object",
+                  "nullable": true,
                   "title": "Details",
                   "additional_properties": {
                     "type": "string"
@@ -2150,6 +2259,8 @@
             "type": "integer",
             "title": "Retry After Ms",
             "unit": "ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         }
@@ -2167,6 +2278,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2200,6 +2312,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2217,6 +2330,8 @@
           "schema": {
             "type": "integer",
             "title": "Offset",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2225,6 +2340,7 @@
           "required": true,
           "schema": {
             "type": "string",
+            "nullable": true,
             "title": "Data",
             "format": "base64"
           }
@@ -2251,6 +2367,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2268,6 +2385,8 @@
           "schema": {
             "type": "integer",
             "title": "Size",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2293,6 +2412,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2318,6 +2438,8 @@
           "schema": {
             "type": "integer",
             "title": "Size",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2335,6 +2457,8 @@
           "schema": {
             "type": "integer",
             "title": "Chunk Size",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2352,6 +2476,8 @@
             "type": "integer",
             "title": "Expires At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         }
@@ -2369,6 +2495,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2386,6 +2513,8 @@
           "schema": {
             "type": "integer",
             "title": "Received Bytes",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2395,6 +2524,8 @@
           "schema": {
             "type": "integer",
             "title": "Total Bytes",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2434,6 +2565,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2444,6 +2576,7 @@
             "type": "integer",
             "title": "Revision",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2452,6 +2585,7 @@
           "required": true,
           "schema": {
             "type": "array",
+            "nullable": true,
             "title": "Transfers",
             "max_items": 4096,
             "items": {
@@ -2487,6 +2621,8 @@
                   "schema": {
                     "type": "integer",
                     "title": "Received Bytes",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -2496,6 +2632,8 @@
                   "schema": {
                     "type": "integer",
                     "title": "Total Bytes",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -2514,6 +2652,8 @@
                     "type": "integer",
                     "title": "Expires At Unix Ms",
                     "format": "unix-ms",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -2542,6 +2682,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2603,6 +2744,7 @@
             "title": "Modified Unix Ms",
             "unit": "ms",
             "minimum": 0,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2629,6 +2771,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2674,6 +2817,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2701,6 +2845,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2711,6 +2856,8 @@
             "type": "integer",
             "title": "Time Unix Ms",
             "unit": "ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2793,6 +2940,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2803,6 +2951,7 @@
             "type": "integer",
             "title": "Expected Revision",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2817,6 +2966,7 @@
           "name": "values",
           "schema": {
             "type": "object",
+            "nullable": true,
             "title": "Values",
             "additional_properties": {
               "type": "string"
@@ -2837,6 +2987,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2847,6 +2998,7 @@
             "type": "integer",
             "title": "Revision",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2861,6 +3013,7 @@
           "name": "values",
           "schema": {
             "type": "object",
+            "nullable": true,
             "title": "Values",
             "additional_properties": {
               "type": "string"
@@ -2881,6 +3034,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2905,6 +3059,8 @@
             "type": "integer",
             "title": "Started At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2915,6 +3071,7 @@
             "type": "integer",
             "title": "Topology Epoch",
             "minimum": 0,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2924,6 +3081,8 @@
           "schema": {
             "type": "integer",
             "title": "Active Links",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2933,6 +3092,8 @@
           "schema": {
             "type": "integer",
             "title": "Active Subscriptions",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -2947,6 +3108,7 @@
           "name": "components",
           "schema": {
             "type": "object",
+            "nullable": true,
             "title": "Components",
             "additional_properties": {
               "type": "string"
@@ -2967,6 +3129,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3001,6 +3164,8 @@
             "type": "integer",
             "title": "Ttl Ms",
             "unit": "ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         }
@@ -3018,6 +3183,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3067,6 +3233,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3095,6 +3262,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3120,6 +3288,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3265,6 +3434,7 @@
           "required": true,
           "schema": {
             "type": "array",
+            "nullable": true,
             "title": "Nodes",
             "min_items": 1,
             "max_items": 4096,
@@ -3319,6 +3489,7 @@
                     "type": "integer",
                     "title": "Generation",
                     "minimum": 1,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 },
@@ -3348,6 +3519,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3358,6 +3530,7 @@
             "type": "integer",
             "title": "Epoch",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3366,6 +3539,7 @@
           "required": true,
           "schema": {
             "type": "array",
+            "nullable": true,
             "title": "Nodes",
             "max_items": 4096,
             "items": {
@@ -3408,6 +3582,7 @@
                     "type": "integer",
                     "title": "Generation",
                     "minimum": 0,
+                    "maximum": 9007199254740991,
                     "multiple_of": 1
                   }
                 }
@@ -3429,6 +3604,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3463,6 +3639,8 @@
             "type": "integer",
             "title": "Created At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3479,6 +3657,7 @@
           "required": true,
           "schema": {
             "type": "string",
+            "nullable": true,
             "title": "Body",
             "format": "base64",
             "max_length": 262144
@@ -3488,6 +3667,7 @@
           "name": "attributes",
           "schema": {
             "type": "object",
+            "nullable": true,
             "title": "Attributes",
             "additional_properties": {
               "type": "string"
@@ -3508,6 +3688,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3532,6 +3713,7 @@
           "required": true,
           "schema": {
             "type": "string",
+            "nullable": true,
             "title": "Body",
             "format": "base64",
             "max_length": 262144
@@ -3541,6 +3723,7 @@
           "name": "attributes",
           "schema": {
             "type": "object",
+            "nullable": true,
             "title": "Attributes",
             "additional_properties": {
               "type": "string"
@@ -3561,6 +3744,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3620,6 +3804,8 @@
             "type": "integer",
             "title": "Expires At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         }
@@ -3637,6 +3823,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3662,6 +3849,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3730,6 +3918,8 @@
             "type": "integer",
             "title": "Created At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3739,6 +3929,8 @@
             "type": "integer",
             "title": "Expires At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         }
@@ -3756,6 +3948,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3774,6 +3967,7 @@
             "type": "integer",
             "title": "Expected Revision",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         }
@@ -3791,6 +3985,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3816,6 +4011,7 @@
             "type": "integer",
             "title": "Expected Revision",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3824,6 +4020,7 @@
           "required": true,
           "schema": {
             "type": "array",
+            "nullable": true,
             "title": "Rules",
             "max_items": 4096,
             "items": {
@@ -3873,6 +4070,7 @@
                         "name": "values",
                         "schema": {
                           "type": "array",
+                          "nullable": true,
                           "title": "Values",
                           "max_items": 4096,
                           "items": {
@@ -3901,6 +4099,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3927,6 +4126,7 @@
             "type": "integer",
             "title": "Revision",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -3942,6 +4142,7 @@
           "required": true,
           "schema": {
             "type": "array",
+            "nullable": true,
             "title": "Rules",
             "max_items": 4096,
             "items": {
@@ -3991,6 +4192,7 @@
                         "name": "values",
                         "schema": {
                           "type": "array",
+                          "nullable": true,
                           "title": "Values",
                           "max_items": 4096,
                           "items": {
@@ -4019,6 +4221,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4068,6 +4271,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4094,6 +4298,7 @@
             "type": "integer",
             "title": "Policy Generation",
             "minimum": 0,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4103,6 +4308,7 @@
             "type": "integer",
             "title": "Topology Epoch",
             "minimum": 0,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4126,6 +4332,7 @@
             "type": "integer",
             "title": "Definition Revision",
             "minimum": 0,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4135,6 +4342,8 @@
           "schema": {
             "type": "integer",
             "title": "Rule Index",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4142,6 +4351,7 @@
           "name": "scope",
           "schema": {
             "type": "object",
+            "nullable": true,
             "title": "Scope",
             "properties": [
               {
@@ -4177,6 +4387,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4226,6 +4437,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4276,6 +4488,8 @@
             "type": "integer",
             "title": "Issued At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4286,6 +4500,8 @@
             "type": "integer",
             "title": "Expires At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4295,6 +4511,8 @@
           "schema": {
             "type": "integer",
             "title": "Max Uses",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4320,6 +4538,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4342,6 +4561,7 @@
           "name": "payload",
           "schema": {
             "type": "string",
+            "nullable": true,
             "title": "Payload",
             "format": "base64"
           }
@@ -4360,6 +4580,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4369,6 +4590,8 @@
           "schema": {
             "type": "integer",
             "title": "Offset",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4385,6 +4608,7 @@
           "required": true,
           "schema": {
             "type": "string",
+            "nullable": true,
             "title": "Data",
             "format": "base64"
           }
@@ -4403,6 +4627,7 @@
             "type": "integer",
             "title": "Version",
             "minimum": 1,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4428,6 +4653,8 @@
           "schema": {
             "type": "integer",
             "title": "Max Chunk Bytes",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4437,6 +4664,8 @@
           "schema": {
             "type": "integer",
             "title": "Max Total Bytes",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
           }
         },
@@ -4447,43 +4676,9 @@
             "type": "integer",
             "title": "Expires At Unix Ms",
             "format": "unix-ms",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
             "multiple_of": 1
-          }
-        }
-      ]
-    },
-    {
-      "id": "mfh.variable-write.v2",
-      "type": "object",
-      "title": "Variable write",
-      "properties": [
-        {
-          "name": "version",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "title": "Version",
-            "minimum": 1,
-            "multiple_of": 1
-          }
-        },
-        {
-          "name": "expected_revision",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "title": "Expected Revision",
-            "minimum": 1,
-            "multiple_of": 1
-          }
-        },
-        {
-          "name": "value",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "title": "Value",
-            "format": "json-base64"
           }
         }
       ]

@@ -1,7 +1,9 @@
 package sdk
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -123,8 +125,21 @@ func (c *Client) Subscribe(ctx context.Context, resourceID protocol.ResourceID, 
 }
 
 func (c *Client) SubscribeCapability(ctx context.Context, resourceID protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int) (*Subscription, error) {
+	return c.subscribe(ctx, resourceID, capability, lease, queue, false)
+}
+
+// SubscribeVariable requires a standard variable snapshot before any data.
+// Events keep their full wire envelopes; the definition cache is subscription-local.
+func (c *Client) SubscribeVariable(ctx context.Context, resourceID protocol.ResourceID, lease time.Duration, queue int) (*Subscription, error) {
+	return c.subscribe(ctx, resourceID, protocol.CapabilitySubscribe, lease, queue, true)
+}
+
+func (c *Client) subscribe(ctx context.Context, resourceID protocol.ResourceID, capability protocol.CapabilityID, lease time.Duration, queue int, variableOnly bool) (*Subscription, error) {
 	if ctx == nil {
 		return nil, errors.New("SDK subscription context is required")
+	}
+	if lease <= 0 || queue < 1 || queue > 1024 {
+		return nil, errors.New("SDK subscription lease or queue is invalid")
 	}
 	runtime, err := c.runtimeNode()
 	if err != nil {
@@ -142,8 +157,10 @@ func (c *Client) SubscribeCapability(ctx context.Context, resourceID protocol.Re
 		remote.Cancel()
 	}}
 	go func() {
+		defer result.Cancel()
 		defer close(events)
 		defer close(errorsOut)
+		var decoder VariableEventDecoder
 		eventSource := remote.Events
 		errorSource := remote.Errors
 		for eventSource != nil || errorSource != nil {
@@ -154,6 +171,23 @@ func (c *Client) SubscribeCapability(ctx context.Context, resourceID protocol.Re
 					continue
 				}
 				converted := convertEvent(event)
+				if variableOnly || converted.Kind == EventSnapshot || converted.Revision != 0 || converted.Schema == protocol.SchemaVariableValueV1 || decoder.initialized {
+					variableOnly = true
+					if converted.Resource != resourceID {
+						select {
+						case errorsOut <- &Error{Code: protocol.CodeMalformed, Message: "variable event resource does not match subscription"}:
+						case <-runCtx.Done():
+						}
+						return
+					}
+					if _, err := decoder.Decode(converted); err != nil {
+						select {
+						case errorsOut <- err:
+						case <-runCtx.Done():
+						}
+						return
+					}
+				}
 				select {
 				case events <- converted:
 				case <-runCtx.Done():
@@ -182,39 +216,169 @@ func (c *Client) SubscribeCapability(ctx context.Context, resourceID protocol.Re
 	return result, nil
 }
 
-func (c *Client) Snapshot(ctx context.Context, resourceID protocol.ResourceID) (Event, error) {
+// Snapshot reads and validates the complete standard variable state without
+// requiring Catalog discovery or subscribe permission.
+func (c *Client) Snapshot(ctx context.Context, resourceID protocol.ResourceID) (protocol.VariableValueV1, error) {
 	if ctx == nil {
-		return Event{}, errors.New("SDK snapshot context is required")
+		return protocol.VariableValueV1{}, errors.New("SDK snapshot context is required")
 	}
 	result, err := c.Operate(ctx, resourceID, protocol.CapabilityRead, "", nil)
 	if err != nil {
-		return Event{}, err
+		return protocol.VariableValueV1{}, err
 	}
-	return Event{Kind: EventSnapshot, Resource: resourceID, Capability: protocol.CapabilityRead, Schema: result.Schema, Value: result.Payload}, nil
+	return decodeVariableEnvelope(result.Schema, result.Payload, true)
 }
 
 func (c *Client) DecodeSnapshot(ctx context.Context, resourceID protocol.ResourceID, target protocol.ValidatedPayload) error {
-	if target == nil {
+	if isNilValidatedPayload(target) {
 		return errors.New("SDK snapshot target is required")
 	}
-	event, err := c.Snapshot(ctx, resourceID)
+	state, err := c.Snapshot(ctx, resourceID)
 	if err != nil {
 		return err
 	}
-	if err := protocol.DecodeJSONPayload(event.Value, protocol.DefaultMaxPayload, target); err != nil {
+	if len(state.Value) == 0 {
+		return &Error{Message: fmt.Sprintf("%s variable value is unavailable", resourceID.Name)}
+	}
+	if err := protocol.DecodeVariablePayload(*state.Definition, state.Value, protocol.DefaultMaxPayload, target); err != nil {
 		return &Error{Code: protocol.CodeMalformed, Message: fmt.Sprintf("decode %s snapshot: %v", resourceID.Name, err), cause: err}
 	}
 	return nil
 }
 
-func (c *Client) WriteVariable(ctx context.Context, resourceID protocol.ResourceID, expectedRevision uint64, value []byte) (resource.OperationResult, error) {
-	request, err := protocol.EncodeJSONPayload(&protocol.VariableWriteV2{
-		Version: protocol.SchemaVersionV2, ExpectedRevision: expectedRevision, Value: append([]byte(nil), value...),
+// WriteVariable submits a V3 conditional write and returns the owner's confirmed
+// state. JSON numbers and revisions are never converted through float64.
+func (c *Client) WriteVariable(ctx context.Context, resourceID protocol.ResourceID, expectedInstanceID, expectedRevision string, value json.RawMessage) (protocol.VariableValueV1, error) {
+	if ctx == nil {
+		return protocol.VariableValueV1{}, errors.New("SDK variable write context is required")
+	}
+	request, err := protocol.EncodeJSONPayload(&protocol.VariableWriteV3{
+		Version: 3, ExpectedInstanceID: expectedInstanceID, ExpectedRevision: expectedRevision, Value: value,
 	}, protocol.DefaultMaxPayload)
 	if err != nil {
-		return resource.OperationResult{}, err
+		return protocol.VariableValueV1{}, &Error{Code: protocol.CodeMalformed, Message: fmt.Sprintf("encode variable write: %v", err), cause: err}
 	}
-	return c.Operate(ctx, resourceID, protocol.CapabilityWrite, protocol.SchemaVariableWriteV2, request)
+	result, err := c.Operate(ctx, resourceID, protocol.CapabilityWrite, protocol.SchemaVariableWriteV3, request)
+	if err != nil {
+		return protocol.VariableValueV1{}, err
+	}
+	state, err := decodeVariableEnvelope(result.Schema, result.Payload, true)
+	if err != nil {
+		return protocol.VariableValueV1{}, err
+	}
+	revision, err := protocol.ParseVariableRevision(state.Revision)
+	if err != nil {
+		return protocol.VariableValueV1{}, err
+	}
+	expected, err := protocol.ParseVariableRevision(expectedRevision)
+	if err != nil {
+		return protocol.VariableValueV1{}, err
+	}
+	if state.InstanceID != expectedInstanceID || revision <= expected {
+		return protocol.VariableValueV1{}, &Error{Code: protocol.CodeMalformed, Message: "variable write response does not confirm the expected instance and a newer revision"}
+	}
+	if state.Status != "ready" {
+		return protocol.VariableValueV1{}, &Error{Code: protocol.CodeMalformed, Message: "variable write response does not confirm a ready value"}
+	}
+	return state, nil
+}
+
+func decodeVariableEnvelope(schema string, payload []byte, requireDefinition bool) (protocol.VariableValueV1, error) {
+	if schema != protocol.SchemaVariableValueV1 {
+		return protocol.VariableValueV1{}, &Error{Code: protocol.CodeUnsupported, Message: fmt.Sprintf("unsupported variable schema %q", schema)}
+	}
+	var state protocol.VariableValueV1
+	if err := protocol.DecodeJSONPayload(payload, protocol.DefaultMaxPayload, &state); err != nil {
+		return protocol.VariableValueV1{}, &Error{Code: protocol.CodeMalformed, Message: fmt.Sprintf("decode variable state: %v", err), cause: err}
+	}
+	if requireDefinition && state.Definition == nil {
+		return protocol.VariableValueV1{}, &Error{Code: protocol.CodeMalformed, Message: "variable snapshot requires definition"}
+	}
+	return state, nil
+}
+
+// VariableEventDecoder validates one resource subscription, retaining only its
+// current instance definition. Use a separate decoder for each subscription;
+// it is not safe for concurrent calls. Its zero value expects an initial snapshot.
+type VariableEventDecoder struct {
+	resource    protocol.ResourceID
+	instanceID  string
+	revision    uint64
+	definition  []byte
+	initialized bool
+}
+
+// Decode returns a validated state with the session definition populated. It
+// leaves the wire event untouched. Gap/expired events invalidate the cache and
+// return an empty state. A fresh snapshot is then required before more data.
+func (d *VariableEventDecoder) Decode(event Event) (protocol.VariableValueV1, error) {
+	malformed := func(message string) (protocol.VariableValueV1, error) {
+		return protocol.VariableValueV1{}, &Error{Code: protocol.CodeMalformed, Message: message}
+	}
+	if d == nil {
+		return malformed("variable event decoder is required")
+	}
+	if d.initialized && event.Resource != d.resource {
+		return malformed("variable event changed resource")
+	}
+	if event.Kind == EventGap || event.Kind == EventExpired {
+		*d = VariableEventDecoder{}
+		return protocol.VariableValueV1{}, nil
+	}
+	if event.Kind != EventSnapshot && event.Kind != EventData {
+		return malformed("unsupported variable event kind")
+	}
+	if err := event.Resource.Validate(); err != nil {
+		return malformed(fmt.Sprintf("variable event resource: %v", err))
+	}
+	if event.Kind == EventData && !d.initialized {
+		return malformed("variable subscription requires an initial snapshot")
+	}
+	state, err := decodeVariableEnvelope(event.Schema, event.Value, event.Kind == EventSnapshot)
+	if err != nil {
+		return protocol.VariableValueV1{}, err
+	}
+	revision, err := protocol.ParseVariableRevision(state.Revision)
+	if err != nil {
+		return malformed(fmt.Sprintf("variable revision: %v", err))
+	}
+	if revision != event.Revision {
+		return malformed("variable envelope revision differs from event revision")
+	}
+	if d.initialized && event.Kind == EventData && state.InstanceID != d.instanceID {
+		return malformed("variable data changed instance without a snapshot")
+	}
+	if d.initialized && state.InstanceID == d.instanceID && (revision < d.revision || event.Kind == EventData && revision == d.revision) {
+		return malformed("variable event revision did not advance")
+	}
+	definition := d.definition
+	if state.Definition != nil {
+		definition, err = json.Marshal(state.Definition)
+		if err != nil {
+			return malformed(fmt.Sprintf("variable definition: %v", err))
+		}
+		if d.initialized && state.InstanceID == d.instanceID && !bytes.Equal(definition, d.definition) {
+			return malformed("variable definition changed within an instance")
+		}
+	} else {
+		if err := json.Unmarshal(definition, &state.Definition); err != nil {
+			return malformed(fmt.Sprintf("variable cached definition: %v", err))
+		}
+		// Envelopes carrying a definition were already fully validated by
+		// DecodeJSONPayload. Only definition-less data needs cached validation.
+		if err := protocol.ValidateVariableState(*state.Definition, state); err != nil {
+			return malformed(fmt.Sprintf("variable cached state: %v", err))
+		}
+		full, err := json.Marshal(state)
+		if err != nil {
+			return malformed(fmt.Sprintf("encode complete variable state: %v", err))
+		}
+		if len(full) > protocol.DefaultMaxPayload {
+			return malformed("complete variable state exceeds protocol payload limit")
+		}
+	}
+	*d = VariableEventDecoder{resource: event.Resource, instanceID: state.InstanceID, revision: revision, definition: definition, initialized: true}
+	return state, nil
 }
 
 func (c *Client) Catalog(ctx context.Context, owner protocol.NodeID) (protocol.ResourceCatalogV2, error) {

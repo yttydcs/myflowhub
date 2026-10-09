@@ -11,7 +11,7 @@ import (
 )
 
 func variableDescriptor(owner protocol.NodeID, name string, maxPayload int) Descriptor {
-	return VariableDescriptor(protocol.ResourceID{Owner: owner, Name: name}, "application/octet-stream", "test.raw.v1", "test.read", maxPayload)
+	return VariableDescriptor(protocol.ResourceID{Owner: owner, Name: name}, "test.read", maxPayload)
 }
 
 func streamDescriptor(owner protocol.NodeID, name string, maxPayload int) Descriptor {
@@ -20,7 +20,7 @@ func streamDescriptor(owner protocol.NodeID, name string, maxPayload int) Descri
 
 func TestRegistryLifecycleAndOwnerBoundary(t *testing.T) {
 	registry, _ := NewRegistry(1)
-	variable, _ := NewVariable(variableDescriptor(1, "status", 16), []byte("ok"))
+	variable, _ := NewVariable(variableDescriptor(1, "status", 1024), protocol.DataSchemaDefinition{Type: "string"}, testReady(`"ok"`), nil)
 	if err := registry.Register(variable); err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestRegistryPublishesSortedVersionedCatalog(t *testing.T) {
 	}
 	initial := registry.Catalog().Snapshot()
 	stream, _ := NewStream(streamDescriptor(1, "z/events", 32))
-	variable, _ := NewVariable(variableDescriptor(1, "a/status", 32), []byte("ok"))
+	variable, _ := NewVariable(variableDescriptor(1, "a/status", 1024), protocol.DataSchemaDefinition{Type: "string"}, testReady(`"ok"`), nil)
 	if err := registry.Register(stream); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestRegistryPublishesSortedVersionedCatalog(t *testing.T) {
 		t.Fatalf("catalog variable revision did not follow registrations: %d -> %d", initial.Revision, current.Revision)
 	}
 	var catalog protocol.ResourceCatalogV2
-	if err := json.Unmarshal(current.Value, &catalog); err != nil {
+	if err := protocol.DecodeVariablePayload(*current.State.Definition, current.State.Value, protocol.DefaultMaxPayload, &catalog); err != nil {
 		t.Fatal(err)
 	}
 	if err := catalog.Validate(); err != nil {
@@ -76,13 +76,13 @@ func TestRegistryPublishesSortedVersionedCatalog(t *testing.T) {
 }
 
 func TestVariableRevisionAndConcurrentSets(t *testing.T) {
-	variable, _ := NewVariable(variableDescriptor(1, "status", 16), []byte("a"))
+	variable, _ := NewVariable(variableDescriptor(1, "status", 1024), protocol.DataSchemaDefinition{Type: "string"}, testReady(`"a"`), nil)
 	var wait sync.WaitGroup
 	for range 20 {
 		wait.Add(1)
 		go func() {
 			defer wait.Done()
-			if _, err := variable.Set([]byte("b")); err != nil {
+			if _, err := variable.Set(testReady(`"b"`)); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -91,7 +91,7 @@ func TestVariableRevisionAndConcurrentSets(t *testing.T) {
 	if got := variable.Snapshot().Revision; got != 21 {
 		t.Fatalf("want revision 21, got %d", got)
 	}
-	if _, err := variable.Apply(20, []byte("old")); !errors.Is(err, ErrRevisionRegression) {
+	if _, err := variable.Apply(20, testReady(`"old"`)); !errors.Is(err, ErrRevisionRegression) {
 		t.Fatalf("expected regression, got %v", err)
 	}
 }
@@ -143,22 +143,34 @@ func TestCommandDescriptorDeclaresDistinctInputAndOutputSchemas(t *testing.T) {
 }
 
 func TestWritableVariableUsesConditionalRevision(t *testing.T) {
-	descriptor := WritableVariableDescriptor(protocol.ResourceID{Owner: 1, Name: "settings"}, "application/json", "test.settings.v1", "test.read", "test.write", 256)
-	variable, err := NewVariable(descriptor, []byte(`{"enabled":false}`))
+	descriptor := WritableVariableDescriptor(protocol.ResourceID{Owner: 1, Name: "settings"}, "test.read", "test.write", 1024)
+	variable, err := NewVariable(descriptor, protocol.DataSchemaDefinition{Type: "boolean"}, testReady("false"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	write, err := protocol.EncodeJSONPayload(&protocol.VariableWriteV2{Version: 2, ExpectedRevision: 1, Value: []byte(`{"enabled":true}`)}, 256)
+	initial := variable.Snapshot().State
+	write, err := protocol.EncodeJSONPayload(&protocol.VariableWriteV3{Version: 3, ExpectedInstanceID: initial.InstanceID, ExpectedRevision: initial.Revision, Value: json.RawMessage("true")}, 1024)
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := variable.Operate(context.Background(), OperationRequest{Capability: protocol.CapabilityWrite, Schema: protocol.SchemaVariableWriteV2, Payload: write})
-	if err != nil || string(result.Payload) != `{"enabled":true}` || variable.Snapshot().Revision != 2 {
-		t.Fatalf("conditional write failed: %#v %v", result, err)
+	request := OperationRequest{Capability: protocol.CapabilityWrite, Schema: protocol.SchemaVariableWriteV3, Payload: write}
+	result, err := variable.Operate(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := variable.Operate(context.Background(), OperationRequest{Capability: protocol.CapabilityWrite, Schema: protocol.SchemaVariableWriteV2, Payload: write}); !errors.Is(err, ErrRevisionConflict) {
+	var envelope protocol.VariableValueV1
+	if err := protocol.DecodeJSONPayload(result.Payload, 1024, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if string(envelope.Value) != "true" || envelope.Revision != "2" || envelope.Definition == nil {
+		t.Fatalf("unexpected confirmed state: %#v", envelope)
+	}
+	if _, err := variable.Operate(context.Background(), request); !errors.Is(err, ErrRevisionConflict) {
 		t.Fatalf("stale write did not conflict: %v", err)
 	}
+}
+func testReady(value string) VariableState {
+	return VariableState{Value: json.RawMessage(value), Status: "ready"}
 }
 
 type customResource struct{ descriptor Descriptor }

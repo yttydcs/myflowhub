@@ -3,53 +3,40 @@ package resource
 import (
 	"errors"
 	"fmt"
-
 	"github.com/yttydcs/myflowhub/protocol"
 )
 
-// VariableSpec describes a variable owned by the Registry's local node.
-// WritePermission is optional; omitting it keeps the variable remotely read-only.
+// VariableSpec declares a platform variable owned by this Registry. An explicit
+// WritePermission is required to expose remote writes.
 type VariableSpec struct {
 	Name            string
-	ContentType     string
-	Schema          string
+	Definition      protocol.DataSchemaDefinition
 	ReadPermission  string
 	WritePermission string
 	MaxPayloadBytes int
-	Initial         []byte
+	Initial         VariableState
+	WriteHandler    VariableWriteHandler
 }
 
-// Variable creates and registers a variable owned by the Registry's local node.
-// It uses the same descriptor normalization, payload validation, duplicate checks,
-// and catalog publication path as NewVariable followed by Register.
 func (r *Registry) Variable(spec VariableSpec) (*Variable, error) {
 	if r == nil {
 		return nil, errors.New("declare variable: registry is required")
 	}
-	if err := spec.validate(); err != nil {
-		return nil, fmt.Errorf("declare variable: %w", err)
+	if spec.Name == "" {
+		return nil, errors.New("declare variable: name is required")
 	}
-
+	if spec.ReadPermission == "" {
+		return nil, errors.New("declare variable: read permission is required")
+	}
+	if spec.MaxPayloadBytes <= 0 {
+		return nil, errors.New("declare variable: max payload bytes must be positive")
+	}
 	id := protocol.ResourceID{Owner: r.owner, Name: spec.Name}
-	descriptor := VariableDescriptor(
-		id,
-		spec.ContentType,
-		spec.Schema,
-		spec.ReadPermission,
-		spec.MaxPayloadBytes,
-	)
+	descriptor := VariableDescriptor(id, spec.ReadPermission, spec.MaxPayloadBytes)
 	if spec.WritePermission != "" {
-		descriptor = WritableVariableDescriptor(
-			id,
-			spec.ContentType,
-			spec.Schema,
-			spec.ReadPermission,
-			spec.WritePermission,
-			spec.MaxPayloadBytes,
-		)
+		descriptor = WritableVariableDescriptor(id, spec.ReadPermission, spec.WritePermission, spec.MaxPayloadBytes)
 	}
-
-	value, err := NewVariable(descriptor, spec.Initial)
+	value, err := NewVariable(descriptor, spec.Definition, spec.Initial, spec.WriteHandler)
 	if err != nil {
 		return nil, fmt.Errorf("declare variable %q: %w", spec.Name, err)
 	}
@@ -57,23 +44,4 @@ func (r *Registry) Variable(spec VariableSpec) (*Variable, error) {
 		return nil, fmt.Errorf("declare variable %q: %w", spec.Name, err)
 	}
 	return value, nil
-}
-
-func (s VariableSpec) validate() error {
-	if s.Name == "" {
-		return errors.New("name is required")
-	}
-	if s.ContentType == "" {
-		return errors.New("content type is required")
-	}
-	if s.Schema == "" {
-		return errors.New("schema is required")
-	}
-	if s.ReadPermission == "" {
-		return errors.New("read permission is required")
-	}
-	if s.MaxPayloadBytes <= 0 {
-		return errors.New("max payload bytes must be positive")
-	}
-	return nil
 }

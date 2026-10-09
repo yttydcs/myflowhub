@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -29,7 +30,14 @@ func TestDurableVariableSubscriptionRecoversAfterParentRestart(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		variable, _ := resource.NewVariable(resource.VariableDescriptor(resourceID, "application/octet-stream", "test.raw.v1", "test.read", 64), []byte(value))
+		payload, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		variable, err := resource.NewVariable(resource.VariableDescriptor(resourceID, "test.read", 2048), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Status: "ready", Value: payload}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if err := parent.Registry().Register(variable); err != nil {
 			t.Fatal(err)
 		}
@@ -58,7 +66,7 @@ func TestDurableVariableSubscriptionRecoversAfterParentRestart(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("durable subscription did not become ready")
 	}
-	if event := receiveDurable(t, durable); event.Kind != EventSnapshot || string(event.Value) != "one" {
+	if event := receiveDurable(t, durable); event.Kind != EventSnapshot || string(decodeTestEvent(t, event).Value) != `"one"` {
 		t.Fatalf("unexpected first snapshot: %+v", event)
 	}
 	if err := parent.Close(); err != nil {
@@ -66,7 +74,7 @@ func TestDurableVariableSubscriptionRecoversAfterParentRestart(t *testing.T) {
 	}
 	parent = startParent("two")
 	defer parent.Close()
-	if event := receiveDurable(t, durable); event.Kind != EventSnapshot || string(event.Value) != "two" {
+	if event := receiveDurable(t, durable); event.Kind != EventSnapshot || string(decodeTestEvent(t, event).Value) != `"two"` {
 		t.Fatalf("unexpected recovered snapshot: %+v", event)
 	}
 }

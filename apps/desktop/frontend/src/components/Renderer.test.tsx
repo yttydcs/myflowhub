@@ -60,7 +60,7 @@ function encodedEvent(value: unknown, revision = 7): ResourceEvent {
     resource_name: 'system/example',
     capability: 'subscribe',
     schema: 'mfh.management.health.v1',
-    revision,
+    revision: String(revision),
     value: btoa(JSON.stringify(value)),
   }
 }
@@ -100,86 +100,25 @@ describe('schema-driven resource renderer', () => {
     const events = Array.from({ length: MAX_VISIBLE_EVENTS + 5 }, (_, index) => encodedEvent({ index }, index + 1))
     const buffered = prependBoundedEvents([], events)
     expect(buffered).toHaveLength(MAX_VISIBLE_EVENTS)
-    expect(buffered[0]!.revision).toBe(MAX_VISIBLE_EVENTS + 5)
-    expect(buffered.at(-1)!.revision).toBe(6)
+    expect(buffered[0]!.revision).toBe(String(MAX_VISIBLE_EVENTS + 5))
+    expect(buffered.at(-1)!.revision).toBe('6')
   })
 
   it('binds a numeric slider to provider bounds and step', () => {
     const onChange = vi.fn()
-    render(<SchemaEditor schema={{ type: 'integer', title: 'Level', minimum: 0, maximum: 100, multiple_of: 1 }} value={20} rendererID="mfh.variable.slider.v1" onChange={onChange} />)
+    render(<SchemaEditor schema={{ type: 'integer', title: 'Level', minimum: 0, maximum: 100, multiple_of: 1 }} value={20} rendererID="mfh.variable.slider.v2" onChange={onChange} />)
     const slider = screen.getByRole('slider', { name: 'Level' })
-    expect(slider).toHaveAttribute('min', '0')
-    expect(slider).toHaveAttribute('max', '100')
-    expect(slider).toHaveAttribute('step', '1')
-    fireEvent.change(slider, { target: { value: '42' } })
-    expect(onChange).toHaveBeenCalledWith(42)
+    expect(slider).toHaveAttribute('aria-valuemin', '0')
+    expect(slider).toHaveAttribute('aria-valuemax', '100')
+    expect(slider).toHaveAttribute('aria-valuenow', '20')
+    fireEvent.keyDown(slider, { key: 'ArrowRight' })
+    expect(onChange).toHaveBeenCalledWith(21)
   })
 
   it('never renders a sensitive write-only field as plain text', () => {
     render(<SchemaEditor schema={{ type: 'string', title: 'Permit', write_only: true, sensitive: true, format: 'json' }} value="secret" onChange={vi.fn()} />)
     expect(screen.getByLabelText('Permit')).toHaveAttribute('type', 'password')
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-  })
-
-  it('switches compatible display components without calling the resource API again', async () => {
-    const api = mockAPI({ snapshot: vi.fn().mockResolvedValue(health) })
-    const onRendererChange = vi.fn()
-    const descriptor = resource('mfh.variable', [
-      { name: 'read', permission: 'system.health.read', output_schema: 'mfh.management.health.v1', max_payload_bytes: 4096 },
-    ])
-    render(<><ResourceRendererSelector resource={descriptor} onRendererChange={onRendererChange} /><ResourceRenderer api={api} resource={descriptor} /></>)
-
-    expect(await screen.findByText('running')).toBeInTheDocument()
-    expect(api.snapshot).toHaveBeenCalledTimes(1)
-    fireEvent.change(screen.getByRole('combobox', { name: /显示方式/ }), { target: { value: 'mfh.variable.raw.v1' } })
-    expect(onRendererChange).toHaveBeenCalledWith('mfh.variable.raw.v1')
-    expect(api.snapshot).toHaveBeenCalledTimes(1)
-    expect(api.operate).not.toHaveBeenCalled()
-  })
-
-  it('stages a writable value and only mutates it after Apply', async () => {
-    const api = mockAPI({
-      subscribe: vi.fn().mockResolvedValue(19),
-      poll: vi.fn().mockResolvedValue({ kind: 'event', payload: encodedEvent(health) }),
-      cancel: vi.fn().mockResolvedValue(undefined),
-      operate: vi.fn().mockResolvedValue({ schema: 'mfh.variable-write-result.v2', payload: { revision: 8 } }),
-    })
-    const descriptor = resource('mfh.variable', [
-      { name: 'subscribe', permission: 'system.health.read', event_schema: 'mfh.management.health.v1', max_payload_bytes: 4096 },
-      { name: 'write', permission: 'system.health.write', input_schema: 'mfh.variable-write.v2', max_payload_bytes: 4096 },
-    ])
-    render(<ResourceRenderer api={api} resource={descriptor} />)
-
-    const state = await screen.findByRole('combobox', { name: 'State' })
-    fireEvent.change(state, { target: { value: 'degraded' } })
-    expect(api.operate).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: '应用' }))
-
-    await waitFor(() => expect(api.operate).toHaveBeenCalledTimes(1))
-    const request = vi.mocked(api.operate).mock.calls[0]![4] as { version: number; expected_revision: number; value: string }
-    expect(request.version).toBe(2)
-    expect(request.expected_revision).toBe(7)
-    expect(JSON.parse(atob(request.value))).toEqual({ ...health, state: 'degraded' })
-  })
-
-  it('preserves a staged draft after a revision conflict', async () => {
-    const api = mockAPI({
-      subscribe: vi.fn().mockResolvedValue(19),
-      poll: vi.fn().mockResolvedValue({ kind: 'event', payload: encodedEvent(health) }),
-      cancel: vi.fn().mockResolvedValue(undefined),
-      operate: vi.fn().mockRejectedValue(new Error('revision conflict')),
-    })
-    const descriptor = resource('mfh.variable', [
-      { name: 'subscribe', permission: 'system.health.read', event_schema: 'mfh.management.health.v1', max_payload_bytes: 4096 },
-      { name: 'write', permission: 'system.health.write', input_schema: 'mfh.variable-write.v2', max_payload_bytes: 4096 },
-    ])
-    render(<ResourceRenderer api={api} resource={descriptor} />)
-
-    const state = await screen.findByRole('combobox', { name: 'State' })
-    fireEvent.change(state, { target: { value: 'degraded' } })
-    fireEvent.click(screen.getByRole('button', { name: '应用' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('revision conflict')
-    expect(screen.getByRole('combobox', { name: 'State' })).toHaveValue('degraded')
   })
 
   it('generates a command form but requires an explicit execute action', async () => {
@@ -293,7 +232,7 @@ describe('schema-driven resource renderer', () => {
     expect(screen.getByRole('button', { name: '暂停' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '清空' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '筛选事件' })).toBeInTheDocument()
-    expect(screen.getByRole('checkbox')).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: '自动跟随' })).toBeChecked()
   })
 })
 

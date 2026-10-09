@@ -117,9 +117,19 @@ func Register(config Config) (*Controller, error) {
 		maxActive: config.MaxActive, maxHistory: config.MaxHistory, maxLifetime: config.MaxLifetime, sweepInterval: config.SweepInterval, now: config.Now,
 		transfers: make(map[string]*transfer), revision: 1,
 	}
-	initial, _ := protocol.EncodeJSONPayload(&protocol.FileTransfersV1{Version: 1, Revision: 1, Transfers: []protocol.FileTransferSummaryV1{}}, protocol.DefaultMaxPayload)
-	value.summaries, err = resource.NewVariable(resource.VariableDescriptor(protocol.ResourceID{Owner: config.Node.ID(), Name: protocol.BuiltinFileTransfers}, "application/json", protocol.SchemaFileTransfersV1, "file.read", protocol.DefaultMaxPayload), initial)
+	definition, err := protocol.DataSchemaByID(protocol.SchemaFileTransfersV1)
 	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("define file transfer summaries: %w", err)
+	}
+	initial, err := protocol.EncodeVariablePayload(definition, &protocol.FileTransfersV1{Version: 1, Revision: 1, Transfers: []protocol.FileTransferSummaryV1{}}, protocol.DefaultMaxPayload)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	value.summaries, err = resource.NewVariable(resource.VariableDescriptor(protocol.ResourceID{Owner: config.Node.ID(), Name: protocol.BuiltinFileTransfers}, "file.read", protocol.DefaultMaxPayload), definition, resource.VariableState{Value: initial, Status: "ready"}, nil)
+	if err != nil {
+		cancel()
 		return nil, err
 	}
 	value.progress, err = resource.NewStream(resource.StreamDescriptor(protocol.ResourceID{Owner: config.Node.ID(), Name: protocol.BuiltinFileProgress}, "application/json", protocol.SchemaFileProgressV1, "file.read", protocol.DefaultMaxPayload))
@@ -496,7 +506,7 @@ func (c *Controller) updateSummariesLocked() error {
 	if c.revision == ^uint64(0) {
 		return errors.New("file transfer summary revision exhausted")
 	}
-	c.revision++
+	revision := c.revision + 1
 	ids := make([]string, 0, len(c.transfers))
 	for id := range c.transfers {
 		ids = append(ids, id)
@@ -507,12 +517,15 @@ func (c *Controller) updateSummariesLocked() error {
 		current := c.transfers[id]
 		summaries = append(summaries, protocol.FileTransferSummaryV1{TransferID: id, OwnerNodeID: strconv.FormatUint(uint64(current.owner), 10), Path: current.offer.Path, ReceivedBytes: current.received, TotalBytes: current.offer.Size, State: current.state, ExpiresAtUnixMS: current.offer.ExpiresAtUnixMS, Error: current.err})
 	}
-	payload, err := protocol.EncodeJSONPayload(&protocol.FileTransfersV1{Version: 1, Revision: c.revision, Transfers: summaries}, protocol.DefaultMaxPayload)
+	payload, err := protocol.EncodeVariablePayload(*c.summaries.Snapshot().State.Definition, &protocol.FileTransfersV1{Version: 1, Revision: revision, Transfers: summaries}, protocol.DefaultMaxPayload)
 	if err != nil {
 		return err
 	}
-	_, err = c.summaries.Set(payload)
-	return err
+	if _, err := c.summaries.Set(resource.VariableState{Value: payload, Status: "ready"}); err != nil {
+		return err
+	}
+	c.revision = revision
+	return nil
 }
 
 func (c *Controller) activeCountLocked() int {

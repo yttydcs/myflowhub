@@ -161,17 +161,21 @@ func TestManagementQueryTopologyRejectsMalformedResponses(t *testing.T) {
 	}
 }
 
-func TestManagementQueryTopologyDoesNotFallBackToLegacyRead(t *testing.T) {
+func TestManagementQueryTopologyDoesNotFallBackToRead(t *testing.T) {
 	runtime := newLocalNode(t, 1)
 	defer runtime.Close()
-	legacy, err := resource.NewVariable(resource.VariableDescriptor(
-		protocol.ResourceID{Owner: runtime.ID(), Name: protocol.BuiltinManagementTopology},
-		"application/json", protocol.SchemaManagementTopologyV1, "management.topology.read", protocol.DefaultMaxPayload,
-	), []byte(`{"version":1,"epoch":1,"nodes":[{"node_id":"1","role":"root","generation":1}]}`))
+	definition, err := protocol.DataSchemaByID(protocol.SchemaManagementTopologyV1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := runtime.Registry().Register(legacy); err != nil {
+	readOnly, err := resource.NewVariable(resource.VariableDescriptor(
+		protocol.ResourceID{Owner: runtime.ID(), Name: protocol.BuiltinManagementTopology},
+		"management.topology.read", protocol.DefaultMaxPayload,
+	), definition, resource.VariableState{Status: "ready", Value: json.RawMessage(`{"version":1,"epoch":1,"nodes":[{"node_id":"1","role":"root","generation":1}]}`)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.Registry().Register(readOnly); err != nil {
 		t.Fatal(err)
 	}
 	client, err := NewAttachedClient(runtime)
@@ -187,9 +191,9 @@ func TestManagementQueryTopologyDoesNotFallBackToLegacyRead(t *testing.T) {
 		assertSDKError(t, err, protocol.CodeUnsupported, false)
 	}
 	if value, err := management.Topology(context.Background()); err != nil || len(value.Nodes) != 1 || value.Nodes[0].NodeID != "1" {
-		t.Fatalf("legacy snapshot helper changed: %+v (%v)", value, err)
+		t.Fatalf("snapshot helper changed: %+v (%v)", value, err)
 	}
-	if err := runtime.Registry().Remove(legacy.Descriptor().ID); err != nil {
+	if err := runtime.Registry().Remove(readOnly.Descriptor().ID); err != nil {
 		t.Fatal(err)
 	}
 	_, err = management.QueryTopology(context.Background(), 1)
@@ -211,12 +215,15 @@ func (r topologyQueryTestResource) Operate(ctx context.Context, request resource
 
 func topologyQueryFixture(owner protocol.NodeID, handler resource.Handler) topologyQueryTestResource {
 	descriptor := resource.Descriptor{
-		ID: protocol.ResourceID{Owner: owner, Name: protocol.BuiltinManagementTopology}, Type: protocol.ResourceTypeVariable, TypeVersion: 1,
+		ID: protocol.ResourceID{Owner: owner, Name: protocol.BuiltinManagementTopology}, Type: protocol.ResourceTypeVariable, TypeVersion: 2,
 		Capabilities: []protocol.CapabilityDescriptorV2{
+			{Name: protocol.CapabilityRead, Permission: "management.topology.read", OutputSchema: protocol.SchemaVariableValueV1, MaxPayloadBytes: protocol.DefaultMaxPayload},
+			{Name: protocol.CapabilitySubscribe, Permission: "management.topology.read", EventSchema: protocol.SchemaVariableValueV1, MaxPayloadBytes: protocol.DefaultMaxPayload},
 			{Name: protocol.CapabilityChildren, Permission: "management.topology.children", InputSchema: protocol.SchemaManagementTopologyChildrenRequestV1, OutputSchema: protocol.SchemaManagementTopologyQueryV1, MaxPayloadBytes: protocol.DefaultMaxPayload},
 			{Name: protocol.CapabilitySubtree, Permission: "management.topology.subtree", InputSchema: protocol.SchemaManagementTopologyQueryRequestV1, OutputSchema: protocol.SchemaManagementTopologyQueryV1, MaxPayloadBytes: protocol.DefaultMaxPayload},
 		},
 		Schemas: []protocol.SchemaDescriptorV2{
+			{ID: protocol.SchemaVariableValueV1, ContentType: "application/json"},
 			{ID: protocol.SchemaManagementTopologyChildrenRequestV1, ContentType: "application/json"},
 			{ID: protocol.SchemaManagementTopologyQueryRequestV1, ContentType: "application/json"},
 			{ID: protocol.SchemaManagementTopologyQueryV1, ContentType: "application/json"},

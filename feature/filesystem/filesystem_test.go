@@ -54,7 +54,7 @@ func TestRegisterThreeMountsAndCatalogHidesPhysicalRoots(t *testing.T) {
 			t.Fatalf("unexpected capabilities for %q: got %v want %v", mount.Name, got, want)
 		}
 	}
-	catalog := runtimeNode.Registry().Catalog().Snapshot().Value
+	catalog := runtimeNode.Registry().Catalog().Snapshot().State.Value
 	for _, mount := range mounts {
 		if bytes.Contains(catalog, []byte(mount.Root)) || bytes.Contains(catalog, []byte(filepath.ToSlash(mount.Root))) {
 			t.Fatalf("catalog leaks physical root for %q: %s", mount.Name, catalog)
@@ -106,7 +106,7 @@ func TestRegisterValidatesAllMountsBeforeChangingRegistry(t *testing.T) {
 		runtimeNode := newTestNode(t)
 		root := t.TempDir()
 		takenID := protocol.ResourceID{Owner: runtimeNode.ID(), Name: "taken"}
-		variable, err := resource.NewVariable(resource.VariableDescriptor(takenID, "application/octet-stream", "test.value.v1", "test.read", 64), []byte("existing"))
+		variable, err := resource.NewVariable(resource.VariableDescriptor(takenID, "test.read", 512), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Value: []byte(`"existing"`), Status: "ready"}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -148,7 +148,7 @@ func TestRegistrationCloseDoesNotRemoveSuccessor(t *testing.T) {
 	if err := runtimeNode.Registry().Remove(id); err != nil {
 		t.Fatal(err)
 	}
-	successor, err := resource.NewVariable(resource.VariableDescriptor(id, "application/octet-stream", "test.value.v1", "test.read", 64), []byte("successor"))
+	successor, err := resource.NewVariable(resource.VariableDescriptor(id, "test.read", 512), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Value: []byte(`"successor"`), Status: "ready"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

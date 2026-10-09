@@ -1,38 +1,8 @@
 import generatedSchemas from '../generated/resource-schemas.generated.json'
 import type { CapabilityDescriptor, ResourceDescriptor } from '../types'
 
-export type DataSchemaType = 'null' | 'boolean' | 'integer' | 'number' | 'string' | 'object' | 'array'
-
-export type DataSchemaProperty = {
-  name: string
-  required?: boolean
-  schema: DataSchema
-}
-
-export type DataSchema = {
-  id?: string
-  type: DataSchemaType
-  title?: string
-  description?: string
-  format?: string
-  unit?: string
-  precision?: number
-  minimum?: number
-  maximum?: number
-  multiple_of?: number
-  min_length?: number
-  max_length?: number
-  pattern?: string
-  min_items?: number
-  max_items?: number
-  enum?: string[]
-  read_only?: boolean
-  write_only?: boolean
-  sensitive?: boolean
-  properties?: DataSchemaProperty[]
-  items?: DataSchema
-  additional_properties?: DataSchema
-}
+export type { DataSchemaDefinition as DataSchema, DataSchemaProperty } from '../generated/variable-contract.generated'
+import type { DataSchemaDefinition as DataSchema } from '../generated/variable-contract.generated'
 
 export type SchemaResolution =
   | { status: 'resolved'; schema: DataSchema; schemaID: string; source: string }
@@ -51,7 +21,7 @@ const MAX_SCHEMA_ENUM = 64
 const SCHEMA_KEYS = new Set([
   'id', 'type', 'title', 'description', 'format', 'unit', 'precision', 'minimum', 'maximum', 'multiple_of',
   'min_length', 'max_length', 'pattern', 'min_items', 'max_items', 'enum', 'read_only', 'write_only',
-  'sensitive', 'properties', 'items', 'additional_properties',
+  'sensitive', 'properties', 'items', 'additional_properties', 'nullable', 'content_type',
 ])
 
 function schemaDefinitionError(schema: DataSchema, depth = 1, propertyCount = { value: 0 }): string | undefined {

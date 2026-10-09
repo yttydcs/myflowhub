@@ -4,6 +4,7 @@
 
 ## Current Decisions
 
+- [平台 Variable 契约与随快照定义](2026-09-06_platform-variable-contract.md)：Implemented R2；产品未发布，一次性替换且不保留兼容。
 - [浅层与递归拓扑能力](2026-09-06_depth-scoped-topology-capabilities.md)：同一 Resource 的独立 capability，复用现有 policy。
 
 - [移除移动与嵌入式旧实现，收敛 SDK 生命周期](2026-09-06_retire-mobile-embedded-and-owning-bindings.md)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"runtime"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -127,6 +128,18 @@ func TestObservationFailureRejectsConcurrentLateData(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = receive(t, sub.Events)
+	late := make([]resource.Observation, 100)
+	state := observable.Snapshot().State
+	state.Definition = nil
+	state.Value = []byte(`"late"`)
+	for i := range late {
+		state.Revision = strconv.Itoa(i + 2)
+		payload, err := protocol.EncodeJSONPayload(&state, observable.Descriptor().Limits.MaxPayloadBytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		late[i] = resource.Observation{Revision: uint64(i + 2), Schema: protocol.SchemaVariableValueV1, Value: payload}
+	}
 	var writers sync.WaitGroup
 	start := make(chan struct{})
 	for range 4 {
@@ -134,8 +147,8 @@ func TestObservationFailureRejectsConcurrentLateData(t *testing.T) {
 		go func() {
 			defer writers.Done()
 			<-start
-			for i := range 100 {
-				observable.emit(resource.Observation{Revision: uint64(i + 1), Value: []byte("late")})
+			for _, observation := range late {
+				observable.emit(observation)
 			}
 		}()
 	}
@@ -172,14 +185,18 @@ func (o *failureObservable) Observe(observer func(resource.Observation)) (*resou
 	if o.observeErr != nil {
 		return nil, nil, o.observeErr
 	}
-	o.mu.Lock()
-	o.observer = observer
-	o.mu.Unlock()
 	initial := o.initial
 	if initial == nil {
 		snapshot := o.Snapshot()
-		initial = &resource.Observation{Snapshot: true, Revision: snapshot.Revision, Value: snapshot.Value}
+		payload, err := protocol.EncodeJSONPayload(&snapshot.State, o.Descriptor().Limits.MaxPayloadBytes)
+		if err != nil {
+			return nil, nil, err
+		}
+		initial = &resource.Observation{Snapshot: true, Revision: snapshot.Revision, Schema: protocol.SchemaVariableValueV1, Value: payload}
 	}
+	o.mu.Lock()
+	o.observer = observer
+	o.mu.Unlock()
 	var once sync.Once
 	return initial, func() {
 		once.Do(func() {
@@ -202,11 +219,15 @@ func (o *failureObservable) emit(observation resource.Observation) {
 
 func newFailureManager(t *testing.T) (*Manager, *failureObservable, protocol.ResourceID) {
 	t.Helper()
-	manager, value, id := newManager(t, protocol.ResourceTypeVariable, time.Minute)
+	manager, _, id := newManager(t, protocol.ResourceTypeVariable, time.Minute)
 	if err := manager.registry.Remove(id); err != nil {
 		t.Fatal(err)
 	}
-	observable := &failureObservable{Variable: value.(*resource.Variable), cancelled: make(chan struct{})}
+	value, err := resource.NewVariable(resource.VariableDescriptor(id, "test.read", 512), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Value: []byte(`"initial"`), Status: "ready"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	observable := &failureObservable{Variable: value, cancelled: make(chan struct{})}
 	if err := manager.registry.Register(observable); err != nil {
 		t.Fatal(err)
 	}

@@ -2,7 +2,9 @@ package sdk
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/yttydcs/myflowhub/protocol"
@@ -21,7 +23,7 @@ func TestAttachedClientHasNoRuntimeLifecycleSurface(t *testing.T) {
 	runtime := newLocalNode(t, 91)
 	defer runtime.Close()
 	variableID := protocol.ResourceID{Owner: runtime.ID(), Name: "test/status"}
-	variable, err := resource.NewVariable(resource.VariableDescriptor(variableID, "text/plain", "test.status.v1", "test.read", 64), []byte("ready"))
+	variable, err := resource.NewVariable(resource.VariableDescriptor(variableID, "test.read", 2048), protocol.DataSchemaDefinition{Type: "string"}, resource.VariableState{Status: "ready", Value: json.RawMessage(`"ready"`)}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,9 +48,27 @@ func TestAttachedClientHasNoRuntimeLifecycleSurface(t *testing.T) {
 	default:
 	}
 	event, err := client.Snapshot(context.Background(), variableID)
-	if err != nil || string(event.Value) != "ready" {
+	if err != nil || string(event.Value) != `"ready"` {
 		t.Fatalf("attached client was not usable through its host node: event=%+v err=%v", event, err)
 	}
+}
+
+func testObjectDefinition(properties map[string]string) protocol.DataSchemaDefinition {
+	definition := protocol.DataSchemaDefinition{Type: "object"}
+	for name, kind := range properties {
+		definition.Properties = append(definition.Properties, protocol.DataSchemaProperty{Name: name, Required: true, Schema: &protocol.DataSchemaDefinition{Type: kind}})
+	}
+	sort.Slice(definition.Properties, func(i, j int) bool { return definition.Properties[i].Name < definition.Properties[j].Name })
+	return definition
+}
+
+func decodeTestEvent(t *testing.T, event Event) protocol.VariableValueV1 {
+	t.Helper()
+	var state protocol.VariableValueV1
+	if err := protocol.DecodeJSONPayload(event.Value, protocol.DefaultMaxPayload, &state); err != nil {
+		t.Fatal(err)
+	}
+	return state
 }
 
 func TestTypedCollectionOperationsShareAttachedNodePath(t *testing.T) {

@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -54,7 +55,7 @@ func TestRuntimeConnectsAndParentControlsMetricsResources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	actuator := &fakeActuator{result: ApplyResult{Applied: true, Value: "40"}}
+	actuator := &fakeActuator{result: ApplyResult{Applied: true, Value: 40}}
 	runtime, err := Start(ctx, RuntimeConfig{
 		StateDirectory: childState.Directory, NodeID: 2, ParentID: 1, ParentKey: rootIdentity.PublicKey,
 		Permit: &permit, Driver: network, Endpoint: endpoint, Platform: "windows", Actuator: actuator,
@@ -65,7 +66,7 @@ func TestRuntimeConnectsAndParentControlsMetricsResources(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = runtime.Close() })
 	waitRuntimeConnected(t, runtime)
-	if err := runtime.Metrics.Update(CPUPercent, "73", nil); err != nil {
+	if err := runtime.Metrics.Update(CPUPercent, 73, nil); err != nil {
 		t.Fatal(err)
 	}
 	remote, err := root.Subscribe(ctx, protocol.ResourceID{Owner: 2, Name: ResourceName(CPUPercent)}, time.Minute, 4)
@@ -74,18 +75,19 @@ func TestRuntimeConnectsAndParentControlsMetricsResources(t *testing.T) {
 	}
 	defer remote.Cancel()
 	event := <-remote.Events
-	var sample SampleV1
-	if err := protocol.DecodeJSONPayload(event.Value, protocol.DefaultMaxPayload, &sample); err != nil || sample.Value != "73" {
+	var sample protocol.VariableValueV1
+	if err := protocol.DecodeJSONPayload(event.Value, protocol.DefaultMaxPayload, &sample); err != nil || string(sample.Value) != "73" {
 		t.Fatalf("unexpected parent snapshot: %+v (%v)", sample, err)
 	}
-	request, _ := protocol.EncodeJSONPayload(&ControlV1{Version: 1, Value: "40"}, protocol.DefaultMaxPayload)
-	response, err := root.Invoke(ctx, protocol.ResourceID{Owner: 2, Name: CommandName(BrightnessPercent)}, request)
+	state, _ := runtime.Metrics.State(BrightnessPercent)
+	request, _ := protocol.EncodeJSONPayload(&protocol.VariableWriteV3{Version: 3, ExpectedInstanceID: state.InstanceID, ExpectedRevision: state.Revision, Value: json.RawMessage(`40`)}, protocol.DefaultMaxPayload)
+	response, err := root.Operate(ctx, protocol.ResourceID{Owner: 2, Name: ResourceName(BrightnessPercent)}, protocol.CapabilityWrite, protocol.SchemaVariableWriteV3, request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var result ControlResultV1
-	if err := protocol.DecodeJSONPayload(response, protocol.DefaultMaxPayload, &result); err != nil || !result.Applied {
-		t.Fatalf("unexpected parent control response: %+v (%v)", result, err)
+	var result protocol.VariableValueV1
+	if err := protocol.DecodeJSONPayload(response.Payload, protocol.DefaultMaxPayload, &result); err != nil || result.Status != "ready" || string(result.Value) != "40" || actuator.calls.Load() != 1 {
+		t.Fatalf("unexpected parent write response: %+v (%v)", result, err)
 	}
 
 	config := runtime.Metrics.Config()
@@ -137,11 +139,6 @@ func TestRuntimeUsesSingleLeafHostAndCompletePreStartCatalog(t *testing.T) {
 
 	descriptors := runtime.Host.Resources().List()
 	expected := 3 + len(Definitions("windows")) // catalog, config, config update, and every metric variable
-	for _, definition := range Definitions("windows") {
-		if definition.Controllable {
-			expected++
-		}
-	}
 	if len(descriptors) != expected {
 		t.Fatalf("pre-start catalog has %d resources, want %d: %+v", len(descriptors), expected, descriptors)
 	}
@@ -151,9 +148,8 @@ func TestRuntimeUsesSingleLeafHostAndCompletePreStartCatalog(t *testing.T) {
 		}
 	}
 	var catalog protocol.ResourceCatalogV2
-	if err := protocol.DecodeJSONPayload(
-		runtime.Host.Resources().Catalog().Snapshot().Value, protocol.DefaultMaxPayload, &catalog,
-	); err != nil {
+	catalogState := runtime.Host.Resources().Catalog().Snapshot().State
+	if err := protocol.DecodeVariablePayload(*catalogState.Definition, catalogState.Value, protocol.DefaultMaxPayload, &catalog); err != nil {
 		t.Fatal(err)
 	}
 	if len(catalog.Resources) != expected {

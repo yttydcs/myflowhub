@@ -1,3 +1,4 @@
+import { Select } from './ui/select'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { KeyRound, RefreshCw, ShieldAlert, Trash2 } from 'lucide-react'
 import type { DesktopAPI } from '../api'
@@ -311,8 +312,8 @@ export function PolicyConsole({
             </div>
             <form className="policy-form policy-grid" onSubmit={(event) => void createBinding(event)}>
               <label>Subject Node ID<Input required inputMode="numeric" pattern="[1-9][0-9]*" value={bindingSubject} onChange={(event) => setBindingSubject(event.target.value)} /></label>
-              <label>Definition<select value={bindingDefinition} onChange={(event) => setBindingDefinition(event.target.value)}>{definitions.map((definition) => <option key={definition.id} value={definition.id}>{definition.label}</option>)}</select></label>
-              <label>作用域<select value={scopeKind} onChange={(event) => setScopeKind(event.target.value as PolicyScope['kind'])}><option value="owner">单个 Owner</option><option value="subtree">子树</option><option value="authority-domain">Authority domain</option></select></label>
+              <label>Definition<Select aria-label="Definition" value={bindingDefinition} onValueChange={setBindingDefinition} options={definitions.map((definition) => ({ value: definition.id, label: definition.label }))} /></label>
+              <label>作用域<Select aria-label="作用域" value={scopeKind} onValueChange={(value) => setScopeKind(value as PolicyScope['kind'])} options={[{ value: 'owner', label: '单个 Owner' }, { value: 'subtree', label: '子树' }, { value: 'authority-domain', label: 'Authority domain' }]} /></label>
               <label>作用域 Node ID<Input required inputMode="numeric" pattern="[1-9][0-9]*" value={scopeNode} onChange={(event) => setScopeNode(event.target.value)} /></label>
               <Button type="submit" disabled={acting || !bindingDefinition}>创建 Binding</Button>
             </form>

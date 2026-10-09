@@ -4,13 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/resource"
@@ -37,8 +37,8 @@ type topologySnapshot struct {
 	levels      []int
 	shallow     topologyResult
 	full        topologyResult
-	legacy      []byte
-	legacyErr   error
+	value       []byte
+	valueErr    error
 	mu          sync.Mutex
 	cache       map[int]topologyResult
 	order       []int
@@ -50,6 +50,7 @@ type topologyResource struct {
 	instanceID   string
 	current      atomic.Pointer[topologySnapshot]
 	failure      atomic.Pointer[topologyFailure]
+	valueFailure atomic.Pointer[topologyFailure]
 	publishMu    sync.Mutex
 	publishing   bool
 	pending      *topologySnapshot
@@ -86,6 +87,10 @@ func (r *topologyResource) Descriptor() resource.Descriptor {
 	return descriptor
 }
 
+func (r *topologyResource) Retire() { r.base.Retire() }
+
+func (r *topologyResource) Retired() bool { return r.base.Retired() }
+
 func (r *topologyResource) Operate(ctx context.Context, request resource.OperationRequest) (resource.OperationResult, error) {
 	if ctx == nil {
 		return resource.OperationResult{}, errors.New("topology context is required")
@@ -112,11 +117,15 @@ func (r *topologyResource) Operate(ctx context.Context, request resource.Operati
 		depth = input.Depth
 	default:
 		if current := r.current.Load(); current != nil && request.Capability == protocol.CapabilityRead {
-			if current.legacyErr != nil {
-				return resource.OperationResult{}, current.legacyErr
+			if current.valueErr != nil {
+				return resource.OperationResult{}, current.valueErr
 			}
-			return resource.OperationResult{Schema: protocol.SchemaManagementTopologyV1, Payload: append([]byte(nil), current.legacy...)}, nil
+			if failure := r.valueFailure.Load(); failure != nil {
+				return resource.OperationResult{}, failure.err
+			}
 		}
+		// Read the committed standard envelope, including its registration
+		// identity and definition, through the same Variable used by Observe.
 		return r.base.Operate(ctx, request)
 	}
 	current := r.current.Load()
@@ -136,8 +145,11 @@ func (r *topologyResource) Observe(observer func(resource.Observation)) (*resour
 	if failure := r.failure.Load(); failure != nil {
 		return nil, nil, failure.err
 	}
-	if current := r.current.Load(); current != nil && current.legacyErr != nil {
-		return nil, nil, current.legacyErr
+	if current := r.current.Load(); current != nil && current.valueErr != nil {
+		return nil, nil, current.valueErr
+	}
+	if failure := r.valueFailure.Load(); failure != nil {
+		return nil, nil, failure.err
 	}
 	snapshot, cancel, err := r.base.Observe(observer)
 	if err != nil {
@@ -175,11 +187,19 @@ func (r *topologyResource) publish(snapshot *topologySnapshot) error {
 		r.pending = nil
 		r.published = current.revision
 		r.publishMu.Unlock()
-		if current.legacyErr != nil {
-			r.failObservers(current.legacyErr)
+		if current.valueErr != nil {
+			r.failObservers(current.valueErr)
 		} else {
-			_, err := r.base.Apply(current.revision+1, current.legacy)
+			// Clear an earlier publication failure before Apply: callbacks may
+			// re-enter read/Observe after the new state has been committed.
+			r.valueFailure.Store(nil)
+			_, err := r.base.Apply(current.revision+1, resource.VariableState{Value: current.value, Status: "ready"})
 			if err != nil && !errors.Is(err, resource.ErrRevisionRegression) {
+				if errors.Is(err, resource.ErrValueTooLarge) {
+					err = fmt.Errorf("%w: %w", protocol.ErrPayloadTooLarge, err)
+				}
+				r.valueFailure.Store(&topologyFailure{err: err})
+				r.failObservers(err)
 				result = errors.Join(result, err)
 			}
 		}
@@ -219,7 +239,10 @@ func (c *Controller) refreshTopologyLocked() (*topologySnapshot, error) {
 	}
 	state, changed := c.node.Tree().TopologySnapshotIfChanged(version)
 	if !changed {
-		return nil, previous.legacyErr
+		if failure := c.topologyQuery.valueFailure.Load(); failure != nil {
+			return nil, failure.err
+		}
+		return nil, previous.valueErr
 	}
 	revision := uint64(1)
 	if previous != nil {
@@ -230,17 +253,27 @@ func (c *Controller) refreshTopologyLocked() (*topologySnapshot, error) {
 		}
 		revision = previous.revision + 1
 	}
-	current, err := buildTopologySnapshot(state, displayName, c.topologyQuery.instanceID, revision)
+	variableState := c.topology.Snapshot().State
+	current, err := buildTopologySnapshot(state, displayName, c.topologyQuery.instanceID, revision, *variableState.Definition)
 	if err != nil {
 		c.topologyQuery.failure.Store(&topologyFailure{err: err})
 		return nil, err
 	}
+	if current.valueErr == nil {
+		// The query cache can still serve shallow results when the full Variable
+		// envelope exceeds its limit. Check that boundary before making this
+		// snapshot visible so read/Observe cannot silently return an older value.
+		variableState.Value = current.value
+		variableState.Revision = strconv.FormatUint(current.revision+1, 10)
+		variableState.ObservedAtUnixMS = time.Now().UnixMilli()
+		_, current.valueErr = protocol.EncodeJSONPayload(&variableState, c.topology.Descriptor().Limits.MaxPayloadBytes)
+	}
 	c.topologyQuery.current.Store(current)
 	c.topologyQuery.failure.Store(nil)
-	return current, current.legacyErr
+	return current, current.valueErr
 }
 
-func buildTopologySnapshot(state tree.TopologySnapshot, displayName, instanceID string, revision uint64) (*topologySnapshot, error) {
+func buildTopologySnapshot(state tree.TopologySnapshot, displayName, instanceID string, revision uint64, definition protocol.DataSchemaDefinition) (*topologySnapshot, error) {
 	epoch := state.Version.Epoch
 	if epoch == 0 {
 		epoch = 1
@@ -277,7 +310,7 @@ func buildTopologySnapshot(state tree.TopologySnapshot, displayName, instanceID 
 	if len(current.nodes) != len(state.Relations)+1 {
 		return nil, errors.New("runtime topology contains unreachable relations")
 	}
-	// Preserve the legacy depth-then-numeric-ID ordering across sibling groups.
+	// Preserve depth-then-numeric-ID ordering across sibling groups.
 	order := make([]int, len(queue))
 	for index := range order {
 		order[index] = index
@@ -298,18 +331,16 @@ func buildTopologySnapshot(state tree.TopologySnapshot, displayName, instanceID 
 	current.shallow = current.encode(1)
 	current.full = current.encode(0)
 	if len(current.nodes) > protocol.MaxItems {
-		current.legacyErr = topologyOverflow(len(current.nodes))
+		current.valueErr = topologyOverflow(len(current.nodes))
 		return current, nil
 	}
-	legacy := protocol.ManagementTopologyV1{Version: 1, Epoch: epoch, Nodes: make([]protocol.TopologyNodeV1, len(current.nodes))}
+	value := protocol.ManagementTopologyV1{Version: 1, Epoch: epoch, Nodes: make([]protocol.TopologyNodeV1, len(current.nodes))}
 	for index, item := range current.nodes {
-		legacy.Nodes[index] = protocol.TopologyNodeV1{NodeID: item.NodeID, ParentID: item.ParentID, DisplayName: item.DisplayName, Role: item.Role, Generation: item.Generation}
+		value.Nodes[index] = protocol.TopologyNodeV1{NodeID: item.NodeID, ParentID: item.ParentID, DisplayName: item.DisplayName, Role: item.Role, Generation: item.Generation}
 	}
-	// Relations were validated in one traversal above. Avoid the legacy
-	// validator's repeated ancestor walks when publishing an already valid tree.
-	current.legacy, current.legacyErr = json.Marshal(legacy)
-	if len(current.legacy) > protocol.DefaultMaxPayload {
-		current.legacy, current.legacyErr = nil, topologyOverflow(len(current.nodes))
+	current.value, current.valueErr = protocol.EncodeVariablePayload(definition, &value, protocol.DefaultMaxPayload)
+	if len(current.value) > protocol.DefaultMaxPayload {
+		current.value, current.valueErr = nil, topologyOverflow(len(current.nodes))
 	}
 	return current, nil
 }
@@ -355,3 +386,5 @@ func (s *topologySnapshot) query(depth int) topologyResult {
 	s.cacheBytes += len(result.payload)
 	return result
 }
+
+func (r *topologyResource) PrepareRetire() func() { return r.base.PrepareRetire() }

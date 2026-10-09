@@ -1,3 +1,4 @@
+import { Checkbox } from './ui/checkbox'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Check, Copy, RefreshCw, ShieldCheck, ShieldX } from 'lucide-react'
 import type { DesktopAPI } from '../api'
@@ -188,7 +189,7 @@ export function AdmissionConsole({ api, authorityNodeID }: { api: DesktopAPI; au
                 <label>目标父 Node ID<Input required inputMode="numeric" pattern="[1-9][0-9]*" value={targetNodeID} onChange={(event) => setTargetNodeID(event.target.value)} /></label>
                 <label>准入 Profile<Input required pattern="[A-Za-z0-9._-]{1,128}" value={admissionProfile} onChange={(event) => setAdmissionProfile(event.target.value)} /></label>
                 <label>有效期（小时）<Input required type="number" min="1" max="8760" value={ttlHours} onChange={(event) => setTTLHours(event.target.value)} /></label>
-                <label className="check-row"><input type="checkbox" checked={allowDescendants} onChange={(event) => setAllowDescendants(event.target.checked)} />允许目标节点的后代父节点使用</label>
+                <label className="check-row"><Checkbox checked={allowDescendants} onCheckedChange={setAllowDescendants} />允许目标节点的后代父节点使用</label>
                 <Button type="submit" disabled={acting}><ShieldCheck aria-hidden="true" size={13} />签发 Permit</Button>
               </form>
               {issuedPermit && (

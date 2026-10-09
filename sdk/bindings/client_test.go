@@ -107,7 +107,7 @@ func TestBindingClientTCPJSONAndSubscriptionContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	var health protocol.ManagementHealthV1
-	if err := json.Unmarshal([]byte(healthJSON), &health); err != nil || health.Version != 1 {
+	if err := json.Unmarshal(bindingTestState(t, healthJSON).Value, &health); err != nil || health.Version != 1 {
 		t.Fatalf("unexpected binding health: %v (%s)", err, healthJSON)
 	}
 
@@ -139,7 +139,11 @@ func TestBindingClientTCPJSONAndSubscriptionContract(t *testing.T) {
 			t.Fatalf("unexpected binding event: %v (%s)", err, eventJSON)
 		}
 		var notification protocol.NotificationEventV1
-		if err := json.Unmarshal(event.Value, &notification); err != nil || notification.EventID != response.EventID {
+		var streamValue []byte
+		if err := json.Unmarshal(event.Value, &streamValue); err != nil {
+			t.Fatalf("stream transport is not base64: %v (%s)", err, event.Value)
+		}
+		if err := json.Unmarshal(streamValue, &notification); err != nil || notification.EventID != response.EventID {
 			t.Fatalf("unexpected notification event payload: %v (%s)", err, event.Value)
 		}
 	case errorJSON := <-listener.errors:
@@ -200,7 +204,7 @@ func TestAttachedBindingUsesHostClientAndOnlyClosesLocalFacade(t *testing.T) {
 	}
 	defer host.Close()
 	variableID := protocol.ResourceID{Owner: host.ID(), Name: "test/status"}
-	variable, err := resource.NewVariable(resource.VariableDescriptor(variableID, "application/json", "test.status.v1", "test.read", 64), []byte(`{"state":"ready"}`))
+	variable, err := resource.NewVariable(resource.VariableDescriptor(variableID, "test.read", 2048), bindingTestDefinition("state", "string"), resource.VariableState{Status: "ready", Value: json.RawMessage(`{"state":"ready"}`)}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +225,10 @@ func TestAttachedBindingUsesHostClientAndOnlyClosesLocalFacade(t *testing.T) {
 		t.Fatalf("unexpected attached identity %q: %v", identityJSON, err)
 	}
 	snapshot, err := facade.SnapshotJSON(72, variableID.Name, 1_000)
-	if err != nil || snapshot != `{"state":"ready"}` {
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bindingTestState(t, snapshot).Value) != `{"state":"ready"}` {
 		t.Fatalf("unexpected attached snapshot %q: %v", snapshot, err)
 	}
 	for _, method := range []string{"TrustParent", "StartTCP", "StartRFCOMM", "EnrollTCP", "StartEnrolledTCP"} {
@@ -270,7 +277,7 @@ func TestAttachedBindingBeforeHostStartAllowsLocalOperationsButNotParentWait(t *
 	}
 	defer host.Close()
 	statusID := protocol.ResourceID{Owner: host.ID(), Name: "test/pre-start"}
-	variable, err := resource.NewVariable(resource.VariableDescriptor(statusID, "application/json", "test.status.v1", "test.read", 64), []byte(`{"ready":false}`))
+	variable, err := resource.NewVariable(resource.VariableDescriptor(statusID, "test.read", 2048), bindingTestDefinition("ready", "boolean"), resource.VariableState{Status: "ready", Value: json.RawMessage(`{"ready":false}`)}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,8 +293,12 @@ func TestAttachedBindingBeforeHostStartAllowsLocalOperationsButNotParentWait(t *
 		t.Fatal(err)
 	}
 	defer facade.Close()
-	if snapshot, err := facade.SnapshotJSON(75, statusID.Name, 1_000); err != nil || snapshot != `{"ready":false}` {
-		t.Fatalf("pre-start local operation failed: %q %v", snapshot, err)
+	snapshot, err := facade.SnapshotJSON(75, statusID.Name, 1_000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bindingTestState(t, snapshot).Value) != `{"ready":false}` {
+		t.Fatalf("pre-start local operation failed: %q", snapshot)
 	}
 	if err := facade.WaitConnected(100); !errors.Is(err, nodehost.ErrNotStarted) {
 		t.Fatalf("pre-start parent wait returned %v", err)
@@ -308,7 +319,7 @@ func TestAttachedBindingSubscriptionCancellationDoesNotAffectHost(t *testing.T) 
 	}
 	defer root.Close()
 	statusID := protocol.ResourceID{Owner: root.ID(), Name: "test/streaming-status"}
-	status, err := resource.NewVariable(resource.VariableDescriptor(statusID, "application/json", "test.status.v1", "test.subscribe", 64), []byte(`{"value":1}`))
+	status, err := resource.NewVariable(resource.VariableDescriptor(statusID, "test.subscribe", 2048), bindingTestDefinition("value", "integer"), resource.VariableState{Status: "ready", Value: json.RawMessage(`{"value":1}`)}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,7 +384,7 @@ func TestAttachedBindingSubscriptionCancellationDoesNotAffectHost(t *testing.T) 
 	if active := root.Node().Stats().ActiveSubscriptions; active != 0 {
 		t.Fatalf("attached subscription was not cancelled: %d active", active)
 	}
-	if _, err := status.Set([]byte(`{"value":2}`)); err != nil {
+	if _, err := status.Set(resource.VariableState{Status: "ready", Value: json.RawMessage(`{"value":2}`)}); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -551,3 +562,19 @@ type testListener struct {
 
 func (l *testListener) OnEvent(eventJSON string) { l.events <- eventJSON }
 func (l *testListener) OnError(errorJSON string) { l.errors <- errorJSON }
+
+func bindingTestDefinition(name, kind string) protocol.DataSchemaDefinition {
+	return protocol.DataSchemaDefinition{Type: "object", Properties: []protocol.DataSchemaProperty{{Name: name, Required: true, Schema: &protocol.DataSchemaDefinition{Type: kind}}}}
+}
+
+func bindingTestState(t *testing.T, payload string) protocol.VariableValueV1 {
+	t.Helper()
+	var state protocol.VariableValueV1
+	if err := protocol.DecodeJSONPayload([]byte(payload), protocol.DefaultMaxPayload, &state); err != nil {
+		t.Fatal(err)
+	}
+	if state.Definition == nil {
+		t.Fatal("binding snapshot omitted definition")
+	}
+	return state
+}

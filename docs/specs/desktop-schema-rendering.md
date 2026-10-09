@@ -15,18 +15,11 @@ Current。定义 Desktop Resource Widget 的数据 schema、renderer 选择、�
 provider 的 presentation metadata 是非强制默认 hint，不得携带 HTML、JavaScript、任意 CSS、远程组件代码
 或削弱 schema 的指令。
 
-## Phase-1 Schema Source
+## Schema Source
 
-当前 catalog `SchemaDescriptorV2` 只携带 schema ID 和 content type。phase 1 不改变 wire：
+标准 Variable 使用平台 [统一变量契约](unified-variable-resource.md)：read 与订阅初始快照直接携带有界 definition，后续更新按 instance_id 复用定义。定义的语义 ID 可选，不能用内置列表覆盖远端有效定义。变量只支持当前 type_version=2 和标准 envelope，不保留旧 renderer、旧 payload 解码或按 Metrics 路径选择组件。
 
-1. `protocol` 为现有 first-party schema constant 提供有界 declarative definition；
-2. 现有 Go payload struct 与 `Validate` 保持 runtime enforcement authority；
-3. `go generate ./sdk/bindings` 从 protocol definition 生成 deterministic Desktop artifact；
-4. freshness、ID coverage、definition limits 与 representative fixture parity 作为门禁；
-5. unknown/custom schema 使用 raw fallback。
-
-未来 owner-served provider 可插入同一 `SchemaResolver`，但必须通过独立协议定义版本、信任、大小、缓存、
-失效、冲突和 offline 行为。远程 executable renderer 不属于该扩展点。
+其他资源的 command/event/collection schema 继续使用 `protocol` canonical definition 与 `go generate ./sdk/bindings` 生成的内置描述；未知定义仍显示明确原因及 raw 数据。其他资源远程 schema 分发是独立延期范围。远程 executable renderer 不属于扩展点。
 
 ## Bounded Data Vocabulary
 
@@ -40,7 +33,7 @@ provider 的 presentation metadata 是非强制默认 hint，不得携带 HTML�
 - array min/max items；
 - title、description、unit、precision、readOnly、writeOnly/sensitive 等 annotation。
 
-definition 必须有稳定 schema ID，属性/枚举排序确定，且通过最大深度、字段、枚举、字符串和数组限制。
+标准 Variable definition 的语义 ID 可选；其他注册定义有稳定 schema ID。属性/枚举排序确定，且通过最大深度、字段、枚举、字符串和数组限制。
 recursive ref、未知 keyword、无法忠实表达的 union/conditional 或超限 definition 返回 `unsupported/invalid`
 并使用 raw fallback，不做宽松猜测。
 
@@ -61,11 +54,10 @@ reason。provider 顺序固定且结果确定；phase 1 只有 generated built-i
 选择顺序：
 
 1. 已保存且兼容的明确 renderer；
-2. `automatic` 或 legacy alias 的最高排名兼容 renderer；
+2. `automatic` 的最高排名兼容 renderer；
 3. structured/raw fallback。
 
-已保存 renderer 不兼容时必须显示原因并临时 fallback，不得覆盖已保存 preference。旧
-`mfh.variable/stream/topic/command/file` ID 是 automatic alias。
+已保存 renderer 不兼容时必须显示原因并临时 fallback，不得覆盖已保存 preference。不自动迁移旧 renderer alias。
 
 ## Renderer Matrix
 
@@ -85,6 +77,8 @@ reason。provider 顺序固定且结果确定；phase 1 只有 generated built-i
 输入路径。切换 renderer 不修改 value 或丢弃 draft。
 
 ## Resource Controllers
+
+Variable 的 Inspector 手动提交与 View 自动提交、加载态及草稿所有权按 [统一变量规格](unified-variable-resource.md) 执行；两种界面共享会话，但提交意图属于产生该编辑的组件。
 
 transport lifecycle 与 presentation 分离：
 

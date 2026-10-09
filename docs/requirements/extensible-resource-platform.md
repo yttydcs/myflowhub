@@ -2,7 +2,7 @@
 
 ## Background
 
-当前统一节点运行时已经把设备、权限、路由和资源收敛到一棵 authoritative Node tree，但 Resource kind 固定为 Variable、Stream、Command。新的产品方向要求 Node 下的一切可发现能力都作为 Resource 表达，并允许 Topic、File、Media 等具有不同操作语义的类型进入，而不恢复独立 SubProto、权限树或路由树。
+当前统一节点运行时以逻辑 Node 为能力提供对象，权限、路由和资源归属遵循唯一 authoritative Node tree，但 Resource kind 固定为 Variable、Stream、Command。新的产品方向要求 Node 下的一切可发现能力都作为 Resource 表达，并允许 Topic、File、Media 等具有不同操作语义的类型进入，而不恢复独立 SubProto、权限树或路由树。
 
 ## Goal
 
@@ -10,7 +10,7 @@
 
 ## Scope
 
-- 所有设备和运行实体继续作为 Node 加入唯一 authoritative tree。
+- 网络模型只包含节点、网络和资源。Node 是逻辑能力提供对象；物理设备可承载多个 Node，设备或插件不是网络对象。
 - 每个 Resource 由恰好一个 Node 拥有，并以 owner NodeID 与本地路径寻址。
 - Resource descriptor 声明版本化 type、capabilities、schemas、permissions、limits 和 presentation hints。
 - 第一阶段基础类型：Variable、Stream、Topic、Command。
@@ -38,7 +38,7 @@
 2. 每个 capability 必须声明输入/输出或事件 schema、大小/速率边界以及允许的交互模式；网络授权继续使用
    exact `subject + ResourceID + CapabilityID`，descriptor `Permission` 兼容字段不得形成第二个授权 key。
 3. 客户端不能通过伪造 capability 或 permission 名称绕过 owner、route 或 policy 裁决。
-4. Variable 必须保留当前值、revision、snapshot-first subscription 和条件写入语义。
+4. Variable 是平台统一的资源格式与运行时，提供者只声明实例语义、采集或执行业务。当前值、definition、instance_id、精确 revision、snapshot-first subscription 与条件写入遵循 [统一变量要求](unified-variable-resource.md)。任意节点声明的标准变量都必须能被通用客户端理解，无需预装产品 schema 或按资源名适配。
 5. Stream 必须保留 owner-originated sequence、bounded delivery 和 explicit gap 语义。
 6. Topic 必须由明确 Node 拥有，支持多发布者/多订阅者，分别授权 publish/subscribe，默认无 retention/replay，只保证单 publisher 顺序。
 7. Command 必须保留 deadline、dedupe、bounded input/output、panic isolation 和 correlated result。

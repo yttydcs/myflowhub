@@ -55,3 +55,5 @@ Hub 预置的是未绑定、不可变的 `superadmin` Definition，不预置超�
 - [作用域 Binding ADR](../decisions/2026-09-01_scoped-policy-bindings-over-product-privilege.md)
 - [作用域策略定义与 Authority 权限绑定](../change/2026-09-01_scoped-policy-authority.md)
 - [策略状态迁移与真实授权证明](../lessons/scoped-policy-state-migration-and-live-proof.md)
+
+本产品的 Variable 使用平台 [统一变量契约](../specs/unified-variable-resource.md)，业务对象作为标准 envelope 的 value；读取、发布和领域 SDK 解包均验证当前格式，其他 Command/session 与持久化职责保持。

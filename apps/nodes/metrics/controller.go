@@ -2,13 +2,16 @@ package metrics
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/yttydcs/myflowhub/internal/keystore"
 	"github.com/yttydcs/myflowhub/protocol"
@@ -17,18 +20,33 @@ import (
 )
 
 var ErrUnsupported = errors.New("metric is unsupported on this platform")
+var ErrOutcomeUnknown = errors.New("metric write outcome is unknown; wait for the next sample")
+
+// MetricState is a product display projection, never a second state store.
+type MetricState struct {
+	Metric string                   `json:"metric"`
+	State  protocol.VariableValueV1 `json:"state"`
+}
+
+type metricSlot struct {
+	// io serializes collection, external writes, and configuration transitions.
+	// Never acquire a Variable mutation gate while holding io or Controller.mu.
+	io       sync.Mutex
+	variable *resource.Variable
+	resample chan struct{}
+}
 
 type Collector interface {
-	Collect(context.Context, Name) (string, error)
+	Collect(context.Context, Name) (any, error)
 }
 
 type ApplyResult struct {
 	Applied bool
-	Value   string
+	Value   any
 }
 
 type Actuator interface {
-	Set(context.Context, Name, string) (ApplyResult, error)
+	Set(context.Context, Name, any) (ApplyResult, error)
 }
 
 type ControllerConfig struct {
@@ -51,11 +69,12 @@ type Controller struct {
 	logger    *slog.Logger
 	now       func() time.Time
 
+	configMu       sync.Mutex
 	mu             sync.RWMutex
 	config         ConfigV1
 	configVariable *resource.Variable
-	variables      map[Name]*resource.Variable
-	samples        map[Name]SampleV1
+	variables      map[Name]*metricSlot
+	configUpdating bool
 	changed        chan struct{}
 	closed         bool
 	registered     []protocol.ResourceID
@@ -89,7 +108,7 @@ func Register(config ControllerConfig) (*Controller, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	value := &Controller{
 		node: config.Node, resources: config.Resources, store: config.Store, collector: config.Collector, actuator: config.Actuator, logger: config.Logger, now: config.Now,
-		config: current, variables: make(map[Name]*resource.Variable), samples: make(map[Name]SampleV1), changed: make(chan struct{}),
+		config: current, variables: make(map[Name]*metricSlot), changed: make(chan struct{}),
 		ctx: ctx, cancel: cancel,
 	}
 	if err := value.registerResources(); err != nil {
@@ -124,26 +143,25 @@ func (c *Controller) Config() ConfigV1 {
 	return cloneConfig(c.config)
 }
 
-func (c *Controller) Sample(name Name) (SampleV1, bool) {
+func (c *Controller) State(name Name) (protocol.VariableValueV1, bool) {
 	if c == nil {
-		return SampleV1{}, false
+		return protocol.VariableValueV1{}, false
 	}
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	value, ok := c.samples[name]
-	return value, ok
+	slot := c.variables[name]
+	if slot == nil {
+		return protocol.VariableValueV1{}, false
+	}
+	return slot.variable.Snapshot().State, true
 }
 
-func (c *Controller) Samples() []SampleV1 {
+func (c *Controller) States() []MetricState {
 	if c == nil {
 		return nil
 	}
-	c.mu.RLock()
-	result := make([]SampleV1, 0, len(c.samples))
-	for _, sample := range c.samples {
-		result = append(result, sample)
+	result := make([]MetricState, 0, len(c.variables))
+	for name, slot := range c.variables {
+		result = append(result, MetricState{Metric: string(name), State: slot.variable.Snapshot().State})
 	}
-	c.mu.RUnlock()
 	sort.Slice(result, func(i, j int) bool { return result[i].Metric < result[j].Metric })
 	return result
 }
@@ -167,16 +185,32 @@ func (c *Controller) ApplyConfig(ctx context.Context, request ConfigUpdateV1) (C
 	return result, nil
 }
 
-func (c *Controller) Update(name Name, value string, collectErr error) error {
+// Update publishes an owner-provided typed sample. A sample superseded by a
+// concurrent write/configuration transition is discarded instead of replayed.
+func (c *Controller) Update(name Name, value any, collectErr error) error {
 	if c == nil {
 		return errors.New("metrics controller is closed")
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.closed {
-		return errors.New("metrics controller is closed")
+	slot := c.variables[name]
+	if slot == nil {
+		return ErrUnsupported
 	}
-	return c.updateLocked(name, value, collectErr)
+	slot.io.Lock()
+	setting, _, active := c.ioSetting(name)
+	if !active {
+		slot.io.Unlock()
+		return errors.New("metrics controller is closed or updating configuration")
+	}
+	if !setting.Enabled {
+		collectErr = errors.New("metric is disabled")
+	}
+	previous := slot.variable.Snapshot()
+	next, err := c.sampleState(name, previous.State, value, collectErr)
+	slot.io.Unlock()
+	if err != nil {
+		return err
+	}
+	return publishSample(slot.variable, previous.Revision, next)
 }
 
 func (c *Controller) Close() error {
@@ -185,10 +219,12 @@ func (c *Controller) Close() error {
 	}
 	var closeErr error
 	c.closeOnce.Do(func() {
+		c.configMu.Lock()
 		c.mu.Lock()
 		c.closed = true
 		close(c.changed)
 		c.mu.Unlock()
+		c.configMu.Unlock()
 		c.cancel()
 		c.wg.Wait()
 		closeErr = c.removeRegistered()
@@ -198,13 +234,13 @@ func (c *Controller) Close() error {
 
 func (c *Controller) registerResources() error {
 	owner := c.node.ID()
-	configPayload, err := protocol.EncodeJSONPayload(&c.config, protocol.DefaultMaxPayload)
+	configPayload, err := protocol.EncodeVariablePayload(ConfigDefinition(), &c.config, protocol.DefaultMaxPayload)
 	if err != nil {
 		return err
 	}
 	c.configVariable, err = c.resources.Variable(resource.VariableSpec{
-		Name: ResourceConfig, ContentType: "application/json", Schema: SchemaConfigV1,
-		ReadPermission: "metrics.config.read", MaxPayloadBytes: protocol.DefaultMaxPayload, Initial: configPayload,
+		Name: ResourceConfig, Definition: ConfigDefinition(),
+		ReadPermission: "metrics.config.read", MaxPayloadBytes: protocol.DefaultMaxPayload, Initial: resource.VariableState{Value: configPayload, Status: "ready"},
 	})
 	if err != nil {
 		return err
@@ -221,38 +257,29 @@ func (c *Controller) registerResources() error {
 		return err
 	}
 	for _, definition := range Definitions(c.config.Platform) {
-		now := c.now().UTC().UnixMilli()
-		sample := SampleV1{
-			Version: 1, Metric: string(definition.Name), Unit: definition.Unit, Status: "unavailable",
-			ObservedAtUnixMS: now, Error: "metric has not produced a sample",
-		}
-		payload, err := protocol.EncodeJSONPayload(&sample, protocol.DefaultMaxPayload)
+		name := definition.Name
+		valueDefinition, err := ValueDefinition(name)
 		if err != nil {
 			return err
 		}
-		variable, err := c.resources.Variable(resource.VariableSpec{
-			Name: ResourceName(definition.Name), ContentType: "application/json", Schema: SchemaSampleV1,
-			ReadPermission: "metrics.read", MaxPayloadBytes: protocol.DefaultMaxPayload, Initial: payload,
-		})
-		if err != nil {
-			return err
+		slot := &metricSlot{resample: make(chan struct{}, 1)}
+		spec := resource.VariableSpec{
+			Name: ResourceName(name), Definition: valueDefinition,
+			ReadPermission: "metrics.read", MaxPayloadBytes: protocol.DefaultMaxPayload,
+			Initial: resource.VariableState{Status: "unavailable", Error: &protocol.VariableError{Code: "no_sample", Message: "metric has not produced a sample"}},
 		}
-		c.registered = append(c.registered, variable.Descriptor().ID)
-		c.variables[definition.Name] = variable
-		c.samples[definition.Name] = sample
 		if definition.Controllable {
-			name := definition.Name
-			command, err := resource.NewCommand(resource.CommandDescriptorSchemas(
-				protocol.ResourceID{Owner: owner, Name: CommandName(name)}, "application/json", SchemaControlV1, SchemaControlResultV1,
-				"metrics.control", protocol.DefaultMaxPayload,
-			), func(ctx context.Context, input []byte) ([]byte, error) { return c.control(ctx, name, input) })
-			if err != nil {
-				return err
-			}
-			if err := c.register(command); err != nil {
-				return err
+			spec.WritePermission = "metrics.write"
+			spec.WriteHandler = func(ctx context.Context, value any) (resource.VariableState, error) {
+				return c.write(ctx, name, slot, value)
 			}
 		}
+		slot.variable, err = c.resources.Variable(spec)
+		if err != nil {
+			return err
+		}
+		c.registered = append(c.registered, slot.variable.Descriptor().ID)
+		c.variables[name] = slot
 	}
 	return nil
 }
@@ -276,100 +303,106 @@ func (c *Controller) removeRegistered() error {
 	return result
 }
 
-func (c *Controller) updateLocked(name Name, value string, collectErr error) error {
-	definition, ok := DefinitionFor(name)
-	variable := c.variables[name]
-	if !ok || variable == nil || !definition.Platforms[c.config.Platform] {
-		return ErrUnsupported
+func (c *Controller) sampleState(name Name, previous protocol.VariableValueV1, value any, collectErr error) (resource.VariableState, error) {
+	if collectErr != nil {
+		return failedSample(previous, "collection_failed", collectErr), nil
 	}
-	previous := c.samples[name]
-	now := c.now().UTC().UnixMilli()
-	next := SampleV1{Version: 1, Metric: string(name), Unit: definition.Unit, ObservedAtUnixMS: now}
-	if collectErr == nil {
-		value = strings.TrimSpace(value)
-		if err := ValidateValue(name, value); err != nil {
-			return err
-		}
-		next.Value = value
-		next.Status = "fresh"
-		next.SampledAtUnixMS = now
-	} else if previous.SampledAtUnixMS > 0 {
-		next.Value = previous.Value
-		next.Status = "stale"
-		next.SampledAtUnixMS = previous.SampledAtUnixMS
-		next.Error = truncateError(collectErr.Error())
-	} else {
-		next.Status = "unavailable"
-		next.Error = truncateError(collectErr.Error())
+	if err := ValidateValue(name, value); err != nil {
+		return resource.VariableState{}, err
 	}
-	payload, err := protocol.EncodeJSONPayload(&next, protocol.DefaultMaxPayload)
+	payload, err := json.Marshal(value)
 	if err != nil {
-		return err
+		return resource.VariableState{}, err
 	}
-	if _, err := variable.Set(payload); err != nil {
-		return err
-	}
-	c.samples[name] = next
-	return nil
+	now := c.now().UTC().UnixMilli()
+	return resource.VariableState{Value: payload, Status: "ready", SourceTimeUnixMS: &now}, nil
 }
 
-func (c *Controller) control(ctx context.Context, name Name, input []byte) ([]byte, error) {
-	var request ControlV1
+func failedSample(previous protocol.VariableValueV1, code string, err error) resource.VariableState {
+	next := resource.VariableState{Status: "unavailable", Error: &protocol.VariableError{Code: code, Message: truncateError(err.Error())}}
+	if len(previous.Value) != 0 {
+		next.Value, next.SourceTimeUnixMS, next.Status = previous.Value, previous.SourceTimeUnixMS, "stale"
+	}
+	return next
+}
+
+func publishSample(variable *resource.Variable, revision uint64, state resource.VariableState) error {
+	if revision == math.MaxUint64 {
+		return errors.New("metric revision exhausted")
+	}
+	_, err := variable.Apply(revision+1, state)
+	if errors.Is(err, resource.ErrRevisionRegression) {
+		// Another confirmed state won. Reapplying this older observation would
+		// overwrite a write or resurrect a sample disabled by configuration.
+		return nil
+	}
+	return err
+}
+
+func (c *Controller) write(ctx context.Context, name Name, slot *metricSlot, value any) (resource.VariableState, error) {
+	// Runtime owns the mutation gate and has already validated value and CAS.
+	// Return actual state; never call Set/Apply from this handler.
+	slot.io.Lock()
+	defer slot.io.Unlock()
+	setting, _, active := c.ioSetting(name)
+	if !active {
+		return resource.VariableState{}, errors.New("metrics controller is closed or updating configuration")
+	}
+	if !setting.Enabled || !setting.Writable {
+		return resource.VariableState{}, errors.New("metric write is disabled by configuration")
+	}
+	if c.actuator == nil {
+		return resource.VariableState{}, ErrUnsupported
+	}
+	if err := ctx.Err(); err != nil {
+		return resource.VariableState{}, err
+	}
+	result, err := c.actuator.Set(ctx, name, value)
+	if err != nil || !result.Applied || ctx.Err() != nil {
+		requestSample(slot)
+		return resource.VariableState{}, ErrOutcomeUnknown
+	}
+	state, err := c.sampleState(name, protocol.VariableValueV1{}, result.Value, nil)
+	if err != nil {
+		requestSample(slot)
+		return resource.VariableState{}, fmt.Errorf("%w: actuator returned invalid actual value", ErrOutcomeUnknown)
+	}
+	return state, nil
+}
+
+// Coalesce read requests only. An uncertain external write is never replayed.
+func requestSample(slot *metricSlot) {
+	select {
+	case slot.resample <- struct{}{}:
+	default:
+	}
+}
+
+func (c *Controller) updateConfig(ctx context.Context, input []byte) ([]byte, error) {
+	var request ConfigUpdateV1
 	if err := protocol.DecodeJSONPayload(input, protocol.DefaultMaxPayload, &request); err != nil {
 		return nil, err
 	}
-	if err := ValidateValue(name, request.Value); err != nil {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	c.configMu.Lock()
+	defer c.configMu.Unlock()
 	c.mu.RLock()
-	setting, ok := settingFor(c.config, name)
-	actuator := c.actuator
 	closed := c.closed
 	c.mu.RUnlock()
 	if closed {
 		return nil, errors.New("metrics controller is closed")
 	}
-	if !ok || !setting.Enabled || !setting.Writable {
-		return nil, errors.New("metric control is disabled by configuration")
-	}
-	if actuator == nil {
-		return nil, ErrUnsupported
-	}
-	result, err := actuator.Set(ctx, name, strings.TrimSpace(request.Value))
-	if err != nil {
-		return nil, err
-	}
-	response := ControlResultV1{
-		Version: 1, Metric: string(name), RequestedValue: strings.TrimSpace(request.Value), Accepted: true,
-		Applied: result.Applied, AppliedValue: strings.TrimSpace(result.Value),
-	}
-	if response.Applied {
-		if err := c.Update(name, response.AppliedValue, nil); err != nil {
-			return nil, fmt.Errorf("publish applied metric state: %w", err)
-		}
-	}
-	return protocol.EncodeJSONPayload(&response, protocol.DefaultMaxPayload)
-}
-
-func (c *Controller) updateConfig(_ context.Context, input []byte) ([]byte, error) {
-	var request ConfigUpdateV1
-	if err := protocol.DecodeJSONPayload(input, protocol.DefaultMaxPayload, &request); err != nil {
-		return nil, err
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.closed {
-		return nil, errors.New("metrics controller is closed")
-	}
 	if request.ExpectedRevision != c.config.Revision {
 		return nil, fmt.Errorf("metrics config revision conflict: current %d", c.config.Revision)
 	}
-	if c.config.Revision == ^uint64(0) {
+	if c.config.Revision == math.MaxUint64 {
 		return nil, errors.New("metrics config revision exhausted")
 	}
 	settings := append([]SettingV1(nil), request.Settings...)
 	sort.Slice(settings, func(i, j int) bool { return settings[i].Metric < settings[j].Metric })
-	channels := append([]string(nil), request.NotificationChannels...)
+	channels := append([]string{}, request.NotificationChannels...)
 	sort.Strings(channels)
 	if len(settings) != len(Definitions(c.config.Platform)) {
 		return nil, errors.New("metrics config update must include every platform metric")
@@ -385,27 +418,101 @@ func (c *Controller) updateConfig(_ context.Context, input []byte) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
+	variablePayload, err := protocol.EncodeVariablePayload(ConfigDefinition(), &next, protocol.DefaultMaxPayload)
+	if err != nil {
+		return nil, err
+	}
 	previous := cloneConfig(c.config)
+	// Drain every metric I/O before changing policy. The updating flag rejects
+	// new I/O while persistence and Variable.Set run with I/O and state locks free.
+	unlock := c.lockMetricIO()
+	c.mu.Lock()
+	c.configUpdating = true
+	c.mu.Unlock()
+	unlock()
+	defer func() {
+		c.mu.Lock()
+		c.configUpdating = false
+		close(c.changed)
+		c.changed = make(chan struct{})
+		c.mu.Unlock()
+	}()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err := c.store.Save("metrics.json", next); err != nil {
 		return nil, fmt.Errorf("persist metrics config: %w", err)
 	}
-	if _, err := c.configVariable.Set(payload); err != nil {
+	if _, err := c.configVariable.Set(resource.VariableState{Value: variablePayload, Status: "ready"}); err != nil {
 		if rollbackErr := c.store.Save("metrics.json", previous); rollbackErr != nil {
 			return nil, fmt.Errorf("publish metrics config: %v; rollback persistence: %w", err, rollbackErr)
 		}
 		return nil, fmt.Errorf("publish metrics config: %w", err)
 	}
+	c.mu.Lock()
 	c.config = next
-	close(c.changed)
-	c.changed = make(chan struct{})
+	c.mu.Unlock()
 	for _, setting := range settings {
 		if !setting.Enabled {
-			if err := c.updateLocked(Name(setting.Metric), "", errors.New("metric is disabled")); err != nil {
-				return nil, fmt.Errorf("publish disabled metric %s: %w", setting.Metric, err)
+			variable := c.variables[Name(setting.Metric)].variable
+			for {
+				snapshot := variable.Snapshot()
+				if snapshot.Revision == math.MaxUint64 {
+					return nil, errors.New("disabled metric revision exhausted")
+				}
+				_, err := variable.Apply(snapshot.Revision+1, failedSample(snapshot.State, "disabled", errors.New("metric is disabled")))
+				if errors.Is(err, resource.ErrRevisionRegression) {
+					continue
+				}
+				if err != nil {
+					return nil, fmt.Errorf("publish disabled metric %s: %w", setting.Metric, err)
+				}
+				break
 			}
 		}
 	}
 	return payload, nil
+}
+
+func (c *Controller) lockMetricIO() func() {
+	names := make([]Name, 0, len(c.variables))
+	for name := range c.variables {
+		names = append(names, name)
+	}
+	sort.Slice(names, func(i, j int) bool { return names[i] < names[j] })
+	for _, name := range names {
+		c.variables[name].io.Lock()
+	}
+	return func() {
+		for i := len(names) - 1; i >= 0; i-- {
+			c.variables[names[i]].io.Unlock()
+		}
+	}
+}
+
+func (c *Controller) collectOnce(ctx context.Context, name Name) error {
+	slot := c.variables[name]
+	slot.io.Lock()
+	setting, _, active := c.ioSetting(name)
+	if !active || !setting.Enabled {
+		slot.io.Unlock()
+		return nil
+	}
+	select {
+	case <-slot.resample:
+	default:
+	}
+	previous := slot.variable.Snapshot()
+	value, collectErr := c.collector.Collect(ctx, name)
+	if collectErr == nil {
+		collectErr = ctx.Err()
+	}
+	next, err := c.sampleState(name, previous.State, value, collectErr)
+	if err != nil {
+		next = failedSample(previous.State, "invalid_sample", err)
+	}
+	slot.io.Unlock()
+	return publishSample(slot.variable, previous.Revision, next)
 }
 
 func (c *Controller) runCollector(name Name) {
@@ -431,30 +538,21 @@ func (c *Controller) runCollector(name Name) {
 			timeout = 10 * time.Second
 		}
 		collectCtx, cancel := context.WithTimeout(c.ctx, timeout)
-		value, err := c.collector.Collect(collectCtx, name)
+		updateErr := c.collectOnce(collectCtx, name)
 		cancel()
-		if updateErr := c.Update(name, value, err); updateErr != nil && !errors.Is(updateErr, context.Canceled) && c.logger != nil {
+		if updateErr != nil && !errors.Is(updateErr, context.Canceled) && c.logger != nil {
 			c.logger.Warn("publish metric sample failed", "metric", name, "error", updateErr.Error())
 		}
 		timer := time.NewTimer(time.Duration(setting.IntervalMS) * time.Millisecond)
 		select {
 		case <-timer.C:
 		case <-changed:
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
+		case <-c.variables[name].resample:
 		case <-c.ctx.Done():
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
+			timer.Stop()
 			return
 		}
+		timer.Stop()
 	}
 }
 
@@ -465,7 +563,17 @@ func (c *Controller) workerSetting(name Name) (SettingV1, <-chan struct{}, bool)
 		return SettingV1{}, nil, false
 	}
 	setting, ok := settingFor(c.config, name)
+	if c.configUpdating {
+		setting.Enabled = false
+	}
 	return setting, c.changed, ok
+}
+
+func (c *Controller) ioSetting(name Name) (SettingV1, <-chan struct{}, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	setting, ok := settingFor(c.config, name)
+	return setting, c.changed, ok && !c.closed && !c.configUpdating
 }
 
 func loadConfig(store *keystore.Store, platform string) (ConfigV1, error) {
@@ -505,7 +613,7 @@ func settingFor(config ConfigV1, name Name) (SettingV1, bool) {
 
 func cloneConfig(value ConfigV1) ConfigV1 {
 	value.Settings = append([]SettingV1(nil), value.Settings...)
-	value.NotificationChannels = append([]string(nil), value.NotificationChannels...)
+	value.NotificationChannels = append([]string{}, value.NotificationChannels...)
 	return value
 }
 
@@ -516,6 +624,9 @@ func truncateError(value string) string {
 	}
 	if len(value) > 1024 {
 		value = value[:1024]
+		for !utf8.ValidString(value) {
+			value = value[:len(value)-1]
+		}
 	}
 	return value
 }

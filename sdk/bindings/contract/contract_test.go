@@ -41,7 +41,7 @@ func TestCanonicalKeepsGenericOperationAndSubscriptionMethods(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"OperateJSON", "SubscribeCapability"} {
+	for _, required := range []string{"OperateJSON", "SubscribeCapability", "WriteVariableJSON"} {
 		if !containsString(manifest.Methods, required) || !containsString(manifest.DesktopMethods, required) {
 			t.Fatalf("canonical bindings dropped generic method %s", required)
 		}
@@ -66,8 +66,8 @@ func TestCanonicalTopologyKeepsVariableAndDeclaresDepthQueries(t *testing.T) {
 		Name: protocol.BuiltinManagementTopology, Type: string(protocol.ResourceTypeVariable),
 		Capabilities: []Capability{
 			{Name: string(protocol.CapabilityChildren), InputSchema: protocol.SchemaManagementTopologyChildrenRequestV1, OutputSchema: protocol.SchemaManagementTopologyQueryV1},
-			{Name: string(protocol.CapabilityRead), OutputSchema: protocol.SchemaManagementTopologyV1},
-			{Name: string(protocol.CapabilitySubscribe), EventSchema: protocol.SchemaManagementTopologyV1},
+			{Name: string(protocol.CapabilityRead), OutputSchema: protocol.SchemaVariableValueV1},
+			{Name: string(protocol.CapabilitySubscribe), EventSchema: protocol.SchemaVariableValueV1},
 			{Name: string(protocol.CapabilitySubtree), InputSchema: protocol.SchemaManagementTopologyQueryRequestV1, OutputSchema: protocol.SchemaManagementTopologyQueryV1},
 		},
 	}
@@ -89,11 +89,11 @@ func TestCanonicalTopologyDoesNotAddFacadeOrLifecycleMethods(t *testing.T) {
 	}
 	portable := []string{
 		"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "OperateJSON",
-		"SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected",
+		"SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected", "WriteVariableJSON",
 	}
 	desktop := []string{
 		"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "OperateJSON", "PollSubscription",
-		"SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected",
+		"SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected", "WriteVariableJSON",
 	}
 	if !reflect.DeepEqual(manifest.Methods, portable) || !reflect.DeepEqual(manifest.DesktopMethods, desktop) {
 		t.Fatalf("topology query changed attached binding APIs: portable=%v desktop=%v", manifest.Methods, manifest.DesktopMethods)

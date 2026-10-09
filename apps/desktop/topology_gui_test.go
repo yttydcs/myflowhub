@@ -35,7 +35,9 @@ import (
 //
 // Once fixture.json appears, launch Wails with MFH_DESKTOP_CONFIG_DIR set to
 // that same directory. Creating STOP there ends the fixture; it also expires
-// after ten minutes. Optionally set MFH_TOPOLOGY_GUI_DENY_CHILDREN_NODE=4 for a
+// after ten minutes by default. MFH_TOPOLOGY_GUI_DURATION can extend a manual
+// acceptance session up to 24h; set go test -timeout longer than that duration.
+// Optionally set MFH_TOPOLOGY_GUI_DENY_CHILDREN_NODE=4 for a
 // Forbidden expansion while keeping subtree and catalog independently readable.
 // Node state is temporary; Desktop state and the public manifest are retained.
 func TestTopologyGUIFixture(t *testing.T) {
@@ -87,7 +89,14 @@ func TestTopologyGUIFixture(t *testing.T) {
 			t.Errorf("remove isolated node state: %v", err)
 		}
 	})
-	expires := time.Now().Add(10 * time.Minute)
+	fixtureDuration := 10 * time.Minute
+	if raw := os.Getenv("MFH_TOPOLOGY_GUI_DURATION"); raw != "" {
+		fixtureDuration, err = time.ParseDuration(raw)
+		if err != nil || fixtureDuration < time.Minute || fixtureDuration > 24*time.Hour {
+			t.Fatal("MFH_TOPOLOGY_GUI_DURATION must be between 1m and 24h")
+		}
+	}
+	expires := time.Now().Add(fixtureDuration)
 	if deadline, ok := t.Deadline(); ok && deadline.Add(-5*time.Second).Before(expires) {
 		expires = deadline.Add(-5 * time.Second)
 	}
@@ -183,7 +192,9 @@ func TestTopologyGUIFixture(t *testing.T) {
 			}
 		}
 	}
+	refreshVariables := registerVariableGUIFixtures(t, nodes[1], states[1])
 	refresh := func() {
+		refreshVariables()
 		for index, controller := range controllers {
 			if err := controller.Refresh(); err != nil {
 				t.Fatalf("refresh management %d: %v", index+1, err)
@@ -318,6 +329,7 @@ func TestTopologyGUIFixture(t *testing.T) {
 	}
 
 	stopFile := topologyGUICheckPath(t, worktree, filepath.Join(configRoot, "STOP"))
+	prepareVariableGUIMetrics(t, worktree, configRoot, string(endpoints[1]), states[1])
 	manifestPath := topologyGUICheckPath(t, worktree, filepath.Join(configRoot, "fixture.json"))
 	manifest := struct {
 		ConfigDirectory    string            `json:"config_directory"`

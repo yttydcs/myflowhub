@@ -31,7 +31,7 @@ export interface MetricsApp {
 }
 
 function emptyStatus(): Status {
-  return {version: 1, running: false, samples: [], notifications: {queue_depth: 0, dropped: 0}}
+  return {version: 1, running: false, metrics: [], notifications: {queue_depth: 0, dropped: 0}}
 }
 
 function defaultStorage(): StorageLike | undefined {
@@ -114,7 +114,7 @@ export function createMetricsApp(root: HTMLElement, api: MetricsAPI, environment
   }
 
   function selectMetric(metric: string): void {
-    if (disposed || !state.status.samples.some(sample => sample.metric === metric)) return
+    if (disposed || !state.status.metrics.some(sample => sample.metric === metric)) return
     state = {...state, selectedMetric: metric}
     render()
   }
@@ -129,7 +129,7 @@ export function createMetricsApp(root: HTMLElement, api: MetricsAPI, environment
     state = {
       ...state,
       status,
-      selectedMetric: reconcileSelectedMetric(status.samples, state.selectedMetric),
+      selectedMetric: reconcileSelectedMetric(status.metrics, state.selectedMetric),
       lastRefreshUnixMS: now(),
     }
   }

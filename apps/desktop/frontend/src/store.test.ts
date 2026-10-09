@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildExplorerIndex,
+  defaultRenderer,
   explorerBreadcrumb,
   flattenNodeRows,
   nodeRowKey,
@@ -16,6 +17,11 @@ const resource: ResourceDescriptor = {
 }
 
 describe('workspace domain', () => {
+  it('gives new Variable widgets the canonical automatic renderer', () => {
+    expect(defaultRenderer({ ...resource, type_version: 2 })).toBe('mfh.variable.auto.v2')
+    expect(defaultRenderer({ ...resource, type_version: 2, presentation: { renderer: 'mfh.variable' } })).toBe('mfh.variable.auto.v2')
+    expect(defaultRenderer({ ...resource, type: 'mfh.stream', presentation: { renderer: 'mfh.event.log.v1' } })).toBe('mfh.event.log.v1')
+  })
   it('indexes authority and resource ownership without deriving either from resource paths', () => {
     const topology: Topology = {
       nodes: [
