@@ -1,6 +1,7 @@
 import { DndContext } from '@dnd-kit/core'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { useState } from 'react'
 import type { DesktopAPI } from '../api'
 import type { ResourceDescriptor, ViewDefinition, ViewLayoutNode, ViewWidget } from '../types'
 import { Workspace } from './Workspace'
@@ -74,6 +75,33 @@ function renderResourceWorkspace(
 }
 
 describe('workspace panels', () => {
+  it('switches modes without remounting variable inputs and resets manual compact size with Home', async () => {
+    const descriptor = variableResource(false)
+    const { api } = variableAPI(snapshot(37, '1', { type: 'number' }))
+    const initial = view(leaf('card'), ['card'])
+    initial.widgets[0] = { ...initial.widgets[0]!, owner_node_id: descriptor.id.owner_node_id, resource_name: descriptor.id.name }
+    function Harness() {
+      const [current, setCurrent] = useState(initial)
+      return <DndContext><button onClick={() => setCurrent({ ...current, layout_mode: current.layout_mode === 'compact' ? 'split' : 'compact' })}>切换测试模式</button><output data-testid="layout">{JSON.stringify(current)}</output><Workspace api={api} resources={[descriptor]} view={current} dirty saving={false} onChange={setCurrent} onSave={vi.fn()} onError={vi.fn()} /></DndContext>
+    }
+    render(<Harness />)
+    const input = await screen.findByRole('spinbutton')
+    fireEvent.change(input, { target: { value: '45' } })
+    fireEvent.click(screen.getByText('切换测试模式'))
+    expect(screen.getByRole('spinbutton')).toBe(input)
+    expect(input).toHaveValue(45)
+    expect(document.querySelector('.workspace-layout-stage')).toHaveClass('is-compact')
+    const resize = screen.getByRole('button', { name: /调整 .* 卡片尺寸/ })
+    fireEvent.keyDown(resize, { key: 'ArrowDown' })
+    expect(JSON.parse(screen.getByTestId('layout').textContent!).widgets[0].compact_size.height).toBeGreaterThanOrEqual(104)
+    fireEvent.click(screen.getByText('切换测试模式'))
+    expect(screen.getByRole('spinbutton')).toBe(input)
+    expect(screen.queryByRole('button', { name: /调整 .* 卡片尺寸/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('切换测试模式'))
+    fireEvent.keyDown(screen.getByRole('button', { name: /调整 .* 卡片尺寸/ }), { key: 'Home' })
+    expect(JSON.parse(screen.getByTestId('layout').textContent!).widgets[0].compact_size).toBeUndefined()
+    expect(api.snapshot).toHaveBeenCalledTimes(1)
+  })
   it.each([
     snapshot([1, 2], '1', { type: 'array', items: { type: 'integer' } }),
     snapshot({ name: 'example' }, '1', { type: 'object', properties: [{ name: 'name', required: true, schema: { type: 'string' } }] }),

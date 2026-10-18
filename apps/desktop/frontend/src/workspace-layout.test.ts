@@ -32,6 +32,28 @@ const view = (ids: string[], layout_root?: ViewLayoutNode): ViewDefinition => ({
 const leaf = (id: string): ViewLayoutNode => ({ kind: 'leaf', widget_id: id })
 
 describe('workspace layout domain', () => {
+  it('reorders compact cards without changing split geometry or card sizes', () => {
+    const original = addWorkspaceWidget(addWorkspaceWidget(view([]), widget('a')), { ...widget('b'), compact_size: { columns: 2, height: 232 } })
+    const compact = { ...original, layout_mode: 'compact' as const }
+    const reordered = dockWorkspaceView(compact, { kind: 'existing', widgetID: 'b' }, { kind: 'compact-card', targetWidgetID: 'a', before: true })
+    expect(reordered.widgets.map(widget => widget.id)).toEqual(['b', 'a'])
+    expect(reordered.layout_root).toBe(original.layout_root)
+    expect(reordered.widgets[0]!.compact_size).toEqual({ columns: 2, height: 232 })
+    expect(dockWorkspaceView(reordered, { kind: 'existing', widgetID: 'b' }, { kind: 'compact-card', targetWidgetID: 'a', before: true })).toBe(reordered)
+    const added = dockWorkspaceView(reordered, { kind: 'new', widget: widget('c') }, { kind: 'compact-end' })
+    expect(added.widgets.map(widget => widget.id)).toEqual(['b', 'a', 'c'])
+    validateWorkspaceView(added)
+    validateWorkspaceView({ ...added, layout_mode: 'split' })
+    expect(removeWorkspaceWidget(added, 'b').widgets.map(widget => widget.id)).toEqual(['a', 'c'])
+  })
+  it('rejects invalid compact state and stale drop targets', () => {
+    const candidate = { ...addWorkspaceWidget(view([]), widget('a')), layout_mode: 'compact' as const }
+    expect(() => validateWorkspaceView({ ...candidate, layout_mode: 'unknown' as 'compact' })).toThrow()
+    for (const compact_size of [{ columns: 0 }, { columns: 5 }, { columns: 1, height: 103 }, { columns: 1, height: 1201 }, { columns: 1.5 }]) {
+      expect(() => validateWorkspaceView({ ...candidate, widgets: [{ ...widget('a'), compact_size }] })).toThrow()
+    }
+    expect(() => dockWorkspaceView(candidate, { kind: 'new', widget: widget('b') }, { kind: 'compact-card', targetWidgetID: 'gone', before: true })).toThrow()
+  })
   it('fills the first pane and appends direct additions at the workspace right', () => {
     const first = addWorkspaceWidget(view([]), widget('a'))
     expect(first.layout_root).toEqual(leaf('a'))

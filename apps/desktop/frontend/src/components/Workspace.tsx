@@ -30,11 +30,14 @@ import { CatalogContext, DiscoveryStatus, MissingResource } from '../discovery/D
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
+import { Select } from './ui/select'
+import { CompactCard, CompactLayoutContext } from './CompactCard'
 
 export type WorkspaceDockPreview = {
   view: ViewDefinition
   widgetID: string
   description: string
+  compactInsert?: { targetID: string; before: boolean }
 }
 
 type Props = {
@@ -184,9 +187,9 @@ function LayoutLeaf({ api, widget, resource, onRemove, onRendererChange }: {
   onRendererChange(rendererID: string): void
 }) {
   return (
-    <div className="workspace-layout-leaf">
+    <CompactCard widget={widget}>
       <WorkspaceWidgetPane api={api} widget={widget} resource={resource} onRemove={onRemove} onRendererChange={onRendererChange} />
-    </div>
+    </CompactCard>
   )
 }
 
@@ -462,6 +465,17 @@ function RootEdgeTarget({ side }: { side: WorkspaceDockSide }) {
 
 export function Workspace({ id, api, resources, view, dirty, saving, dockPreview, onChange, onSave, onError }: Props) {
   const background = useDroppable({ id: 'workspace-drop', data: { kind: 'workspace-background' } })
+  const compact = view.layout_mode === 'compact'
+  const gridRef = useRef<HTMLDivElement>(null)
+  const [gridWidth, setGridWidth] = useState(280)
+  useEffect(() => {
+    const grid = gridRef.current
+    if (!grid) return
+    const observer = new ResizeObserver(([entry]) => { if (entry) setGridWidth(entry.contentRect.width) })
+    observer.observe(grid)
+    return () => observer.disconnect()
+  }, [!!view.layout_root])
+  const columns = Math.max(1, Math.min(4, Math.floor((gridWidth + 12) / 292)))
   const resourceIndex = useMemo(
     () => new Map(resources.map((resource) => [resourceKey(resource.id.owner_node_id, resource.id.name), resource])),
     [resources],
@@ -489,6 +503,9 @@ export function Workspace({ id, api, resources, view, dirty, saving, dockPreview
           <Input aria-label="视图名称" name="view-name" autoComplete="off" value={view.name} onChange={(event) => onChange({ ...view, name: event.target.value })} />
         </div>
         <div className="toolbar-meta">
+          <Select aria-label="视图布局" className="workspace-layout-select" value={view.layout_mode || 'split'} options={[{ value: 'compact', label: '紧凑卡片' }, { value: 'split', label: '铺满分栏' }]} onValueChange={(value) => {
+            if ((value === 'compact' || value === 'split') && value !== (view.layout_mode || 'split')) onChange({ ...view, layout_mode: value })
+          }} />
           <Badge>{view.widgets.length} widgets</Badge>
           {dirty && <span className="dirty-dot" role="status">未保存</span>}
           <Button size="sm" onClick={onSave} disabled={saving || !dirty}><Save aria-hidden="true" size={14} />{saving ? '保存中…' : '保存视图'}</Button>
@@ -506,7 +523,12 @@ export function Workspace({ id, api, resources, view, dirty, saving, dockPreview
             </div>
           )
           : (
-            <div className="workspace-layout-stage" style={{ minWidth: minimum.width, minHeight: minimum.height }}>
+            <div ref={gridRef} className={`workspace-layout-stage${compact ? ' is-compact' : ''}`} style={compact ? { '--compact-columns': columns } as CSSProperties : { minWidth: minimum.width, minHeight: minimum.height }}>
+              <CompactLayoutContext.Provider value={compact ? {
+                columns, columnWidth: (gridWidth - 12 * (columns - 1)) / columns,
+                order: view.widgets.map(widget => widget.id), insert: dockPreview?.compactInsert,
+                onResize: (id, size) => apply(() => ({ ...view, widgets: view.widgets.map(widget => widget.id === id ? { ...widget, compact_size: size } : widget) })),
+              } : undefined}>
               <LayoutNode
                 api={api}
                 node={view.layout_root}
@@ -520,11 +542,12 @@ export function Workspace({ id, api, resources, view, dirty, saving, dockPreview
                 }))}
                 onResize={onResize}
               />
-              <RootEdgeTarget side="left" />
+              </CompactLayoutContext.Provider>
+              {!compact && <><RootEdgeTarget side="left" />
               <RootEdgeTarget side="right" />
               <RootEdgeTarget side="top" />
-              <RootEdgeTarget side="bottom" />
-              {dockPreview?.view.layout_root && (
+              <RootEdgeTarget side="bottom" /></>}
+              {!compact && dockPreview?.view.layout_root && (
                 <div className="workspace-layout-preview" aria-hidden="true">
                   <LayoutPreviewNode node={dockPreview.view.layout_root} highlightWidgetID={dockPreview.widgetID} />
                 </div>

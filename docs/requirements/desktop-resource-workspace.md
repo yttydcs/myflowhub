@@ -17,7 +17,7 @@ Variable 的格式和校验语法由平台统一定义，提供者声明某个�
 - React + TypeScript + Vite、Radix/shadcn 风格组件 primitives 与统一 design tokens 前端。
 - 登录/首次准入、持久身份、自动重连和多 Profile 管理。
 - 左侧 Resource Explorer 与 View Manager Tabs。
-- 右侧 Node/Resource preview 与可嵌套、可调整的 split Workspace。
+- 右侧 Node/Resource preview，以及可切换紧凑卡片和可嵌套分栏的 Workspace。
 - Resource Renderer Registry、通用 fallback renderer 和基础类型 widgets。
 - View 按 Profile local-first 持久化。
 - Wails Go host、generated bindings、前端状态与错误边界重构。
@@ -33,7 +33,8 @@ Variable 的格式和校验语法由平台统一定义，提供者声明某个�
 - 在真实 Resource 上通过右键菜单或键盘等价入口快速执行获授权操作，或添加到当前 View。
 - 在 View 中使用匹配 Resource type/schema/capability/content type 的专用展示，并通过 Widget 上的常用按钮
   触发同一 Resource capability。
-- 单个 Widget 默认占满工作区；直接新增 Widget 默认在整个工作区右侧分栏；拖到目标 pane、divider 或
+- 新建 View 默认紧凑卡片，按内容高度排布并允许调整顺序和尺寸；每个 View 可切换铺满分栏并保存模式。
+- 铺满分栏中，单个 Widget 占满工作区；直接新增 Widget 默认在整个工作区右侧分栏；拖到目标 pane、divider 或
   工作区外缘可形成任意深度的左右/上下结构、精确插入位置，并连续调整任意相邻面板比例。
 - 调整 Widget 顺序和尺寸，保存、重命名、复制、删除并重新打开 View。
 - Resource 离线、被撤权或类型升级后，View 保留位置并显示可恢复错误状态。
@@ -57,7 +58,10 @@ Variable 的格式和校验语法由平台统一定义，提供者声明某个�
 9. Resource provider 必须拥有数据语义与有效域：schema 定义类型、范围、步长、枚举、格式、字段和校验约束；
    Desktop Renderer Registry 按 type/schema/capability 和 pane 条件过滤兼容组件、选择安全默认项，并允许用户
    切换兼容 renderer。组件选择不得改变 Resource 值、授予权限、放宽 schema 或依赖 Resource name。
-10. Workspace 必须支持添加、移除、精确插入、嵌套重排和调整 Widget；首个 Widget 默认占满可用区，
+10. Workspace 必须支持添加、移除、精确插入、嵌套重排和调整 Widget，并提供按 View 保存的紧凑卡片/铺满分栏选择。
+    新建 View 默认紧凑；已有未指定模式的 View 保留分栏。紧凑卡片按内容高度排布，支持拖动排序、调整跨列和
+    高度、恢复自动尺寸，长内容在卡片内滚动。切换模式保留各自布局和组件草稿；新增/删除保持资源成员一致。
+    铺满分栏中，首个 Widget 占满可用区，
     直接添加后续 Widget 默认在整个 root 右侧。拖动 Resource 或 Widget 到 pane 四边只分割目标 pane，
     拖到同级 divider 精确插入该 sibling index，拖到工作区外缘分割整个 root。布局不得要求独立的
     “左右 / 上下 / 交换”按钮；中心投放首期不得隐式创建 tab stack。
@@ -133,8 +137,10 @@ Variable 的格式和校验语法由平台统一定义，提供者声明某个�
   effective authorization，并明确呈现 authority 的 Forbidden。同一操作从菜单、Inspector 或 View Widget
   触发时使用一致的权限、输入校验、错误和审计路径，纯 namespace 不出现操作菜单。
 - 至少 6 层 Node fixture 可展开、搜索、聚焦并用 breadcrumb 返回；Arrow/Home/End/Enter/Space 键盘门禁通过。
-- 首个 Resource 加入后占满工作区，直接添加后续 Resource 默认在 root 右侧；拖拽可生成
-  `A | C | B`、`A | (B / C)` 和 `(A | B | C) / D`，无布局/交换按钮。任意嵌套 separator
+- 新 View 为紧凑卡片，下拉框/开关不被拉伸到视口高度；卡片排序、跨列和高度保存后恢复，窗口收窄不覆盖保存尺寸。
+  两种模式切换保留分栏比例、紧凑顺序和未提交输入，非法模式/尺寸不得覆盖有效 View。
+- 铺满分栏中，首个 Resource 加入后占满工作区，直接添加后续 Resource 默认在 root 右侧；拖拽可生成
+  `A | C | B`、`A | (B / C)` 和 `(A | B | C) / D`，无需左右/上下/交换按钮。任意嵌套 separator
   连续拖动和键盘调整后的权重保存 View 并在重启后恢复一致。
 - v1/v2 View 保留全部 Widget 迁移为 v3；未知/损坏布局不覆盖原文件，首次 v3 写回前存在可恢复的
   pre-v3 snapshot。

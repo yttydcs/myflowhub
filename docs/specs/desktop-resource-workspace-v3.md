@@ -53,12 +53,14 @@ Resource tree 构建必须保持 O(total path segments)，扁平化保持 O(visi
 
 `ViewDocument.version` 固定为 `3`。一个 View 保存：
 
-- `widgets`：Resource reference、renderer、可选非秘密 settings；
-- `layout_root`：唯一权威的布局拓扑；
+- `widgets`：Resource reference、renderer、可选非秘密 settings；数组顺序同时表示紧凑卡片顺序；
+- `layout_root`：铺满分栏的权威布局拓扑，在紧凑模式中也保留并校验；
+- 可选 `layout_mode=compact|split`：新建 View 默认 compact，缺省字段表示既有 split 模式；
+- 可选 widget `compact_size={columns,height?}`：跨列数为 1–4 整数，高度为 104–1200 px 整数；缺省时单列、自动高度；
 - revision 与创建/更新时间。
 
 v3 `ViewWidget` 不再保存 `x/y/w/h`。这些字段只存在于 v1/v2 解码结构和迁移输入中，不得作为 v3
-并行布局真相。
+并行布局真相。紧凑尺寸只用于紧凑模式，不换算成 split weights；两个模式共用同一组 Resource 引用。
 
 ```json
 {
@@ -110,7 +112,22 @@ pre-v3 snapshot；snapshot 或原子提交失败时，旧 `views.json` 保持不
 旧 Desktop 不能读取 v3。代码回滚后必须先停止 Desktop，再恢复 pre-v3 snapshot；恢复会丢失迁移后新增的
 v3-only 嵌套布局。
 
-## Layout operations
+## Compact layout
+
+工具栏切换模式只修改 `layout_mode`，不重建 split tree 或 Resource renderer，必须保留未提交输入与进行中
+写入。紧凑重排只修改 `widgets` 顺序，不修改 split 的 child 顺序和权重；新增/删除同步维护两者成员一致。
+新增卡片在 split 树中按既有 direct-add 规则加入，紧凑模式中按 drop 位置插入；直接添加则追加到末尾。
+
+紧凑网格按容器宽度使用 1–4 列，目标最小列宽 280 px、间距 12 px。自动高度由内容测量，正文最多 400 px，
+超出后内部滚动。保存跨列数超出当前列数时仅在展示时收窄，窗口恢复后恢复跨列，不能把窗口尺寸写回 View。
+右下角 resize handle 支持 pointer preview/release commit、cancel；Left/Right 调整跨列，Up/Down 调整高度，
+Home 或双击清除 `compact_size`。手动高度内正文滚动，标题保持可见。
+
+紧凑模式命中卡片左/右半区表示插入之前/之后，背景表示追加末尾；插入线、拖动浮层和 live announcement
+提供反馈。split divider 和 root-edge targets 在紧凑模式隐藏。渲染保留同一棵组件树，通过 display:contents
+和 grid order 排列现有 leaf，以免模式切换丢失组件内草稿。视觉顺序由 widgets 决定，DOM 顺序仍跟随 split tree。
+
+## Split layout operations
 
 所有 UI mutation 通过同一纯布局领域层执行并重新验证不变量：
 
@@ -126,7 +143,7 @@ v3-only 嵌套布局。
 均匀 split 插入后继续均匀分配；用户已调整过的 split 在 panel-edge 插入时拆分目标 weight，在 divider
 插入时拆分其后 child 的 weight。同父 reorder 让 weight 随 child 移动。
 
-## Drag and preview
+## Split drag and preview
 
 布局不提供“左右 / 上下 / 交换”按钮。Widget 标题手柄和 Resource drag 是组合布局的入口。
 
@@ -144,7 +161,7 @@ v3-only 嵌套布局。
 拖动手柄保留 dnd-kit keyboard drag；界面通过中文 instructions/live announcements 描述当前目标、顺序和
 完成/取消结果。未来 tab stack 必须新增显式 node kind 和独立可访问性契约，不能复用中心 drop 猜测。
 
-## Recursive rendering and resizing
+## Split recursive rendering and resizing
 
 split 使用递归 CSS grid，child tracks 与 separator tracks 交替。每个相邻 child pair 都有 separator：
 
@@ -164,6 +181,7 @@ View，cancel 恢复已持久权重。不得将像素或窗口 resize 结果写�
 
 Go boundary 必须拒绝：
 
+- 非法 layout_mode、compact_size 非整数或越界；
 - layout_root 与 widgets 空/非空关系不匹配；
 - unknown kind/axis 或 node kind 间字段混用；
 - 少于两个 child、weights 数量不等、非有限/非正/未归一化 weight；

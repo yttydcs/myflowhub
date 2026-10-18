@@ -33,6 +33,7 @@ type ViewDefinition struct {
 	Revision        uint64          `json:"revision"`
 	Widgets         []ViewWidget    `json:"widgets"`
 	LayoutRoot      *ViewLayoutNode `json:"layout_root,omitempty"`
+	LayoutMode      string          `json:"layout_mode,omitempty"`
 	CreatedAtUnixMS int64           `json:"created_at_unix_ms"`
 	UpdatedAtUnixMS int64           `json:"updated_at_unix_ms"`
 }
@@ -46,11 +47,17 @@ type ViewLayoutNode struct {
 }
 
 type ViewWidget struct {
-	ID           string          `json:"id"`
-	OwnerNodeID  string          `json:"owner_node_id"`
-	ResourceName string          `json:"resource_name"`
-	Renderer     string          `json:"renderer"`
-	Settings     json.RawMessage `json:"settings,omitempty"`
+	ID           string           `json:"id"`
+	OwnerNodeID  string           `json:"owner_node_id"`
+	ResourceName string           `json:"resource_name"`
+	Renderer     string           `json:"renderer"`
+	Settings     json.RawMessage  `json:"settings,omitempty"`
+	CompactSize  *ViewCompactSize `json:"compact_size,omitempty"`
+}
+
+type ViewCompactSize struct {
+	Columns int  `json:"columns"`
+	Height  *int `json:"height,omitempty"`
 }
 
 type viewStore struct{ root string }
@@ -201,6 +208,9 @@ func validateViewDocument(document ViewDocument) error {
 }
 
 func validateView(view ViewDefinition) error {
+	if view.LayoutMode != "" && view.LayoutMode != "compact" && view.LayoutMode != "split" {
+		return errors.New("view layout_mode must be compact or split")
+	}
 	if !profileIDPattern.MatchString(view.ID) {
 		return errors.New("view id is invalid")
 	}
@@ -252,6 +262,14 @@ func validateView(view ViewDefinition) error {
 }
 
 func validateViewWidget(widget ViewWidget, index int) error {
+	if size := widget.CompactSize; size != nil {
+		if size.Columns < 1 || size.Columns > 4 {
+			return fmt.Errorf("widgets[%d] compact columns must be between 1 and 4", index)
+		}
+		if size.Height != nil && (*size.Height < 104 || *size.Height > 1200) {
+			return fmt.Errorf("widgets[%d] compact height must be between 104 and 1200", index)
+		}
+	}
 	if !profileIDPattern.MatchString(widget.ID) {
 		return fmt.Errorf("widgets[%d] id is invalid", index)
 	}

@@ -131,6 +131,8 @@ function dockSideLabel(value: WorkspaceDockSide): string {
 }
 
 function dockDescription(intent: WorkspaceDockIntent): string {
+  if (intent.kind === 'compact-card') return `插入 ${intent.targetWidgetID} ${intent.before ? '之前' : '之后'}`
+  if (intent.kind === 'compact-end') return '添加到卡片网格末尾'
   if (intent.kind === 'panel-edge') return `停靠预览：置于 ${intent.targetWidgetID} ${dockSideLabel(intent.side)}`
   if (intent.kind === 'root-edge') return `停靠预览：置于整个工作区${dockSideLabel(intent.side)}`
   if (intent.kind === 'split-gap') return `停靠预览：插入 ${intent.beforeWidgetID} 与 ${intent.afterWidgetID} 之间`
@@ -138,7 +140,7 @@ function dockDescription(intent: WorkspaceDockIntent): string {
 }
 
 function newView(index = 1): ViewDefinition {
-  return { id: `view-${index}`, name: `工作视图 ${index}`, revision: 0, widgets: [] }
+  return { id: `view-${index}`, name: `工作视图 ${index}`, revision: 0, widgets: [], layout_mode: 'compact' }
 }
 
 export function App({ api = productionApi }: { api?: DesktopAPI }) {
@@ -601,6 +603,13 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     const over = event.over
     if (!over) return null
     const data = over.data.current as WorkspaceDropData | undefined
+    if (view.layout_mode === 'compact') {
+      if (data?.kind === 'workspace-panel' && data.widgetID) {
+        const point = dragPoint(event)
+        return { kind: 'compact-card', targetWidgetID: data.widgetID, before: !!point && point.x < over.rect.left + over.rect.width / 2 }
+      }
+      return data?.kind === 'workspace-background' ? { kind: 'compact-end' } : null
+    }
     if (data?.kind === 'workspace-divider'
       && Array.isArray(data.parentPath)
       && typeof data.insertionIndex === 'number'
@@ -657,7 +666,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     try {
       const next = dockWorkspaceView(view, activeWorkspaceDrag.source, dockIntent)
       if (next === view) return null
-      return { view: next, widgetID: activeWorkspaceDrag.widgetID, description: dockDescription(dockIntent) }
+      return { view: next, widgetID: activeWorkspaceDrag.widgetID, description: dockDescription(dockIntent), compactInsert: dockIntent.kind === 'compact-card' ? { targetID: dockIntent.targetWidgetID, before: dockIntent.before } : undefined }
     } catch {
       return null
     }

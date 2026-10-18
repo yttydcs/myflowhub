@@ -107,6 +107,7 @@ export type ViewWidget = {
   resource_name: string
   renderer: string
   settings?: unknown
+  compact_size?: { columns: number; height?: number }
 }
 
 export type ViewLayoutAxis = 'horizontal' | 'vertical'
@@ -121,6 +122,7 @@ export type ViewDefinition = {
   revision: number
   widgets: ViewWidget[]
   layout_root?: ViewLayoutNode
+  layout_mode?: 'compact' | 'split'
   created_at_unix_ms?: number
   updated_at_unix_ms?: number
 }

@@ -12,6 +12,8 @@ const WEIGHT_EPSILON = 1e-6
 export type WorkspaceDockSide = 'left' | 'right' | 'top' | 'bottom'
 
 export type WorkspaceDockIntent =
+  | { kind: 'compact-card'; targetWidgetID: string; before: boolean }
+  | { kind: 'compact-end' }
   | { kind: 'panel-edge'; targetWidgetID: string; side: WorkspaceDockSide }
   | {
       kind: 'split-gap'
@@ -74,6 +76,10 @@ export function sameWorkspaceDockIntent(left: WorkspaceDockIntent | null, right:
   if (left === right) return true
   if (!left || !right || left.kind !== right.kind) return false
   switch (left.kind) {
+    case 'compact-end':
+      return true
+    case 'compact-card':
+      return left.targetWidgetID === (right as typeof left).targetWidgetID && left.before === (right as typeof left).before
     case 'empty-workspace':
       return true
     case 'root-edge':
@@ -99,11 +105,14 @@ export function createWorkspaceLeaf(widgetID: string): ViewLayoutNode {
 }
 
 export function validateWorkspaceView(view: ViewDefinition): void {
+  if (view.layout_mode !== undefined && view.layout_mode !== 'compact' && view.layout_mode !== 'split') throw new WorkspaceLayoutError('view layout mode is invalid')
   if (view.widgets.length > MAX_WORKSPACE_WIDGETS) {
     throw new WorkspaceLayoutError(`view supports at most ${MAX_WORKSPACE_WIDGETS} widgets`)
   }
   const widgetIDs = new Set<string>()
   for (const widget of view.widgets) {
+    const size = widget.compact_size
+    if (size && (!Number.isInteger(size.columns) || size.columns < 1 || size.columns > 4 || (size.height !== undefined && (!Number.isInteger(size.height) || size.height < 104 || size.height > 1200)))) throw new WorkspaceLayoutError('compact size requires 1–4 columns and a height of 104–1200 pixels')
     if (!widget.id) throw new WorkspaceLayoutError('widget ID is required')
     if (widgetIDs.has(widget.id)) throw new WorkspaceLayoutError(`duplicate widget "${widget.id}"`)
     widgetIDs.add(widget.id)
@@ -154,6 +163,20 @@ export function dockWorkspaceView(
   intent: WorkspaceDockIntent,
 ): ViewDefinition {
   validateWorkspaceView(view)
+  if (intent.kind === 'compact-card' || intent.kind === 'compact-end') {
+    if (view.layout_mode !== 'compact') throw new WorkspaceLayoutError('compact drop requires compact layout')
+    if (intent.kind === 'compact-card' && !view.widgets.some(widget => widget.id === intent.targetWidgetID)) throw new WorkspaceLayoutError('target card no longer exists')
+    if (source.kind === 'existing' && intent.kind === 'compact-card' && source.widgetID === intent.targetWidgetID) return view
+    const next = source.kind === 'new' ? addWorkspaceWidget(view, source.widget) : view
+    const id = source.kind === 'new' ? source.widget.id : source.widgetID
+    const widget = next.widgets.find(candidate => candidate.id === id)
+    if (!widget) throw new WorkspaceLayoutError('source card no longer exists')
+    const widgets = next.widgets.filter(candidate => candidate.id !== id)
+    const index = intent.kind === 'compact-end' ? widgets.length : widgets.findIndex(candidate => candidate.id === intent.targetWidgetID) + (intent.before ? 0 : 1)
+    widgets.splice(index, 0, widget)
+    if (widgets.every((candidate, at) => candidate === view.widgets[at]) && widgets.length === view.widgets.length) return view
+    return { ...next, widgets }
+  }
   if (source.kind === 'existing') {
     if (!view.widgets.some((widget) => widget.id === source.widgetID)) {
       throw new WorkspaceLayoutError(`widget "${source.widgetID}" is not in the view`)
