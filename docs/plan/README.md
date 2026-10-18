@@ -24,6 +24,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Snapshots / Meta
+- [2026-10-19 Desktop 紧凑布局验收与收尾审查](review_2026-10-19_desktop-compact-layout.md)
 - [plan_archive_2026-09-06_depth-scoped-topology.md](plan_archive_2026-09-06_depth-scoped-topology.md)
 - [todo_archive_2026-09-06_depth-scoped-topology.md](todo_archive_2026-09-06_depth-scoped-topology.md)
 - [plan_archive_2026-09-01_scoped-policy-authority.md](plan_archive_2026-09-01_scoped-policy-authority.md)

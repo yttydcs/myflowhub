@@ -4,6 +4,8 @@
 
 Accepted for implementation。
 
+2026-10-19 补充：本 ADR 的分割树、边缘停靠及中心投放规则适用于“铺满分栏”。用户已确认并验收紧凑优先及模式切换，见下方补充决策。
+
 ## Context
 
 View v2 只为两个 Widget 保存一个全局方向和比例；三个以上退化为扁平响应式网格。因此它不能区分
@@ -29,6 +31,16 @@ View v2 只为两个 Widget 保存一个全局方向和比例；三个以上退�
 - v1/v2 经 version-specific strict decode 迁移；第一次 v3 写回前保留不可覆盖的 pre-v3 snapshot。
 
 ## Consequences
+
+### 2026-10-19 双模式补充
+
+- 新建 View 默认 `compact`；已有未指定模式的 View 继续 `split`，用户可通过工具栏选择。
+- `layout_root` 仍是分栏布局的唯一权威。紧凑模式另用 widgets 数组顺序和可选 compact_size，两者共用资源成员，新增/删除同步维护。
+- 紧凑模式允许在卡片中心选择前/后插入，背景追加末尾；不受 split 的中心投放限制，也不引入 tab stack。
+- 两种模式独立保留几何和顺序，复用 renderer 实例以保留草稿及在途操作。CSS 视觉顺序与 split DOM 顺序可能不同，完整读屏顺序不作已验证承诺。
+- View document 继续为 v3；旧版严格解码对新增字段的回滚限制见[本轮归档](../change/2026-10-19_desktop-compact-layout.md)。当前规范以 [View v3](../specs/desktop-resource-workspace-v3.md) 为准。
+
+### 原分栏决策的后果
 
 - 支持任意深度的左右/上下组合和同轴中间插入。
 - View 文件升级为 version 3，旧 Desktop 无法直接读取；回滚必须恢复 snapshot。

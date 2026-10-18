@@ -4,6 +4,8 @@
 
 ## Current Records
 
+- [Desktop 紧凑布局与视图模式切换（2026-10-19 验收通过）](2026-10-19_desktop-compact-layout.md)
+
 - [Desktop 通用变量手动验收追加请求（已实施）](2026-10-09_desktop-variable-manual-acceptance.md)
 
 - [平台统一变量与通用消费（R2：无需兼容，已实施归档）](2026-09-06_unified-variable-contract.md)

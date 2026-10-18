@@ -25,6 +25,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-10-19 Desktop 紧凑布局与模式切换](2026-10-19_desktop-compact-layout.md)
 - [2026-09-06_depth-scoped-topology-discovery.md](2026-09-06_depth-scoped-topology-discovery.md)
 - [2026-09-06_platform-retirement-and-attached-bindings.md](2026-09-06_platform-retirement-and-attached-bindings.md)
 - [2026-09-01_scoped-policy-authority.md](2026-09-01_scoped-policy-authority.md)

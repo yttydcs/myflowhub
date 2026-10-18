@@ -6,7 +6,7 @@
 
 ## Lookup Hints
 
-关键词：autoApply、draftVersion、Enter/blur、IME、subscription-before-response、minmax、fractional fr、右侧留白。先检查 VariablePanel/VariableEditor/controller、ui/slider 和 Workspace.splitGridStyle。
+关键词：autoApply、draftVersion、Enter/blur、IME、subscription-before-response、minmax、fractional fr、右侧留白、卡片高度留白、模式切换丢草稿、compact、remount。先检查 VariablePanel/VariableEditor/controller、ui/slider、Workspace.splitGridStyle、CompactCard 及外层 grid 轨道。
 
 ## Symptoms
 
@@ -36,8 +36,19 @@
 
 测试失败不循环重试、输入法确认、Enter+blur、组件释放、Profile 切换、共享草稿归属和推送先到。布局检查末项与容器末边差及子项最小尺寸，覆盖窄宽、高低、横纵嵌套和增删。不要用固定容器尺寸的截图代替这些断言。
 
+## 2026-10-19：紧凑布局与状态保留
+
+- 症状与触发：简单下拉框放到分栏里被拉伸到视口高度；将紧凑/分栏做成两套条件渲染后可能丢失输入草稿；窄窗口中卡片超出右边界。
+- 根因：铺满布局与内容高度布局目标不同；切换组件树会卸载本地编辑状态；外层 grid 的隐式 auto 列受 toolbar 最小内容宽度影响，仅限制卡片宽度不够。
+- 排查：查看 article 实际高度及所有祖先轨道；在切换前后断言同一 input DOM、未提交值及 snapshot 调用次数；分别测宽屏与窄屏末列的 right 边界。
+- 解决：两种模式分别保存布局，保持 renderer 实例，用 display:contents/grid order 重新排布 leaf；内容测量决定卡片行跨度，长内容内部滚动。Workspace 显式使用 minmax(0, 1fr) 列，窗口缩放仅影响展示，不写回保存尺寸。
+- 证据：真实浏览器下拉框从视口高度缩为约 112px，数组约 247px；1480/850 宽度、保存重载、拖拽排序、尺寸恢复通过；组件测试验证切换后仍为同一输入元素且 snapshot 只调用一次。
+- 防回归：固定大小截图不足以覆盖此类问题，必须同时验证容器边界、交互与持久化。CSS order 不会改变 DOM/Tab 顺序；若新增读屏顺序要求，需专门设计，不能仅依赖视觉排序。
+
 ## Related Docs
 
 - [统一变量规格](../specs/unified-variable-resource.md)
 - [Desktop 手动验收请求](../intake/2026-10-09_desktop-variable-manual-acceptance.md)
 - [归档与证据](../change/2026-10-09_unified-variable-contract.md)
+- [Desktop 工作区规格](../specs/desktop-resource-workspace-v3.md)
+- [紧凑布局归档与验收](../change/2026-10-19_desktop-compact-layout.md)

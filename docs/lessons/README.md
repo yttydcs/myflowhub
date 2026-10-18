@@ -13,7 +13,7 @@
 
 ## Runtime And Architecture
 
-- [desktop-variable-confirmation-and-split-layout.md](desktop-variable-confirmation-and-split-layout.md)：共享变量提交归属、控件加载/确认时机与最小尺寸下 fr 分栏留白。
+- [desktop-variable-confirmation-and-split-layout.md](desktop-variable-confirmation-and-split-layout.md)：共享变量提交归属、控件确认时机、fr 留白、紧凑卡片高度、模式切换丢草稿与窄窗口 grid 溢出。
 
 - [partial-discovery-and-async-ownership.md](partial-discovery-and-async-ownership.md)：部分树边界、排队请求清理、跨Profile View引用与迟到保存导致的状态/草稿覆盖。
 
