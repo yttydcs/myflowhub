@@ -40,10 +40,10 @@ func Canonical() (Manifest, error) {
 		},
 		DesktopMethods: []string{
 			"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "OperateJSON",
-			"PollSubscription", "SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected", "WriteVariableJSON",
+			"PollSubscription", "PollSubscriptions", "SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected", "WriteVariableJSON",
 		},
 		Resources: []Resource{
-			variable(protocol.BuiltinResourceCatalog),
+			catalog(),
 			topology(),
 			variable(protocol.BuiltinManagementHealth),
 			variable(protocol.BuiltinManagementConfig),
@@ -103,6 +103,12 @@ func Canonical() (Manifest, error) {
 		}
 	}
 	return manifest, nil
+}
+
+func catalog() Resource {
+	value := variable(protocol.BuiltinResourceCatalog)
+	value.Capabilities = append(value.Capabilities, capability(protocol.CapabilityList, protocol.SchemaCatalogListV1, protocol.SchemaCatalogPageV1, ""))
+	return value
 }
 
 func variable(name string) Resource {

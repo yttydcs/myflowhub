@@ -1,5 +1,6 @@
 import { VariableProfileContext } from './variable/useVariable'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { hasUnsavedChanges, subscribeUnsavedChanges } from './unsaved'
 import {
   DndContext,
   DragOverlay,
@@ -23,6 +24,7 @@ import { CatalogContext } from './discovery/DiscoveryStatus'
 import { BrandMark } from './components/BrandMark'
 import { Explorer } from './components/Explorer'
 import { Inspector } from './components/Inspector'
+import { ResourceOverview } from './components/ResourceOverview'
 import { LoginScreen } from './components/LoginScreen'
 import { Settings as DesktopSettings } from './components/Settings'
 import { ViewManager, Workspace, type WorkspaceDockPreview } from './components/Workspace'
@@ -177,9 +179,12 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const viewLoadRequest = useRef(0)
   const currentView = useRef(view)
   currentView.current = view
-  const [activeContent, setActiveContent] = useState<'workspace' | 'settings'>('workspace')
+  const [activeContent, setActiveContent] = useState<'workspace' | 'overview' | 'settings'>('workspace')
   const [preferences, setPreferences] = useState<UIPreferences>(defaultUIPreferences())
   const [dirty, setDirty] = useState(false)
+  const variableDirty = useSyncExternalStore(subscribeUnsavedChanges, hasUnsavedChanges)
+  const unsaved = dirty || variableDirty
+  const unsavedReport = useRef(Promise.resolve())
   const [busy, setBusy] = useState(false)
   const [savingView, setSavingView] = useState(false)
   const [activeWorkspaceDrag, setActiveWorkspaceDrag] = useState<ActiveWorkspaceDrag | null>(null)
@@ -200,19 +205,26 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     invalidateDiscovery()
   }
   const confirmDiscard = useCallback(
-    () => !dirty || window.confirm('当前视图有未保存的更改。放弃这些更改并继续吗？'),
-    [dirty],
+    () => !unsaved || window.confirm('当前视图或变量有未保存的更改。放弃这些更改并继续吗？'),
+    [unsaved],
   )
 
   useEffect(() => {
     const guard = (event: BeforeUnloadEvent) => {
-      if (!dirty) return
+      if (!unsaved) return
       event.preventDefault()
       event.returnValue = ''
     }
     window.addEventListener('beforeunload', guard)
     return () => window.removeEventListener('beforeunload', guard)
-  }, [dirty])
+  }, [unsaved])
+  useEffect(() => {
+    if (!api.setUnsavedChanges) return
+    // Preserve report order across rapid edits and confirmations.
+    unsavedReport.current = unsavedReport.current
+      .then(() => api.setUnsavedChanges!(unsaved))
+      .catch((current) => setError(`无法更新退出保护：${errorText(current)}`))
+  }, [api, unsaved])
 
   useEffect(() => {
     if (!activeProfile) {
@@ -752,9 +764,9 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     )
   }
 
-  const inspectorVisible = activeContent === 'workspace' && selection !== null
+  const inspectorVisible = activeContent !== 'settings' && selection !== null
   return (
-    <VariableProfileContext.Provider value={`${activeProfile?.id || "signed-out"}/${profileGeneration.current}/${status.generation || 0}/${status.link_generation || 0}`}>
+    <VariableProfileContext.Provider value={`${activeProfile?.id || "signed-out"}/${profileGeneration.current}`}>
     <CatalogContext.Provider value={{ states: discoveryState.catalogs, retry: (owner) => void discovery.catalog(owner, true) }}>
     <DndContext
       accessibility={{
@@ -839,9 +851,11 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
           <div className="main-stack">
             <nav className="content-tabs" role="tablist" aria-label="工作区标签">
               <button role="tab" aria-selected={activeContent === 'workspace'} className={activeContent === 'workspace' ? 'is-active' : ''} onClick={() => setActiveContent('workspace')}><Layers3 aria-hidden="true" size={13} />{viewReady ? view.name : '视图加载中…'}{viewReady && dirty && <span className="tab-dirty" aria-label="未保存">●</span>}</button>
+              <button role="tab" aria-selected={activeContent === 'overview'} className={activeContent === 'overview' ? 'is-active' : ''} onClick={() => setActiveContent('overview')}><Boxes aria-hidden="true" size={13} />资源总览</button>
               <button role="tab" aria-selected={activeContent === 'settings'} className={activeContent === 'settings' ? 'is-active' : ''} onClick={() => setActiveContent('settings')}><Settings2 aria-hidden="true" size={13} />设置</button>
               <button className="new-tab" disabled={!viewReady} onClick={createView} aria-label="新建视图"><Plus aria-hidden="true" size={14} /></button>
             </nav>
+            <div style={{ display: activeContent === 'overview' ? 'none' : 'contents' }}>
             {activeContent === 'settings'
               ? (
                 <DesktopSettings
@@ -888,6 +902,8 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                   onError={setError}
                 />
               )}
+            </div>
+            <ResourceOverview api={api} resources={resources} hidden={activeContent !== 'overview'} onSelect={(resource) => setInspector({ selection: { kind: 'resource', resource }, focusedAction: null })} />
           </div>
 
           {inspectorVisible && (

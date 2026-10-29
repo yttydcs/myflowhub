@@ -64,7 +64,7 @@ publisher-local sequence、timestamp、schema 与 payload。subscriber 慢消费
 - 父节点对直接子节点保持原有强控制权，子节点信任父节点的 authority 裁决。
 - owner 仍必须验证 schema、尺寸和类型约束，authority 许可不是业务输入验证。
 - permission key 不从 presentation hint、物理 transport 或 UI 控件推导。
-- reparent、policy generation 变化或资源注销会撤销相关 subscription/session。
+- reparent或资源注销会撤销相关subscription/session；policy generation变化时，subscription重新核对实际有效权限，仍授权的读取/订阅继续。resource session仍按其授权世代失效；清理不能在策略提交锁内调用provider。
 
 ## Related
 

@@ -56,6 +56,7 @@ contract、第一方迁移和 Desktop 交互，而不是恢复 SubProto 或第�
 - 细化 [可扩展 Resource type system 与 Desktop workspace](2026-08-28_extensible-resource-type-system-and-desktop-workspace.md)
   中“不要把所有行为退化为 Command”的边界。
 - 不取代唯一 Node tree、Resource ownership、NodeHost 或 provider-owned schema / Desktop-owned renderer 决策。
+- 2026-10-09 追溯补充：本决策中的旧 Flow Collections 实例已被[Flow 退役决策](2026-09-06_retire-flow-pending-redesign.md)移除。新 Flow 的独立资源类型、文本程序和宿主节点执行权限见[统一产品定义](../requirements/product-definition.md)第 5 节；本文的通用 Collection/capability 决策继续有效，不据旧样例恢复新 Flow 的管理或授权合同。
 
 ## Related docs
 

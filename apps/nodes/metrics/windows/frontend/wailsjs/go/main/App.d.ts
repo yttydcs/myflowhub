@@ -7,6 +7,8 @@ export function Definitions():Promise<string>;
 
 export function Identity(arg1:string):Promise<string>;
 
+export function SetUnsavedChanges(arg1:boolean):Promise<void>;
+
 export function Start(arg1:string):Promise<string>;
 
 export function Status():Promise<string>;

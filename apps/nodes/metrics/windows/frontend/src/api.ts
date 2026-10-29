@@ -1,5 +1,5 @@
 import type { Configuration, Definition, IdentityResult, StartRequest, Status } from './contracts'
-import { Configuration as GetConfiguration, Definitions, Identity, Start, Status as GetStatus, Stop, UpdateConfiguration } from '../wailsjs/go/main/App'
+import { Configuration as GetConfiguration, Definitions, Identity, Start, Status as GetStatus, Stop, UpdateConfiguration, SetUnsavedChanges } from '../wailsjs/go/main/App'
 
 export interface MetricsAPI {
   identity(stateDirectory: string, nodeID: string): Promise<IdentityResult>
@@ -9,6 +9,7 @@ export interface MetricsAPI {
   configuration(): Promise<Configuration>
   definitions(): Promise<Definition[]>
   updateConfiguration(configuration: Configuration): Promise<Configuration>
+  setUnsavedChanges(dirty: boolean): Promise<void>
 }
 
 function decodeJSON<T>(payload: string, label: string): T {
@@ -27,6 +28,14 @@ function decodeStatus(payload: string, label: string): Status {
   const result = decodeJSON<unknown>(payload, label)
   if (!isRecord(result) || result.version !== 1 || typeof result.running !== 'boolean' || !Array.isArray(result.metrics)) {
     throw new Error(`${label} 返回了不支持的 Metrics 状态`)
+  }
+  if (result.startup_error !== undefined && typeof result.startup_error !== 'string') throw new Error(`${label} 返回了无效恢复错误`)
+  if (result.saved_connection !== undefined) {
+    const saved = result.saved_connection
+    const connection = isRecord(saved) ? saved.connection : undefined
+    if (!isRecord(saved) || saved.version !== 1 || typeof saved.active !== 'boolean' || !isRecord(connection) ||
+      ['state_directory', 'node_id', 'parent_node_id', 'endpoint', 'parent_public_key'].some(key => typeof connection[key] !== 'string' || !connection[key]) ||
+      'permit' in connection) throw new Error(`${label} 返回了无效已保存连接`)
   }
   for (const metric of result.metrics) {
     const state = isRecord(metric) ? metric.state : undefined
@@ -93,4 +102,5 @@ export const wailsMetricsAPI: MetricsAPI = {
   configuration,
   definitions,
   updateConfiguration,
+  setUnsavedChanges: SetUnsavedChanges,
 }

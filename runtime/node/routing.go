@@ -39,6 +39,7 @@ func (n *Node) handleInbound(inbound *peerSession, envelope protocol.Envelope) e
 		if err := n.tree.WithdrawRoute(inbound.peer, payload.Node, inbound.epoch); err != nil {
 			return err
 		}
+		n.cleanupForwardedRoutes([]protocol.NodeID{payload.Node})
 		n.withdrawUp(payload.Node)
 		return nil
 	default:
@@ -69,6 +70,15 @@ func (n *Node) routeEnvelope(ctx context.Context, envelope protocol.Envelope, in
 	}
 	if inbound != nil && route.NextHop == inbound.peer {
 		return errors.New("routing loop detected")
+	}
+	if inbound != nil && inbound.role == link.RoleChild && route.Kind == tree.DirectionDown &&
+		(envelope.Operation == protocol.OperationResourceEvent || envelope.Operation == protocol.OperationResourceGap) {
+		n.mu.RLock()
+		interest, exists := n.forwardedSubscriptions[envelope.CorrelationID]
+		n.mu.RUnlock()
+		if !exists || interest.source != envelope.Target || interest.target != envelope.Source || n.authorizeForwardedSubscription(interest) != nil {
+			return nil
+		}
 	}
 	trackedSubscribe := false
 	untrackAfterSend := false
@@ -110,16 +120,26 @@ func (n *Node) routeEnvelope(ctx context.Context, envelope protocol.Envelope, in
 	next := n.sessions[route.NextHop]
 	n.mu.RUnlock()
 	if next == nil || next.session.State() != link.StateActive {
-		return fmt.Errorf("next hop %d has no active session", route.NextHop)
+		err = fmt.Errorf("next hop %d has no active session", route.NextHop)
+	} else {
+		err = next.session.Send(ctx, envelope)
 	}
-	err = next.session.Send(ctx, envelope)
-	if err != nil && trackedSubscribe {
-		n.untrackForwardedSubscription(envelope.MessageID, envelope.Source, envelope.Target)
+	if err != nil {
+		if trackedSubscribe {
+			n.untrackForwardedSubscription(envelope.MessageID, envelope.Source, envelope.Target)
+		}
+		// A route may become visible before its authenticated session is ready,
+		// or disappear between lookup and enqueue. No request was queued: tell
+		// the remote caller so durable setup can retry instead of waiting forever.
+		if inbound != nil && (envelope.Phase == protocol.PhaseRequest || envelope.Phase == protocol.PhaseControl) {
+			return errors.Join(err, n.sendError(envelope, protocol.CodeStaleEpoch, err.Error()))
+		}
+		return err
 	}
-	if err == nil && untrackAfterSend {
+	if untrackAfterSend {
 		n.untrackForwardedSubscription(envelope.CorrelationID, envelope.Source, envelope.Target)
 	}
-	return err
+	return nil
 }
 
 func (n *Node) announceUp(descendant, parent protocol.NodeID) {

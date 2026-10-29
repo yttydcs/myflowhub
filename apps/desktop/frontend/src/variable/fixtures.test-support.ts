@@ -34,6 +34,11 @@ export function variableAPI(initial = snapshot()) {
     operate: vi.fn().mockResolvedValue({ schema: VARIABLE_VALUE_SCHEMA, payload: { ...initial, revision: String(BigInt(initial.revision) + 1n) } }),
     poll: vi.fn().mockImplementation(() => events.length ? Promise.resolve(events.shift()) : new Promise<PollResult>((resolve) => { waiting = resolve })),
   } as unknown as DesktopAPI
+  vi.mocked(api.operate).mockImplementation(async () => {
+    const confirmed = { ...initial, revision: String(BigInt(initial.revision) + 1n) }
+    vi.mocked(api.snapshot).mockResolvedValue(confirmed)
+    return { schema: VARIABLE_VALUE_SCHEMA, payload: confirmed }
+  })
   const event = (value: VariableValueV1, kind: 'snapshot' | 'data' = 'data', resource = variableResource()) => {
     const envelope = { ...value }
     if (kind === 'data') delete envelope.definition

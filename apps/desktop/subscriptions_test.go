@@ -45,9 +45,9 @@ func TestDesktopSubscriptionsKeepOriginalProfileClient(t *testing.T) {
 }
 
 func TestDesktopSubscriptionsBoundedAndReusable(t *testing.T) {
-	var sessions desktopSubscriptions
+	sessions := desktopSubscriptions{limit: 2000}
 	client := &testSubscriptionClient{}
-	for i := 0; i < 256; i++ {
+	for i := 0; i < 2000; i++ {
 		if _, err := sessions.add(client, int64(i)); err != nil {
 			t.Fatal(err)
 		}

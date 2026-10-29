@@ -3,6 +3,7 @@ package sdk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -381,6 +382,11 @@ func TestVariableCatalogBootstrapAndReadNeedsNoSubscribe(t *testing.T) {
 	catalog, err := client.Catalog(context.Background(), runtime.ID())
 	if err != nil || len(catalog.Resources) != 1 || policy.reads.Load() != 1 {
 		t.Fatalf("Catalog bootstrap performed extra reads or failed to unwrap: %+v %v, reads=%d", catalog, err, policy.reads.Load())
+	}
+	_, pageErr := client.CatalogPages(ctx, runtime.ID())
+	var pageFailure *Error
+	if !errors.As(pageErr, &pageFailure) || pageFailure.Code != protocol.CodeForbidden || policy.reads.Load() != 1 {
+		t.Fatalf("forbidden pagination fell back to read: %v, reads=%d", pageErr, policy.reads.Load())
 	}
 	id := protocol.ResourceID{Owner: runtime.ID(), Name: protocol.BuiltinResourceCatalog}
 	state, err := client.Snapshot(context.Background(), id)

@@ -1,0 +1,19 @@
+{
+  "status": "Failed overall; partial memory/read checks passed",
+  "healthy_window_native_writes": 82,
+  "timing_exceeded": [
+    "healthy-003",
+    "healthy-028",
+    "healthy-079"
+  ],
+  "observer_termination": {
+    "stderr": "context deadline exceeded",
+    "configured_duration_minutes": 135,
+    "first_read_started_ms": 1792915445299,
+    "last_read_started_ms": 1792923545200,
+    "classification": "Expected observer deadline after healthy window, not a product read failure",
+    "raw_summary_preserved": true
+  },
+  "late_captures": "After-window status only; no late writes counted",
+  "acceptance_status": "pending"
+}

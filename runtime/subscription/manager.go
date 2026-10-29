@@ -48,17 +48,18 @@ func (c Config) normalized() (Config, error) {
 }
 
 type Request struct {
-	ID               protocol.MessageID
-	Subscriber       protocol.NodeID
-	Resource         protocol.ResourceID
-	Capability       protocol.CapabilityID
-	LinkID           string
-	NextHop          protocol.NodeID
-	Lease            time.Duration
-	AuthorizedUntil  time.Time
-	TopologyEpoch    uint64
-	PolicyGeneration uint64
-	Queue            int
+	ID                protocol.MessageID
+	Subscriber        protocol.NodeID
+	Resource          protocol.ResourceID
+	Capability        protocol.CapabilityID
+	LinkID            string
+	NextHop           protocol.NodeID
+	Lease             time.Duration
+	AuthorizedUntil   time.Time
+	TopologyEpoch     uint64
+	PolicyGeneration  uint64
+	PolicyIndependent bool
+	Queue             int
 }
 
 type Subscription struct {
@@ -285,6 +286,25 @@ func (m *Manager) CleanupPolicyGeneration(generation uint64) int {
 		}
 	}
 	return len(interests)
+}
+
+// RevalidatePolicy expires only interests whose effective grant was removed.
+// The callback runs without manager locks and must consult the current policy.
+func (m *Manager) RevalidatePolicy(authorized func(Request) bool) int {
+	m.mu.Lock()
+	entries := make([]*entry, 0, len(m.entries))
+	for _, current := range m.entries {
+		entries = append(entries, current)
+	}
+	m.mu.Unlock()
+	expired := 0
+	for _, current := range entries {
+		if !current.request.PolicyIndependent && !authorized(current.request) {
+			current.delivery.expire("policy_permission_revoked")
+			expired++
+		}
+	}
+	return expired
 }
 
 func (m *Manager) Interests(resourceID protocol.ResourceID) []Interest {

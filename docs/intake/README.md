@@ -6,10 +6,12 @@
 
 - [Desktop 紧凑布局与视图模式切换（2026-10-19 验收通过）](2026-10-19_desktop-compact-layout.md)
 
+- [产品定义与首版范围讨论（P01—P33 已确认；A 验收定稿，2000 变量每秒更新一次，进入实施规划）](2026-09-06_product-definition-grill.md)
+
 - [Desktop 通用变量手动验收追加请求（已实施）](2026-10-09_desktop-variable-manual-acceptance.md)
 
 - [平台统一变量与通用消费（R2：无需兼容，已实施归档）](2026-09-06_unified-variable-contract.md)
-- [带深度的拓扑查询与 Desktop 按展开加载（规划中）](2026-09-06_depth-scoped-topology-discovery.md)
+- [带深度的拓扑查询与 Desktop 按展开加载（已实施归档）](2026-09-06_depth-scoped-topology-discovery.md)
 - [Android、嵌入式退役与运行时收敛](2026-09-06_android-embedded-retirement-and-runtime-convergence.md)
 
 - [Flow 移除与重新设计延期](2026-09-06_flow-retirement-and-redesign-deferral.md)
@@ -22,7 +24,9 @@
 - [Node Enrollment 与集中式准入 Authority](2026-08-30_node-enrollment-central-authority.md)
 - [NodeHost、SDK 与产品运行时边界讨论](2026-08-30_node-host-runtime-and-product-boundaries.md)
 - [Desktop Explorer 可折叠分区与 Resource path tree](2026-08-30_desktop-explorer-collapsible-resource-tree.md)
+- [Desktop Node 与 Metrics Node 产品独立性](2026-08-30_desktop-metrics-product-independence.md)
 - [Desktop 多面板嵌套停靠讨论记录](2026-08-30_desktop-nested-docking-layout.md)
+- [Agent Gateway 产品定义](2026-08-29_agent-gateway-product-definition.md)
 - [MyFlowHub 品牌图标 Coupled Seam 定稿](2026-08-29_brand-icon-coupled-seam.md)
 - [Desktop Explorer Node/Resource 上下分区](2026-08-29_desktop-explorer-split-pane.md)
 - [Desktop 首次准入引导](2026-08-29_desktop-first-admission-onboarding.md)

@@ -143,8 +143,23 @@ func TestCanonicalProductMatrixSharesAuthoritativeTree(t *testing.T) {
 	if err := receiveProductError(t, ctx, metricSubscription); !isSDKCode(err, protocol.CodeExpired) {
 		t.Fatalf("policy generation change did not expire product subscription: %v", err)
 	}
+	// An unrelated revocation must preserve the sibling's effective grant.
+	input, err := protocol.EncodeJSONPayload(&clipboard.SendV1{Version: 1, Text: "after-metric-revoke"}, protocol.DefaultMaxPayload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Invoke(ctx, clipboardSendID, input); err != nil {
+		t.Fatal(err)
+	}
+	var continued clipboard.TextEventV1
+	if err := protocol.DecodeJSONPayload(receiveProductEvent(t, ctx, clipboardSubscription).Value, protocol.DefaultMaxPayload, &continued); err != nil || continued.Text != "after-metric-revoke" {
+		t.Fatalf("unrelated subscription was interrupted: %+v %v", continued, err)
+	}
+	if err := root.Runtime.Policy.Revoke(grants[1]); err != nil {
+		t.Fatal(err)
+	}
 	if err := receiveProductError(t, ctx, clipboardSubscription); !isSDKCode(err, protocol.CodeExpired) {
-		t.Fatalf("policy generation change did not expire sibling product subscription: %v", err)
+		t.Fatalf("revoked sibling subscription did not expire: %v", err)
 	}
 	waitSubscriptionCount(t, root.Node, 0)
 	waitSubscriptionCount(t, metricsNode, 0)

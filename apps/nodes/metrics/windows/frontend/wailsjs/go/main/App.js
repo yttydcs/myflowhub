@@ -14,6 +14,10 @@ export function Identity(arg1) {
   return window['go']['main']['App']['Identity'](arg1);
 }
 
+export function SetUnsavedChanges(arg1) {
+  return window['go']['main']['App']['SetUnsavedChanges'](arg1);
+}
+
 export function Start(arg1) {
   return window['go']['main']['App']['Start'](arg1);
 }

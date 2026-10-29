@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "package_directory": "C:\\Users\\HelloWorld\\AppData\\Local\\Temp\\mfh-phase-a-packages-oct25\\phase-a-worktree-e441947a6f1e",
+  "source_sha256": "e441947a6f1eb4a1075fe81938feb8c5b992d36c1e6ed60f5778fe76d13ea85d",
+  "source_files": 1394,
+  "artifacts": 6,
+  "archives": [
+    {
+      "file": "desktop-windows-x64-worktree-e441947a6f1e.zip",
+      "entries": 4,
+      "sha256_verified": true
+    },
+    {
+      "file": "hub-windows-x64-worktree-e441947a6f1e.zip",
+      "entries": 5,
+      "sha256_verified": true
+    },
+    {
+      "file": "metrics-windows-x64-worktree-e441947a6f1e.zip",
+      "entries": 5,
+      "sha256_verified": true
+    },
+    {
+      "file": "source-worktree-e441947a6f1e.zip",
+      "entries": 1391,
+      "sha256_verified": true
+    },
+    {
+      "file": "variable-example-windows-x64-worktree-e441947a6f1e.zip",
+      "entries": 8,
+      "sha256_verified": true
+    }
+  ],
+  "acceptance_status": "pending",
+  "formal_N_frozen": false,
+  "limitations": [
+    "Eight current-package/baseline native audio combinations and three functional failure outcomes checked; strict native failure timing and remaining repeated protection checks pending",
+    "Local two-hour memory/read checks passed; 100 in-window native writes and timing acceptance remain incomplete",
+    "System-only PATH startup and independent remove/redeploy checked; clean Windows environment and two-device acceptance pending; formal N is not frozen"
+  ]
+}

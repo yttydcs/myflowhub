@@ -530,7 +530,14 @@ func (c *Controller) runCollector(name Name) {
 				return
 			}
 		}
-		timeout := time.Duration(setting.IntervalMS) * time.Millisecond / 2
+		cycleStarted := time.Now()
+		interval := time.Duration(setting.IntervalMS) * time.Millisecond
+		timeout := interval / 2
+		if name == VolumePercent || name == VolumeMuted {
+			// CoreAudio activation and the shared platform gate can consume more
+			// than half a 1Hz cycle without missing the next scheduled sample.
+			timeout = interval
+		}
 		if timeout < 250*time.Millisecond {
 			timeout = 250 * time.Millisecond
 		}
@@ -543,7 +550,8 @@ func (c *Controller) runCollector(name Name) {
 		if updateErr != nil && !errors.Is(updateErr, context.Canceled) && c.logger != nil {
 			c.logger.Warn("publish metric sample failed", "metric", name, "error", updateErr.Error())
 		}
-		timer := time.NewTimer(time.Duration(setting.IntervalMS) * time.Millisecond)
+		// Schedule start-to-start; collection time is part of this interval.
+		timer := time.NewTimer(max(0, time.Until(cycleStarted.Add(interval))))
 		select {
 		case <-timer.C:
 		case <-changed:

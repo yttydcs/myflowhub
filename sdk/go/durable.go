@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"sync"
 	"time"
 
@@ -79,22 +80,33 @@ func (c *Client) runDurableSubscription(ctx context.Context, status ConnectionSt
 	var readyOnce sync.Once
 	var lastSequence uint64
 	sawStream := false
-	recovering := false
+	sawValue := false
+	invalidate := func() bool {
+		if !sawValue {
+			return true
+		}
+		gap := Event{Kind: EventGap, Resource: resource, Reason: "subscription_interrupted_unknown_range"}
+		if sawStream {
+			gap.GapFrom = lastSequence + 1
+		}
+		select {
+		case events <- gap:
+			sawValue = false
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	}
+	retryDelay := 100 * time.Millisecond
 	for {
-		snapshot, err := waitConnected(ctx, status)
+		// Renewal retires the old handle without an interruption event. If
+		// its replacement cannot start, invalidate the last value before waiting.
+		snapshot, err := waitConnected(ctx, status, invalidate)
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
 				sendTerminalError(errorsOut, wrapError(err))
 			}
 			return
-		}
-		if recovering && sawStream {
-			gap := Event{Kind: EventGap, Resource: resource, GapFrom: lastSequence + 1, GapTo: 0, Reason: "connection_recovered_unknown_range"}
-			select {
-			case events <- gap:
-			case <-ctx.Done():
-				return
-			}
 		}
 		remote, err := c.SubscribeCapability(ctx, resource, capability, lease, queue)
 		if err != nil {
@@ -102,21 +114,35 @@ func (c *Client) runDurableSubscription(ctx context.Context, status ConnectionSt
 				sendTerminalError(errorsOut, wrapError(err))
 				return
 			}
-			recovering = true
-			if _, waitErr := status.WaitChange(ctx, snapshot.Generation); waitErr != nil && !errors.Is(waitErr, context.Canceled) {
+			if !invalidate() {
+				return
+			}
+			// A remote sibling can recover while this client's own parent stays
+			// connected. Retry only subscription setup, with bounded backoff.
+			retryCtx, stopRetry := context.WithTimeout(ctx, retryDelay)
+			_, waitErr := status.WaitChange(retryCtx, snapshot.Generation)
+			stopRetry()
+			if waitErr != nil && !errors.Is(waitErr, context.Canceled) && !errors.Is(waitErr, context.DeadlineExceeded) {
 				sendTerminalError(errorsOut, waitErr)
 				return
+			}
+			if retryDelay < time.Second {
+				retryDelay = min(retryDelay*2, time.Second)
 			}
 			continue
 		}
 		readyOnce.Do(func() { close(ready) })
-		recovering = false
-		renewAfter := lease * 4 / 5
+		retryDelay = 100 * time.Millisecond
+		// Spread a large watch set's renewals across 65..79% of its lease.
+		hash := fnv.New32a()
+		_, _ = fmt.Fprintf(hash, "%d/%s/%s", resource.Owner, resource.Name, capability)
+		renewAfter := lease * time.Duration(65+hash.Sum32()%15) / 100
 		if renewAfter <= 0 {
 			renewAfter = lease
 		}
 		timer := time.NewTimer(renewAfter)
 		attemptDone := false
+		interrupted := false
 		eventSource := remote.Events
 		errorSource := remote.Errors
 		for !attemptDone {
@@ -136,10 +162,12 @@ func (c *Client) runDurableSubscription(ctx context.Context, status ConnectionSt
 						}
 					}
 					attemptDone = true
+					interrupted = true
 					eventSource = nil
 					break
 				}
 				converted := event
+				sawValue = true
 				if converted.Kind == EventData && converted.Sequence != 0 {
 					sawStream = true
 					lastSequence = converted.Sequence
@@ -165,6 +193,7 @@ func (c *Client) runDurableSubscription(ctx context.Context, status ConnectionSt
 				if err != nil {
 					remote.Cancel()
 					attemptDone = true
+					interrupted = true
 				}
 			case <-timer.C:
 				remote.Cancel()
@@ -182,11 +211,13 @@ func (c *Client) runDurableSubscription(ctx context.Context, status ConnectionSt
 			}
 		}
 		remote.Cancel()
-		recovering = sawStream || status.Snapshot().State != ConnectionConnected
+		if interrupted && !invalidate() {
+			return
+		}
 	}
 }
 
-func waitConnected(ctx context.Context, status ConnectionStatus) (ConnectionSnapshot, error) {
+func waitConnected(ctx context.Context, status ConnectionStatus, invalidate func() bool) (ConnectionSnapshot, error) {
 	for {
 		current := status.Snapshot()
 		switch current.State {
@@ -196,6 +227,9 @@ func waitConnected(ctx context.Context, status ConnectionStatus) (ConnectionSnap
 			return ConnectionSnapshot{}, fmt.Errorf("parent connection failed: %s", current.LastError)
 		case ConnectionStopped:
 			return ConnectionSnapshot{}, errors.New("parent connection supervisor stopped")
+		}
+		if !invalidate() {
+			return ConnectionSnapshot{}, ctx.Err()
 		}
 		next, err := status.WaitChange(ctx, current.Generation)
 		if err != nil {

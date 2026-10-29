@@ -43,6 +43,35 @@ func TestCodecRoundTripHandlesShortWrites(t *testing.T) {
 	}
 }
 
+type frameWriteCounter struct {
+	bytes.Buffer
+	calls int
+}
+
+func (w *frameWriteCounter) Write(data []byte) (int, error) {
+	w.calls++
+	return w.Buffer.Write(data)
+}
+
+func TestCodecEmitsOneCompleteTransportWrite(t *testing.T) {
+	want := validEnvelope()
+	writer := &frameWriteCounter{}
+	if err := (Codec{}).Encode(writer, want); err != nil {
+		t.Fatal(err)
+	}
+	if writer.calls != 1 {
+		t.Fatalf("one frame required %d transport writes; metadata must travel with the payload", writer.calls)
+	}
+	wantBody := want.ContentType + want.Schema + string(want.Capability) + want.Resource.Name + string(want.Payload)
+	if !bytes.Equal(writer.Bytes()[fixedHeaderSize:], []byte(wantBody)) {
+		t.Fatal("coalescing changed wire metadata/payload layout")
+	}
+	got, err := (Codec{}).Decode(writer)
+	if err != nil || !envelopesEqual(got, want) {
+		t.Fatalf("coalesced frame decode: %#v %v", got, err)
+	}
+}
+
 func TestCodecRejectsMalformedAndOversizeFrames(t *testing.T) {
 	want := validEnvelope()
 	var encoded bytes.Buffer

@@ -106,8 +106,13 @@ func (n *Node) ConnectParent(ctx context.Context, driver link.Driver, endpoint l
 		return err
 	}
 	current := &peerSession{peer: expectedParent, role: link.RoleParent, epoch: epoch, linkID: fmt.Sprintf("parent:%d:%d", expectedParent, epoch), session: session}
-	if err := n.registerSession(current); err != nil {
+	if err := n.registerSession(current, nil); err != nil {
 		return err
+	}
+	// The child is authenticated now. Its first heartbeat is answered once by
+	// a current parent, before later subscription replies can report readiness.
+	if err := session.SendHeartbeat(ctx); err != nil {
+		return fmt.Errorf("send initial heartbeat: %w", err)
 	}
 	for _, relation := range n.tree.Relations() {
 		n.announceUp(relation.Node, relation.Parent)
@@ -203,14 +208,16 @@ func (n *Node) acceptChild(pipe link.Pipe) error {
 		MessageID: ackID, CorrelationID: request.MessageID, Source: n.ID(), Target: claim.NodeID,
 		ContentType: "application/json", Schema: "join-ack.v1", Payload: payload,
 	}
-	if err := session.Send(waitCtx, response); err != nil {
-		return fmt.Errorf("send join acknowledgement: %w", err)
-	}
 	if err := session.Activate(claim.NodeID, link.RoleChild, claim.TopologyEpoch); err != nil {
 		return err
 	}
 	current := &peerSession{peer: claim.NodeID, role: link.RoleChild, epoch: claim.TopologyEpoch, linkID: fmt.Sprintf("child:%d:%d", claim.NodeID, claim.TopologyEpoch), session: session}
-	if err := n.registerSession(current); err != nil {
+	if err := n.registerSession(current, func() error {
+		if err := session.Send(waitCtx, response); err != nil {
+			return fmt.Errorf("send join acknowledgement: %w", err)
+		}
+		return nil
+	}); err != nil {
 		return err
 	}
 	n.announceUp(claim.NodeID, n.ID())
@@ -219,11 +226,20 @@ func (n *Node) acceptChild(pipe link.Pipe) error {
 	return nil
 }
 
-func (n *Node) registerSession(current *peerSession) error {
+func (n *Node) registerSession(current *peerSession, beforePublish func() error) error {
 	n.mu.Lock()
 	if n.closed {
 		n.mu.Unlock()
 		return errors.New("node is closed")
+	}
+	// Queue the join ack while routing readers are excluded. A fast peer may
+	// receive it immediately; its first routed request must see this session.
+	// The callback only enqueues a bounded frame and must never block on I/O.
+	if beforePublish != nil {
+		if err := beforePublish(); err != nil {
+			n.mu.Unlock()
+			return err
+		}
 	}
 	old := n.sessions[current.peer]
 	topologyChanged := false
@@ -274,6 +290,7 @@ func (n *Node) runSession(current *peerSession) {
 		}
 	}
 	n.subscriptions.CleanupLink(current.linkID)
+	n.cleanupForwardedLink(current.linkID)
 	n.cleanupResourceSessionsLink(current.linkID, errors.New("resource session link disconnected"))
 	n.mu.Lock()
 	isCurrent := n.sessions[current.peer] == current
@@ -286,6 +303,7 @@ func (n *Node) runSession(current *peerSession) {
 	}
 	if current.role == link.RoleChild {
 		removed := n.tree.WithdrawChildEpoch(current.peer, current.epoch)
+		n.cleanupForwardedRoutes(removed)
 		for _, descendant := range removed {
 			n.withdrawUp(descendant)
 		}

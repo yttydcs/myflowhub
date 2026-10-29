@@ -180,6 +180,8 @@ type dataSchemaType struct {
 func builtinDataSchemaTypes() []dataSchemaType {
 	return []dataSchemaType{
 		{SchemaResourceCatalogV2, "Resource catalog", reflect.TypeOf(ResourceCatalogV2{})},
+		{SchemaCatalogListV1, "List resource catalog", reflect.TypeOf(CatalogListV1{})},
+		{SchemaCatalogPageV1, "Resource catalog page", reflect.TypeOf(CatalogPageV1{})},
 		{SchemaCollectionListRequestV1, "List collection members", reflect.TypeOf(CollectionListRequestV1{})},
 		{SchemaCollectionMemberRequestV1, "Get collection member", reflect.TypeOf(CollectionMemberRequestV1{})},
 		{SchemaCollectionMemberV1, "Collection member", reflect.TypeOf(CollectionMemberV1{})},
@@ -369,6 +371,22 @@ func annotateBuiltinDataSchema(schema *DataSchemaDefinition) {
 		setDataSchemaMinimum(schema, path, 1)
 	}
 	switch schema.ID {
+	case SchemaCatalogListV1:
+		setDataSchemaMaximum(schema, "version", 1)
+		setDataSchemaMinimum(schema, "limit", 0)
+		setDataSchemaMaximum(schema, "limit", MaxCatalogPageItems)
+		setDataSchemaMaxLength(schema, "cursor", MaxCatalogCursorBytes)
+	case SchemaCatalogPageV1:
+		setDataSchemaMaximum(schema, "version", 1)
+		clearDataSchemaMinimum(schema, "revision")
+		setDataSchemaMaxLength(schema, "revision", 20)
+		setDataSchemaMaxLength(schema, "instance_id", 32)
+		setDataSchemaMinimum(schema, "offset", 0)
+		setDataSchemaMaximum(schema, "offset", MaxItems-1)
+		setDataSchemaMinimum(schema, "total", 1)
+		setDataSchemaMaximum(schema, "total", MaxItems)
+		setDataSchemaMaxItems(schema, "resources", MaxCatalogPageItems)
+		setDataSchemaMaxLength(schema, "next_cursor", MaxCatalogCursorBytes)
 	case SchemaManagementTopologyChildrenRequestV1:
 		setDataSchemaMaximum(schema, "version", 1)
 		setDataSchemaMinimum(schema, "depth", 1)

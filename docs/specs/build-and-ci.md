@@ -11,6 +11,7 @@ All local and CI build logic enters through `scripts/mfh.ps1`. The script always
 ./scripts/mfh.ps1 -Action generate -Target generated
 ./scripts/mfh.ps1 -Action check -Target all -AllowUnavailable
 ./scripts/mfh.ps1 -Action manifest
+./scripts/mfh.ps1 -Action package -Target all
 ```
 
 `all` has a fixed order: core, Hub, Desktop, MetricsNode, ClipboardNode. A focused target does not install or probe unrelated product tools.
@@ -46,3 +47,5 @@ The single `canonical-ci` workflow has no path filter: every protocol/runtime/sh
 ## Artifact manifest
 
 After selected builds, `-Action manifest` writes `out/artifact-manifest.json` with repository-relative paths, byte lengths, and SHA-256 values. The manifest only describes files that exist; absence is an error rather than an empty successful package.
+
+The Phase A `package/all` action packages already built Hub/admin, Desktop, Metrics GUI/console and the variable example independently under `out/phase-a/packages`, with deployment instructions, per-file SHA-256 manifests and a complete source archive. `build/core` also builds the Metrics console and six-type example. Packaging refuses missing executables or an existing destination and does not bundle local state or credentials. Dirty source is labelled `worktree-<source fingerprint>`, records the base commit separately, and remains pending acceptance; it is not presented as a frozen N release. The N−1/N compatibility and hardware acceptance gates remain separate.

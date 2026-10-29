@@ -14,6 +14,9 @@ const maxPollTimeout = 10 * time.Minute
 
 type Client struct {
 	mu            sync.Mutex
+	batchMu       sync.Mutex
+	batchAfter    int64
+	ready         chan struct{}
 	core          *bindings.Client
 	subscriptions map[int64]*subscription
 }
@@ -25,7 +28,7 @@ func NewAttachedClient(core *bindings.Client) (*Client, error) {
 	if core == nil {
 		return nil, errors.New("desktop binding requires an attached core client")
 	}
-	return &Client{core: core, subscriptions: make(map[int64]*subscription)}, nil
+	return &Client{core: core, subscriptions: make(map[int64]*subscription), ready: make(chan struct{}, 1)}, nil
 }
 
 func (c *Client) IdentityJSON() (string, error) {
@@ -110,6 +113,7 @@ func (c *Client) SubscribeCapability(ownerID int64, name, capability string, lea
 		return 0, err
 	}
 	listener := newSubscription()
+	listener.ready = c.ready
 	id, err := core.SubscribeCapability(ownerID, name, capability, leaseMS, listener)
 	if err != nil {
 		listener.stop()
@@ -140,6 +144,15 @@ func (c *Client) PollSubscription(subscriptionID, timeoutMS int64) (string, erro
 	c.mu.Unlock()
 	if current == nil {
 		return "", errors.New("desktop subscription was not found")
+	}
+	if !current.pollMu.TryLock() {
+		return "", errors.New("desktop subscription already has an active poll")
+	}
+	defer current.pollMu.Unlock()
+	if current.pending != nil {
+		pending := current.pending
+		current.pending = nil
+		return pollResult(pending.Kind, pending.Payload)
 	}
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
@@ -204,10 +217,13 @@ func (c *Client) current() (*bindings.Client, error) {
 }
 
 type subscription struct {
-	events chan string
-	errors chan string
-	done   chan struct{}
-	once   sync.Once
+	pollMu  sync.Mutex
+	pending *SubscriptionPoll
+	ready   chan struct{}
+	events  chan string
+	errors  chan string
+	done    chan struct{}
+	once    sync.Once
 }
 
 func newSubscription() *subscription {
@@ -217,6 +233,7 @@ func newSubscription() *subscription {
 func (s *subscription) OnEvent(eventJSON string) {
 	select {
 	case s.events <- eventJSON:
+		s.wake()
 	case <-s.done:
 	}
 }
@@ -224,12 +241,22 @@ func (s *subscription) OnEvent(eventJSON string) {
 func (s *subscription) OnError(errorJSON string) {
 	select {
 	case s.errors <- errorJSON:
+		s.wake()
 	case <-s.done:
 	}
 }
 
 func (s *subscription) stop() {
-	s.once.Do(func() { close(s.done) })
+	s.once.Do(func() { close(s.done); s.wake() })
+}
+
+func (s *subscription) wake() {
+	if s.ready != nil {
+		select {
+		case s.ready <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func pollDuration(milliseconds int64) (time.Duration, error) {

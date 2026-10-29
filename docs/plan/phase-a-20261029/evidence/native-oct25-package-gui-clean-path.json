@@ -1,0 +1,8 @@
+{
+  "package": "C:\\Users\\HelloWorld\\AppData\\Local\\Temp\\mfh-phase-a-packages-oct25\\phase-a-worktree-74708cb2b42b",
+  "sha256": "5CB5A2175D2F0C8EA167BF9E64FDD0C55C457CA5072FD6B0A3CBEA01DB20EC8F",
+  "path": "C:\\Windows\\System32;C:\\Windows",
+  "status": "Passed: native GUI connected; 1 Hz audio fresh at 40%/false; Desktop saved audio View recovered",
+  "method": "Package extracted binary copied with distinct basename; saved identity/config reused",
+  "started_ms": 1792925895187
+}

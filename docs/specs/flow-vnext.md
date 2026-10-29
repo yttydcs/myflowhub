@@ -7,6 +7,8 @@
 已有 `flow.json` 原样保留但不再读取、执行或更新；通用资源调用、订阅、Collection 和授权继续保留。
 本次不引入替代执行器或内部语言。参见[移除决策](../decisions/2026-09-06_retire-flow-pending-redesign.md)。
 
+2026-10-19 状态同步：新 Flow 的产品原则已在[统一产品定义第 5 节](../requirements/product-definition.md#5-flow已确认的产品定义)确认，具体设计仍见[Flow 重设计](../requirements/flow-redesign.md)。下文仅保留旧实现历史，不代表新模型的接口或授权合同。
+
 ## Historical Reference
 
 以下保留退役前的描述，供重新设计时回顾。下文的“当前”“已实现”及 API/测试说明均属于历史状态，
@@ -37,6 +39,9 @@ capabilities，不再默认注册为 `flow/create`、`flow/update`、`flow/run`�
 
 授权按 exact Flow ResourceID + CapabilityID 分离；旧 Resource grant 不自动映射或扩大。catalog 已不再包含
 旧五个 Flow Command Resources 或 `flow/events` Stream；saved Widget 引用保持 missing，不静默重定向。
+
+`watch/delete` 以及 runs 的 `archive/delete` 属于未来 provider/domain capabilities，当前 descriptor 不声明；必须在
+schema、policy、lifecycle 与迁移策略单独固定后再引入，不能从 Collection type 隐式获得。
 
 ## Definition
 

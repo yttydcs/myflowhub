@@ -24,6 +24,8 @@
 - [MetricsNode](#metricsnode)
 
 ## Snapshots / Meta
+
+- [2026-10-29 A基础能力计划、任务、审查与剩余验收](phase-a-20261029/README.md)
 - [2026-10-19 Desktop 紧凑布局验收与收尾审查](review_2026-10-19_desktop-compact-layout.md)
 - [plan_archive_2026-09-06_depth-scoped-topology.md](plan_archive_2026-09-06_depth-scoped-topology.md)
 - [todo_archive_2026-09-06_depth-scoped-topology.md](todo_archive_2026-09-06_depth-scoped-topology.md)

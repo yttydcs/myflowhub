@@ -1,4 +1,5 @@
 import type { ResourceDescriptor } from '../types'
+import { compareNatural } from './natural-compare'
 
 export interface ResourcePathNode {
   key: string
@@ -65,9 +66,9 @@ export function buildResourceTree(resources: ResourceDescriptor[]): ResourceTree
   const compareKeys = (leftKey: string, rightKey: string) => {
     const left = nodesByKey.get(leftKey)!
     const right = nodesByKey.get(rightKey)!
-    return left.ownerNodeID.localeCompare(right.ownerNodeID, undefined, { numeric: true })
-      || left.segment.localeCompare(right.segment, undefined, { numeric: true })
-      || left.path.localeCompare(right.path, undefined, { numeric: true })
+    return compareNatural(left.ownerNodeID, right.ownerNodeID)
+      || compareNatural(left.segment, right.segment)
+      || compareNatural(left.path, right.path)
   }
   roots.sort(compareKeys)
   for (const node of nodesByKey.values()) node.children.sort(compareKeys)

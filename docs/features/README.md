@@ -25,7 +25,7 @@
 
 - [Android 历史](android.md)、[Embedded 历史](embedded.md)：实现已移除；[重新设计待办](../requirements/mobile-embedded-redesign.md)。
 
-- [Flow](flow.md)：旧实现已移除；[重新设计待办](../requirements/flow-redesign.md)。
+- [Flow](flow.md)：旧实现已移除；[产品原则已确认](../requirements/product-definition.md#5-flow已确认的产品定义)，[具体设计与验收待办](../requirements/flow-redesign.md)。
 
 ## Rules
 - 使用不带日期的稳定文件名。

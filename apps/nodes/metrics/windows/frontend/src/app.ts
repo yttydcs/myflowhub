@@ -78,6 +78,9 @@ export function createMetricsApp(root: HTMLElement, api: MetricsAPI, environment
   let noticeTimer: number | undefined
   let statusEpoch = 0
   let refreshInFlight = false
+  let savedDrafts: {connection: string; policy: string} | undefined
+  let reportedDirty = false
+  let dirtySync: Promise<void> = Promise.resolve()
 
   const view = createMetricsView(root, {
     navigate,
@@ -92,8 +95,30 @@ export function createMetricsApp(root: HTMLElement, api: MetricsAPI, environment
   })
 
   function render(): void {
-    if (!disposed) view.render(state)
+    if (!disposed) {
+      const policyWasClean = savedDrafts && view.readDrafts().policy === savedDrafts.policy
+      view.render(state)
+      if (policyWasClean && savedDrafts) savedDrafts.policy = view.readDrafts().policy
+      reportUnsaved()
+    }
   }
+
+  function reportUnsaved(): void {
+    if (disposed || !savedDrafts) return
+    const drafts = view.readDrafts()
+    const dirty = drafts.connection !== savedDrafts.connection || drafts.policy !== savedDrafts.policy
+    if (dirty === reportedDirty) return
+    reportedDirty = dirty
+    dirtySync = dirtySync.then(() => api.setUnsavedChanges(dirty)).catch(reason => {
+      if (!disposed) {
+        state = {...state, error: `无法同步未保存状态：${errorMessage(reason)}`}
+        view.render(state)
+      }
+    })
+  }
+
+  root.addEventListener('input', reportUnsaved)
+  root.addEventListener('change', reportUnsaved)
 
   function navigate(page: PageName): void {
     if (disposed) return
@@ -173,12 +198,21 @@ export function createMetricsApp(root: HTMLElement, api: MetricsAPI, environment
     const [statusResult, definitionsResult] = await Promise.allSettled([api.status(), api.definitions()])
     if (disposed) return
     const errors: string[] = []
-    if (statusResult.status === 'fulfilled') applyStatus(statusResult.value)
+    if (statusResult.status === 'fulfilled') {
+      applyStatus(statusResult.value)
+      const saved = statusResult.value.saved_connection?.connection
+      if (saved) {
+        view.restoreConnectionFields({stateDirectory: saved.state_directory, nodeID: saved.node_id,
+          parentNodeID: saved.parent_node_id, endpoint: saved.endpoint, parentPublicKey: saved.parent_public_key})
+        state = {...state, nodeID: saved.node_id}
+      }
+    }
     else errors.push(`读取状态失败：${errorMessage(statusResult.reason)}`)
     if (definitionsResult.status === 'fulfilled') state = {...state, definitions: definitionsResult.value}
     else errors.push(`读取指标定义失败：${errorMessage(definitionsResult.reason)}`)
     state = {...state, busy: undefined, error: errors.length ? errors.join('；') : undefined}
     render()
+    savedDrafts = view.readDrafts()
     syncPolling()
   }
 
@@ -252,6 +286,10 @@ export function createMetricsApp(root: HTMLElement, api: MetricsAPI, environment
       applyStatus(status)
       state = {...state, nodeID: request.node_id}
       view.clearPermit()
+      // The first running status introduces policy fields; establish its baseline.
+      view.render(state)
+      savedDrafts = view.readDrafts()
+      reportUnsaved()
     }, '节点连接已启动')
   }
 
@@ -260,6 +298,8 @@ export function createMetricsApp(root: HTMLElement, api: MetricsAPI, environment
       cancelPolling()
       await api.stop()
       applyStatus(await api.status())
+      view.render(state)
+      if (savedDrafts) savedDrafts.policy = view.readDrafts().policy
     }, '节点已停止')
   }
 
@@ -269,6 +309,8 @@ export function createMetricsApp(root: HTMLElement, api: MetricsAPI, environment
       if (!current) throw new Error('节点尚未运行，无法保存采集策略')
       const updated = await api.updateConfiguration(view.readConfiguration(current))
       state = {...state, status: {...state.status, configuration: updated}}
+      view.render(state)
+      if (savedDrafts) savedDrafts.policy = view.readDrafts().policy
     }, '采集策略已保存')
   }
 
@@ -278,6 +320,8 @@ export function createMetricsApp(root: HTMLElement, api: MetricsAPI, environment
     dispose: () => {
       if (disposed) return
       disposed = true
+      root.removeEventListener('input', reportUnsaved)
+      root.removeEventListener('change', reportUnsaved)
       statusEpoch += 1
       cancelPolling()
       if (noticeTimer !== undefined) cancelTimeout(noticeTimer)

@@ -12,6 +12,8 @@
 - 受保护 generated 文档的维护说明
 
 ## Current Specs
+- [phase-a-deployment.md](phase-a-deployment.md)：A阶段候选包部署、独立身份、授权、生命周期及验证说明。
+- [phase-a-foundation.md](phase-a-foundation.md)：实施中，目录分页、容量/批量桥及本机恢复；正式验收状态见根级review。
 - [unified-variable-resource.md](unified-variable-resource.md)：Current R2；统一值、随快照定义与一次性替换，无兼容层。
 - [topology-discovery.md](topology-discovery.md)：当前 children/subtree、原子快照、部分树及独立 catalog 缓存合同。
 - [desktop-profile-entry.md](desktop-profile-entry.md)
@@ -27,7 +29,7 @@
 - [resource-platform-v2.md](resource-platform-v2.md)
   - 可扩展 Resource descriptor/capability、通用操作、Topic 与目录的当前契约
 - [resource-collections-and-actions.md](resource-collections-and-actions.md)
-  - Collection/runtime、policy/filesystem/SDK、Desktop actions 与 Collection/content renderer 的当前合同；完整产品 QA pending
+  - Collection member、Resource/Capability/Command 边界，以及 policy/filesystem/SDK/Desktop actions/renderers 的当前合同；完整产品 QA 已通过
 - [resource-sessions-v2.md](resource-sessions-v2.md)
   - 有界 control/data lane、session grant 与 File 数据面的当前契约
 - [desktop-resource-workspace-v3.md](desktop-resource-workspace-v3.md)

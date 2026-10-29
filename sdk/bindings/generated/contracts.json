@@ -24,6 +24,7 @@
     "InvokeJSON",
     "OperateJSON",
     "PollSubscription",
+    "PollSubscriptions",
     "SnapshotJSON",
     "StatusJSON",
     "Subscribe",
@@ -216,6 +217,11 @@
       "name": "system/catalog",
       "type": "mfh.variable",
       "capabilities": [
+        {
+          "name": "list",
+          "input_schema": "mfh.catalog-list.v1",
+          "output_schema": "mfh.catalog-page.v1"
+        },
         {
           "name": "read",
           "output_schema": "mfh.variable-value.v1"

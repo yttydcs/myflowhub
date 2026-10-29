@@ -83,9 +83,9 @@ Variable 的格式和校验语法由平台统一定义，提供者声明某个�
    Connection、Profile、Appearance，顶栏不得重复 Profile 或 Connection。
 17. “返回 Profile 选择”必须与断开和删除分离：它清空并持久化 active Profile、关闭当前 client/subscription/session，但保留 Profile、受保护凭据、runtime state、Views 和 UI preference。未显式返回选择器时，既有 active Profile 启动与 `auto_connect` 行为保持兼容。
 18. Resource Explorer 必须为真实 Resource 提供上下文菜单和键盘等价入口，列出 descriptor 声明的受支持
-    快捷操作与“添加到当前 View”；纯 presentation namespace 不得出现 Resource 操作。若已有权威授权状态可
-    隐藏/禁用，尚无 effective-capability discovery 时必须允许 authority 返回并明确显示 Forbidden。菜单不得
-    自行授予权限，所有触发仍经过统一 SDK、policy、schema validation、错误和审计路径。
+    快捷操作与“添加到当前 View”；纯 presentation namespace 不得出现 Resource 操作。已有权威 effective
+    capability 结果时只展示或启用当前有效操作；尚无 discovery 时不得猜测，必须允许 authority 返回并明确显示
+    Forbidden。菜单不得自行授予权限，所有触发仍经过统一 SDK、policy、schema validation、错误和审计路径。
 19. Resource Widget 可以把常用 capabilities 展示为按钮，但按钮状态只反映 descriptor 与可选的已知权威
     授权状态，不能取代 owner 裁决。Renderer 必须按 type、schema、capability、content type 和 pane 条件匹配专用展示，
     例如文件文本/代码、图片或 metadata fallback，不得按 Resource name 特判内容语义。
@@ -133,8 +133,8 @@ Variable 的格式和校验语法由平台统一定义，提供者声明某个�
 - Resource Explorer 上方仅展示跨子树 Node，下方仅展示当前 Node Resources 的任意深度 path tree；两区
   可独立搜索/滚动和收起/展开，通过鼠标与键盘完成切换、预览、添加和有界高度调整。`system/config`
   与 `system/config/update` 同时存在时，前者既可操作又可展开。Profile/Connection footer 不随内容滚走。
-- 真实 Resource 的右键菜单及键盘入口展示 descriptor-supported operations；在 `AUTHZ02` 落地前不猜测
-  effective authorization，并明确呈现 authority 的 Forbidden。同一操作从菜单、Inspector 或 View Widget
+- 真实 Resource 的右键菜单及键盘入口在已有权威 effective capability 时只展示当前有效操作；`AUTHZ02`
+  落地前展示 descriptor-supported operations、不猜测授权，并明确呈现 authority 的 Forbidden。同一操作从菜单、Inspector 或 View Widget
   触发时使用一致的权限、输入校验、错误和审计路径，纯 namespace 不出现操作菜单。
 - 至少 6 层 Node fixture 可展开、搜索、聚焦并用 breadcrumb 返回；Arrow/Home/End/Enter/Space 键盘门禁通过。
 - 新 View 为紧凑卡片，下拉框/开关不被拉伸到视口高度；卡片排序、跨列和高度保存后恢复，窗口收窄不覆盖保存尺寸。

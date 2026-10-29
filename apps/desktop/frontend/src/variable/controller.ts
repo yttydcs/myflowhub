@@ -1,7 +1,14 @@
-import type { DesktopAPI } from '../api'
+import type { DesktopAPI, OperationResult } from '../api'
 import type { ResourceDescriptor, ResourceEvent } from '../types'
 import type { VariableValueV1, VariableWriteV3 } from '../generated/variable-contract.generated'
-import { descriptorError, parseVariableEnvelope, parseVariableEvent, validateVariableValue, sameValue, variablePayloadLimit, VARIABLE_VALUE_SCHEMA, VARIABLE_WRITE_SCHEMA } from './protocol'
+import { scheduleVariable } from './scheduler'
+import { setUnsavedChanges } from '../unsaved'
+import { descriptorError, parseVariableEnvelope, parseVariableEvent, parseVariableOperationPayload, parseRevision, validateVariableValue, sameValue, variablePayloadLimit, VARIABLE_VALUE_SCHEMA, VARIABLE_WRITE_SCHEMA } from './protocol'
+
+function hasNegativeZero(value: unknown): boolean {
+  if (typeof value === 'number') return Object.is(value, -0)
+  return Boolean(value && typeof value === 'object' && Object.values(value).some(hasNegativeZero))
+}
 
 export type VariableSessionState = {
   snapshot?: VariableValueV1
@@ -15,6 +22,7 @@ export type VariableSessionState = {
   live: boolean
   loading: boolean
   writing: boolean
+  writeOutcome?: 'pending' | 'confirmed' | 'rejected' | 'uncertain' | 'confirmed-unreadable'
 }
 
 // A session owns one resource in one Profile. Definitions live only here and
@@ -31,12 +39,16 @@ export class VariableController {
   private invalidDraft = false
   private readBlocked = ''
   private draftGeneration = 0
+  private submission = 0
+  private writeConfirmation?: { state: VariableValueV1; draftVersion: number }
+  private unsavedOwner = Symbol('variable draft')
   constructor(readonly api: DesktopAPI, readonly profile: string, readonly resource: ResourceDescriptor) {}
   getSnapshot = () => this.state
   get draftVersion() { return this.draftGeneration }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener) } }
   private update(patch: Partial<VariableSessionState>) {
     this.state = { ...this.state, ...patch }
+    setUnsavedChanges(this.unsavedOwner, this.active && (this.state.dirty || this.state.writing))
     this.listeners.forEach((listener) => listener())
   }
   get sessionKey() { return JSON.stringify([this.profile, this.resource.id.owner_node_id, this.resource.id.name, this.state.snapshot?.instance_id]) }
@@ -51,6 +63,8 @@ export class VariableController {
     else this.update({ observation: '未声明 subscribe；可手动刷新' })
   }
   stop() {
+    this.submission++
+    this.writeConfirmation = undefined
     this.draftGeneration++
     this.active = false
     this.epoch++
@@ -79,13 +93,19 @@ export class VariableController {
     const instance = this.state.snapshot?.instance_id
     this.update({ loading: true })
     try {
-      const result = await this.api.snapshot(this.resource.id.owner_node_id, this.resource.id.name)
+      const result = await scheduleVariable(this.api, () => this.current(epoch), () => this.api.snapshot(this.resource.id.owner_node_id, this.resource.id.name))
       if (!this.current(epoch) || request !== this.request) return
       const next = parseVariableEnvelope(result, undefined, variablePayloadLimit(this.resource, 'read'))
       // A read issued for an earlier instance cannot switch a newer instance back.
       if (this.state.snapshot?.instance_id !== instance && this.state.snapshot?.instance_id !== next.instance_id) return
       this.readBlocked = ''
       this.accept(next)
+      const confirmed = this.writeConfirmation
+      if (confirmed && next.status !== 'unavailable' && next.instance_id === confirmed.state.instance_id && BigInt(next.revision) >= BigInt(confirmed.state.revision) && this.draftGeneration === confirmed.draftVersion) {
+        this.writeConfirmation = undefined
+        this.invalidDraft = false
+        this.update({ dirty: false, conflict: false, draft: this.state.snapshot?.value, base: this.state.snapshot, writeOutcome: 'confirmed' })
+      }
       this.update({ error: '' })
     } catch (error) {
       if (this.current(epoch) && request === this.request) {
@@ -110,6 +130,7 @@ export class VariableController {
       if (BigInt(next.revision) === BigInt(previous.revision) && !sameValue(previous, next)) throw new Error('同一 revision 的状态不一致')
     }
     if (changedInstance) {
+      this.writeConfirmation = undefined
       if (this.retired.size >= 64) throw new Error('资源实例变更过于频繁；请重新打开资源')
       this.retired.add(previous.instance_id)
     }
@@ -154,21 +175,95 @@ export class VariableController {
     if (!this.active || !base || !snapshot || !dirty || blocked || conflict || writing) return
     if (!this.resource.capabilities.some((capability) => capability.name === 'write') || snapshot.definition?.read_only) return
     const epoch = this.epoch
+    const submission = ++this.submission
+    const draftVersion = this.draftGeneration
+    const current = () => this.current(epoch) && this.submission === submission && this.state.snapshot?.instance_id === base.instance_id
+    let sent = false
+    let acknowledged = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('已达到 5 秒最大等待时间')), 5000) })
     try {
       validateVariableValue(snapshot.definition!, draft)
       const request: VariableWriteV3 = { version: 3, expected_instance_id: base.instance_id, expected_revision: base.revision, value: draft }
       if (new TextEncoder().encode(JSON.stringify(request)).byteLength > variablePayloadLimit(this.resource, 'write')) throw new Error('写请求超过资源大小限制')
-      this.update({ writing: true, error: '' })
-      const result = await this.api.operate(this.resource.id.owner_node_id, this.resource.id.name, 'write', VARIABLE_WRITE_SCHEMA, request)
-      if (!this.current(epoch) || this.state.snapshot?.instance_id !== base.instance_id) return
+      this.writeConfirmation = undefined
+      this.update({ writing: true, writeOutcome: 'pending', error: '' })
+      const canRead = this.resource.capabilities.some((capability) => capability.name === 'read')
+      let result: OperationResult
+      // JSON.stringify erases -0 in a base snapshot. Keep that rare case on
+      // the existing path so its Object.is conflict boundary is preserved.
+      if (canRead && this.api.writeVariableFromSnapshot && !hasNegativeZero(base)) {
+        // Once dispatched, a lost native reply may hide a write. The returned
+        // stage can prove a preflight rejection, but a timeout cannot.
+        sent = true
+        const attempt = await Promise.race([this.api.writeVariableFromSnapshot(this.resource.id.owner_node_id, this.resource.id.name, base, request), deadline])
+        if (!current()) return
+        if (!attempt || typeof attempt.sent !== 'boolean' || Object.keys(attempt).some((key) => !['sent', 'expected_revision', 'response_json', 'error'].includes(key))
+          || attempt.error !== undefined && typeof attempt.error !== 'string') throw new Error('写入阶段响应无效')
+        sent = attempt.sent
+        if (attempt.error) throw new Error(attempt.error)
+        if (!sent || typeof attempt.response_json !== 'string' || parseRevision(attempt.expected_revision) < parseRevision(base.revision)) throw new Error('写入阶段没有确认有效修订')
+        request.expected_revision = attempt.expected_revision!
+        result = parseVariableOperationPayload(attempt.response_json)
+      } else {
+        if (canRead) {
+          // Sampling can advance metadata while a draft is open. Read once before
+          // dispatch, without rebasing over a changed value or retrying a write.
+          const read = await Promise.race([this.api.snapshot(this.resource.id.owner_node_id, this.resource.id.name), deadline])
+          if (!current()) return
+          const observed = parseVariableEnvelope(read, undefined, variablePayloadLimit(this.resource, 'read'))
+          this.accept(observed)
+          if (!current()) return
+          const latest = this.state.snapshot!
+          if (latest.status === 'unavailable' || this.state.blocked) throw new Error('写前读取没有确认可用状态')
+          if (this.state.conflict || !sameValue(latest.value, base.value)) throw new Error('conflict: 当前值已变化，请确认后重新编辑')
+          request.expected_revision = latest.revision
+        }
+        sent = true
+        result = await Promise.race([this.api.operate(this.resource.id.owner_node_id, this.resource.id.name, 'write', VARIABLE_WRITE_SCHEMA, request), deadline])
+      }
+      if (!current()) return
       if (result.schema !== VARIABLE_VALUE_SCHEMA) throw new Error('写响应 schema 不受支持')
       const confirmed = parseVariableEnvelope(result.payload, undefined, variablePayloadLimit(this.resource, 'write'))
-      if (confirmed.instance_id !== base.instance_id || BigInt(confirmed.revision) <= BigInt(base.revision)) throw new Error('写响应没有确认当前实例的新 revision')
+      if (confirmed.instance_id !== base.instance_id || BigInt(confirmed.revision) <= BigInt(request.expected_revision)) throw new Error('写响应没有确认当前实例的新 revision')
+      acknowledged = true
       this.accept(confirmed)
-      this.update({ dirty: false, conflict: false, draft: this.state.snapshot?.value, base: this.state.snapshot })
+      this.writeConfirmation = { state: confirmed, draftVersion }
+      const latest = this.state.snapshot!
+      this.update({ base: confirmed, conflict: BigInt(latest.revision) > BigInt(confirmed.revision) && !sameValue(latest.value, confirmed.value) })
+      // An acknowledgement and a fresh read are distinct evidence. Keep the
+      // submitted draft until the read finishes; never replay the write.
+      const read = await Promise.race([this.api.snapshot(this.resource.id.owner_node_id, this.resource.id.name), deadline])
+      if (!current()) return
+      const actual = parseVariableEnvelope(read, undefined, variablePayloadLimit(this.resource, 'read'))
+      if (actual.instance_id !== base.instance_id || BigInt(actual.revision) < BigInt(confirmed.revision) || actual.status === 'unavailable') throw new Error('回读没有确认写入后的可用状态')
+      if (actual.revision === confirmed.revision && !sameValue(actual, confirmed)) throw new Error('回读与写响应在同一 revision 下不一致')
+      this.accept(actual)
+      this.writeConfirmation = undefined
+      this.invalidDraft = false
+      this.update({ dirty: false, conflict: false, draft: this.state.snapshot?.value, base: this.state.snapshot, writeOutcome: 'confirmed' })
     } catch (error) {
-      if (this.current(epoch)) this.update({ error: `写入失败（未确认成功）：${String(error)}` })
-    } finally { if (this.current(epoch)) this.update({ writing: false }) }
+      if (current()) {
+        const rejected = !sent || /\b(forbidden|conflict|revision_conflict|not_found|unsupported|unsupported_capability|gone)\b/i.test(String(error))
+        if (acknowledged) {
+          this.readBlocked = '写入已确认，回读失败；请刷新确认当前值'
+          this.update({ error: `${this.readBlocked}：${String(error)}`, blocked: this.readBlocked, writeOutcome: 'confirmed-unreadable' })
+        } else if (rejected) {
+          const denied = /\bforbidden\b/i.test(String(error))
+          if (denied) this.readBlocked = '没有写入权限；重新授权后请刷新确认'
+          this.update({ error: `写入已拒绝：${String(error)}`, writeOutcome: 'rejected', ...(denied ? { blocked: this.readBlocked } : {}) })
+        } else {
+          this.readBlocked = '写入结果不确定；请刷新确认后重新决定'
+          this.update({ error: `${this.readBlocked}：${String(error)}`, blocked: this.readBlocked, writeOutcome: 'uncertain' })
+        }
+      }
+    } finally {
+      if (timer !== undefined) clearTimeout(timer)
+      if (this.current(epoch) && this.submission === submission) {
+        this.submission++
+        this.update({ writing: false, ...(!sent && this.state.writeOutcome === 'pending' ? { writeOutcome: 'rejected' as const } : {}) })
+      }
+    }
   }
   private ensureObservation() {
     if (!this.active || this.observing || !this.resource.capabilities.some((capability) => capability.name === 'subscribe')) return
@@ -180,7 +275,7 @@ export class VariableController {
     let registered = false
     try {
       this.update({ observation: '正在订阅…', live: false })
-      id = await this.api.subscribe(this.resource.id.owner_node_id, this.resource.id.name, 'subscribe', 60_000)
+      id = await scheduleVariable(this.api, () => this.current(epoch), () => this.api.subscribe(this.resource.id.owner_node_id, this.resource.id.name, 'subscribe', 60_000))
       if (!this.current(epoch)) return
       this.subscription = id
       registered = true
@@ -226,7 +321,7 @@ export class VariableController {
 }
 
 const pools = new WeakMap<DesktopAPI, Map<string, { controller: VariableController; references: number }>>()
-export const MAX_VARIABLE_SESSIONS = 128
+export const MAX_VARIABLE_SESSIONS = 4096
 export function acquireVariable(api: DesktopAPI, profile: string, resource: ResourceDescriptor) {
   let pool = pools.get(api)
   if (!pool) { pool = new Map(); pools.set(api, pool) }

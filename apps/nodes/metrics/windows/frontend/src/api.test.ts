@@ -11,6 +11,7 @@ vi.mock('../wailsjs/go/main/App', () => ({
   Status: vi.fn(),
   Stop: vi.fn(),
   UpdateConfiguration: vi.fn(),
+  SetUnsavedChanges: vi.fn(),
 }))
 
 describe('Wails Metrics API adapter', () => {

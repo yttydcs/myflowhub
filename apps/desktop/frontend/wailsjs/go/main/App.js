@@ -58,6 +58,14 @@ export function PollSubscription(arg1, arg2) {
   return window['go']['main']['App']['PollSubscription'](arg1, arg2);
 }
 
+export function PollSubscriptionsBatch(arg1, arg2) {
+  return window['go']['main']['App']['PollSubscriptionsBatch'](arg1, arg2);
+}
+
+export function PollSubscriptionsJSON(arg1, arg2) {
+  return window['go']['main']['App']['PollSubscriptionsJSON'](arg1, arg2);
+}
+
 export function PrepareProfileJSON(arg1) {
   return window['go']['main']['App']['PrepareProfileJSON'](arg1);
 }
@@ -80,6 +88,10 @@ export function SaveViewJSON(arg1) {
 
 export function SelectUploadFile() {
   return window['go']['main']['App']['SelectUploadFile']();
+}
+
+export function SetUnsavedChanges(arg1) {
+  return window['go']['main']['App']['SetUnsavedChanges'](arg1);
 }
 
 export function SettingsJSON() {
@@ -120,4 +132,8 @@ export function ViewsJSON() {
 
 export function WaitConnected(arg1) {
   return window['go']['main']['App']['WaitConnected'](arg1);
+}
+
+export function WriteVariableFromSnapshot(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['WriteVariableFromSnapshot'](arg1, arg2, arg3, arg4);
 }

@@ -59,4 +59,6 @@ export interface Status {
   metrics: MetricState[]
   notifications: {queue_depth: number; dropped: number; last_error?: string}
   presenter_error?: string
+  startup_error?: string
+  saved_connection?: {version: 1; active: boolean; connection: Omit<StartRequest, 'permit'>}
 }

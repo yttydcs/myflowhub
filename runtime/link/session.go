@@ -34,8 +34,15 @@ type SessionConfig struct {
 	ControlQueue      int
 	DataQueue         int
 	InboundQueue      int
+	ControlQueueBytes int64
+	DataQueueBytes    int64
+	InboundQueueBytes int64
 	HeartbeatInterval time.Duration
 	IdleTimeout       time.Duration
+	// IdleAfterPeerHeartbeat preserves peers that predate periodic heartbeats.
+	// Once an authenticated peer sends a heartbeat, idle monitoring stays enabled
+	// for this session; subsequent silence never switches it back off.
+	IdleAfterPeerHeartbeat bool
 }
 
 func (c SessionConfig) normalized() (SessionConfig, error) {
@@ -50,6 +57,9 @@ func (c SessionConfig) normalized() (SessionConfig, error) {
 	}
 	if c.InboundQueue <= 0 {
 		c.InboundQueue = 128
+	}
+	if c.ControlQueueBytes < 0 || c.DataQueueBytes < 0 || c.InboundQueueBytes < 0 {
+		return SessionConfig{}, errors.New("link session queue byte budgets cannot be negative")
 	}
 	if c.HeartbeatInterval < 0 || c.IdleTimeout < 0 {
 		return SessionConfig{}, errors.New("link session durations cannot be negative")
@@ -74,14 +84,16 @@ type Session struct {
 	epoch uint64
 	err   error
 
-	control chan protocol.Envelope
-	data    chan protocol.Envelope
+	control *envelopeQueue
+	data    *envelopeQueue
+	input   *envelopeQueue
 	inbound chan protocol.Envelope
 	done    chan struct{}
 	once    sync.Once
 	wg      sync.WaitGroup
 
-	lastRead atomic.Int64
+	lastRead      atomic.Int64
+	peerHeartbeat atomic.Bool
 }
 
 func NewSession(parent context.Context, pipe Pipe, config SessionConfig) (*Session, error) {
@@ -102,14 +114,16 @@ func NewSession(parent context.Context, pipe Pipe, config SessionConfig) (*Sessi
 		ctx:     ctx,
 		cancel:  cancel,
 		state:   StateUnauthenticated,
-		control: make(chan protocol.Envelope, normalized.ControlQueue),
-		data:    make(chan protocol.Envelope, normalized.DataQueue),
-		inbound: make(chan protocol.Envelope, normalized.InboundQueue),
+		control: newEnvelopeQueue(normalized.ControlQueue, normalized.ControlQueueBytes),
+		data:    newEnvelopeQueue(normalized.DataQueue, normalized.DataQueueBytes),
+		input:   newEnvelopeQueue(normalized.InboundQueue, normalized.InboundQueueBytes),
+		inbound: make(chan protocol.Envelope),
 		done:    make(chan struct{}),
 	}
 	session.lastRead.Store(time.Now().UnixNano())
-	session.wg.Add(3)
+	session.wg.Add(4)
 	go session.readLoop()
+	go session.dispatchLoop()
 	go session.writeLoop()
 	go session.watchdog()
 	go func() {
@@ -175,6 +189,12 @@ func (s *Session) Err() error {
 	return s.err
 }
 
+// IdleMonitoringActive distinguishes a legacy peer from one whose periodic
+// heartbeats have enabled the configured liveness deadline.
+func (s *Session) IdleMonitoringActive() bool {
+	return s.config.IdleTimeout > 0 && (!s.config.IdleAfterPeerHeartbeat || s.peerHeartbeat.Load())
+}
+
 func (s *Session) Send(ctx context.Context, envelope protocol.Envelope) error {
 	if ctx == nil {
 		return errors.New("send context is required")
@@ -194,15 +214,16 @@ func (s *Session) Send(ctx context.Context, envelope protocol.Envelope) error {
 		queue = s.data
 	}
 	select {
-	case queue <- envelope:
-		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-s.ctx.Done():
 		return ErrClosed
 	default:
+	}
+	if !queue.push(envelope) {
 		return ErrQueueFull
 	}
+	return nil
 }
 
 func (s *Session) Close() error {
@@ -239,12 +260,35 @@ func (s *Session) readLoop() {
 			s.closeWithError(errors.New("read link frame: operation received before authentication"))
 			return
 		}
-		select {
-		case s.inbound <- envelope:
-		case <-s.ctx.Done():
-			return
-		default:
+		if envelope.Operation == protocol.OperationHeartbeat && s.State() == StateActive &&
+			envelope.Source == s.Peer() && envelope.Target == s.config.LocalNode && envelope.TopologyEpoch == s.Epoch() {
+			if first := !s.peerHeartbeat.Swap(true); first {
+				if err := s.SendHeartbeat(s.ctx); err != nil {
+					s.closeWithError(fmt.Errorf("reply to first heartbeat: %w", err))
+					return
+				}
+			}
+		}
+		if !s.input.push(envelope) {
 			s.closeWithError(fmt.Errorf("read link frame: %w", ErrQueueFull))
+			return
+		}
+	}
+}
+
+func (s *Session) dispatchLoop() {
+	defer s.wg.Done()
+	for {
+		select {
+		case envelope := <-s.input.frames:
+			select {
+			case s.inbound <- envelope:
+				s.input.release(envelope)
+			case <-s.ctx.Done():
+				s.input.release(envelope)
+				return
+			}
+		case <-s.ctx.Done():
 			return
 		}
 	}
@@ -264,8 +308,8 @@ func (s *Session) writeLoop() {
 	for {
 		if controlBudget == 0 {
 			select {
-			case envelope := <-s.data:
-				if !s.write(envelope) {
+			case envelope := <-s.data.frames:
+				if !s.writeQueued(s.data, envelope) {
 					return
 				}
 				controlBudget = maxControlBurst
@@ -275,8 +319,8 @@ func (s *Session) writeLoop() {
 			}
 		}
 		select {
-		case envelope := <-s.control:
-			if !s.write(envelope) {
+		case envelope := <-s.control.frames:
+			if !s.writeQueued(s.control, envelope) {
 				return
 			}
 			controlBudget--
@@ -284,13 +328,13 @@ func (s *Session) writeLoop() {
 		default:
 		}
 		select {
-		case envelope := <-s.control:
-			if !s.write(envelope) {
+		case envelope := <-s.control.frames:
+			if !s.writeQueued(s.control, envelope) {
 				return
 			}
 			controlBudget--
-		case envelope := <-s.data:
-			if !s.write(envelope) {
+		case envelope := <-s.data.frames:
+			if !s.writeQueued(s.data, envelope) {
 				return
 			}
 			controlBudget = maxControlBurst
@@ -308,6 +352,11 @@ func (s *Session) writeLoop() {
 			return
 		}
 	}
+}
+
+func (s *Session) writeQueued(queue *envelopeQueue, envelope protocol.Envelope) bool {
+	defer queue.release(envelope)
+	return s.write(envelope)
 }
 
 func (s *Session) write(envelope protocol.Envelope) bool {
@@ -336,6 +385,19 @@ func (s *Session) heartbeat() (protocol.Envelope, error) {
 	}, nil
 }
 
+// SendHeartbeat starts liveness discovery after the authenticated child has
+// received its join acknowledgement. Legacy configurations remain silent.
+func (s *Session) SendHeartbeat(ctx context.Context) error {
+	if s.config.HeartbeatInterval == 0 {
+		return nil
+	}
+	envelope, err := s.heartbeat()
+	if err != nil {
+		return err
+	}
+	return s.Send(ctx, envelope)
+}
+
 func (s *Session) watchdog() {
 	defer s.wg.Done()
 	if s.config.IdleTimeout == 0 {
@@ -352,6 +414,9 @@ func (s *Session) watchdog() {
 	for {
 		select {
 		case <-ticker.C:
+			if !s.IdleMonitoringActive() {
+				continue
+			}
 			if time.Since(time.Unix(0, s.lastRead.Load())) > s.config.IdleTimeout {
 				s.closeWithError(ErrIdle)
 				return

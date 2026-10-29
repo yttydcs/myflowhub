@@ -336,6 +336,69 @@ func TestUnknownWriteWakesCollectionWithoutRetry(t *testing.T) {
 	}
 }
 
+func TestAudioCollectionUsesFullCycleWithoutAddingCollectionTimeToInterval(t *testing.T) {
+	n := newMetricsNode(t)
+	defer n.Close()
+	store, err := keystore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	config, err := DefaultConfig("windows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range config.Settings {
+		config.Settings[i].Enabled = config.Settings[i].Metric == string(VolumePercent)
+		config.Settings[i].IntervalMS = 1000
+	}
+	if err := store.Save("metrics.json", config); err != nil {
+		t.Fatal(err)
+	}
+	type start struct {
+		at       time.Time
+		deadline time.Time
+	}
+	starts := make(chan start, 4)
+	collector := collectorFunc(func(ctx context.Context, name Name) (any, error) {
+		deadline, ok := ctx.Deadline()
+		if !ok || name != VolumePercent {
+			return nil, errors.New("unexpected collection context or resource")
+		}
+		starts <- start{at: time.Now(), deadline: deadline}
+		timer := time.NewTimer(600 * time.Millisecond)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			return 20, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	})
+	c, err := Register(ControllerConfig{Node: n, Store: store, Platform: "windows", Collector: collector})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	first := <-starts
+	if first.deadline.Sub(first.at) < 900*time.Millisecond {
+		t.Fatal("1Hz audio sampling was given less than a full cycle")
+	}
+	timer := time.NewTimer(1350 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case second := <-starts:
+		if second.at.Sub(first.at) > 1350*time.Millisecond {
+			t.Fatal("collection time was added to the configured sampling period")
+		}
+		value, ok := c.State(VolumePercent)
+		if !ok || value.Status != "ready" || string(value.Value) != "20" {
+			t.Fatalf("a valid sub-cycle sample was discarded: %+v", value)
+		}
+	case <-timer.C:
+		t.Fatal("next audio collection did not start on its configured cadence")
+	}
+}
+
 func TestConfigVariablePreservesFullWidthDomainRevision(t *testing.T) {
 	n := newMetricsNode(t)
 	defer n.Close()

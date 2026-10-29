@@ -15,6 +15,8 @@
 - `Protocol / Core / SDK`、`Server / SubProto`、`Win` 等标题是退役多仓时期的历史检索标签，不代表当前仓库边界。
 
 ## Quick Links
+
+- [2026-10-29 A基础能力阶段性收尾（验收未完成）](2026-10-29_phase-a-foundation.md)
 - [Docs / Workspace](#docs--workspace)
 - [Protocol / Core / SDK](#protocol--core--sdk)
 - [Server / SubProto](#server--subproto)

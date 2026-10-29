@@ -33,7 +33,13 @@ func (c Codec) Encode(writer io.Writer, envelope Envelope) error {
 	if uint64(len(envelope.Payload)) > math.MaxUint32 {
 		return fmt.Errorf("encode frame: %w: wire length exceeds uint32", ErrPayloadTooLarge)
 	}
-	header := make([]byte, fixedHeaderSize)
+	metadataSize := fixedHeaderSize + len(envelope.ContentType) + len(envelope.Schema) + len(envelope.Capability) + len(envelope.Resource.Name)
+	if len(envelope.Payload) > int(^uint(0)>>1)-metadataSize {
+		return fmt.Errorf("encode frame: %w: frame exceeds platform length", ErrPayloadTooLarge)
+	}
+	// A frame is one transport write: separate metadata writes multiply TCP
+	// syscalls and can overwhelm a bounded link queue at reference traffic rates.
+	header := make([]byte, metadataSize+len(envelope.Payload))
 	copy(header[:4], FrameMagic)
 	binary.BigEndian.PutUint16(header[4:6], envelope.Version)
 	header[6] = byte(envelope.Phase)
@@ -51,10 +57,14 @@ func (c Codec) Encode(writer io.Writer, envelope Envelope) error {
 	copy(header[58:74], envelope.MessageID[:])
 	copy(header[74:90], envelope.CorrelationID[:])
 	binary.BigEndian.PutUint64(header[90:98], uint64(envelope.Resource.Owner))
-	for _, part := range [][]byte{header, []byte(envelope.ContentType), []byte(envelope.Schema), []byte(envelope.Capability), []byte(envelope.Resource.Name), envelope.Payload} {
-		if err := writeAll(writer, part); err != nil {
-			return fmt.Errorf("encode frame: %w", err)
-		}
+	offset := fixedHeaderSize
+	offset += copy(header[offset:], envelope.ContentType)
+	offset += copy(header[offset:], envelope.Schema)
+	offset += copy(header[offset:], envelope.Capability)
+	offset += copy(header[offset:], envelope.Resource.Name)
+	copy(header[offset:], envelope.Payload)
+	if err := writeAll(writer, header); err != nil {
+		return fmt.Errorf("encode frame: %w", err)
 	}
 	return nil
 }

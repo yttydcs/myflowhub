@@ -13,18 +13,25 @@
 
 ## Current Status
 
-- [unified-variable-resource.md](unified-variable-resource.md)：已确认的平台通用变量、未发布阶段无需兼容；R2 已获执行批准。
+- [MyFlowHub 统一产品定义](product-definition.md)：已确认的定位、产品关系、Flow 原则及首版 A（Windows 资源操作阶段）的范围与验收开放项。
+- [A 阶段验收标准](phase-a-acceptance.md)：A-AC-v1 已由 P33 定稿：2000 活动变量各每秒更新一次，R1 全部接受；进入实施规划，尚未验收通过。
+
+- [unified-variable-resource.md](unified-variable-resource.md)：平台通用变量 R2 已实现、合入并于 2026-10-09 归档；产品尚未发布。
 - [topology-discovery.md](topology-discovery.md)：当前按深度发现、权限边界与 Desktop 按需导航。
 
 - [Android 与嵌入式重新设计](mobile-embedded-redesign.md)：已退役实现，重新设计延期。
 - [flow-redesign.md](flow-redesign.md)
-  - 已移除旧 Flow；通用自动化模型、语言与执行语义的延期待办，尚未选型。
+  - 旧实现已移除；独立资源、文本/内嵌路线及运行原则已确认，具体引擎、合同与验收待设计。
+- [agent-gateway.md](agent-gateway.md)
+  - 普通 Gateway Node、独立 Web 服务、多客户端访问令牌、权限交集与审计隔离的长期产品需求。
 - [brand-identity.md](brand-identity.md)
   - Coupled Seam 品牌主标、canonical 入口、多尺寸资产与平台派生的长期要求。
 - [extensible-resource-platform.md](extensible-resource-platform.md)
   - Node-owned 可扩展 Resource type、capability、Topic、session 和全产品迁移的长期需求。
 - [desktop-resource-workspace.md](desktop-resource-workspace.md)
   - Desktop Profile、登录持久化、Node/Resource Explorer、Renderer Registry、Workspace 和 View 的长期需求。
+- [desktop-metrics-product-independence.md](desktop-metrics-product-independence.md)
+  - Desktop 与 Metrics 的 Node、进程、状态、权限和独立安装包边界。
 - [unified-node-runtime.md](unified-node-runtime.md)
   - 统一权威节点树、通用 NodeHost、非 owning SDK、可插拔链路和 monorepo 收敛的长期需求与验收口径。
 - [management-node-display-name.md](management-node-display-name.md)

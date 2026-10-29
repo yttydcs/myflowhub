@@ -1,9 +1,9 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('list', 'test', 'build', 'generate', 'check', 'manifest')]
+    [ValidateSet('list', 'test', 'build', 'generate', 'check', 'manifest', 'package')]
     [string]$Action = 'list',
 
-    [ValidateSet('all', 'core', 'hub', 'desktop', 'metrics', 'clipboard', 'generated')]
+    [ValidateSet('all', 'core', 'hub', 'desktop', 'metrics', 'clipboard', 'generated', 'compat')]
     [string]$Target = 'all',
 
     [switch]$AllowUnavailable
@@ -66,7 +66,7 @@ function Test-Core {
 function Build-Core {
     if (-not (Require-Tool 'go' 'Go builds')) { return }
     $bin = Join-Path $out 'bin'; Ensure-Directory $bin
-    foreach ($name in @('mfh-hub', 'mfh-admin', 'mfh-node')) {
+    foreach ($name in @('mfh-hub', 'mfh-admin', 'mfh-node', 'mfh-metrics', 'mfh-variable-example')) {
         $suffix = if ($isWindowsHost) { '.exe' } else { '' }
         Invoke-Native $root 'go' @('build', '-trimpath', '-o', (Join-Path $bin "$name$suffix"), "./cmd/$name")
     }
@@ -189,9 +189,14 @@ function Write-Manifest {
 }
 
 $targetOrder = @('core', 'hub', 'desktop', 'metrics', 'clipboard')
+if ($Action -eq 'package') {
+    if ($Target -ne 'all') { throw 'phase A packaging requires -Target all; it packages Hub, Desktop, Metrics and the example' }
+    & (Join-Path $PSScriptRoot 'package-phase-a.ps1') -OutputDirectory (Join-Path $out 'phase-a/packages')
+    exit 0
+}
 if ($Action -eq 'list') {
-    Write-Output 'actions: test, build, generate, check, manifest'
-    Write-Output "targets: $($targetOrder -join ', '), generated, all"
+    Write-Output 'actions: test, build, generate, check, manifest, package'
+    Write-Output "targets: $($targetOrder -join ', '), generated, compat, all"
     Write-Output 'all is deterministic and follows the target order above; -AllowUnavailable records missing platform tools without claiming a pass.'
     exit 0
 }
@@ -213,6 +218,10 @@ foreach ($current in $targets) {
         'test/desktop' { Test-Desktop }
         'test/metrics' { Test-Metrics }
         'test/clipboard' { Test-Clipboard }
+        'test/compat' {
+            if (-not $env:MFH_PHASE_A_BASELINE_ROOT) { throw 'Set MFH_PHASE_A_BASELINE_ROOT to the A01 b1fcd1a source export' }
+            & (Join-Path $PSScriptRoot 'test-phase-a-compat.ps1') -BaselineRoot $env:MFH_PHASE_A_BASELINE_ROOT
+        }
         'build/core' { Build-Core }
         'build/hub' { Build-Hub }
         'build/desktop' { Build-Desktop }

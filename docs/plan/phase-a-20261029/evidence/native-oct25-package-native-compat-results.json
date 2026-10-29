@@ -1,0 +1,347 @@
+{
+  "status": "Passed (8 functional native audio combinations)",
+  "bit_order": [
+    "Hub",
+    "Desktop",
+    "Metrics console"
+  ],
+  "zero": "b1fcd1a baseline",
+  "one": "Current package binary hashes recorded per row",
+  "results": [
+    {
+      "package_root": "C:/Users/HelloWorld/AppData/Local/Temp/mfh-phase-a-package-smoke-d9139d8981d44eafa166c6397daaa177",
+      "desktop_pid": 52016,
+      "scope": "native Desktop with actual packaged Hub and Metrics console; workload recorded separately",
+      "started_ms": 1792925464449,
+      "combination": "000",
+      "metrics_sha256": "100EAA5D44590B04A19C80DA19CCF0610FBA8CCDC2B8C5FA583A25B150162EEB",
+      "browser_isolation": "Distinct executable basename; Wails default data directory is per basename. Verify process parent and data path.",
+      "clean_path": true,
+      "trial": "package-forwardfix",
+      "desktop_sha256": "B6030A812BE14A70D1F1308F19F3C129F883E6535788F5F8314CFBFE51F8046B",
+      "hub_sha256": "518B087B4B36699A5299F35C1E65F0CB4BC7D77D7CF55648B953C20A3236FE4D",
+      "status": "Passed (functional audio compatibility smoke)",
+      "checked": "Saved identity/View reconnect, external actual volume 20% subscription, native mute on/off with independent CoreAudio confirmation",
+      "controls": [
+        {
+          "trial": "package-forwardfix",
+          "combination": "000",
+          "target": true,
+          "started_ms": 1792925511139,
+          "ui_ms": 9137,
+          "core_audio_ms": 253,
+          "volume_percent": 20.000000298023224
+        },
+        {
+          "trial": "package-forwardfix",
+          "combination": "000",
+          "target": false,
+          "started_ms": 1792925532168,
+          "ui_ms": 1027,
+          "core_audio_ms": 216,
+          "volume_percent": 20.000000298023224
+        }
+      ],
+      "visually_inspected_screenshots": [
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-000-initial.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-000-external20.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-000-mute-on-observed.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-000-mute-off.jpg"
+      ]
+    },
+    {
+      "hub_sha256": "518B087B4B36699A5299F35C1E65F0CB4BC7D77D7CF55648B953C20A3236FE4D",
+      "combination": "001",
+      "desktop_sha256": "B6030A812BE14A70D1F1308F19F3C129F883E6535788F5F8314CFBFE51F8046B",
+      "clean_path": true,
+      "trial": "package-forwardfix",
+      "started_ms": 1792925553974,
+      "package_root": "C:/Users/HelloWorld/AppData/Local/Temp/mfh-phase-a-package-smoke-d9139d8981d44eafa166c6397daaa177",
+      "browser_isolation": "Distinct executable basename; Wails default data directory is per basename. Verify process parent and data path.",
+      "metrics_sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "desktop_pid": 36968,
+      "scope": "native Desktop with actual packaged Hub and Metrics console; workload recorded separately",
+      "status": "Passed (functional audio compatibility smoke)",
+      "checked": "Saved identity/View reconnect, external actual volume 20% subscription, native mute on/off with independent CoreAudio confirmation",
+      "controls": [
+        {
+          "trial": "package-forwardfix",
+          "combination": "001",
+          "target": true,
+          "started_ms": 1792925575211,
+          "ui_ms": 1098,
+          "core_audio_ms": 494,
+          "volume_percent": 20.000000298023224
+        },
+        {
+          "trial": "package-forwardfix",
+          "combination": "001",
+          "target": false,
+          "started_ms": 1792925584943,
+          "ui_ms": 747,
+          "core_audio_ms": 241,
+          "volume_percent": 20.000000298023224
+        }
+      ],
+      "visually_inspected_screenshots": [
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-001-initial.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-001-external20.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-001-mute-on.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-001-mute-off.jpg"
+      ]
+    },
+    {
+      "scope": "native Desktop with actual packaged Hub and Metrics console; workload recorded separately",
+      "trial": "package-forwardfix",
+      "browser_isolation": "Distinct executable basename; Wails default data directory is per basename. Verify process parent and data path.",
+      "desktop_pid": 7936,
+      "hub_sha256": "518B087B4B36699A5299F35C1E65F0CB4BC7D77D7CF55648B953C20A3236FE4D",
+      "package_root": "C:/Users/HelloWorld/AppData/Local/Temp/mfh-phase-a-package-smoke-d9139d8981d44eafa166c6397daaa177",
+      "metrics_sha256": "100EAA5D44590B04A19C80DA19CCF0610FBA8CCDC2B8C5FA583A25B150162EEB",
+      "desktop_sha256": "93FB21C14D26E0D89F6E505BD1FD38D3B714486987AC7DB3977FCF98565F4BBD",
+      "clean_path": true,
+      "combination": "010",
+      "started_ms": 1792925599265,
+      "status": "Passed (functional audio compatibility smoke)",
+      "checked": "Saved identity/View reconnect, external actual volume 20% subscription, native mute on/off with independent CoreAudio confirmation",
+      "controls": [
+        {
+          "trial": "package-forwardfix",
+          "combination": "010",
+          "target": true,
+          "started_ms": 1792925629274,
+          "ui_ms": 1127,
+          "core_audio_ms": 510,
+          "volume_percent": 20.000000298023224
+        },
+        {
+          "trial": "package-forwardfix",
+          "combination": "010",
+          "target": false,
+          "started_ms": 1792925637835,
+          "ui_ms": 1267,
+          "core_audio_ms": 564,
+          "volume_percent": 20.000000298023224
+        }
+      ],
+      "visually_inspected_screenshots": [
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-010-initial.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-010-external20-observed.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-010-mute-on.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-010-mute-off.jpg"
+      ]
+    },
+    {
+      "desktop_sha256": "93FB21C14D26E0D89F6E505BD1FD38D3B714486987AC7DB3977FCF98565F4BBD",
+      "scope": "native Desktop with actual packaged Hub and Metrics console; workload recorded separately",
+      "hub_sha256": "518B087B4B36699A5299F35C1E65F0CB4BC7D77D7CF55648B953C20A3236FE4D",
+      "started_ms": 1792925648474,
+      "browser_isolation": "Distinct executable basename; Wails default data directory is per basename. Verify process parent and data path.",
+      "metrics_sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "clean_path": true,
+      "desktop_pid": 52056,
+      "package_root": "C:/Users/HelloWorld/AppData/Local/Temp/mfh-phase-a-package-smoke-d9139d8981d44eafa166c6397daaa177",
+      "trial": "package-forwardfix",
+      "combination": "011",
+      "status": "Passed (functional audio compatibility smoke)",
+      "checked": "Saved identity/View reconnect, external actual volume 20% subscription, native mute on/off with independent CoreAudio confirmation",
+      "controls": [
+        {
+          "trial": "package-forwardfix",
+          "combination": "011",
+          "target": true,
+          "started_ms": 1792925669711,
+          "ui_ms": 693,
+          "core_audio_ms": 278,
+          "volume_percent": 20.000000298023224
+        },
+        {
+          "trial": "package-forwardfix",
+          "combination": "011",
+          "target": false,
+          "started_ms": 1792925677505,
+          "ui_ms": 962,
+          "core_audio_ms": 500,
+          "volume_percent": 20.000000298023224
+        }
+      ],
+      "visually_inspected_screenshots": [
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-011-initial.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-011-external20.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-011-mute-on.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-011-mute-off.jpg"
+      ]
+    },
+    {
+      "scope": "native Desktop with actual packaged Hub and Metrics console; workload recorded separately",
+      "browser_isolation": "Distinct executable basename; Wails default data directory is per basename. Verify process parent and data path.",
+      "metrics_sha256": "100EAA5D44590B04A19C80DA19CCF0610FBA8CCDC2B8C5FA583A25B150162EEB",
+      "desktop_pid": 19568,
+      "hub_sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "clean_path": true,
+      "combination": "100",
+      "trial": "package-forwardfix",
+      "started_ms": 1792925691126,
+      "desktop_sha256": "B6030A812BE14A70D1F1308F19F3C129F883E6535788F5F8314CFBFE51F8046B",
+      "package_root": "C:/Users/HelloWorld/AppData/Local/Temp/mfh-phase-a-package-smoke-d9139d8981d44eafa166c6397daaa177",
+      "status": "Passed (functional audio compatibility smoke)",
+      "checked": "Saved identity/View reconnect, external actual volume 20% subscription, native mute on/off with independent CoreAudio confirmation",
+      "controls": [
+        {
+          "trial": "package-forwardfix",
+          "combination": "100",
+          "target": true,
+          "started_ms": 1792925718287,
+          "ui_ms": 1142,
+          "core_audio_ms": 519,
+          "volume_percent": 20.000000298023224
+        },
+        {
+          "trial": "package-forwardfix",
+          "combination": "100",
+          "target": false,
+          "started_ms": 1792925726470,
+          "ui_ms": 709,
+          "core_audio_ms": 318,
+          "volume_percent": 20.000000298023224
+        }
+      ],
+      "visually_inspected_screenshots": [
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-100-initial.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-100-external20.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-100-mute-on.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-100-mute-off.jpg"
+      ]
+    },
+    {
+      "scope": "native Desktop with actual packaged Hub and Metrics console; workload recorded separately",
+      "metrics_sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "hub_sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "started_ms": 1792925737446,
+      "combination": "101",
+      "browser_isolation": "Distinct executable basename; Wails default data directory is per basename. Verify process parent and data path.",
+      "desktop_sha256": "B6030A812BE14A70D1F1308F19F3C129F883E6535788F5F8314CFBFE51F8046B",
+      "package_root": "C:/Users/HelloWorld/AppData/Local/Temp/mfh-phase-a-package-smoke-d9139d8981d44eafa166c6397daaa177",
+      "desktop_pid": 49796,
+      "trial": "package-forwardfix",
+      "clean_path": true,
+      "status": "Passed (functional audio compatibility smoke)",
+      "checked": "Saved identity/View reconnect, external actual volume 20% subscription, native mute on/off with independent CoreAudio confirmation",
+      "controls": [
+        {
+          "trial": "package-forwardfix",
+          "combination": "101",
+          "target": true,
+          "started_ms": 1792925762177,
+          "ui_ms": 868,
+          "core_audio_ms": 210,
+          "volume_percent": 20.000000298023224
+        },
+        {
+          "trial": "package-forwardfix",
+          "combination": "101",
+          "target": false,
+          "started_ms": 1792925776589,
+          "ui_ms": 786,
+          "core_audio_ms": 338,
+          "volume_percent": 20.000000298023224
+        }
+      ],
+      "visually_inspected_screenshots": [
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-101-initial.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-101-external20.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-101-mute-on.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-101-mute-off.jpg"
+      ]
+    },
+    {
+      "browser_isolation": "Distinct executable basename; Wails default data directory is per basename. Verify process parent and data path.",
+      "metrics_sha256": "100EAA5D44590B04A19C80DA19CCF0610FBA8CCDC2B8C5FA583A25B150162EEB",
+      "package_root": "C:/Users/HelloWorld/AppData/Local/Temp/mfh-phase-a-package-smoke-d9139d8981d44eafa166c6397daaa177",
+      "started_ms": 1792925792086,
+      "desktop_sha256": "93FB21C14D26E0D89F6E505BD1FD38D3B714486987AC7DB3977FCF98565F4BBD",
+      "clean_path": true,
+      "combination": "110",
+      "hub_sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "desktop_pid": 14684,
+      "trial": "package-forwardfix",
+      "scope": "native Desktop with actual packaged Hub and Metrics console; workload recorded separately",
+      "status": "Passed (functional audio compatibility smoke)",
+      "checked": "Saved identity/View reconnect, external actual volume 20% subscription, native mute on/off with independent CoreAudio confirmation",
+      "controls": [
+        {
+          "trial": "package-forwardfix",
+          "combination": "110",
+          "target": true,
+          "started_ms": 1792925812982,
+          "ui_ms": 1016,
+          "core_audio_ms": 206,
+          "volume_percent": 20.000000298023224
+        },
+        {
+          "trial": "package-forwardfix",
+          "combination": "110",
+          "target": false,
+          "started_ms": 1792925821653,
+          "ui_ms": 667,
+          "core_audio_ms": 234,
+          "volume_percent": 20.000000298023224
+        }
+      ],
+      "visually_inspected_screenshots": [
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-110-initial.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-110-external20.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-110-mute-on.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-110-mute-off.jpg"
+      ]
+    },
+    {
+      "clean_path": true,
+      "package_root": "C:/Users/HelloWorld/AppData/Local/Temp/mfh-phase-a-package-smoke-d9139d8981d44eafa166c6397daaa177",
+      "browser_isolation": "Distinct executable basename; Wails default data directory is per basename. Verify process parent and data path.",
+      "trial": "package-forwardfix",
+      "desktop_sha256": "93FB21C14D26E0D89F6E505BD1FD38D3B714486987AC7DB3977FCF98565F4BBD",
+      "started_ms": 1792925833313,
+      "combination": "111",
+      "scope": "native Desktop with actual packaged Hub and Metrics console; workload recorded separately",
+      "metrics_sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "hub_sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "desktop_pid": 14972,
+      "status": "Passed (functional audio compatibility smoke)",
+      "checked": "Saved identity/View reconnect, external actual volume 20% subscription, native mute on/off with independent CoreAudio confirmation",
+      "controls": [
+        {
+          "trial": "package-forwardfix",
+          "combination": "111",
+          "target": true,
+          "started_ms": 1792925856565,
+          "ui_ms": 1169,
+          "core_audio_ms": 639,
+          "volume_percent": 20.000000298023224
+        },
+        {
+          "trial": "package-forwardfix",
+          "combination": "111",
+          "target": false,
+          "started_ms": 1792925864379,
+          "ui_ms": 706,
+          "core_audio_ms": 219,
+          "volume_percent": 20.000000298023224
+        }
+      ],
+      "visually_inspected_screenshots": [
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-111-initial.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-111-external20.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-111-mute-on.jpg",
+        "C:\\Users\\HELLOW~1\\AppData\\Local\\Temp\\mfh-phase-a-native-gui-d4ef3d2d1e7c4c7cbfd074ebb886e7d5\\ui-package-111-mute-off.jpg"
+      ]
+    }
+  ],
+  "limitations": [
+    "Two audio subscriptions per case; no mixed-version capacity claim",
+    "No formal N freeze or two-device acceptance",
+    "Existing admitted identity reused; fresh enrollment matrix remains separate",
+    "UI snapshots are conservative observation upper bounds, not a claim all mixed-version operations met normal-operation timing",
+    "000 first immediate capture preceded visible completion; 010 first external-change capture preceded next update. Later inspected captures retained without changing raw timestamps."
+  ]
+}

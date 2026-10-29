@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,6 +39,8 @@ type options struct {
 	ownerID        uint64
 	request        string
 	requestFile    string
+	capability     string
+	schema         string
 	timeout        time.Duration
 }
 
@@ -51,7 +54,9 @@ func main() {
 	flag.StringVar(&value.authorityKey, "authority-key", "", "optional pinned Admission Authority raw-base64 Ed25519 public key")
 	flag.BoolVar(&value.allowTOFU, "tofu", false, "explicitly accept and persist the first observed parent and Authority fingerprints")
 	flag.StringVar(&value.permitFile, "permit", "", "optional legacy Join Permit or new Enrollment Permit JSON file")
-	flag.StringVar(&value.operation, "op", "snapshot", "operation: identity, enroll, enrollment-status, snapshot, or invoke")
+	flag.StringVar(&value.operation, "op", "snapshot", "operation: identity, enroll, enrollment-status, snapshot, invoke, or operate")
+	flag.StringVar(&value.capability, "capability", "", "explicit capability for JSON operate (read, list, create, update, write, ...)")
+	flag.StringVar(&value.schema, "schema", "", "input schema for JSON operate; omit for a read without input")
 	flag.StringVar(&value.resource, "resource", protocol.BuiltinResourceCatalog, "target resource name")
 	flag.Uint64Var(&value.ownerID, "owner-id", 0, "target resource owner Node ID; defaults to the direct parent or Enrollment Authority for system/admission resources")
 	flag.StringVar(&value.request, "request", "", "inline command request payload")
@@ -65,6 +70,13 @@ func main() {
 }
 
 func run(options options) error {
+	if options.operation == "operate" {
+		if _, err := operationRequest(options); err != nil {
+			return err
+		}
+	} else if options.capability != "" || options.schema != "" {
+		return errors.New("capability and schema require -op operate")
+	}
 	if options.timeout <= 0 {
 		return errors.New("timeout must be positive")
 	}
@@ -119,43 +131,7 @@ func run(options options) error {
 	if err := runtime.ConnectParent(ctx, tcp.Driver{}, link.Endpoint(options.endpoint), parentID); err != nil {
 		return fmt.Errorf("connect Hub: %w", err)
 	}
-	resourceID := protocol.ResourceID{Owner: adminResourceOwner(options, parentID, 0), Name: options.resource}
-	if err := resourceID.Validate(); err != nil {
-		return err
-	}
-	switch options.operation {
-	case "snapshot":
-		current, err := runtime.Subscribe(ctx, resourceID, options.timeout, 4)
-		if err != nil {
-			return err
-		}
-		defer current.Cancel()
-		select {
-		case event := <-current.Events:
-			if event.Kind != subscription.EventSnapshot {
-				return fmt.Errorf("resource %s did not return a Variable snapshot", options.resource)
-			}
-			_, err = os.Stdout.Write(append(event.Value, '\n'))
-			return err
-		case err := <-current.Errors:
-			return err
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	case "invoke":
-		request, err := commandRequest(options)
-		if err != nil {
-			return err
-		}
-		response, err := runtime.Invoke(ctx, resourceID, request)
-		if err != nil {
-			return err
-		}
-		_, err = os.Stdout.Write(append(response, '\n'))
-		return err
-	default:
-		return fmt.Errorf("unsupported operation %q", options.operation)
-	}
+	return operateAdmin(ctx, runtime, parentID, 0, options)
 }
 
 func runEnrollmentManaged(options options) error {
@@ -279,6 +255,22 @@ func operateAdmin(ctx context.Context, runtime *node.Node, parentID, authorityNo
 		return err
 	}
 	switch options.operation {
+	case "operate":
+		request, err := operationRequest(options)
+		if err != nil {
+			return err
+		}
+		response, err := runtime.Operate(ctx, resourceID, protocol.CapabilityID(options.capability), options.schema, request)
+		if err != nil {
+			return err
+		}
+		if len(response.Payload) > 0 && !json.Valid(response.Payload) {
+			return errors.New("operate returned a non-JSON payload")
+		}
+		return json.NewEncoder(os.Stdout).Encode(struct {
+			Schema  string          `json:"schema,omitempty"`
+			Payload json.RawMessage `json:"payload,omitempty"`
+		}{response.Schema, response.Payload})
 	case "snapshot":
 		current, err := runtime.Subscribe(ctx, resourceID, options.timeout, 4)
 		if err != nil {
@@ -336,14 +328,45 @@ func commandRequest(options options) ([]byte, error) {
 		return nil, errors.New("request and request-file are mutually exclusive")
 	}
 	if options.requestFile != "" {
-		data, err := os.ReadFile(options.requestFile)
+		file, err := os.Open(options.requestFile)
 		if err != nil {
 			return nil, fmt.Errorf("read request file: %w", err)
+		}
+		defer file.Close()
+		data, err := io.ReadAll(io.LimitReader(file, protocol.DefaultMaxPayload+1))
+		if err != nil {
+			return nil, fmt.Errorf("read request file: %w", err)
+		}
+		if len(data) > protocol.DefaultMaxPayload {
+			return nil, errors.New("request exceeds the protocol payload limit")
 		}
 		return data, nil
 	}
 	if options.request == "" {
 		return nil, errors.New("invoke requires request or request-file")
 	}
+	if len(options.request) > protocol.DefaultMaxPayload {
+		return nil, errors.New("request exceeds the protocol payload limit")
+	}
 	return []byte(options.request), nil
+}
+
+func operationRequest(options options) ([]byte, error) {
+	if err := protocol.CapabilityID(options.capability).Validate(); err != nil {
+		return nil, fmt.Errorf("operate capability: %w", err)
+	}
+	if len(options.schema) > protocol.MaxSchemaBytes {
+		return nil, errors.New("operate input schema is too long")
+	}
+	if options.request == "" && options.requestFile == "" && options.schema == "" {
+		return nil, nil
+	}
+	request, err := commandRequest(options)
+	if err != nil {
+		return nil, err
+	}
+	if !json.Valid(request) {
+		return nil, errors.New("operate requires a valid JSON request")
+	}
+	return request, nil
 }

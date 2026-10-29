@@ -67,3 +67,54 @@ func TestPolicyGenerationChangeExpiresExistingSubscription(t *testing.T) {
 		t.Fatal("subscription did not expire after policy generation changed")
 	}
 }
+
+type policyReadingSession struct {
+	resource.ActiveSession
+	policy  *auth.PolicyState
+	aborted chan struct{}
+}
+
+func (s *policyReadingSession) Abort(error) { _ = s.policy.Generation(); close(s.aborted) }
+
+func TestPolicyCommitDoesNotHoldItsLockDuringProviderCleanup(t *testing.T) {
+	store, err := keystore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy, err := auth.LoadPolicyState(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer policy.Close()
+	identity, err := auth.GenerateIdentity(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := New(context.Background(), Config{Identity: identity, Trust: auth.NewTrustStore(), Policy: policy})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer current.Close()
+	session := &policyReadingSession{policy: policy, aborted: make(chan struct{})}
+	id := protocol.MustMessageID()
+	current.mu.Lock()
+	current.resourceSessions[id] = &ownedResourceSession{id: id, policyGeneration: policy.Generation(), session: session}
+	current.mu.Unlock()
+	committed := make(chan error, 1)
+	go func() {
+		committed <- policy.Grant(auth.Request{Subject: 2, Action: auth.ActionRead, Resource: protocol.ResourceID{Owner: 1, Name: "other"}})
+	}()
+	select {
+	case err := <-committed:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("policy commit called a provider while retaining its lock")
+	}
+	select {
+	case <-session.aborted:
+	case <-time.After(time.Second):
+		t.Fatal("provider cleanup did not finish")
+	}
+}

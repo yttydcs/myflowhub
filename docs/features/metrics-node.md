@@ -20,6 +20,8 @@ MetricsNode 是独立 Node 产品，采集设备指标，并在平台允许时�
 - “连接与身份”继续使用独立 Metrics state directory、Node identity、父节点 trust 和 provisioning permit；permit 仅驻留当前表单，连接成功或应用释放时清空。
 - 界面使用 Metrics 自有的 Desktop-aligned token、品牌静态资源和 light/dark 偏好；只共享视觉规范，不依赖 Desktop 私有组件、状态、IPC 或生命周期。
 - 状态轮询保持约 1 秒节奏，单次请求不重叠；停止或释放 UI 后取消调度，旧请求不能覆盖新的启停结果。
+- 成功连接后独立保存公开连接参数及运行意图，不保存 permit。正常关闭保留运行意图，重新打开时使用既有身份自动连接；明确“停止”保存停止意图，重开后保持停止。配置损坏、身份缺失或恢复失败均在界面显示，不自动生成替代身份。
+- 未保存的连接参数或采集策略在关闭窗口时提示并允许取消；未保存草稿不承诺跨进程恢复。保存失败保留草稿并报告错误。
 
 ## Permissions
 
@@ -38,6 +40,7 @@ MetricsNode 是独立 Node 产品，采集设备指标，并在平台允许时�
 - 通知：旧 TopicBus 订阅被 durable Stream subscription 取代；频道切换会重建订阅，断线恢复由 SDK 管理，宿主只处理已经通过 schema 校验的事件。
 - 链路：产品 runtime 只依赖可替换 `link.Driver`；当前命令行和 UI 使用 TCP，未来链路可在不改变资源模型的情况下替换 driver。
 - Host：MetricsNode 拥有自己的 Parent-only NodeHost，在网络启动前注册指标、配置、控制与通知资源；采样更新走 Variable/Registry，远端访问继续走 attached SDK Client 所绑定的同一 Node。
+- 正常退出先关闭 Host 链路，再注销本地指标资源，避免把短暂进程退出发布为资源永久删除；远端 durable 订阅在重启后重新获取实例，不重放旧写入。
 - 身份与权限：持久 Ed25519 身份、父节点 trust 与一次性 provisioning permit 由共享 runtime 管理；父控子仍由权威树执行，平台 adapter 继续执行本地范围和权限检查。
 
 ## Canonical source

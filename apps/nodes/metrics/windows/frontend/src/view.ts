@@ -55,6 +55,8 @@ export interface MetricsView {
   render(state: MetricsViewState): void
   readIdentityFields(): Pick<ConnectionFields, 'stateDirectory' | 'nodeID'>
   readConnectionFields(): ConnectionFields
+  restoreConnectionFields(fields: Omit<ConnectionFields, 'permit'>): void
+  readDrafts(): {connection: string; policy: string}
   readConfiguration(current: Configuration): Configuration
   clearPermit(): void
 }
@@ -229,7 +231,7 @@ export function createMetricsView(root: HTMLElement, handlers: MetricsViewHandle
 
   function renderWarnings(status: Status): void {
     const container = requiredElement<HTMLElement>(root, '#runtime-warnings')
-    const warnings = [status.connection?.last_error, status.presenter_error, status.notifications.last_error].filter((value): value is string => Boolean(value))
+    const warnings = [status.startup_error, status.connection?.last_error, status.presenter_error, status.notifications.last_error].filter((value): value is string => Boolean(value))
     container.replaceChildren(...warnings.map(value => createText(document, 'p', 'runtime-warning', value)))
     container.hidden = warnings.length === 0
   }
@@ -439,6 +441,9 @@ export function createMetricsView(root: HTMLElement, handlers: MetricsViewHandle
     headerState.querySelector<HTMLElement>('span:last-child')!.textContent = connectionLabel
 
     const busy = Boolean(state.busy)
+    // Keep an in-flight save from replacing edits made after submission.
+    requiredElement<HTMLFormElement>(root, '#connection-form').inert = busy
+    requiredElement<HTMLFormElement>(root, '#policy-form').inert = busy
     requiredElement<HTMLButtonElement>(root, '#refresh-button').disabled = busy
     requiredElement<HTMLButtonElement>(root, '#page-refresh-button').disabled = busy
     const save = requiredElement<HTMLButtonElement>(root, '#save-policy-button')
@@ -475,6 +480,17 @@ export function createMetricsView(root: HTMLElement, handlers: MetricsViewHandle
 
   return {
     render,
+    readDrafts: () => {
+      const fields = (selector: string) => JSON.stringify([...root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(selector)]
+        .map(field => [field.id || field.dataset.field, field.value, 'checked' in field ? field.checked : undefined]))
+      return {connection: fields('#connection-form input, #connection-form textarea'), policy: fields('#policy-form input')}
+    },
+    restoreConnectionFields: fields => {
+      for (const [id, value] of Object.entries({
+        'state-directory': fields.stateDirectory, 'node-id': fields.nodeID,
+        'parent-id': fields.parentNodeID, endpoint: fields.endpoint, 'parent-key': fields.parentPublicKey,
+      })) requiredElement<HTMLInputElement>(root, `#${id}`).value = value
+    },
     readIdentityFields: () => ({
       stateDirectory: requiredElement<HTMLInputElement>(root, '#state-directory').value,
       nodeID: requiredElement<HTMLInputElement>(root, '#node-id').value,

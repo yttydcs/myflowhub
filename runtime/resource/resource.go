@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"sync"
 
@@ -97,22 +98,20 @@ type SessionResource interface {
 }
 
 type Registry struct {
-	mu              sync.RWMutex
-	catalogUpdateMu sync.Mutex
-	owner           protocol.NodeID
-	resources       map[string]Resource
-	catalog         *Variable
-	catalogRevision uint64
+	mu                 sync.RWMutex
+	catalogUpdateMu    sync.Mutex
+	owner              protocol.NodeID
+	resources          map[string]Resource
+	catalog            *Variable
+	catalogRevision    uint64
+	catalogDescriptors []Descriptor
 }
 
 func NewRegistry(owner protocol.NodeID) (*Registry, error) {
 	if err := owner.Validate(); err != nil {
 		return nil, err
 	}
-	descriptor := VariableDescriptor(
-		protocol.ResourceID{Owner: owner, Name: protocol.BuiltinResourceCatalog},
-		"resource.catalog.read", protocol.DefaultMaxPayload,
-	)
+	descriptor := catalogDescriptor(owner)
 	catalogValue := protocol.ResourceCatalogV2{Version: protocol.SchemaVersionV2, Revision: 1, Resources: []protocol.ResourceDescriptorV2{descriptor}}
 	catalogValue.Sort()
 	definition, err := protocol.DataSchemaByID(protocol.SchemaResourceCatalogV2)
@@ -127,25 +126,43 @@ func NewRegistry(owner protocol.NodeID) (*Registry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create resource catalog: %w", err)
 	}
-	return &Registry{owner: owner, resources: map[string]Resource{protocol.BuiltinResourceCatalog: catalog}, catalog: catalog, catalogRevision: 1}, nil
+	r := &Registry{owner: owner, resources: make(map[string]Resource), catalog: catalog, catalogRevision: 1, catalogDescriptors: []Descriptor{cloneDescriptor(descriptor)}}
+	r.resources[protocol.BuiltinResourceCatalog] = &catalogResource{Variable: catalog, registry: r}
+	return r, nil
 }
 
-func (r *Registry) Register(value Resource) error {
-	if value == nil {
-		return errors.New("register resource: value is required")
+func (r *Registry) Register(value Resource) error { return r.RegisterBatch([]Resource{value}) }
+
+// RegisterBatch publishes the entire member set with one catalog transaction.
+// No resource becomes visible, or observer notified, if any preflight fails.
+func (r *Registry) RegisterBatch(values []Resource) error {
+	if r == nil {
+		return errors.New("register resource: registry is required")
 	}
-	descriptor, err := normalizeDescriptor(value.Descriptor())
-	if err != nil {
-		return fmt.Errorf("register resource: %w", err)
+	if len(values) == 0 || len(values) >= protocol.MaxItems {
+		return ErrResourceLimit
 	}
-	if descriptor.ID.Owner != r.owner {
-		return fmt.Errorf("register resource: owner %d does not match local node %d", descriptor.ID.Owner, r.owner)
-	}
-	if descriptor.ID.Name == protocol.BuiltinResourceCatalog {
-		return fmt.Errorf("%w: %s", ErrReservedResource, descriptor.ID.Name)
-	}
-	if lifecycle, ok := value.(interface{ Retired() bool }); ok && lifecycle.Retired() {
-		return errors.New("register resource: retired variable requires a new instance")
+	descriptors := make([]Descriptor, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for i, value := range values {
+		if value == nil || (reflect.ValueOf(value).Kind() == reflect.Pointer && reflect.ValueOf(value).IsNil()) {
+			return errors.New("register resource: value is required")
+		}
+		descriptor, err := normalizeDescriptor(value.Descriptor())
+		if err != nil {
+			return fmt.Errorf("register resource: %w", err)
+		}
+		if descriptor.ID.Owner != r.owner {
+			return fmt.Errorf("register resource: owner %d does not match local node %d", descriptor.ID.Owner, r.owner)
+		}
+		if descriptor.ID.Name == protocol.BuiltinResourceCatalog {
+			return fmt.Errorf("%w: %s", ErrReservedResource, descriptor.ID.Name)
+		}
+		if _, exists := seen[descriptor.ID.Name]; exists {
+			return fmt.Errorf("%w: %s", ErrDuplicate, descriptor.ID.Name)
+		}
+		seen[descriptor.ID.Name] = struct{}{}
+		descriptors[i] = descriptor
 	}
 	r.catalogUpdateMu.Lock()
 	if err := r.catalog.acquire(context.Background()); err != nil {
@@ -154,33 +171,35 @@ func (r *Registry) Register(value Resource) error {
 	}
 	r.mu.Lock()
 	fail := func(err error) error { r.mu.Unlock(); r.catalog.release(); r.catalogUpdateMu.Unlock(); return err }
-	if lifecycle, ok := value.(interface{ Retired() bool }); ok && lifecycle.Retired() {
-		return fail(errors.New("register resource: retired variable requires a new instance"))
-	}
-	if _, exists := r.resources[descriptor.ID.Name]; exists {
-		return fail(fmt.Errorf("%w: %s", ErrDuplicate, descriptor.ID.Name))
-	}
-	if len(r.resources) >= protocol.MaxItems {
+	if len(values) > protocol.MaxItems-len(r.resources) {
 		return fail(ErrResourceLimit)
 	}
-	// The tentative table is invisible while mu is held. Both domain encoding
-	// and complete standard envelope encoding must succeed before publication.
-	r.resources[descriptor.ID.Name] = value
-	payload, revision, err := r.buildCatalogLocked()
-	var prepared preparedVariable
-	if err == nil {
-		prepared, err = r.catalog.prepareNext(0, VariableState{Value: payload, Status: "ready"})
+	for i, value := range values {
+		if lifecycle, ok := value.(interface{ Retired() bool }); ok && lifecycle.Retired() {
+			return fail(errors.New("register resource: retired variable requires a new instance"))
+		}
+		if _, exists := r.resources[descriptors[i].ID.Name]; exists {
+			return fail(fmt.Errorf("%w: %s", ErrDuplicate, descriptors[i].ID.Name))
+		}
 	}
+	for i, value := range values {
+		r.resources[descriptors[i].ID.Name] = value
+	}
+	rollback := func(err error) error {
+		for _, descriptor := range descriptors {
+			delete(r.resources, descriptor.ID.Name)
+		}
+		return fail(err)
+	}
+	prepared, revision, members, err := r.prepareCatalogLocked()
 	if err != nil {
-		delete(r.resources, descriptor.ID.Name)
-		return fail(fmt.Errorf("register resource catalog preflight: %w", err))
+		return rollback(fmt.Errorf("register resource catalog preflight: %w", err))
 	}
 	_, drain, err := r.catalog.commit(prepared)
 	if err != nil {
-		delete(r.resources, descriptor.ID.Name)
-		return fail(err)
+		return rollback(err)
 	}
-	r.catalogRevision = revision
+	r.catalogRevision, r.catalogDescriptors = revision, members
 	r.mu.Unlock()
 	r.catalog.release()
 	r.catalogUpdateMu.Unlock()
@@ -294,11 +313,7 @@ func (r *Registry) Remove(id protocol.ResourceID) error {
 		return fail(ErrNotFound)
 	}
 	delete(r.resources, id.Name)
-	payload, revision, err := r.buildCatalogLocked()
-	var prepared preparedVariable
-	if err == nil {
-		prepared, err = r.catalog.prepareNext(0, VariableState{Value: payload, Status: "ready"})
-	}
+	prepared, revision, members, err := r.prepareCatalogLocked()
 	if err != nil {
 		r.resources[id.Name] = removed
 		return fail(fmt.Errorf("remove resource catalog preflight: %w", err))
@@ -308,7 +323,7 @@ func (r *Registry) Remove(id protocol.ResourceID) error {
 		r.resources[id.Name] = removed
 		return fail(err)
 	}
-	r.catalogRevision = revision
+	r.catalogRevision, r.catalogDescriptors = revision, members
 	var finishRetire func()
 	if lifecycle, ok := removed.(interface{ PrepareRetire() func() }); ok {
 		finishRetire = lifecycle.PrepareRetire()
@@ -339,25 +354,6 @@ func (r *Registry) List() []Descriptor {
 }
 
 func (r *Registry) Catalog() *Variable { return r.catalog }
-
-func (r *Registry) buildCatalogLocked() ([]byte, uint64, error) {
-	if r.catalogRevision == ^uint64(0) {
-		return nil, 0, errors.New("resource catalog revision exhausted")
-	}
-	descriptors := make([]protocol.ResourceDescriptorV2, 0, len(r.resources))
-	for _, value := range r.resources {
-		descriptor, err := normalizeDescriptor(value.Descriptor())
-		if err != nil {
-			return nil, 0, err
-		}
-		descriptors = append(descriptors, descriptor)
-	}
-	revision := r.catalogRevision + 1
-	catalog := protocol.ResourceCatalogV2{Version: protocol.SchemaVersionV2, Revision: revision, Resources: descriptors}
-	catalog.Sort()
-	payload, err := protocol.EncodeVariablePayload(r.catalog.definition, &catalog, protocol.DefaultMaxPayload)
-	return payload, revision, err
-}
 
 func VariableDescriptor(id protocol.ResourceID, permission string, maxPayload int) Descriptor {
 	descriptor := descriptorFor(id, protocol.ResourceTypeVariable, "application/json", protocol.SchemaVariableValueV1, permission, maxPayload,

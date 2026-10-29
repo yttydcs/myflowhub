@@ -47,6 +47,7 @@ function fakeAPI(initialStatus = statusValue()): MetricsAPI {
     configuration: vi.fn(async () => configuration),
     definitions: vi.fn(async () => definitions),
     updateConfiguration: vi.fn(async value => ({...value, revision: value.revision + 1})),
+    setUnsavedChanges: vi.fn(async () => undefined),
   }
 }
 
@@ -69,6 +70,64 @@ afterEach(() => {
 })
 
 describe('Metrics application', () => {
+  it('keeps connection edits dirty when only collection policy is saved', async () => {
+    const api = fakeAPI()
+    const {app, root} = mount(api)
+    await app.ready
+    const endpoint = root.querySelector<HTMLInputElement>('#endpoint')!
+    const original = endpoint.value
+    endpoint.value = '127.0.0.1:7555'
+    endpoint.dispatchEvent(new Event('input', {bubbles: true}))
+    await vi.waitFor(() => expect(api.setUnsavedChanges).toHaveBeenLastCalledWith(true))
+    root.querySelector<HTMLButtonElement>('[data-view="policy"]')!.click()
+    const interval = root.querySelector<HTMLInputElement>('[data-policy-metric="cpu_percent"] [data-field="interval"]')!
+    interval.value = '2500'
+    interval.dispatchEvent(new Event('input', {bubbles: true}))
+    root.querySelector<HTMLButtonElement>('#save-policy-button')!.click()
+    await vi.waitFor(() => expect(root.querySelector('#policy-page-revision')?.textContent).toBe('revision 5'))
+    expect(api.setUnsavedChanges).toHaveBeenLastCalledWith(true)
+    endpoint.value = original
+    endpoint.dispatchEvent(new Event('input', {bubbles: true}))
+    await vi.waitFor(() => expect(api.setUnsavedChanges).toHaveBeenLastCalledWith(false))
+    app.dispose()
+  })
+
+  it('preserves dirty policy after a failed save and clears it only after success', async () => {
+    const api = fakeAPI()
+    const {app, root} = mount(api)
+    await app.ready
+    const interval = root.querySelector<HTMLInputElement>('[data-policy-metric="cpu_percent"] [data-field="interval"]')!
+    interval.value = '2500'
+    interval.dispatchEvent(new Event('input', {bubbles: true}))
+    vi.mocked(api.updateConfiguration).mockRejectedValueOnce(new Error('save failed'))
+    root.querySelector<HTMLButtonElement>('#save-policy-button')!.click()
+    await vi.waitFor(() => expect(root.querySelector('#error-banner')?.textContent).toContain('save failed'))
+    expect(api.setUnsavedChanges).toHaveBeenLastCalledWith(true)
+    expect(interval.value).toBe('2500')
+    root.querySelector<HTMLButtonElement>('#save-policy-button')!.click()
+    await vi.waitFor(() => expect(api.setUnsavedChanges).toHaveBeenLastCalledWith(false))
+    app.dispose()
+  })
+
+  it('restores saved public connection fields once and exposes recovery failures', async () => {
+    const status: Status = {...statusValue(false), startup_error: 'saved identity is unavailable',
+      saved_connection: {version: 1, active: true, connection: {state_directory: 'C:/isolated/metrics',
+        node_id: '42', parent_node_id: '1', endpoint: '127.0.0.1:7331', parent_public_key: 'public-key'}}}
+    const api = fakeAPI(status)
+    const {app, root} = mount(api)
+    await app.ready
+    expect(root.querySelector<HTMLInputElement>('#state-directory')!.value).toBe('C:/isolated/metrics')
+    expect(root.querySelector<HTMLInputElement>('#node-id')!.value).toBe('42')
+    expect(root.querySelector<HTMLTextAreaElement>('#permit')!.value).toBe('')
+    expect(root.querySelector('#runtime-warnings')?.textContent).toContain('saved identity is unavailable')
+    expect(api.start).not.toHaveBeenCalled()
+    root.querySelector<HTMLInputElement>('#endpoint')!.value = '127.0.0.1:7444'
+    root.querySelector<HTMLButtonElement>('#refresh-button')!.click()
+    await vi.waitFor(() => expect(api.status).toHaveBeenCalledTimes(2))
+    expect(root.querySelector<HTMLInputElement>('#endpoint')!.value).toBe('127.0.0.1:7444')
+    app.dispose()
+  })
+
   it('renders only backend samples and supports navigation, selection and theme persistence', async () => {
     const api = fakeAPI()
     const {app, root} = mount(api)

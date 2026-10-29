@@ -1,0 +1,50 @@
+{
+  "scope": "Current packaged native Desktop, 2000 active subscriptions, synthetic provider fault wrapper; actual audio unchanged",
+  "status": "Three functional outcome checks passed; not full timing acceptance",
+  "results": [
+    {
+      "mode": "no-ack",
+      "target": true,
+      "started_ms": 1792931998779,
+      "input_completed_ms": 1792931999268,
+      "capture_ms": 1792932004901,
+      "requests": 1,
+      "effects": 1,
+      "ui_observation_upper_ms": 6122,
+      "input_call_ms": 489,
+      "status": "Functional state Passed; strict deadline not established by delayed screenshot"
+    },
+    {
+      "mode": "readback-fail",
+      "target": false,
+      "started_ms": 1792932338149,
+      "input_completed_ms": 1792932340514,
+      "capture_ms": 1792932341255,
+      "requests": 1,
+      "effects": 1,
+      "ui_observation_upper_ms": 3106,
+      "input_call_ms": 2365,
+      "status": "Functional state Passed"
+    },
+    {
+      "mode": "reject",
+      "target": true,
+      "started_ms": 1792932556239,
+      "input_completed_ms": 1792932556448,
+      "capture_ms": 1792932557034,
+      "requests": 1,
+      "effects": 0,
+      "ui_observation_upper_ms": 795,
+      "input_call_ms": 209,
+      "status": "Functional state Passed"
+    }
+  ],
+  "late_response_did_not_clear_uncertain": true,
+  "automatic_replay_count": 0,
+  "production_binaries_modified": false,
+  "limitations": [
+    "No-ack screenshot at 6122 ms cannot establish native five-second ceiling",
+    "Readback-failure input tool call took 2365 ms; raw timings retained",
+    "Single-host injected standard variable; not two-device hardware failure evidence"
+  ]
+}

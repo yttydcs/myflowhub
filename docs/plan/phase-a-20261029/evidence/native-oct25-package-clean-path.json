@@ -1,0 +1,38 @@
+{
+  "results": [
+    {
+      "sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "identity_persisted": true,
+      "product": "hub",
+      "startup": "Passed"
+    },
+    {
+      "sha256": "7E083DFD2AB904F98D1F0D063D80A9F21384E8EC72A5C87CA73C132B1A952ACF",
+      "identity_persisted": true,
+      "product": "admin",
+      "startup": "Passed"
+    },
+    {
+      "sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "identity_persisted": true,
+      "product": "metrics",
+      "startup": "Passed"
+    },
+    {
+      "sha256": "C5823811B9C9C692EB210E421156B6ADBAC68DD7118F89E216B160A26ACD77B5",
+      "identity_persisted": true,
+      "product": "example",
+      "startup": "Passed"
+    }
+  ],
+  "package": "C:\\Users\\HelloWorld\\AppData\\Local\\Temp\\mfh-phase-a-packages-oct25\\phase-a-worktree-74708cb2b42b",
+  "path": "C:\\Windows\\System32;C:\\Windows",
+  "limitations": [
+    "Same Windows installation with WebView2 present; not a clean VM",
+    "GUI and connected workload checked separately"
+  ],
+  "developer_tools_discoverable": false,
+  "root": "C:\\Users\\HelloWorld\\AppData\\Local\\Temp\\mfh-phase-a-package-smoke-d9139d8981d44eafa166c6397daaa177",
+  "source_sha256": "74708cb2b42bba410d54b8143d9c48871591362c4f5c3ad2454d8517c5217bd7",
+  "status": "Passed (CLI identity startup only)"
+}

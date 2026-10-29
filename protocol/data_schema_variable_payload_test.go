@@ -229,13 +229,20 @@ func TestVariableNodeIDViewAndNonVariableWireUnchanged(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if domain.ID != SchemaResourceCatalogV2 && !reflect.DeepEqual(domain, variable) {
+		if domain.ID != SchemaResourceCatalogV2 && domain.ID != SchemaCatalogPageV1 && !reflect.DeepEqual(domain, variable) {
 			t.Fatalf("unexpected NodeID projection in %s", domain.ID)
 		}
 		if domain.ID == SchemaResourceCatalogV2 {
 			field := dataSchemaAtPath(dataSchemaAtPath(&domain, "resources").Items, "id.owner")
 			if field.Type != "integer" || field.Format != "" {
 				t.Fatalf("ordinary domain definition changed to variable string: %#v", field)
+			}
+		}
+		if domain.ID == SchemaCatalogPageV1 {
+			ordinaryOwner := dataSchemaAtPath(&domain, "owner")
+			variableOwner := dataSchemaAtPath(&variable, "owner")
+			if ordinaryOwner.Type != "integer" || variableOwner.Type != "string" || variableOwner.Format != "node-id" {
+				t.Fatalf("catalog page changed ordinary NodeID encoding or lost its variable projection: %+v %+v", ordinaryOwner, variableOwner)
 			}
 		}
 	}

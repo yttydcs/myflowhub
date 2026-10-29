@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/yttydcs/myflowhub/protocol"
@@ -80,6 +81,8 @@ type OperationalStats struct {
 	ActiveLinks            int
 	ActiveSubscriptions    int
 	ActiveResourceSessions int
+	// Active local subscriptions retain a pending correlation for their lease.
+	PendingRequests int
 }
 
 func New(parent context.Context, config Config) (*Node, error) {
@@ -146,10 +149,16 @@ func New(parent context.Context, config Config) (*Node, error) {
 	if generated, ok := config.Policy.(interface {
 		WatchGeneration(func(uint64)) (uint64, func(), error)
 	}); ok {
+		updates := make(chan struct{}, 1)
+		var latest atomic.Uint64
 		_, stop, err := generated.WatchGeneration(func(generation uint64) {
-			manager.CleanupPolicyGeneration(generation)
-			value.expireForwardedSubscriptions(generation)
-			value.cleanupResourceSessionsPolicy(generation)
+			// Commit callbacks must neither take node locks nor invoke provider
+			// cleanup. Coalesce notifications into one bounded worker instead.
+			latest.Store(generation)
+			select {
+			case updates <- struct{}{}:
+			default:
+			}
 		})
 		if err != nil {
 			_ = manager.Close()
@@ -157,6 +166,26 @@ func New(parent context.Context, config Config) (*Node, error) {
 			return nil, fmt.Errorf("watch policy generation: %w", err)
 		}
 		value.policyWatchCancel = stop
+		if !value.launch(func() {
+			for {
+				select {
+				case <-updates:
+					generation := latest.Load()
+					manager.RevalidatePolicy(func(request subscription.Request) bool {
+						return config.Policy.Authorize(ctx, auth.Request{Subject: request.Subscriber, Action: auth.Action(request.Capability), Capability: request.Capability, Resource: request.Resource}) == nil
+					})
+					value.expireForwardedSubscriptions(generation)
+					value.cleanupResourceSessionsPolicy(generation)
+				case <-ctx.Done():
+					return
+				}
+			}
+		}) {
+			stop()
+			_ = manager.Close()
+			cancel()
+			return nil, errors.New("start policy observer: node is closed")
+		}
 	}
 	return value, nil
 }
@@ -172,8 +201,9 @@ func (n *Node) Stats() OperationalStats {
 	links := len(n.sessions)
 	forwarded := len(n.forwardedSubscriptions)
 	resourceSessions := len(n.resourceSessions)
+	pending := len(n.pending)
 	n.mu.RUnlock()
-	return OperationalStats{ActiveLinks: links, ActiveSubscriptions: n.subscriptions.Count() + forwarded, ActiveResourceSessions: resourceSessions}
+	return OperationalStats{ActiveLinks: links, ActiveSubscriptions: n.subscriptions.Count() + forwarded, ActiveResourceSessions: resourceSessions, PendingRequests: pending}
 }
 
 func (n *Node) DisconnectPeer(peer protocol.NodeID) error {

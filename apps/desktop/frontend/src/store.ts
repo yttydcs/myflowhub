@@ -1,5 +1,6 @@
 import type { ResourceDescriptor, Topology, TopologyNode, ViewWidget } from './types'
 import { resourceKey } from './lib/utils'
+import { compareNatural } from './lib/natural-compare'
 
 export interface ExplorerIndex {
   roots: string[]
@@ -50,11 +51,10 @@ export function buildExplorerIndex(topology: Topology, resources: ResourceDescri
   }
   for (const resource of resources) resourcesByNodeID.get(resource.id.owner_node_id)?.push(resource)
 
-  const compareNodeIDs = (left: string, right: string) => left.localeCompare(right, undefined, { numeric: true })
-  roots.sort(compareNodeIDs)
-  for (const childIDs of childrenByID.values()) childIDs.sort(compareNodeIDs)
+  roots.sort(compareNatural)
+  for (const childIDs of childrenByID.values()) childIDs.sort(compareNatural)
   for (const nodeResources of resourcesByNodeID.values()) {
-    nodeResources.sort((left, right) => left.id.name.localeCompare(right.id.name, undefined, { numeric: true }))
+    nodeResources.sort((left, right) => compareNatural(left.id.name, right.id.name))
   }
 
   return { roots, nodesByID, parentByID, childrenByID, resourcesByNodeID }

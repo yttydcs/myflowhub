@@ -25,13 +25,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := wails.Run(&options.App{
+	if err := runDesktop(app); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func runDesktop(app *App) error {
+	return wails.Run(&options.App{
 		Title: "MyFlowHub", Width: 1280, Height: 820, MinWidth: 980, MinHeight: 640,
 		AssetServer: &assetserver.Options{Assets: assets},
 		OnStartup:   app.Startup, OnShutdown: app.Shutdown, Bind: []interface{}{app},
-		DragAndDrop: &options.DragAndDrop{EnableFileDrop: true},
-		Windows:     &windows.Options{Theme: windows.SystemDefault},
-	}); err != nil {
-		log.Fatal(err)
-	}
+		OnBeforeClose: app.BeforeClose,
+		DragAndDrop:   &options.DragAndDrop{EnableFileDrop: true},
+		Windows:       &windows.Options{Theme: windows.SystemDefault},
+	})
 }

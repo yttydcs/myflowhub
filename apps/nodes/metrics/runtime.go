@@ -92,8 +92,13 @@ func prepareRuntime(ctx context.Context, config RuntimeConfig) (*Runtime, error)
 	if err := config.Endpoint.Validate(); err != nil {
 		return nil, err
 	}
+	runtimeConfig, err := nodehost.ProductRuntimeConfig()
+	if err != nil {
+		return nil, err
+	}
 	runCtx, cancel := context.WithCancel(ctx)
 	host, err := nodehost.New(runCtx, nodehost.Config{
+		Runtime:        runtimeConfig,
 		StateDirectory: config.StateDirectory,
 		NodeID:         config.NodeID,
 		Parent: &nodehost.ParentConfig{
@@ -102,7 +107,7 @@ func prepareRuntime(ctx context.Context, config RuntimeConfig) (*Runtime, error)
 			Permit:     config.Permit,
 			Driver:     config.Driver,
 			Endpoint:   config.Endpoint,
-			Supervisor: config.Supervisor,
+			Supervisor: nodehost.ProductSupervisorConfig(config.Supervisor),
 		},
 	})
 	if err != nil {
@@ -138,14 +143,17 @@ func (r *Runtime) Close() error {
 		if r.Notifications != nil {
 			r.Notifications.Close()
 		}
-		if r.Metrics != nil {
-			closeErr = r.Metrics.Close()
-		}
 		if r.cancel != nil {
 			r.cancel()
 		}
+		// Disconnect before retiring resources. Otherwise an ordinary shutdown
+		// can publish not_found while still reachable and permanently end peers'
+		// durable subscriptions instead of letting them recover after restart.
 		if r.Host != nil {
 			closeErr = errors.Join(closeErr, r.Host.Close())
+		}
+		if r.Metrics != nil {
+			closeErr = errors.Join(closeErr, r.Metrics.Close())
 		}
 	})
 	return closeErr

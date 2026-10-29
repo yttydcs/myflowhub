@@ -284,11 +284,35 @@ func (c *Client) WriteVariable(ctx context.Context, resourceID protocol.Resource
 }
 
 func decodeVariableEnvelope(schema string, payload []byte, requireDefinition bool) (protocol.VariableValueV1, error) {
+	return decodeVariableEnvelopeWithDefinition(schema, payload, requireDefinition, nil)
+}
+
+func decodeVariableEnvelopeWithDefinition(schema string, payload []byte, requireDefinition bool, cached *protocol.DataSchemaDefinition) (protocol.VariableValueV1, error) {
 	if schema != protocol.SchemaVariableValueV1 {
 		return protocol.VariableValueV1{}, &Error{Code: protocol.CodeUnsupported, Message: fmt.Sprintf("unsupported variable schema %q", schema)}
 	}
 	var state protocol.VariableValueV1
-	if err := protocol.DecodeJSONPayload(payload, protocol.DefaultMaxPayload, &state); err != nil {
+	var err error
+	if cached == nil {
+		err = protocol.DecodeJSONPayload(payload, protocol.DefaultMaxPayload, &state)
+	} else {
+		// VariableValueV1.UnmarshalJSON enforces exact fields, presence, duplicate
+		// keys and encoding. Validate data once against its trusted session
+		// definition instead of parsing its value twice.
+		if len(payload) > protocol.DefaultMaxPayload {
+			err = fmt.Errorf("%w: got %d, max %d", protocol.ErrPayloadTooLarge, len(payload), protocol.DefaultMaxPayload)
+		} else {
+			err = json.Unmarshal(payload, &state)
+		}
+		if err == nil {
+			if state.Definition != nil {
+				err = state.Validate()
+			} else {
+				err = protocol.ValidateVariableState(*cached, state)
+			}
+		}
+	}
+	if err != nil {
 		return protocol.VariableValueV1{}, &Error{Code: protocol.CodeMalformed, Message: fmt.Sprintf("decode variable state: %v", err), cause: err}
 	}
 	if requireDefinition && state.Definition == nil {
@@ -301,11 +325,12 @@ func decodeVariableEnvelope(schema string, payload []byte, requireDefinition boo
 // current instance definition. Use a separate decoder for each subscription;
 // it is not safe for concurrent calls. Its zero value expects an initial snapshot.
 type VariableEventDecoder struct {
-	resource    protocol.ResourceID
-	instanceID  string
-	revision    uint64
-	definition  []byte
-	initialized bool
+	resource         protocol.ResourceID
+	instanceID       string
+	revision         uint64
+	definition       []byte
+	cachedDefinition *protocol.DataSchemaDefinition
+	initialized      bool
 }
 
 // Decode returns a validated state with the session definition populated. It
@@ -334,7 +359,7 @@ func (d *VariableEventDecoder) Decode(event Event) (protocol.VariableValueV1, er
 	if event.Kind == EventData && !d.initialized {
 		return malformed("variable subscription requires an initial snapshot")
 	}
-	state, err := decodeVariableEnvelope(event.Schema, event.Value, event.Kind == EventSnapshot)
+	state, err := decodeVariableEnvelopeWithDefinition(event.Schema, event.Value, event.Kind == EventSnapshot, d.cachedDefinition)
 	if err != nil {
 		return protocol.VariableValueV1{}, err
 	}
@@ -352,6 +377,7 @@ func (d *VariableEventDecoder) Decode(event Event) (protocol.VariableValueV1, er
 		return malformed("variable event revision did not advance")
 	}
 	definition := d.definition
+	cachedDefinition := d.cachedDefinition
 	if state.Definition != nil {
 		definition, err = json.Marshal(state.Definition)
 		if err != nil {
@@ -360,15 +386,16 @@ func (d *VariableEventDecoder) Decode(event Event) (protocol.VariableValueV1, er
 		if d.initialized && state.InstanceID == d.instanceID && !bytes.Equal(definition, d.definition) {
 			return malformed("variable definition changed within an instance")
 		}
+		copied := protocol.CloneVariableDefinition(*state.Definition)
+		cachedDefinition = &copied
 	} else {
-		if err := json.Unmarshal(definition, &state.Definition); err != nil {
-			return malformed(fmt.Sprintf("variable cached definition: %v", err))
+		if cachedDefinition == nil {
+			return malformed("variable cached definition is missing")
 		}
-		// Envelopes carrying a definition were already fully validated by
-		// DecodeJSONPayload. Only definition-less data needs cached validation.
-		if err := protocol.ValidateVariableState(*state.Definition, state); err != nil {
-			return malformed(fmt.Sprintf("variable cached state: %v", err))
-		}
+		copied := protocol.CloneVariableDefinition(*cachedDefinition)
+		state.Definition = &copied
+		// Cached validation already ran before exposing the state. Keep the
+		// reconstructed envelope bound as well as the original wire bound.
 		full, err := json.Marshal(state)
 		if err != nil {
 			return malformed(fmt.Sprintf("encode complete variable state: %v", err))
@@ -377,14 +404,8 @@ func (d *VariableEventDecoder) Decode(event Event) (protocol.VariableValueV1, er
 			return malformed("complete variable state exceeds protocol payload limit")
 		}
 	}
-	*d = VariableEventDecoder{resource: event.Resource, instanceID: state.InstanceID, revision: revision, definition: definition, initialized: true}
+	*d = VariableEventDecoder{resource: event.Resource, instanceID: state.InstanceID, revision: revision, definition: definition, cachedDefinition: cachedDefinition, initialized: true}
 	return state, nil
-}
-
-func (c *Client) Catalog(ctx context.Context, owner protocol.NodeID) (protocol.ResourceCatalogV2, error) {
-	var catalog protocol.ResourceCatalogV2
-	err := c.DecodeSnapshot(ctx, protocol.ResourceID{Owner: owner, Name: protocol.BuiltinResourceCatalog}, &catalog)
-	return catalog, err
 }
 
 func (c *Client) Invoke(ctx context.Context, resourceID protocol.ResourceID, input []byte) ([]byte, error) {

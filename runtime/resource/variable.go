@@ -195,7 +195,7 @@ func (v *Variable) compareAndSet(ctx context.Context, instance string, revision 
 		return VariableUpdate{}, false, ErrNotFound
 	}
 	if revision == 0 || instance != v.instanceID || revision != current {
-		return VariableUpdate{}, false, fmt.Errorf("%w: variable instance or revision changed", ErrRevisionConflict)
+		return VariableUpdate{}, false, fmt.Errorf("%w: variable instance or revision changed (expected revision %d, current %d, instance changed %t)", ErrRevisionConflict, revision, current, instance != v.instanceID)
 	}
 	if current == math.MaxUint64 {
 		return VariableUpdate{}, false, errors.New("variable revision exhausted")
@@ -465,38 +465,7 @@ func (v *Variable) callWatcher(watcher *variableWatcher, update VariableUpdate) 
 }
 
 func cloneVariableDefinition(definition protocol.DataSchemaDefinition) protocol.DataSchemaDefinition {
-	definition.Precision = cloneVariablePointer(definition.Precision)
-	definition.Minimum = cloneVariablePointer(definition.Minimum)
-	definition.Maximum = cloneVariablePointer(definition.Maximum)
-	definition.MultipleOf = cloneVariablePointer(definition.MultipleOf)
-	definition.MinLength = cloneVariablePointer(definition.MinLength)
-	definition.MaxLength = cloneVariablePointer(definition.MaxLength)
-	definition.MinItems = cloneVariablePointer(definition.MinItems)
-	definition.MaxItems = cloneVariablePointer(definition.MaxItems)
-	definition.Enum = append([]string(nil), definition.Enum...)
-	definition.Properties = append([]protocol.DataSchemaProperty(nil), definition.Properties...)
-	for i := range definition.Properties {
-		if definition.Properties[i].Schema != nil {
-			child := cloneVariableDefinition(*definition.Properties[i].Schema)
-			definition.Properties[i].Schema = &child
-		}
-	}
-	if definition.Items != nil {
-		child := cloneVariableDefinition(*definition.Items)
-		definition.Items = &child
-	}
-	if definition.AdditionalProperties != nil {
-		child := cloneVariableDefinition(*definition.AdditionalProperties)
-		definition.AdditionalProperties = &child
-	}
-	return definition
-}
-func cloneVariablePointer[T any](value *T) *T {
-	if value == nil {
-		return nil
-	}
-	copy := *value
-	return &copy
+	return protocol.CloneVariableDefinition(definition)
 }
 func invokeVariableHandler(handler VariableWriteHandler, ctx context.Context, value any) (state VariableState, err error) {
 	defer func() {

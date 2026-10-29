@@ -175,7 +175,7 @@ pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
   background: var(--surface-subtle);
 }
 .app-body { --workspace-tabs-height: 36px; }
-.main-stack { grid-area: main; min-width: 0; display: grid; grid-template-rows: var(--workspace-tabs-height) minmax(0, 1fr); background: var(--surface); }
+.main-stack { grid-area: main; min-width: 0; min-height: 0; overflow: hidden; display: grid; grid-template-rows: var(--workspace-tabs-height) minmax(0, 1fr); background: var(--surface); }
 
 .sidebar-tabs { min-height: 0; display: grid; grid-template-rows: var(--workspace-tabs-height) minmax(0, 1fr); }
 .tabs-list { display: flex; border-bottom: 1px solid var(--border); background: var(--surface-subtle); }

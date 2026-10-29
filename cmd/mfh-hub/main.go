@@ -16,9 +16,11 @@ import (
 
 	hostconfig "github.com/yttydcs/myflowhub/host/config"
 	"github.com/yttydcs/myflowhub/host/hub"
+	"github.com/yttydcs/myflowhub/host/nodehost"
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/auth"
 	"github.com/yttydcs/myflowhub/runtime/link"
+	"github.com/yttydcs/myflowhub/runtime/node"
 	"github.com/yttydcs/myflowhub/transport/tcp"
 )
 
@@ -152,7 +154,12 @@ func run(ctx context.Context, opts options, output io.Writer) error {
 	} else if opts.authorityKey != "" {
 		return errors.New("admission-authority-key is only valid for a remote Admission Authority")
 	}
+	runtimeConfig, err := nodehost.ProductRuntimeConfig()
+	if err != nil {
+		return err
+	}
 	runtime, err := hub.StartPersistent(ctx, hub.PersistentConfig{
+		Node:                        node.Config{Subscriptions: runtimeConfig.Subscriptions, MaxPending: runtimeConfig.MaxPending, Session: runtimeConfig.Session},
 		StateDirectory:              opts.stateDirectory,
 		NodeID:                      nodeID,
 		Listeners:                   []hub.ListenerConfig{{Driver: tcp.Driver{}, Endpoint: link.Endpoint(opts.address)}},

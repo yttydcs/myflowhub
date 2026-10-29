@@ -239,13 +239,19 @@ func (s *profileCredentialStore) Open(profile Profile, permitJSON string) (*prof
 		}
 		permit = &value
 	}
+	runtimeConfig, err := nodehost.ProductRuntimeConfig()
+	if err != nil {
+		return nil, err
+	}
 	host, err := nodehost.New(context.Background(), nodehost.Config{
+		Runtime:        runtimeConfig,
 		StateDirectory: directory,
 		NodeID:         protocol.NodeID(nodeID),
 		IdentityStore:  backend,
 		Parent: &nodehost.ParentConfig{
 			NodeID: protocol.NodeID(parentID), PublicKey: ed25519.PublicKey(parentKey), Permit: permit,
 			Driver: tcp.Driver{}, Endpoint: link.Endpoint(strings.TrimSpace(profile.Endpoint)),
+			Supervisor: nodehost.ProductSupervisorConfig(node.SupervisorConfig{}),
 		},
 	})
 	if err != nil {
@@ -282,7 +288,7 @@ func openAuthorityProfileHost(profile Profile, directory string, backend platfor
 		}
 		configuredNodeID = protocol.NodeID(value)
 	}
-	parent := &nodehost.ParentConfig{Driver: tcp.Driver{}, Endpoint: link.Endpoint(strings.TrimSpace(profile.Endpoint))}
+	parent := &nodehost.ParentConfig{Driver: tcp.Driver{}, Endpoint: link.Endpoint(strings.TrimSpace(profile.Endpoint)), Supervisor: nodehost.ProductSupervisorConfig(node.SupervisorConfig{})}
 	if profile.ParentNodeID != "" {
 		value, err := parsePositiveInt64(profile.ParentNodeID, "parent_node_id")
 		if err != nil {
@@ -297,7 +303,12 @@ func openAuthorityProfileHost(profile Profile, directory string, backend platfor
 		}
 		parent.PublicKey = ed25519.PublicKey(key)
 	}
+	runtimeConfig, err := nodehost.ProductRuntimeConfig()
+	if err != nil {
+		return nil, nil, err
+	}
 	host, err := nodehost.New(context.Background(), nodehost.Config{
+		Runtime:        runtimeConfig,
 		StateDirectory: directory, NodeID: configuredNodeID, CredentialSource: source, Parent: parent,
 	})
 	if err != nil {
@@ -402,9 +413,14 @@ type App struct {
 	active        *profileRuntime
 	logs          []logEntry
 	subscriptions desktopSubscriptions
+	unsaved       bool
 }
 
 func NewApp(configRoot string) (*App, error) {
+	runtimeConfig, err := nodehost.ProductRuntimeConfig()
+	if err != nil {
+		return nil, err
+	}
 	store, err := newSettingsStore(configRoot)
 	if err != nil {
 		return nil, err
@@ -415,7 +431,8 @@ func NewApp(configRoot string) (*App, error) {
 	}
 	app := &App{
 		store: store, credentials: newProfileCredentialStore(store), settings: settings,
-		logs: make([]logEntry, 0, maxDesktopLogs),
+		logs:          make([]logEntry, 0, maxDesktopLogs),
+		subscriptions: desktopSubscriptions{limit: runtimeConfig.Subscriptions.MaxSubscriptions},
 	}
 	if settings.ActiveProfileID != "" {
 		profile, _ := findProfile(settings, settings.ActiveProfileID)
@@ -1043,7 +1060,11 @@ func (a *App) OperateJSON(ownerNodeID, name, capability, schema, requestJSON str
 	if err != nil {
 		return "", err
 	}
-	result, err := client.OperateJSON(ownerID, name, capability, schema, requestJSON, defaultRequestTimeoutMS)
+	timeoutMS := defaultRequestTimeoutMS
+	if capability == string(protocol.CapabilityWrite) && schema == protocol.SchemaVariableWriteV3 {
+		timeoutMS = 5000
+	}
+	result, err := client.OperateJSON(ownerID, name, capability, schema, requestJSON, timeoutMS)
 	if err != nil {
 		return "", a.fail("operate "+name+"/"+capability, err)
 	}

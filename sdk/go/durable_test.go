@@ -74,6 +74,9 @@ func TestDurableVariableSubscriptionRecoversAfterParentRestart(t *testing.T) {
 	}
 	parent = startParent("two")
 	defer parent.Close()
+	if event := receiveDurable(t, durable); event.Kind != EventGap {
+		t.Fatalf("disconnect did not invalidate the previous value: %+v", event)
+	}
 	if event := receiveDurable(t, durable); event.Kind != EventSnapshot || string(decodeTestEvent(t, event).Value) != `"two"` {
 		t.Fatalf("unexpected recovered snapshot: %+v", event)
 	}

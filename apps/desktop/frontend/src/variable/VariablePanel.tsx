@@ -12,6 +12,7 @@ import { selectVariableRenderer } from '../rendering/registry'
 import { useVariable } from './useVariable'
 import { VariableEditor } from './VariableEditor'
 import { MAX_VARIABLE_BYTES, validateVariableJSON, validateVariableValue, sameValue } from './protocol'
+import { setUnsavedChanges } from '../unsaved'
 
 const pretty = (value: unknown) => JSON.stringify(value, null, 2)
 function friendlyTime(milliseconds: number): string {
@@ -29,6 +30,13 @@ export function VariablePanel({ api, resource, rendererID, disabledReason, showF
   const [advanced, setAdvanced] = useState(false)
   const [editorReset, setEditorReset] = useState(0)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const unsavedOwner = useRef(Symbol('local invalid input'))
+  const invalidInput = Boolean(inputError) || Object.keys(fieldErrors).length > 0
+  useEffect(() => {
+    const owner = unsavedOwner.current
+    setUnsavedChanges(owner, invalidInput)
+    return () => setUnsavedChanges(owner, false)
+  }, [invalidInput])
   const pendingApply = useRef<ReturnType<typeof setTimeout>>()
   const canAutoApply = useRef(false)
   const localDraft = useRef<{ controller: typeof controller; version: number; instance?: string }>()
@@ -97,6 +105,7 @@ export function VariablePanel({ api, resource, rendererID, disabledReason, showF
     snapshot?.status === 'unavailable' && blocked === '当前值不可用' ? '' : blocked,
     state.error && !blocked.includes(state.error) ? state.error : '', inputError,
   ].filter(Boolean))]
+    .filter((message, _, messages) => !messages.some((other) => other !== message && String(other).startsWith(String(message))))
   const observation = state.loading ? '正在读取快照…' : state.observation || '尚未订阅'
   const statusTone = state.error || blocked || snapshot?.status === 'unavailable' ? 'error' : snapshot?.status === 'stale' || (state.observation && !state.live && !state.loading) ? 'idle' : state.live ? 'live' : 'idle'
   const observationFailure = !state.live && /失败|未订阅：|gap|expired|revoked|terminated/i.test(state.observation)
@@ -137,8 +146,9 @@ export function VariablePanel({ api, resource, rendererID, disabledReason, showF
     </>}
     {conflict && !(autoApply && writing) && <p role="alert">当前值已变化，草稿与旧 revision 冲突；请重置后编辑。</p>}
     {errors.map((message) => <p key={message} className="form-error" role="alert">{message}</p>)}
-    {autoApply && !showFooter && !writing && hasDraftChanges && (state.error || conflict || blocked) && <div className="value-actions">
+    {autoApply && !showFooter && !writing && hasDraftChanges && (state.error || conflict || blocked || state.writeOutcome === 'uncertain' || state.writeOutcome === 'confirmed-unreadable') && <div className="value-actions">
       <Button variant="ghost" size="sm" disabled={writing} onClick={resetDraft}>放弃修改</Button>
+      {blocked && <Button size="sm" disabled={state.loading} onClick={() => void controller?.refresh()}>刷新确认当前值</Button>}
       {!blocked && !conflict && <Button size="sm" disabled={!canAutoApply.current || !dirty} onClick={() => void controller?.apply()}>重试应用</Button>}
     </div>}
     {showFooter && <div className="variable-footer">

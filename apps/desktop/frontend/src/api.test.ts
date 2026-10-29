@@ -5,9 +5,17 @@ import { node, query } from './discovery/fixtures.test-support'
 import { TOPOLOGY_QUERY_SCHEMA } from './discovery/topology'
 import { snapshot } from './variable/fixtures.test-support'
 
-vi.mock('../wailsjs/go/main/App', async (original) => ({ ...await original<typeof App>(), OperateJSON: vi.fn(), TopologyJSON: vi.fn(), SnapshotJSON: vi.fn(), PollSubscription: vi.fn() }))
+vi.mock('../wailsjs/go/main/App', async (original) => ({ ...await original<typeof App>(), OperateJSON: vi.fn(), WriteVariableFromSnapshot: vi.fn(), TopologyJSON: vi.fn(), SnapshotJSON: vi.fn(), PollSubscription: vi.fn(), PollSubscriptionsBatch: vi.fn() }))
 
 describe('Variable Wails JSON boundary', () => {
+  it('passes an exact base and conditional intent to the native write attempt', async () => {
+    const base = snapshot()
+    const input = { version: 3, expected_instance_id: base.instance_id, expected_revision: base.revision, value: true }
+    const attempt = { sent: false, error: 'conflict: value changed' }
+    vi.mocked(App.WriteVariableFromSnapshot).mockResolvedValue(attempt)
+    expect(await api.writeVariableFromSnapshot!('719', 'anything', base, input)).toEqual(attempt)
+    expect(App.WriteVariableFromSnapshot).toHaveBeenLastCalledWith('719', 'anything', JSON.stringify(base), JSON.stringify(input))
+  })
   it('returns an envelope with false and an exact string revision', async () => {
     vi.mocked(App.SnapshotJSON).mockResolvedValue(JSON.stringify(snapshot()))
     expect(await api.snapshot('719', 'anything')).toEqual(snapshot())
@@ -24,7 +32,7 @@ describe('Variable Wails JSON boundary', () => {
   })
   it('receives a JSON subscription envelope without base64 conversion', async () => {
     const event = { kind: 'data', revision: '9007199254740993', value: snapshot(false) }
-    vi.mocked(App.PollSubscription).mockResolvedValue(JSON.stringify({ kind: 'event', payload: event }))
+    vi.mocked(App.PollSubscriptionsBatch).mockResolvedValue([{ subscription_id: 1, kind: 'event', payload: event }])
     expect(await api.poll(1, 1000)).toEqual({ kind: 'event', payload: event })
   })
 })

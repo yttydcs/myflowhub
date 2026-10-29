@@ -13,6 +13,8 @@
 
 ## Runtime And Architecture
 
+- [high-rate-variable-transport-and-definition-cache.md](high-rate-variable-transport-and-definition-cache.md)：2000@1Hz队列溢出、采样积压、重复schema解析、缓存深拷贝及原生与后端证据边界。
+
 - [desktop-variable-confirmation-and-split-layout.md](desktop-variable-confirmation-and-split-layout.md)：共享变量提交归属、控件确认时机、fr 留白、紧凑卡片高度、模式切换丢草稿与窄窗口 grid 溢出。
 
 - [partial-discovery-and-async-ownership.md](partial-discovery-and-async-ownership.md)：部分树边界、排队请求清理、跨Profile View引用与迟到保存导致的状态/草稿覆盖。
@@ -27,6 +29,8 @@
 - [observable-side-effects-and-generated-contracts.md](observable-side-effects-and-generated-contracts.md)：替代 mutation 路径的订阅副作用、重入版本倒退、超限终止与单一 contract 真相。
 
 ## Platform And Toolchain
+
+- [Windows原生验收测量](windows-native-acceptance-evidence.md)：WebView2共享进程污染内存、输入派发延迟、截图上界与健康窗口次数。
 
 - [go-cross-compile-tests-on-windows.md](go-cross-compile-tests-on-windows.md)：Windows 上设置非本机 `GOOS` 后，普通 `go test` 会尝试执行目标二进制；跨平台门禁必须区分 compile-only 与真实 target runtime。
 - [android-gradle-loopback-daemon-unavailable.md](android-gradle-loopback-daemon-unavailable.md)：Gradle single-use daemon 在 task 前失败于 `Unable to establish loopback connection` 时，分层记录 gomobile/Gradle/device 证据并标为环境 Unavailable。

@@ -47,6 +47,9 @@
 - remote、push、publication 与 backup 目标由用户单独决定；整理文档不隐含发布授权。
 
 ## Quick Entry
+- 想看统一产品定义、已确认结论及首版范围讨论：
+  - [统一产品定义](requirements/product-definition.md)
+  - [原始讨论与当前续议](intake/2026-09-06_product-definition-grill.md#2026-10-19-主线同步与首版续议)
 - 想看当前主线与整体状态：
   - [../plan.md](../plan.md)
   - [../repos.md](../repos.md)

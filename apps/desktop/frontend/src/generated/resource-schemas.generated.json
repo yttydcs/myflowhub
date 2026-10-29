@@ -1097,6 +1097,363 @@
       ]
     },
     {
+      "id": "mfh.catalog-list.v1",
+      "type": "object",
+      "title": "List resource catalog",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "maximum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "limit",
+          "schema": {
+            "type": "integer",
+            "title": "Limit",
+            "minimum": 0,
+            "maximum": 256,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "cursor",
+          "schema": {
+            "type": "string",
+            "title": "Cursor",
+            "max_length": 512
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfh.catalog-page.v1",
+      "type": "object",
+      "title": "Resource catalog page",
+      "properties": [
+        {
+          "name": "version",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Version",
+            "minimum": 1,
+            "maximum": 1,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "owner",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Owner",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "instance_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Instance Id",
+            "max_length": 32
+          }
+        },
+        {
+          "name": "revision",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Revision",
+            "max_length": 20
+          }
+        },
+        {
+          "name": "offset",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Offset",
+            "minimum": 0,
+            "maximum": 4095,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "total",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Total",
+            "minimum": 1,
+            "maximum": 4096,
+            "multiple_of": 1
+          }
+        },
+        {
+          "name": "resources",
+          "required": true,
+          "schema": {
+            "type": "array",
+            "nullable": true,
+            "title": "Resources",
+            "max_items": 256,
+            "items": {
+              "type": "object",
+              "properties": [
+                {
+                  "name": "id",
+                  "required": true,
+                  "schema": {
+                    "type": "object",
+                    "title": "Id",
+                    "properties": [
+                      {
+                        "name": "owner",
+                        "required": true,
+                        "schema": {
+                          "type": "integer",
+                          "title": "Owner",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "multiple_of": 1
+                        }
+                      },
+                      {
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                          "type": "string",
+                          "title": "Name"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "type",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "title": "Type"
+                  }
+                },
+                {
+                  "name": "type_version",
+                  "required": true,
+                  "schema": {
+                    "type": "integer",
+                    "title": "Type Version",
+                    "minimum": 0,
+                    "maximum": 9007199254740991,
+                    "multiple_of": 1
+                  }
+                },
+                {
+                  "name": "capabilities",
+                  "required": true,
+                  "schema": {
+                    "type": "array",
+                    "nullable": true,
+                    "title": "Capabilities",
+                    "max_items": 4096,
+                    "items": {
+                      "type": "object",
+                      "properties": [
+                        {
+                          "name": "name",
+                          "required": true,
+                          "schema": {
+                            "type": "string",
+                            "title": "Name"
+                          }
+                        },
+                        {
+                          "name": "permission",
+                          "required": true,
+                          "schema": {
+                            "type": "string",
+                            "title": "Permission"
+                          }
+                        },
+                        {
+                          "name": "input_schema",
+                          "schema": {
+                            "type": "string",
+                            "title": "Input Schema"
+                          }
+                        },
+                        {
+                          "name": "output_schema",
+                          "schema": {
+                            "type": "string",
+                            "title": "Output Schema"
+                          }
+                        },
+                        {
+                          "name": "event_schema",
+                          "schema": {
+                            "type": "string",
+                            "title": "Event Schema"
+                          }
+                        },
+                        {
+                          "name": "max_payload_bytes",
+                          "required": true,
+                          "schema": {
+                            "type": "integer",
+                            "title": "Max Payload Bytes",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "multiple_of": 1
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "schemas",
+                  "schema": {
+                    "type": "array",
+                    "nullable": true,
+                    "title": "Schemas",
+                    "max_items": 4096,
+                    "items": {
+                      "type": "object",
+                      "properties": [
+                        {
+                          "name": "id",
+                          "required": true,
+                          "schema": {
+                            "type": "string",
+                            "title": "Id"
+                          }
+                        },
+                        {
+                          "name": "content_type",
+                          "required": true,
+                          "schema": {
+                            "type": "string",
+                            "title": "Content Type"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "limits",
+                  "required": true,
+                  "schema": {
+                    "type": "object",
+                    "title": "Limits",
+                    "properties": [
+                      {
+                        "name": "max_payload_bytes",
+                        "required": true,
+                        "schema": {
+                          "type": "integer",
+                          "title": "Max Payload Bytes",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "multiple_of": 1
+                        }
+                      },
+                      {
+                        "name": "max_subscribers",
+                        "schema": {
+                          "type": "integer",
+                          "title": "Max Subscribers",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "multiple_of": 1
+                        }
+                      },
+                      {
+                        "name": "max_sessions",
+                        "schema": {
+                          "type": "integer",
+                          "title": "Max Sessions",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "multiple_of": 1
+                        }
+                      },
+                      {
+                        "name": "max_queue",
+                        "schema": {
+                          "type": "integer",
+                          "title": "Max Queue",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "multiple_of": 1
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "presentation",
+                  "schema": {
+                    "type": "object",
+                    "title": "Presentation",
+                    "properties": [
+                      {
+                        "name": "renderer",
+                        "schema": {
+                          "type": "string",
+                          "title": "Renderer"
+                        }
+                      },
+                      {
+                        "name": "label",
+                        "schema": {
+                          "type": "string",
+                          "title": "Label"
+                        }
+                      },
+                      {
+                        "name": "description",
+                        "schema": {
+                          "type": "string",
+                          "title": "Description"
+                        }
+                      },
+                      {
+                        "name": "icon",
+                        "schema": {
+                          "type": "string",
+                          "title": "Icon"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "next_cursor",
+          "schema": {
+            "type": "string",
+            "title": "Next Cursor",
+            "max_length": 512
+          }
+        }
+      ]
+    },
+    {
       "id": "mfh.catalog.v2",
       "type": "object",
       "title": "Resource catalog",

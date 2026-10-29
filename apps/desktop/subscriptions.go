@@ -2,7 +2,10 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"github.com/yttydcs/myflowhub/host/nodehost"
 	"sync"
+	"time"
 )
 
 type subscriptionClient interface {
@@ -18,16 +21,24 @@ type desktopSubscription struct {
 // SDK subscription IDs belong to their client. Desktop IDs retain that client
 // so a late poll/cancel from an old Profile cannot address a new Profile's ID.
 type desktopSubscriptions struct {
-	mu      sync.Mutex
-	next    int64
-	entries map[int64]desktopSubscription
+	batchMu     sync.Mutex
+	batchCursor int
+	nextBatch   time.Time
+	mu          sync.Mutex
+	next        int64
+	limit       int
+	entries     map[int64]desktopSubscription
 }
 
 func (s *desktopSubscriptions) add(client subscriptionClient, id int64) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if len(s.entries) >= 256 {
-		return 0, errors.New("desktop supports at most 256 active subscriptions")
+	limit := s.limit
+	if limit == 0 {
+		limit = nodehost.DefaultProductSubscriptions
+	}
+	if len(s.entries) >= limit {
+		return 0, fmt.Errorf("desktop supports at most %d active subscriptions", limit)
 	}
 	if s.next >= 1<<53-1 {
 		return 0, errors.New("desktop subscription IDs exhausted")

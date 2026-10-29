@@ -7,6 +7,8 @@
 已有 `flow.json` 原样保留但不再读取、执行或更新；通用资源调用、订阅、Collection 和授权继续保留。
 本次不引入替代执行器或内部语言。参见[移除决策](../decisions/2026-09-06_retire-flow-pending-redesign.md)。
 
+2026-10-19 状态同步：新 Flow 的产品原则已在[统一产品定义第 5 节](../requirements/product-definition.md#5-flow已确认的产品定义)确认，具体设计仍见[Flow 重设计](../requirements/flow-redesign.md)。下文仅保留旧实现历史，不代表新模型的接口或授权合同。
+
 ## Historical Reference
 
 以下保留退役前的描述，供重新设计时回顾。下文的“当前”“已实现”及 API/测试说明均属于历史状态，

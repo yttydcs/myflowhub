@@ -26,6 +26,7 @@ describe('unknown node Variable rendering', () => {
     await act(async () => event(snapshot(true, '2')))
     expect(toggle).not.toBeChecked()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    vi.mocked(api.snapshot).mockResolvedValue(snapshot(true, '2'))
     await act(async () => write.resolve({ schema: 'mfh.variable-value.v1', payload: snapshot(true, '2') }))
     expect(toggle).toBeChecked()
     expect(toggle).toBeEnabled()
@@ -147,7 +148,7 @@ describe('unknown node Variable rendering', () => {
     expect(screen.getByRole('textbox')).toHaveValue('pending')
     expect(api.operate).not.toHaveBeenCalled()
   })
-  it('keeps a failed auto-write visible without a retry loop and offers explicit retry', async () => {
+  it('keeps an uncertain auto-write visible and requires refresh before explicit retry', async () => {
     const { api } = variableAPI()
     vi.mocked(api.operate).mockRejectedValueOnce(new Error('network disconnected'))
     render(<ResourceRenderer api={api} resource={variableResource(false)} showVariableFooter={false} autoApplyVariable />)
@@ -156,6 +157,10 @@ describe('unknown node Variable rendering', () => {
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 550)) })
     expect(api.operate).toHaveBeenCalledTimes(1)
     expect(screen.getByText('未应用')).toBeVisible()
+    expect(screen.queryByRole('button', { name: '重试应用' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '刷新确认当前值' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    // Refresh preserves the pending draft; applying it is a new explicit intent.
     fireEvent.click(screen.getByRole('button', { name: '重试应用' }))
     await waitFor(() => expect(api.operate).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())

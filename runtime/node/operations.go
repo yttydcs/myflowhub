@@ -75,6 +75,7 @@ func (n *Node) handleSubscribe(envelope protocol.Envelope, inbound *peerSession)
 		ID: envelope.MessageID, Subscriber: envelope.Subject(), Resource: envelope.Resource, Capability: envelope.Capability,
 		LinkID: linkID, NextHop: nextHop, Lease: lease, TopologyEpoch: topologyEpoch,
 		PolicyGeneration: auth.PolicyGeneration(n.policy), Queue: payload.Queue,
+		PolicyIndependent: envelope.Phase == protocol.PhaseControl || envelope.Subject() == n.ID(),
 	})
 	if err != nil {
 		code := protocol.CodeConflict
@@ -110,6 +111,13 @@ func (n *Node) handleSubscribe(envelope protocol.Envelope, inbound *peerSession)
 
 func (n *Node) forwardSubscription(request protocol.Envelope, current *subscription.Subscription) {
 	for event := range current.Events {
+		// Recheck before routing each protected value; asynchronous subscription
+		// cleanup alone leaves a window after a successful revocation commit.
+		if err := n.authorizeLocal(request); err != nil {
+			_ = n.sendError(request, protocol.CodeExpired, "subscription permission revoked")
+			current.Cancel()
+			return
+		}
 		if event.Kind == subscription.EventFailure {
 			failure := event.Failure
 			if failure == nil || failure.Code == "" || failure.Message == "" {

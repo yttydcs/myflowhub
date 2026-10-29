@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -21,12 +23,17 @@ import (
 const uiPayloadLimit = 256 * 1024
 
 type App struct {
-	mu             sync.Mutex
-	ctx            context.Context
-	runtime        *metrics.Runtime
-	presentCancel  context.CancelFunc
-	presentWG      sync.WaitGroup
-	presenterError string
+	lifecycle       sync.Mutex
+	mu              sync.Mutex
+	ctx             context.Context
+	runtime         *metrics.Runtime
+	presentCancel   context.CancelFunc
+	presentWG       sync.WaitGroup
+	presenterError  string
+	configDirectory string
+	savedConnection *savedConnectionV1
+	startupError    string
+	unsaved         bool
 }
 
 type identityRequestV1 struct {
@@ -93,13 +100,15 @@ func (r startRequestV1) values() (protocol.NodeID, protocol.NodeID, ed25519.Publ
 }
 
 type statusV1 struct {
-	Version        int                        `json:"version"`
-	Running        bool                       `json:"running"`
-	Connection     *connectionStatusV1        `json:"connection,omitempty"`
-	Configuration  *metrics.ConfigV1          `json:"configuration,omitempty"`
-	Metrics        []metrics.MetricState      `json:"metrics"`
-	Notifications  metrics.NotificationStatus `json:"notifications"`
-	PresenterError string                     `json:"presenter_error,omitempty"`
+	Version         int                        `json:"version"`
+	Running         bool                       `json:"running"`
+	Connection      *connectionStatusV1        `json:"connection,omitempty"`
+	Configuration   *metrics.ConfigV1          `json:"configuration,omitempty"`
+	Metrics         []metrics.MetricState      `json:"metrics"`
+	Notifications   metrics.NotificationStatus `json:"notifications"`
+	PresenterError  string                     `json:"presenter_error,omitempty"`
+	SavedConnection *savedConnectionV1         `json:"saved_connection,omitempty"`
+	StartupError    string                     `json:"startup_error,omitempty"`
 }
 
 type connectionStatusV1 struct {
@@ -118,9 +127,18 @@ func (a *App) startup(ctx context.Context) {
 	a.mu.Lock()
 	a.ctx = ctx
 	a.mu.Unlock()
+	if err := a.restoreConnection(); err != nil {
+		a.mu.Lock()
+		a.startupError = fmt.Sprintf("恢复已保存连接失败：%v", err)
+		a.mu.Unlock()
+	}
 }
 
-func (a *App) shutdown(context.Context) { _ = a.Stop() }
+func (a *App) shutdown(context.Context) {
+	if err := a.stop(false); err != nil {
+		log.Printf("stop Metrics on exit: %v", err)
+	}
+}
 
 func (a *App) Identity(requestJSON string) (string, error) {
 	var request identityRequestV1
@@ -139,6 +157,8 @@ func (a *App) Identity(requestJSON string) (string, error) {
 }
 
 func (a *App) Start(requestJSON string) (string, error) {
+	a.lifecycle.Lock()
+	defer a.lifecycle.Unlock()
 	var request startRequestV1
 	if err := protocol.DecodeJSONPayload([]byte(requestJSON), uiPayloadLimit, &request); err != nil {
 		return "", err
@@ -146,6 +166,10 @@ func (a *App) Start(requestJSON string) (string, error) {
 	nodeID, parentID, parentKey, err := request.values()
 	if err != nil {
 		return "", err
+	}
+	request.StateDirectory, err = filepath.Abs(request.StateDirectory)
+	if err != nil {
+		return "", fmt.Errorf("resolve Metrics state directory: %w", err)
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -170,6 +194,13 @@ func (a *App) Start(requestJSON string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	saved := savedConnectionV1{Version: 1, Active: true, Connection: request}
+	saved.Connection.Permit = nil
+	if err := a.saveConnection(saved); err != nil {
+		return "", errors.Join(fmt.Errorf("保存连接配置失败，节点已停止：%w", err), value.Close())
+	}
+	a.savedConnection = &saved
+	a.startupError = ""
 	a.runtime = value
 	presentCtx, presentCancel := context.WithCancel(a.ctx)
 	a.presentCancel = presentCancel
@@ -180,7 +211,23 @@ func (a *App) Start(requestJSON string) (string, error) {
 }
 
 func (a *App) Stop() error {
+	return a.stop(true)
+}
+
+func (a *App) stop(deactivate bool) error {
+	a.lifecycle.Lock()
+	defer a.lifecycle.Unlock()
 	a.mu.Lock()
+	var saveErr error
+	if deactivate && a.savedConnection != nil {
+		saved := *a.savedConnection
+		saved.Active = false
+		if err := a.saveConnection(saved); err != nil {
+			saveErr = fmt.Errorf("节点已停止，但无法保存停止状态；下次启动可能恢复连接：%w", err)
+		} else {
+			a.savedConnection = &saved
+		}
+	}
 	value := a.runtime
 	presentCancel := a.presentCancel
 	a.runtime = nil
@@ -191,9 +238,9 @@ func (a *App) Stop() error {
 		a.presentWG.Wait()
 	}
 	if value == nil {
-		return nil
+		return saveErr
 	}
-	return value.Close()
+	return errors.Join(saveErr, value.Close())
 }
 
 func (a *App) Status() (string, error) {
@@ -236,7 +283,7 @@ func (a *App) Definitions() (string, error) {
 }
 
 func (a *App) statusLocked() statusV1 {
-	status := statusV1{Version: 1, Running: a.runtime != nil, Metrics: []metrics.MetricState{}}
+	status := statusV1{Version: 1, Running: a.runtime != nil, Metrics: []metrics.MetricState{}, SavedConnection: a.savedConnection, StartupError: a.startupError}
 	if a.runtime == nil {
 		return status
 	}

@@ -92,7 +92,7 @@ func TestCanonicalTopologyDoesNotAddFacadeOrLifecycleMethods(t *testing.T) {
 		"SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected", "WriteVariableJSON",
 	}
 	desktop := []string{
-		"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "OperateJSON", "PollSubscription",
+		"CancelSubscription", "CatalogJSON", "Close", "IdentityJSON", "InvokeJSON", "OperateJSON", "PollSubscription", "PollSubscriptions",
 		"SnapshotJSON", "StatusJSON", "Subscribe", "SubscribeCapability", "UploadFile", "WaitConnected", "WriteVariableJSON",
 	}
 	if !reflect.DeepEqual(manifest.Methods, portable) || !reflect.DeepEqual(manifest.DesktopMethods, desktop) {

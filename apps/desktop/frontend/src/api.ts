@@ -1,5 +1,6 @@
-import { parseBoundedJSON, parseVariableEnvelopeJSON, parseVariableOperationPayload } from './variable/protocol'
+import { parseVariableEnvelopeJSON, parseVariableOperationPayload } from './variable/protocol'
 import * as App from '../wailsjs/go/main/App'
+import { SubscriptionPoller } from './subscription-poller'
 import type {
   ConnectionStatus,
   Profile,
@@ -14,10 +15,12 @@ import { parseTopology, TOPOLOGY_QUERY_SCHEMA, validateTopologyRequest } from '.
 
 export type OperationResult = { schema?: string; payload: unknown }
 export type PollResult = { kind: 'event' | 'error' | 'closed' | 'timeout'; payload?: unknown }
+export type VariableWriteAttempt = { sent: boolean; expected_revision?: string; response_json?: string; error?: string }
 export type PublicIdentity = { node_id?: string; public_key: string }
 export type PreparedProfile = { profile: Profile; identity: PublicIdentity }
 
 export interface DesktopAPI {
+  setUnsavedChanges?(dirty: boolean): Promise<void>
   settings(): Promise<Settings>
   profileStates(): Promise<ProfileState[]>
   prepareProfile(profile: Profile): Promise<PreparedProfile>
@@ -34,6 +37,7 @@ export interface DesktopAPI {
   topology(ownerNodeID: string, depth?: number): Promise<TopologyQuery>
   snapshot(ownerNodeID: string, name: string): Promise<unknown>
   operate(ownerNodeID: string, name: string, capability: string, schema: string, input: unknown): Promise<OperationResult>
+  writeVariableFromSnapshot?(ownerNodeID: string, name: string, base: unknown, input: unknown): Promise<VariableWriteAttempt>
   subscribe(ownerNodeID: string, name: string, capability: string, leaseMS?: number): Promise<number>
   poll(subscriptionID: number, timeoutMS: number): Promise<PollResult>
   cancel(subscriptionID: number): Promise<void>
@@ -49,7 +53,9 @@ function parseOperation(raw: string): OperationResult {
   return { schema: value.schema, payload: value.payload }
 }
 
+const subscriptionPoller = new SubscriptionPoller((ids, timeout) => App.PollSubscriptionsBatch(ids, timeout))
 export const api: DesktopAPI = {
+  setUnsavedChanges: App.SetUnsavedChanges,
   settings: async () => JSON.parse(await App.SettingsJSON()),
   profileStates: async () => JSON.parse(await App.ProfileStatesJSON()),
   prepareProfile: async (profile) => JSON.parse(await App.PrepareProfileJSON(JSON.stringify(profile))),
@@ -74,10 +80,11 @@ export const api: DesktopAPI = {
   snapshot: async (ownerNodeID, name) => parseVariableEnvelopeJSON(await App.SnapshotJSON(ownerNodeID, name)),
   operate: async (ownerNodeID, name, capability, schema, input) =>
     parseOperation(await App.OperateJSON(ownerNodeID, name, capability, schema, JSON.stringify(input))),
+  writeVariableFromSnapshot: (ownerNodeID, name, base, input) => App.WriteVariableFromSnapshot(ownerNodeID, name, JSON.stringify(base), JSON.stringify(input)),
   subscribe: (ownerNodeID, name, capability, leaseMS = 60_000) =>
     App.SubscribeCapability(ownerNodeID, name, capability, leaseMS),
-  poll: async (subscriptionID, timeoutMS) => parseBoundedJSON(await App.PollSubscription(subscriptionID, timeoutMS), 1024 * 1024 + 4096).value as PollResult,
-  cancel: async (subscriptionID) => App.CancelSubscription(subscriptionID),
+  poll: (subscriptionID, timeoutMS) => subscriptionPoller.poll(subscriptionID, timeoutMS),
+  cancel: async (subscriptionID) => { subscriptionPoller.cancel(subscriptionID); await App.CancelSubscription(subscriptionID) },
   pickFile: App.SelectUploadFile,
   uploadFile: async (ownerNodeID, source, destination, contentType) =>
     JSON.parse(await App.UploadFile(ownerNodeID, source, destination, contentType)),
