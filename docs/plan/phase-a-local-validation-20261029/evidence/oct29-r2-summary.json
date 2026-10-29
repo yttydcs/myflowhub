@@ -1,0 +1,338 @@
+{
+  "baseline_commit": "6cd785a7b179fa899a9fd70c7d48188161d1fb58",
+  "native_package": "D:\\project\\MyFlowHub3\\artifacts\\phase-a-local-20261029\\phase-a-worktree-d23a7e974226",
+  "desktop_sha256": "434C0F4A103FD4D07A6BB58457046D04E1FDE71DC193F66ADBF9D8D57338E62C",
+  "noack": [
+    {
+      "round": 1,
+      "visible_terminal_upper_bound_ms": 4754,
+      "result": "passed",
+      "outcome": "preflight rejected before write dispatch; draft retained; no automatic replay"
+    },
+    {
+      "round": 2,
+      "visible_terminal_upper_bound_ms": 4777,
+      "result": "passed",
+      "outcome": "preflight rejected before write dispatch; draft retained; no automatic replay"
+    },
+    {
+      "round": 3,
+      "visible_terminal_upper_bound_ms": 4740,
+      "result": "passed",
+      "outcome": "preflight rejected before write dispatch; draft retained; no automatic replay"
+    },
+    {
+      "round": 4,
+      "visible_terminal_upper_bound_ms": 4760,
+      "result": "passed",
+      "outcome": "preflight rejected before write dispatch; draft retained; no automatic replay"
+    },
+    {
+      "round": 5,
+      "visible_terminal_upper_bound_ms": 4791,
+      "result": "passed",
+      "outcome": "preflight rejected before write dispatch; draft retained; no automatic replay"
+    }
+  ],
+  "revocations": [
+    {
+      "round": 1,
+      "invalidation_upper_bound_ms": 394,
+      "actual_write_rejected": true,
+      "new_value_hidden": true,
+      "audio_snapshot": 25,
+      "attempted_draft": 40,
+      "new_actual_volume_approximately": 20
+    },
+    {
+      "round": 2,
+      "invalidation_upper_bound_ms": 501,
+      "actual_write_rejected": true,
+      "new_value_hidden": true,
+      "audio_snapshot": 25,
+      "attempted_draft": 40,
+      "new_actual_volume_approximately": 20
+    },
+    {
+      "round": 3,
+      "invalidation_upper_bound_ms": 340,
+      "actual_write_rejected": true,
+      "new_value_hidden": true,
+      "audio_snapshot": 25,
+      "attempted_draft": true,
+      "new_actual_volume_approximately": 20
+    },
+    {
+      "round": 4,
+      "invalidation_upper_bound_ms": 352,
+      "actual_write_rejected": true,
+      "new_value_hidden": true,
+      "audio_snapshot": 25,
+      "attempted_draft": true,
+      "new_actual_volume_approximately": 20
+    },
+    {
+      "round": 5,
+      "invalidation_upper_bound_ms": 402,
+      "actual_write_rejected": true,
+      "new_value_hidden": true,
+      "audio_snapshot": 25,
+      "attempted_draft": true,
+      "new_actual_volume_approximately": 20
+    }
+  ],
+  "network_additional": [
+    {
+      "round": 1,
+      "detection_upper_bound_ms": 4823,
+      "recovery_upper_bound_ms": 2198,
+      "live_after_recovery": 2000
+    },
+    {
+      "round": 2,
+      "detection_upper_bound_ms": 4462,
+      "recovery_upper_bound_ms": 2238,
+      "live_after_recovery": 2000
+    }
+  ],
+  "independent_replacements": [
+    {
+      "native_ui_pending": false,
+      "version": "baseline",
+      "process_verified_ms": 1793258720680,
+      "started_ms": 1793258718534,
+      "metrics_config_unchanged": true,
+      "identities_unchanged": true,
+      "sha256": "6EA6C21AECC96558CE728BB59D9183D5477965B18D43D5B7A9A6A47F51C17E84",
+      "pid": 26756,
+      "other_processes_unchanged": true,
+      "product": "metrics",
+      "before": {
+        "hub": {
+          "pid": 37312,
+          "start_ticks": 639288547388555855
+        },
+        "desktop": {
+          "pid": 33204,
+          "start_ticks": 639288547391791793
+        },
+        "metrics": {
+          "pid": 14932,
+          "start_ticks": 639288547390782411
+        }
+      },
+      "saved_views_unchanged": true,
+      "visible_recovery_upper_bound_ms": 3245,
+      "same_product_binary_across_versions": true
+    },
+    {
+      "product": "metrics",
+      "saved_views_unchanged": true,
+      "pid": 15280,
+      "metrics_config_unchanged": true,
+      "identities_unchanged": true,
+      "native_ui_pending": false,
+      "other_processes_unchanged": true,
+      "sha256": "6EA6C21AECC96558CE728BB59D9183D5477965B18D43D5B7A9A6A47F51C17E84",
+      "before": {
+        "metrics": {
+          "pid": 26756,
+          "start_ticks": 639288555186494058
+        },
+        "desktop": {
+          "pid": 33204,
+          "start_ticks": 639288547391791793
+        },
+        "hub": {
+          "pid": 37312,
+          "start_ticks": 639288547388555855
+        }
+      },
+      "version": "current",
+      "started_ms": 1793258737484,
+      "process_verified_ms": 1793258739649,
+      "visible_recovery_upper_bound_ms": 3549,
+      "same_product_binary_across_versions": true
+    },
+    {
+      "native_ui_pending": false,
+      "pid": 53784,
+      "version": "baseline",
+      "started_ms": 1793258750614,
+      "saved_views_unchanged": true,
+      "process_verified_ms": 1793258752941,
+      "other_processes_unchanged": true,
+      "metrics_config_unchanged": true,
+      "sha256": "674939017C8CB4EB7B8EC7BD5BE5F67D89F1B6E106B63AFD70ECC1AA2C6E99F9",
+      "identities_unchanged": true,
+      "before": {
+        "hub": {
+          "pid": 37312,
+          "start_ticks": 639288547388555855
+        },
+        "desktop": {
+          "pid": 33204,
+          "start_ticks": 639288547391791793
+        },
+        "metrics": {
+          "pid": 15280,
+          "start_ticks": 639288555376462486
+        }
+      },
+      "product": "desktop",
+      "visible_recovery_upper_bound_ms": 3257,
+      "same_product_binary_across_versions": false
+    },
+    {
+      "version": "baseline",
+      "saved_views_unchanged": true,
+      "pid": 65140,
+      "started_ms": 1793258766052,
+      "other_processes_unchanged": true,
+      "identities_unchanged": true,
+      "sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "native_ui_pending": false,
+      "process_verified_ms": 1793258768041,
+      "product": "hub",
+      "metrics_config_unchanged": true,
+      "before": {
+        "hub": {
+          "start_ticks": 639288547388555855,
+          "pid": 37312
+        },
+        "metrics": {
+          "start_ticks": 639288555376462486,
+          "pid": 15280
+        },
+        "desktop": {
+          "start_ticks": 639288555508733460,
+          "pid": 53784
+        }
+      },
+      "visible_recovery_upper_bound_ms": 2443,
+      "same_product_binary_across_versions": true
+    },
+    {
+      "other_processes_unchanged": true,
+      "identities_unchanged": true,
+      "product": "hub",
+      "native_ui_pending": false,
+      "version": "current",
+      "saved_views_unchanged": true,
+      "before": {
+        "desktop": {
+          "pid": 53784,
+          "start_ticks": 639288555508733460
+        },
+        "hub": {
+          "pid": 65140,
+          "start_ticks": 639288555660930694
+        },
+        "metrics": {
+          "pid": 15280,
+          "start_ticks": 639288555376462486
+        }
+      },
+      "pid": 22432,
+      "started_ms": 1793258788857,
+      "sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "process_verified_ms": 1793258790911,
+      "metrics_config_unchanged": true,
+      "visible_recovery_upper_bound_ms": 2552,
+      "same_product_binary_across_versions": true
+    },
+    {
+      "metrics_config_unchanged": true,
+      "saved_views_unchanged": true,
+      "identities_unchanged": true,
+      "process_verified_ms": 1793258805538,
+      "product": "desktop",
+      "other_processes_unchanged": true,
+      "native_ui_pending": false,
+      "before": {
+        "hub": {
+          "start_ticks": 639288555889002107,
+          "pid": 22432
+        },
+        "desktop": {
+          "start_ticks": 639288555508733460,
+          "pid": 53784
+        },
+        "metrics": {
+          "start_ticks": 639288555376462486,
+          "pid": 15280
+        }
+      },
+      "version": "current",
+      "sha256": "434C0F4A103FD4D07A6BB58457046D04E1FDE71DC193F66ADBF9D8D57338E62C",
+      "started_ms": 1793258803380,
+      "pid": 52444,
+      "visible_recovery_upper_bound_ms": 3264,
+      "same_product_binary_across_versions": false
+    }
+  ],
+  "noack_independent_audio_samples": 1801,
+  "external_audio_changes": [
+    {
+      "confirmed_unix_nano": 1793258254059773200,
+      "level": 0.20000006,
+      "muted": false,
+      "started_unix_nano": 1793258254036877900
+    },
+    {
+      "confirmed_unix_nano": 1793258394627713300,
+      "level": 0.20000006,
+      "muted": false,
+      "started_unix_nano": 1793258394611282300
+    },
+    {
+      "confirmed_unix_nano": 1793258460699332600,
+      "level": 0.20000006,
+      "muted": false,
+      "started_unix_nano": 1793258460680318300
+    },
+    {
+      "confirmed_unix_nano": 1793258526396112100,
+      "level": 0.20000006,
+      "muted": false,
+      "started_unix_nano": 1793258526369298200
+    },
+    {
+      "confirmed_unix_nano": 1793258602353832900,
+      "level": 0.20000006,
+      "muted": false,
+      "started_unix_nano": 1793258602318421200
+    }
+  ],
+  "cleanup": {
+    "audio_restored": true,
+    "stopped": [
+      "desktop",
+      "metrics",
+      "example",
+      "hub"
+    ],
+    "remaining": 0,
+    "completed_ms": 1793258966524
+  },
+  "original_audio": {
+    "unix_nano": 1793257939570145600,
+    "level": 0.25196868,
+    "volume_percent": 25.196868181228638,
+    "muted": false
+  },
+  "latest_policy_revision": 37,
+  "formal_A": "pending",
+  "limitations": [
+    "F01 retest canceled by user; prior failures retained",
+    "F04 physical dual-device/clean-system deferred",
+    "Hub and Metrics hashes identical across selected release snapshots; independent replacement verified, not distinct-binary compatibility",
+    "Noack native repetitions exercise lost preflight replies; late acknowledgement and readback deadlines have focused unit tests"
+  ],
+  "excluded": [
+    "First external20 invocation failed argument parsing before any change; retried explicitly and preserved original screenshots",
+    "First switch aborted before stopping processes because launch-time Desktop path was empty; verified actual owned path before retry",
+    "Initial compatibility report used hard-coded old commit ID; preserved as mislabeled, rerun with verified commit inputs",
+    "Baseline raw go.sum hash differed due CRLF; repository-normalized hash matches commit"
+  ]
+}

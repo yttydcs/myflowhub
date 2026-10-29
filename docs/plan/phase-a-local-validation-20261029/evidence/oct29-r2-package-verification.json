@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "package_directory": "D:\\project\\MyFlowHub3\\artifacts\\phase-a-local-20261029\\phase-a-worktree-8ffefe1f9b01",
+  "source_sha256": "8ffefe1f9b01c378cb8f975e8af1a3b0e0b9ed9f7e1e0f3d05c4adbc677caba4",
+  "source_files": 1413,
+  "artifacts": 6,
+  "archives": [
+    {
+      "file": "desktop-windows-x64-worktree-8ffefe1f9b01.zip",
+      "entries": 4,
+      "sha256_verified": true
+    },
+    {
+      "file": "hub-windows-x64-worktree-8ffefe1f9b01.zip",
+      "entries": 5,
+      "sha256_verified": true
+    },
+    {
+      "file": "metrics-windows-x64-worktree-8ffefe1f9b01.zip",
+      "entries": 5,
+      "sha256_verified": true
+    },
+    {
+      "file": "source-worktree-8ffefe1f9b01.zip",
+      "entries": 1412,
+      "sha256_verified": true
+    },
+    {
+      "file": "variable-example-windows-x64-worktree-8ffefe1f9b01.zip",
+      "entries": 8,
+      "sha256_verified": true
+    }
+  ],
+  "acceptance_status": "pending",
+  "formal_N_frozen": false,
+  "limitations": [
+    "Local F02/F03 verified with explicit 6cd785a baseline; b1fcd1a GUI failure retained; Hub/Metrics binaries identical across release snapshots",
+    "F01 retest not repeated by user decision; F04 physical two-device/clean environment deferred",
+    "Preview only; formal N not frozen"
+  ]
+}

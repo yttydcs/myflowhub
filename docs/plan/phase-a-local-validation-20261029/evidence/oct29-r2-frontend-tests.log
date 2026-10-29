@@ -1,0 +1,14 @@
+
+> myflowhub-desktop-frontend@2.0.0 test
+> vitest run src/variable/write-outcomes.test.ts src/variable/controller.test.ts
+
+
+ RUN  v3.2.7 D:/project/MyFlowHub3/worktrees/phase-a-local-validation/apps/desktop/frontend
+
+ ✓ src/variable/write-outcomes.test.ts (17 tests) 823ms
+ ✓ src/variable/controller.test.ts (14 tests) 1610ms
+
+ Test Files  2 passed (2)
+      Tests  31 passed (31)
+   Start at  15:29:14
+   Duration  8.31s (transform 244ms, setup 1.21s, collect 438ms, tests 2.43s, environment 4.23s, prepare 651ms)

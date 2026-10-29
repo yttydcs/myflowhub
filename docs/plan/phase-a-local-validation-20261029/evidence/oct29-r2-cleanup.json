@@ -1,0 +1,11 @@
+{
+  "audio_restored": true,
+  "stopped": [
+    "desktop",
+    "metrics",
+    "example",
+    "hub"
+  ],
+  "remaining": 0,
+  "completed_ms": 1793258966524
+}

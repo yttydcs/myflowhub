@@ -16,6 +16,8 @@
 
 ## Quick Links
 
+- [2026-10-29 A 本机 F02/F03 补验收尾](2026-10-29_phase-a-local-validation.md)
+
 - [2026-10-29 A基础能力阶段性收尾（验收未完成）](2026-10-29_phase-a-foundation.md)
 - [Docs / Workspace](#docs--workspace)
 - [Protocol / Core / SDK](#protocol--core--sdk)

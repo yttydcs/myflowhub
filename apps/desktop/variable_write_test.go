@@ -48,7 +48,7 @@ func TestPreparedVariableWriteRefreshesMetadataOnceWithinOneBudget(t *testing.T)
 	now := time.Now()
 	client := &preparedWriteClient{
 		read: func(timeout int64) (string, error) {
-			if timeout != 5000 {
+			if timeout != 4000 {
 				t.Fatalf("read budget %d", timeout)
 			}
 			now = now.Add(2 * time.Second)
@@ -59,7 +59,7 @@ func TestPreparedVariableWriteRefreshesMetadataOnceWithinOneBudget(t *testing.T)
 			if err := json.Unmarshal([]byte(raw), &request); err != nil {
 				t.Fatal(err)
 			}
-			if request.ExpectedRevision != "11" || string(request.Value) != "true" || timeout != 3000 {
+			if request.ExpectedRevision != "11" || string(request.Value) != "true" || timeout != 2000 {
 				t.Fatalf("write changed intent/budget: %s, %d", raw, timeout)
 			}
 			return `{"schema":"mfh.variable-value.v1","payload":{}}`, nil
@@ -106,7 +106,7 @@ func TestPreparedVariableWriteReportsDispatchBoundaryWithoutRetry(t *testing.T) 
 		})
 	}
 	now := time.Now()
-	client := &preparedWriteClient{read: func(int64) (string, error) { now = now.Add(5 * time.Second); return preparedWriteBase, nil }, write: func(string, int64) (string, error) { t.Fatal("write after deadline"); return "", nil }}
+	client := &preparedWriteClient{read: func(int64) (string, error) { now = now.Add(4 * time.Second); return preparedWriteBase, nil }, write: func(string, int64) (string, error) { t.Fatal("write after deadline"); return "", nil }}
 	result := writeVariableFromSnapshot(client, 3, "example/value", preparedWriteBase, preparedWriteRequest, func() time.Time { return now })
 	if result.Sent || result.Error == "" || client.writes != 0 {
 		t.Fatalf("late dispatch: %+v", result)

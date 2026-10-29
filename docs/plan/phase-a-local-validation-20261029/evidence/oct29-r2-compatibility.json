@@ -1,0 +1,296 @@
+{
+  "version": 1,
+  "baseline_commit": "6cd785a7b179fa899a9fd70c7d48188161d1fb58",
+  "baseline_verified_inputs": 284,
+  "candidate_base_commit": "6cd785a7b179fa899a9fd70c7d48188161d1fb58",
+  "candidate_working_tree": true,
+  "adapter_sha256": "D783180D6D4460A4CB08E53F3015E6E928DE7D4F0E1844E7385B20389F03BF65",
+  "scope": "actual Hub and Metrics console processes, versioned Desktop Go binding adapter; configuration control only",
+  "wails_ui": false,
+  "physical_audio": false,
+  "formal_AC16": "pending",
+  "private_logs": "C:\\Users\\HelloWorld\\AppData\\Local\\Temp\\mfh-phase-a-compat-87c8f6555e6c4653958393f3375ab1fb",
+  "cases": [
+    {
+      "combination": "000",
+      "result": "passed",
+      "hub_sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "desktop_bridge_sha256": "BC769E90CF0462BBC4A84D217EE78D837EE4DA63B30EC96782B99ABF18C94CDC",
+      "metrics_console_sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "details": {
+        "catalog_resources": 13,
+        "configuration_control": true,
+        "elapsed_ms": 31,
+        "physical_audio": false,
+        "read": true,
+        "subscribe": true,
+        "wails_ui": false
+      },
+      "management_json_operate": true
+    },
+    {
+      "combination": "001",
+      "result": "passed",
+      "hub_sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "desktop_bridge_sha256": "BC769E90CF0462BBC4A84D217EE78D837EE4DA63B30EC96782B99ABF18C94CDC",
+      "metrics_console_sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "details": {
+        "catalog_resources": 13,
+        "configuration_control": true,
+        "elapsed_ms": 45,
+        "physical_audio": false,
+        "read": true,
+        "subscribe": true,
+        "wails_ui": false
+      },
+      "management_json_operate": true
+    },
+    {
+      "combination": "010",
+      "result": "passed",
+      "hub_sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "desktop_bridge_sha256": "BC769E90CF0462BBC4A84D217EE78D837EE4DA63B30EC96782B99ABF18C94CDC",
+      "metrics_console_sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "details": {
+        "catalog_resources": 13,
+        "configuration_control": true,
+        "elapsed_ms": 45,
+        "physical_audio": false,
+        "read": true,
+        "subscribe": true,
+        "wails_ui": false
+      },
+      "management_json_operate": true
+    },
+    {
+      "combination": "011",
+      "result": "passed",
+      "hub_sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "desktop_bridge_sha256": "BC769E90CF0462BBC4A84D217EE78D837EE4DA63B30EC96782B99ABF18C94CDC",
+      "metrics_console_sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "details": {
+        "catalog_resources": 13,
+        "configuration_control": true,
+        "elapsed_ms": 34,
+        "physical_audio": false,
+        "read": true,
+        "subscribe": true,
+        "wails_ui": false
+      },
+      "management_json_operate": true
+    },
+    {
+      "combination": "100",
+      "result": "passed",
+      "hub_sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "desktop_bridge_sha256": "BC769E90CF0462BBC4A84D217EE78D837EE4DA63B30EC96782B99ABF18C94CDC",
+      "metrics_console_sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "details": {
+        "catalog_resources": 13,
+        "configuration_control": true,
+        "elapsed_ms": 29,
+        "physical_audio": false,
+        "read": true,
+        "subscribe": true,
+        "wails_ui": false
+      },
+      "management_json_operate": true
+    },
+    {
+      "combination": "101",
+      "result": "passed",
+      "hub_sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "desktop_bridge_sha256": "BC769E90CF0462BBC4A84D217EE78D837EE4DA63B30EC96782B99ABF18C94CDC",
+      "metrics_console_sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "details": {
+        "catalog_resources": 13,
+        "configuration_control": true,
+        "elapsed_ms": 36,
+        "physical_audio": false,
+        "read": true,
+        "subscribe": true,
+        "wails_ui": false
+      },
+      "management_json_operate": true
+    },
+    {
+      "combination": "110",
+      "result": "passed",
+      "hub_sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "desktop_bridge_sha256": "BC769E90CF0462BBC4A84D217EE78D837EE4DA63B30EC96782B99ABF18C94CDC",
+      "metrics_console_sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "details": {
+        "catalog_resources": 13,
+        "configuration_control": true,
+        "elapsed_ms": 33,
+        "physical_audio": false,
+        "read": true,
+        "subscribe": true,
+        "wails_ui": false
+      },
+      "management_json_operate": true
+    },
+    {
+      "combination": "111",
+      "result": "passed",
+      "hub_sha256": "916AA1E33582B1A34519EE97F75E422D83FEDF83F5600AA6471A9C140002FCBA",
+      "desktop_bridge_sha256": "BC769E90CF0462BBC4A84D217EE78D837EE4DA63B30EC96782B99ABF18C94CDC",
+      "metrics_console_sha256": "D816C605DA760E44BEA5F7929B8BFEC92DC6918D3BB3EEC9B8205A161907E693",
+      "details": {
+        "catalog_resources": 13,
+        "configuration_control": true,
+        "elapsed_ms": 40,
+        "physical_audio": false,
+        "read": true,
+        "subscribe": true,
+        "wails_ui": false
+      },
+      "management_json_operate": true
+    }
+  ],
+  "rollback_latest_revocation": {
+    "result": "passed",
+    "details": {
+      "configuration_control_denied": true,
+      "elapsed_ms": 16,
+      "physical_audio": false,
+      "read": true,
+      "subscribe": true,
+      "wails_ui": false
+    }
+  },
+  "independent_product_lifecycle": [
+    {
+      "target": "desktop",
+      "version": 1,
+      "direction": "upgrade",
+      "result": "passed",
+      "recovery_ms": 86,
+      "surviving_processes": {
+        "metrics": {
+          "created_ticks": 639288558983970408,
+          "pid": 18604
+        },
+        "hub": {
+          "created_ticks": 639288558981526018,
+          "pid": 16520
+        }
+      },
+      "identities_unchanged": true,
+      "configuration_unchanged": true,
+      "latest_revocation_enforced": true,
+      "read_subscribe": true,
+      "wails_ui": false
+    },
+    {
+      "target": "metrics",
+      "version": 1,
+      "direction": "upgrade",
+      "result": "passed",
+      "recovery_ms": 296,
+      "surviving_processes": {
+        "desktop": {
+          "created_ticks": 639288558987689180,
+          "pid": 65824
+        },
+        "hub": {
+          "created_ticks": 639288558981526018,
+          "pid": 16520
+        }
+      },
+      "identities_unchanged": true,
+      "configuration_unchanged": true,
+      "latest_revocation_enforced": true,
+      "read_subscribe": true,
+      "wails_ui": false
+    },
+    {
+      "target": "hub",
+      "version": 1,
+      "direction": "upgrade",
+      "result": "passed",
+      "recovery_ms": 315,
+      "surviving_processes": {
+        "desktop": {
+          "created_ticks": 639288558987689180,
+          "pid": 65824
+        },
+        "metrics": {
+          "created_ticks": 639288558988769580,
+          "pid": 28124
+        }
+      },
+      "identities_unchanged": true,
+      "configuration_unchanged": true,
+      "latest_revocation_enforced": true,
+      "read_subscribe": true,
+      "wails_ui": false
+    },
+    {
+      "target": "desktop",
+      "version": 0,
+      "direction": "rollback",
+      "result": "passed",
+      "recovery_ms": 90,
+      "surviving_processes": {
+        "metrics": {
+          "created_ticks": 639288558988769580,
+          "pid": 28124
+        },
+        "hub": {
+          "created_ticks": 639288558991843521,
+          "pid": 300
+        }
+      },
+      "identities_unchanged": true,
+      "configuration_unchanged": true,
+      "latest_revocation_enforced": true,
+      "read_subscribe": true,
+      "wails_ui": false
+    },
+    {
+      "target": "metrics",
+      "version": 0,
+      "direction": "rollback",
+      "result": "passed",
+      "recovery_ms": 313,
+      "surviving_processes": {
+        "desktop": {
+          "created_ticks": 639288558994989812,
+          "pid": 14160
+        },
+        "hub": {
+          "created_ticks": 639288558991843521,
+          "pid": 300
+        }
+      },
+      "identities_unchanged": true,
+      "configuration_unchanged": true,
+      "latest_revocation_enforced": true,
+      "read_subscribe": true,
+      "wails_ui": false
+    },
+    {
+      "target": "hub",
+      "version": 0,
+      "direction": "rollback",
+      "result": "passed",
+      "recovery_ms": 317,
+      "surviving_processes": {
+        "desktop": {
+          "created_ticks": 639288558994989812,
+          "pid": 14160
+        },
+        "metrics": {
+          "created_ticks": 639288558996075272,
+          "pid": 26840
+        }
+      },
+      "identities_unchanged": true,
+      "configuration_unchanged": true,
+      "latest_revocation_enforced": true,
+      "read_subscribe": true,
+      "wails_ui": false
+    }
+  ]
+}

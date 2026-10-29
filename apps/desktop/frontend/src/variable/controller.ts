@@ -5,6 +5,10 @@ import { scheduleVariable } from './scheduler'
 import { setUnsavedChanges } from '../unsaved'
 import { descriptorError, parseVariableEnvelope, parseVariableEvent, parseVariableOperationPayload, parseRevision, validateVariableValue, sameValue, variablePayloadLimit, VARIABLE_VALUE_SCHEMA, VARIABLE_WRITE_SCHEMA } from './protocol'
 
+// The five-second user-visible limit includes rendering the final outcome.
+// Native preflight/dispatch uses four seconds; leave time for its bridge reply.
+const WRITE_WAIT_MS = 4500
+
 function hasNegativeZero(value: unknown): boolean {
   if (typeof value === 'number') return Object.is(value, -0)
   return Boolean(value && typeof value === 'object' && Object.values(value).some(hasNegativeZero))
@@ -181,7 +185,7 @@ export class VariableController {
     let sent = false
     let acknowledged = false
     let timer: ReturnType<typeof setTimeout> | undefined
-    const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('已达到 5 秒最大等待时间')), 5000) })
+    const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('请求等待已超时')), WRITE_WAIT_MS) })
     try {
       validateVariableValue(snapshot.definition!, draft)
       const request: VariableWriteV3 = { version: 3, expected_instance_id: base.instance_id, expected_revision: base.revision, value: draft }

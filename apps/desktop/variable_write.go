@@ -44,7 +44,9 @@ func (a *App) WriteVariableFromSnapshot(ownerNodeID, name, baseJSON, requestJSON
 }
 
 func writeVariableFromSnapshot(client variableWriteClient, owner int64, name, baseJSON, requestJSON string, now func() time.Time) (attempt VariableWriteAttempt) {
-	deadline := now().Add(5 * time.Second)
+	// Reserve the rest of the five-second UI limit for the bridge, readback and
+	// rendering. Do not let a slow preflight dispatch after the UI stops waiting.
+	deadline := now().Add(4 * time.Second)
 	fail := func(err error) VariableWriteAttempt { attempt.Error = err.Error(); return attempt }
 	if owner <= 0 {
 		return fail(errors.New("owner_node_id must be positive"))

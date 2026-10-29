@@ -1,0 +1,88 @@
+{
+  "package_directory": "D:\\project\\MyFlowHub3\\artifacts\\phase-a-local-20261029\\phase-a-worktree-8ffefe1f9b01",
+  "source_sha256": "8ffefe1f9b01c378cb8f975e8af1a3b0e0b9ed9f7e1e0f3d05c4adbc677caba4",
+  "native_tested_package": "D:\\project\\MyFlowHub3\\artifacts\\phase-a-local-20261029\\phase-a-worktree-d23a7e974226",
+  "executables_identical_to_native_test": true,
+  "only_post_native_source_changes": [
+    "apps/desktop/frontend/src/variable/write-outcomes.test.ts",
+    "docs/specs/build-and-ci.md",
+    "docs/specs/phase-a-deployment.md",
+    "plan.md",
+    "review.md",
+    "scripts/test-phase-a-compat.ps1",
+    "todo.md"
+  ],
+  "package_verified": true,
+  "artifacts": [
+    {
+      "product": "hub",
+      "file": "mfh-hub.exe",
+      "bytes": 7214592,
+      "sha256": "916aa1e33582b1a34519ee97f75e422d83fedf83f5600aa6471a9c140002fcba"
+    },
+    {
+      "product": "hub",
+      "file": "mfh-admin.exe",
+      "bytes": 6392320,
+      "sha256": "7e083dfd2ab904f98d1f0d063d80a9f21384e8ec72a5c87ca73c132b1a952acf"
+    },
+    {
+      "product": "desktop",
+      "file": "mfh-desktop.exe",
+      "bytes": 13055488,
+      "sha256": "434c0f4a103fd4d07a6bb58457046d04e1fde71dc193f66adbf9d8d57338e62c"
+    },
+    {
+      "product": "metrics",
+      "file": "mfh-metrics.exe",
+      "bytes": 12261888,
+      "sha256": "6ea6c21aecc96558ce728bb59d9183d5477965b18d43d5b7a9a6a47f51c17e84"
+    },
+    {
+      "product": "metrics",
+      "file": "mfh-metrics-console.exe",
+      "bytes": 7144960,
+      "sha256": "d816c605da760e44bea5f7929b8bfec92dc6918d3bb3eec9b8205a161907e693"
+    },
+    {
+      "product": "variable-example",
+      "file": "mfh-variable-example.exe",
+      "bytes": 6477824,
+      "sha256": "c5823811b9c9c692eb210e421156b6adbac68dd7118f89e216b160a26acd77b5"
+    }
+  ],
+  "base_commit": "6cd785a7b179fa899a9fd70c7d48188161d1fb58",
+  "owned_candidate_diff_sha256": "2ca02d77ddee3365b7785fc7cc3b70b8c0dccc5cc429e3044b23895cc4139483",
+  "untracked_source_hashes": {
+    "apps/desktop/frontend/dist/assets/index-CaDP-eVD.js": "1d33f44c99d1ab59aa4fb76a7e995f382f7c48aaeba142b067eb794c8d40a116"
+  },
+  "plan_and_constraints_sha256": {
+    "plan.md": "0ed1fcac80c25be5f68d074d27ba101c18b0951ce07a5a92153bec45c7f9ef8d",
+    "docs/requirements/phase-a-acceptance.md": "5402769c7b1af9db2940d3a1a4094f7871f6a89e23ac6223925f6ebc9eb9a6ea",
+    "docs/requirements/product-definition.md": "fc33a029f7b12b4a49e5ce86769f2bfbd1f6c7c72165a85ec6e2ffbd38def481"
+  },
+  "baseline_commit": "6cd785a7b179fa899a9fd70c7d48188161d1fb58",
+  "baseline_verified_inputs": 284,
+  "requirements_review": "passed within approved local F02/F03 scope; full A pending",
+  "standards_review": "passed",
+  "formal_N_frozen": false,
+  "acceptance_status": "pending",
+  "cleanup": {
+    "audio_restored": true,
+    "stopped": [
+      "desktop",
+      "metrics",
+      "example",
+      "hub"
+    ],
+    "remaining": 0,
+    "completed_ms": 1793258966524
+  },
+  "evidence_index": "oct29-r2-summary.json",
+  "limits": [
+    "F01 retest canceled, historical failures retained",
+    "F04 physical dual-device/clean-system deferred",
+    "Hub/Metrics same binary across selected snapshots; only Desktop binary differs",
+    "Native noack samples cover preflight failures; late acknowledgement/readback covered by unit tests"
+  ]
+}

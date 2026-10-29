@@ -14,6 +14,8 @@
 - `Protocol / Core / SDK`、`Server / SubProto`、`Win` 等标题是退役多仓时期的历史检索标签，不代表当前仓库边界
 
 ## Quick Links
+
+- [2026-10-29 A 本机补验计划与结论](phase-a-local-validation-20261029/review.md)
 - [Snapshots / Meta](#snapshots--meta)
 - [Protocol / Core / SDK](#protocol--core--sdk)
 - [Server / SubProto](#server--subproto)

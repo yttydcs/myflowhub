@@ -1,11 +1,28 @@
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$BaselineRoot)
+param(
+    [Parameter(Mandatory)][string]$BaselineRoot,
+    [ValidatePattern('^[0-9a-fA-F]{40}$')][string]$BaselineCommit = 'b1fcd1ac0319ebb349c8289cc6f61ed2d7302dc8'
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $env:GOWORK = 'off'
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $baseline = (Resolve-Path -LiteralPath $BaselineRoot).Path
+$resolvedBaseline = (& git -C $repositoryRoot rev-parse --verify "$BaselineCommit^{commit}").Trim()
+if ($LASTEXITCODE -ne 0 -or $resolvedBaseline -ne $BaselineCommit.ToLowerInvariant()) { throw 'BaselineCommit must identify an available exact commit' }
+# Verify the archived Go/module inputs using repository text normalization
+# (Windows module tooling may rewrite line endings), before adding the adapter.
+$baselineInputs = @(& git -C $repositoryRoot ls-tree -r --name-only $resolvedBaseline | Where-Object { $_ -match '\.go$|(^|/)go\.(mod|sum)$' -and $_ -ne 'tests/fixtures/phase-a-desktop/main.go' })
+if ($LASTEXITCODE -ne 0 -or $baselineInputs.Count -eq 0) { throw 'Cannot enumerate baseline inputs' }
+foreach ($relative in $baselineInputs) {
+    $path = Join-Path $baseline $relative
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing baseline input: $relative" }
+    $expected = (& git -C $repositoryRoot rev-parse "${resolvedBaseline}:$relative").Trim()
+    if ($LASTEXITCODE -ne 0) { throw "Cannot resolve baseline input: $relative" }
+    $actual = (& git -C $repositoryRoot hash-object "--path=$relative" -- $path).Trim()
+    if ($LASTEXITCODE -ne 0 -or $actual -ne $expected) { throw "Baseline input differs from $resolvedBaseline : $relative" }
+}
 $evidence = Join-Path $repositoryRoot 'out/phase-a/evidence'
 $privateRoot = Join-Path ([IO.Path]::GetTempPath()) ("mfh-phase-a-compat-" + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $privateRoot | Out-Null
@@ -53,7 +70,7 @@ function Wait-MetricsReady([string]$Path, [Diagnostics.Process]$Process) {
     throw "Metrics did not announce connection: $Path"
 }
 
-# The baseline is the A01 git-archive export of b1fcd1a. Only the shared adapter
+# The baseline is a verified git-archive export. Only the shared adapter
 # is added here; baseline product/runtime source and its frozen binaries remain.
 $adapterSource = Join-Path $repositoryRoot 'tests/fixtures/phase-a-desktop/main.go'
 $oldAdapterDirectory = Join-Path $baseline 'tests/fixtures/phase-a-desktop'
@@ -145,10 +162,94 @@ if (@($cases | Where-Object { $_.result -ne 'passed' }).Count -eq 0) {
     } catch { $rollback.error=$_.Exception.Message }
     finally { Stop-Owned $metricsProcess; Stop-Owned $hubProcess }
 }
+# Keep three independent real processes alive while replacing only one product.
+# The consumer is a Desktop Go binding fixture; this is not native UI evidence.
+$lifecycle = @()
+if (@($cases | Where-Object { $_.result -ne 'passed' }).Count -eq 0 -and $rollback.result -eq 'passed') {
+    $processes = @{}
+    $versions = @{ hub=0; desktop=0; metrics=0 }
+    $endpoint = ''
+    function Start-LifecycleProduct([string]$Product, [int]$Version) {
+        $source = $roots[$Version]
+        $log = Join-Path $caseRoot ('independent-' + $Product + '-' + [Guid]::NewGuid().ToString('N'))
+        if ($Product -eq 'hub') {
+            $address = if ($script:lifecycleEndpoint) { $script:lifecycleEndpoint } else { '127.0.0.1:0' }
+            $process = Start-CLI (Join-Path $source 'out/bin/mfh-hub.exe') @('-state',$hubState,'-id','1','-listen',$address) $log
+            $processes[$Product] = $process
+            $ready = Read-Startup "$log.stdout" $process
+            $script:lifecycleEndpoint = [string]$ready.endpoints[0]
+        } elseif ($Product -eq 'metrics') {
+            $process = Start-CLI (Join-Path $source 'out/bin/mfh-metrics.exe') @('-state',$metricsState,'-id','3','-parent-id','1','-parent-key',$hubIdentity.public_key,'-endpoint',$script:lifecycleEndpoint,'-permit',$metricsPermitPath) $log
+            $processes[$Product] = $process
+            Wait-MetricsReady "$log.stderr" $process
+        } else {
+            $info = [Diagnostics.ProcessStartInfo]::new()
+            $info.FileName = Join-Path $source 'out/bin/phase-a-desktop-bridge.exe'
+            $info.UseShellExecute = $false; $info.CreateNoWindow = $true
+            $info.RedirectStandardInput = $true; $info.RedirectStandardOutput = $true
+            foreach ($argument in @('-state',$desktopState,'-endpoint',$script:lifecycleEndpoint,'-parent-key',$hubIdentity.public_key,'-permit',$desktopPermitPath,'-expect-control-denied','-serve')) {
+                $info.ArgumentList.Add($argument)
+            }
+            $process = [Diagnostics.Process]::new(); $process.StartInfo = $info
+            if (-not $process.Start()) { throw 'Cannot start persistent Desktop binding fixture' }
+            $processes[$Product] = $process
+        }
+    }
+    function Invoke-LifecycleProbe {
+        $bridge = $processes['desktop']
+        $bridge.Refresh(); if ($bridge.HasExited) { throw 'Persistent Desktop binding fixture exited' }
+        $bridge.StandardInput.WriteLine('probe'); $bridge.StandardInput.Flush()
+        $read = $bridge.StandardOutput.ReadLineAsync()
+        if (-not $read.Wait(20000)) { throw 'Persistent consumer probe timed out' }
+        if (-not $read.Result) { throw 'Persistent consumer closed its response stream' }
+        $result = $read.Result | ConvertFrom-Json
+        if (-not $result.read -or -not $result.subscribe -or -not $result.configuration_control_denied) { throw 'Latest revocation or read/subscription was not preserved' }
+        return $result
+    }
+    $script:lifecycleEndpoint = ''
+    try {
+    $expectedConfigHash = (Get-FileHash -LiteralPath (Join-Path $metricsState 'state/metrics.json')).Hash
+    $identityHashes = @{}
+    foreach ($entry in @(@('hub',$hubState),@('desktop',$desktopState),@('metrics',$metricsState))) {
+        $identityHashes[$entry[0]] = (Get-FileHash -LiteralPath (Join-Path $entry[1] 'state/identity.json')).Hash
+    }
+
+        foreach ($product in @('hub','metrics','desktop')) { Start-LifecycleProduct $product 0 }
+        $null = Invoke-LifecycleProbe
+        foreach ($step in @(@('desktop',1),@('metrics',1),@('hub',1),@('desktop',0),@('metrics',0),@('hub',0))) {
+            $target = [string]$step[0]; $version = [int]$step[1]
+            $survivors = @{}
+            foreach ($product in @('hub','desktop','metrics')) {
+                if ($product -eq $target) { continue }
+                $process = $processes[$product]; $process.Refresh()
+                if ($process.HasExited) { throw "Sibling $product exited before replacement" }
+                $survivors[$product] = @{ pid=$process.Id; created_ticks=$process.StartTime.ToUniversalTime().Ticks }
+            }
+            Stop-Owned $processes[$target]
+            $started = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+            Start-LifecycleProduct $target $version
+            $result = Invoke-LifecycleProbe
+            $elapsed = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - $started
+            foreach ($product in $survivors.Keys) {
+                $process = [Diagnostics.Process]::GetProcessById($survivors[$product].pid)
+                if ($process.HasExited -or $process.StartTime.ToUniversalTime().Ticks -ne $survivors[$product].created_ticks) { throw "Sibling $product restarted during replacement" }
+            }
+            foreach ($entry in @(@('hub',$hubState),@('desktop',$desktopState),@('metrics',$metricsState))) {
+                if ((Get-FileHash -LiteralPath (Join-Path $entry[1] 'state/identity.json')).Hash -ne $identityHashes[$entry[0]]) { throw 'Product identity changed during replacement' }
+            }
+            if ((Get-FileHash -LiteralPath (Join-Path $metricsState 'state/metrics.json')).Hash -ne $expectedConfigHash) { throw 'Saved Metrics configuration changed under denied writes' }
+            if ($elapsed -gt 15000) { throw "Independent $target startup exceeded 15 seconds: $elapsed ms" }
+            $versions[$target] = $version
+            $lifecycle += [ordered]@{ target=$target; version=$version; direction=$(if ($version) {'upgrade'} else {'rollback'}); result='passed'; recovery_ms=$elapsed; surviving_processes=$survivors; identities_unchanged=$true; configuration_unchanged=$true; latest_revocation_enforced=$true; read_subscribe=$true; wails_ui=$false }
+            Write-Host "Independent $target version $version : passed ($elapsed ms)"
+        }
+    } catch { $lifecycle += [ordered]@{result='failed';error=$_.Exception.Message} }
+    finally { foreach ($process in $processes.Values) { Stop-Owned $process } }
+}
 $report = [ordered]@{
-    version=1; baseline_commit='b1fcd1ac0319ebb349c8289cc6f61ed2d7302dc8'; candidate_base_commit=(& git -C $repositoryRoot rev-parse HEAD).Trim(); candidate_working_tree=$true;
+    version=1; baseline_commit=$resolvedBaseline; baseline_verified_inputs=$baselineInputs.Count; candidate_base_commit=(& git -C $repositoryRoot rev-parse HEAD).Trim(); candidate_working_tree=$true;
     adapter_sha256=(Get-FileHash -LiteralPath $adapterSource).Hash; scope='actual Hub and Metrics console processes, versioned Desktop Go binding adapter; configuration control only';
-    wails_ui=$false; physical_audio=$false; formal_AC16='pending'; private_logs=$privateRoot; cases=$cases; rollback_latest_revocation=$rollback
+    wails_ui=$false; physical_audio=$false; formal_AC16='pending'; private_logs=$privateRoot; cases=$cases; rollback_latest_revocation=$rollback; independent_product_lifecycle=$lifecycle
 }
 Write-JSON (Join-Path $evidence 'compatibility-bridge-matrix.json') $report
-if (@($cases | Where-Object { $_.result -ne 'passed' }).Count -or $rollback.result -ne 'passed') { throw 'Compatibility adapter matrix has failures; inspect private logs and report' }
+if (@($cases | Where-Object { $_.result -ne 'passed' }).Count -or $rollback.result -ne 'passed' -or $lifecycle.Count -ne 6 -or @($lifecycle | Where-Object { $_.result -ne 'passed' }).Count) { throw 'Compatibility adapter matrix has failures; inspect private logs and report' }

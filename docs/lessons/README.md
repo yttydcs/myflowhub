@@ -30,6 +30,8 @@
 
 ## Platform And Toolchain
 
+- [界面截止时间与真实回滚基线](windows-native-acceptance-evidence.md#界面截止时间与真实回滚基线)：渲染余量、截图时限、相同二进制与错误基线标识。
+
 - [Windows原生验收测量](windows-native-acceptance-evidence.md)：WebView2共享进程污染内存、输入派发延迟、截图上界与健康窗口次数。
 
 - [go-cross-compile-tests-on-windows.md](go-cross-compile-tests-on-windows.md)：Windows 上设置非本机 `GOOS` 后，普通 `go test` 会尝试执行目标二进制；跨平台门禁必须区分 compile-only 与真实 target runtime。

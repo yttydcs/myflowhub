@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
@@ -27,20 +28,21 @@ import (
 func main() {
 	var directory, endpoint, parentKey, permitFile string
 	var identityOnly bool
-	var expectDenied bool
+	var expectDenied, serve bool
 	flag.StringVar(&directory, "state", "", "independent test state directory")
 	flag.StringVar(&endpoint, "endpoint", "", "Hub endpoint")
 	flag.StringVar(&parentKey, "parent-key", "", "pinned Hub public key")
 	flag.StringVar(&permitFile, "permit", "", "Legacy Join Permit file")
 	flag.BoolVar(&identityOnly, "identity", false, "prepare public identity only")
 	flag.BoolVar(&expectDenied, "expect-control-denied", false, "verify the latest persisted control revocation")
+	flag.BoolVar(&serve, "serve", false, "accept bounded explicit probe/stop lines while keeping this test consumer alive")
 	flag.Parse()
-	if err := run(directory, endpoint, parentKey, permitFile, identityOnly, expectDenied); err != nil {
+	if err := run(directory, endpoint, parentKey, permitFile, identityOnly, expectDenied, serve); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
-func run(directory, endpoint, parentKey, permitFile string, identityOnly, expectDenied bool) error {
+func run(directory, endpoint, parentKey, permitFile string, identityOnly, expectDenied, serve bool) error {
 	if directory == "" {
 		return errors.New("test state is required")
 	}
@@ -52,8 +54,11 @@ func run(directory, endpoint, parentKey, permitFile string, identityOnly, expect
 		defer state.Policy.Close()
 		return json.NewEncoder(os.Stdout).Encode(map[string]string{"public_key": base64.RawStdEncoding.EncodeToString(state.Identity.PublicKey)})
 	}
-	started := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	timeout := 15 * time.Second
+	if serve {
+		timeout = 5 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	key, err := base64.RawStdEncoding.DecodeString(parentKey)
 	if err != nil || len(key) != ed25519.PublicKeySize {
@@ -88,6 +93,33 @@ func run(directory, endpoint, parentKey, permitFile string, identityOnly, expect
 		return err
 	}
 	defer client.Close()
+	if !serve {
+		return probeConfiguration(client, expectDenied)
+	}
+	// Only the fixture harness submits probes. Keeping the same process and
+	// NodeHost alive lets lifecycle checks detect accidental sibling restarts.
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Buffer(make([]byte, 64), 256)
+	for scanner.Scan() {
+		switch scanner.Text() {
+		case "probe":
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if err := probeConfiguration(client, expectDenied); err != nil {
+				return err
+			}
+		case "stop":
+			return nil
+		default:
+			return errors.New("fixture accepts only probe or stop")
+		}
+	}
+	return scanner.Err()
+}
+
+func probeConfiguration(client *desktop.Client, expectDenied bool) error {
+	started := time.Now()
 	if err := client.WaitConnected(12000); err != nil {
 		return err
 	}

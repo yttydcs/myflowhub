@@ -76,7 +76,9 @@ describe('bounded write outcomes', () => {
     const controller = new VariableController(api, 'p', variableResource(false))
     controller.start(); await vi.advanceTimersByTimeAsync(0); controller.edit(true)
     const applying = controller.apply()
-    await vi.advanceTimersByTimeAsync(5000); await applying
+    await vi.advanceTimersByTimeAsync(4499)
+    expect(controller.getSnapshot().writing).toBe(true)
+    await vi.advanceTimersByTimeAsync(1); await applying
     expect(controller.getSnapshot()).toMatchObject({ writeOutcome: 'uncertain', dirty: true, draft: true, writing: false })
     reply.resolve({ sent: true, expected_revision: '9007199254740993', response_json: JSON.stringify({ schema: 'mfh.variable-value.v1', payload: snapshot(true, '9007199254740994') }) })
     await vi.advanceTimersByTimeAsync(0)
@@ -86,7 +88,7 @@ describe('bounded write outcomes', () => {
     expect(api.writeVariableFromSnapshot).toHaveBeenCalledTimes(1)
     controller.stop()
   })
-  it('ends at five seconds, preserves intent and ignores late acknowledgements without a retry or read', async () => {
+  it('reserves presentation time inside five seconds and ignores late acknowledgements without a retry or read', async () => {
     vi.useFakeTimers()
     const { api } = variableAPI()
     const reply = deferred<Awaited<ReturnType<typeof api.operate>>>()
@@ -94,7 +96,7 @@ describe('bounded write outcomes', () => {
     const controller = new VariableController(api, 'p', variableResource(false))
     controller.start(); await vi.advanceTimersByTimeAsync(0); controller.edit(true)
     const applying = controller.apply()
-    await vi.advanceTimersByTimeAsync(4999)
+    await vi.advanceTimersByTimeAsync(4499)
     expect(controller.getSnapshot().writing).toBe(true)
     await vi.advanceTimersByTimeAsync(1); await applying
     expect(controller.getSnapshot()).toMatchObject({ writing: false, dirty: true, draft: true, writeOutcome: 'uncertain' })
@@ -105,6 +107,29 @@ describe('bounded write outcomes', () => {
     expect(api.snapshot).toHaveBeenCalledTimes(2)
     expect(controller.getSnapshot().snapshot?.value).toBe(false)
     await controller.apply(); expect(api.operate).toHaveBeenCalledTimes(1)
+    controller.stop()
+  })
+  it('does not restart the deadline for readback after a delayed acknowledgement', async () => {
+    vi.useFakeTimers()
+    const { api } = variableAPI()
+    const controller = new VariableController(api, 'p', variableResource(false))
+    controller.start(); await vi.advanceTimersByTimeAsync(0); controller.edit(true)
+    const ack = deferred<Awaited<ReturnType<typeof api.operate>>>()
+    const read = deferred<ReturnType<typeof snapshot>>()
+    vi.mocked(api.operate).mockReturnValue(ack.promise)
+    vi.mocked(api.snapshot).mockResolvedValueOnce(snapshot()).mockReturnValue(read.promise)
+    const applying = controller.apply()
+    await vi.advanceTimersByTimeAsync(3000)
+    ack.resolve({ schema: 'mfh.variable-value.v1', payload: snapshot(true, '9007199254740994') })
+    await vi.advanceTimersByTimeAsync(1499)
+    expect(controller.getSnapshot().writing).toBe(true)
+    await vi.advanceTimersByTimeAsync(1); await applying
+    expect(controller.getSnapshot()).toMatchObject({ writeOutcome: 'confirmed-unreadable', dirty: true, draft: true, writing: false })
+    read.resolve(snapshot(true, '9007199254740994'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(controller.getSnapshot().writeOutcome).toBe('confirmed-unreadable')
+    await controller.apply()
+    expect(api.operate).toHaveBeenCalledTimes(1)
     controller.stop()
   })
   it('reports acknowledged writes separately when the independent read fails', async () => {
@@ -177,7 +202,7 @@ describe('bounded write outcomes', () => {
     const read = deferred<ReturnType<typeof snapshot>>()
     vi.mocked(api.snapshot).mockReturnValue(read.promise)
     const applying = controller.apply()
-    await vi.advanceTimersByTimeAsync(5000); await applying
+    await vi.advanceTimersByTimeAsync(4500); await applying
     read.resolve(snapshot()); await vi.advanceTimersByTimeAsync(0)
     expect(api.operate).not.toHaveBeenCalled()
     expect(controller.getSnapshot()).toMatchObject({ writeOutcome: 'rejected', dirty: true, writing: false })
