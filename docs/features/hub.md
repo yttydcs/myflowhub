@@ -4,6 +4,14 @@
 
 已有 topology Resource 增加 children/subtree，复用维护中的本地子树和周期快照；children 仅允许直接孩子。旧 read/subscribe 全量语义保持。新能力独立授权，不自动改写已有 policy；见[拓扑发现合同](../specs/topology-discovery.md)。
 
+## 节点显示名称
+
+Hub 的 `system/config` 中，`display_name` 是 Hub 自身的显示名；`values` 内保留 `node.display_name.<NodeID>` 作为本 Hub 对后代节点的共享显示备注。例如 `node.display_name.2001: Win11-Main`。此映射沿用配置的持久化、revision 冲突检查及 `system/config/update` 的权限，不修改 identity、Node ID、树边、角色、Binding 或路由，也不会让仅有备注但不在子树中的 ID 出现在拓扑中。
+
+`children`、`subtree` 和旧 `read/subscribe` 都投影这些名称。仅名称改变也会推进拓扑 presentation revision，使旧深度缓存失效，但不改变树 epoch。Hub 自身的 `display_name` 优先于其 ID 的备注；空的后代备注显式发布 `Node <ID>` 回退名称，可清除旧客户端已缓存的名字。删除备注不等同于给所有旧缓存发送清空，应使用空值显式复位。
+
+这些是 Hub 维护的显示备注，不是叶子节点发布的自命名资源。当前没有管理资源的 Metrics/Desktop 叶子也可因此被识别；不声称所有权威提供者已实现统一名称传播。后代提供者的自身查询仍按现有发现规则合并。名字上限为 255 UTF-8 字节，键使用规范非零 uint64 Node ID；备注与其他 `values` 属性共享现有数量/大小限制，不建立第二套身份注册表。当前 Desktop 可显示拓扑返回的名称，尚无专用改名按钮。
+
 ## Purpose
 
 Hub 是权威节点树的根或中继宿主，负责持久身份、子节点准入、路由、策略裁决和内建管理资源。它不是全局业务模块容器。

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"sync"
@@ -31,6 +32,7 @@ type topologyResult struct {
 type topologySnapshot struct {
 	version     tree.TopologyVersion
 	displayName string
+	nodeNames   map[string]string
 	instanceID  string
 	revision    uint64
 	nodes       []protocol.TopologyQueryNodeV1
@@ -233,8 +235,14 @@ func (c *Controller) refreshTopologyLocked() (*topologySnapshot, error) {
 	if previous != nil {
 		version = previous.version
 	}
-	displayName := c.settings.Snapshot().DisplayName
-	if previous != nil && previous.displayName != displayName {
+	settings := c.settings.Snapshot()
+	displayName := settings.DisplayName
+	names, err := nodeDisplayNames(settings.Values)
+	if err != nil {
+		c.topologyQuery.failure.Store(&topologyFailure{err: err})
+		return nil, err
+	}
+	if previous != nil && (previous.displayName != displayName || !maps.Equal(previous.nodeNames, names)) {
 		version = tree.TopologyVersion{}
 	}
 	state, changed := c.node.Tree().TopologySnapshotIfChanged(version)
@@ -254,7 +262,7 @@ func (c *Controller) refreshTopologyLocked() (*topologySnapshot, error) {
 		revision = previous.revision + 1
 	}
 	variableState := c.topology.Snapshot().State
-	current, err := buildTopologySnapshot(state, displayName, c.topologyQuery.instanceID, revision, *variableState.Definition)
+	current, err := buildTopologySnapshot(state, displayName, names, c.topologyQuery.instanceID, revision, *variableState.Definition)
 	if err != nil {
 		c.topologyQuery.failure.Store(&topologyFailure{err: err})
 		return nil, err
@@ -273,7 +281,7 @@ func (c *Controller) refreshTopologyLocked() (*topologySnapshot, error) {
 	return current, current.valueErr
 }
 
-func buildTopologySnapshot(state tree.TopologySnapshot, displayName, instanceID string, revision uint64, definition protocol.DataSchemaDefinition) (*topologySnapshot, error) {
+func buildTopologySnapshot(state tree.TopologySnapshot, displayName string, names map[string]string, instanceID string, revision uint64, definition protocol.DataSchemaDefinition) (*topologySnapshot, error) {
 	epoch := state.Version.Epoch
 	if epoch == 0 {
 		epoch = 1
@@ -290,7 +298,7 @@ func buildTopologySnapshot(state tree.TopologySnapshot, displayName, instanceID 
 		role = "root"
 	}
 	idText := func(id protocol.NodeID) string { return strconv.FormatUint(uint64(id), 10) }
-	current := &topologySnapshot{version: state.Version, displayName: displayName, instanceID: instanceID, revision: revision, cache: make(map[int]topologyResult)}
+	current := &topologySnapshot{version: state.Version, displayName: displayName, nodeNames: names, instanceID: instanceID, revision: revision, cache: make(map[int]topologyResult)}
 	current.nodes = []protocol.TopologyQueryNodeV1{{NodeID: idText(state.Local), DisplayName: displayName, Role: role, Generation: epoch, HasChildren: len(children[state.Local]) != 0}}
 	current.levels = []int{0}
 	queue := []protocol.NodeID{state.Local}
@@ -303,7 +311,7 @@ func buildTopologySnapshot(state tree.TopologySnapshot, displayName, instanceID 
 			}
 			seen[id] = true
 			queue = append(queue, id)
-			current.nodes = append(current.nodes, protocol.TopologyQueryNodeV1{NodeID: idText(id), ParentID: idText(parent), Role: "node", Generation: epoch, HasChildren: len(children[id]) != 0})
+			current.nodes = append(current.nodes, protocol.TopologyQueryNodeV1{NodeID: idText(id), ParentID: idText(parent), DisplayName: names[idText(id)], Role: "node", Generation: epoch, HasChildren: len(children[id]) != 0})
 			current.levels = append(current.levels, current.levels[index]+1)
 		}
 	}
