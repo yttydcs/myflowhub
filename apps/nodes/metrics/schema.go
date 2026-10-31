@@ -46,10 +46,10 @@ var definitions = []Definition{
 	{Name: BatteryPercent, Unit: "percent", Platforms: platforms("windows"), IntervalMS: 30_000},
 	{Name: BatteryCharging, Unit: "boolean", Platforms: platforms("windows"), IntervalMS: 30_000},
 	{Name: BatteryOnAC, Unit: "boolean", Platforms: platforms("windows"), IntervalMS: 30_000},
-	{Name: NetworkOnline, Unit: "boolean", Platforms: platforms("windows"), IntervalMS: 5_000},
-	{Name: NetworkType, Unit: "label", Platforms: platforms("windows"), IntervalMS: 5_000},
-	{Name: CPUPercent, Unit: "percent", Platforms: platforms("windows"), IntervalMS: 2_000},
-	{Name: MemoryPercent, Unit: "percent", Platforms: platforms("windows"), IntervalMS: 2_000},
+	{Name: NetworkOnline, Unit: "boolean", Platforms: platforms("windows", "linux"), IntervalMS: 5_000},
+	{Name: NetworkType, Unit: "label", Platforms: platforms("windows", "linux"), IntervalMS: 5_000},
+	{Name: CPUPercent, Unit: "percent", Platforms: platforms("windows", "linux"), IntervalMS: 2_000},
+	{Name: MemoryPercent, Unit: "percent", Platforms: platforms("windows", "linux"), IntervalMS: 2_000},
 	{Name: VolumePercent, Unit: "percent", Controllable: true, Platforms: platforms("windows"), IntervalMS: 1_000},
 	{Name: VolumeMuted, Unit: "boolean", Controllable: true, Platforms: platforms("windows"), IntervalMS: 1_000},
 	{Name: BrightnessPercent, Unit: "percent", Controllable: true, Platforms: platforms("windows"), IntervalMS: 2_000},
@@ -213,13 +213,17 @@ func ValidateValue(name Name, value any) error {
 	return protocol.ValidateVariableValue(definition, payload)
 }
 
-func ConfigDefinition() protocol.DataSchemaDefinition {
+func ConfigDefinition() protocol.DataSchemaDefinition { return configDefinition("windows") }
+
+// The owner advertises its actual platform's configuration shape. The Windows
+// public helper stays unchanged for existing UI and generated contracts.
+func configDefinition(platform string) protocol.DataSchemaDefinition {
 	integer := func(minimum, maximum float64) *protocol.DataSchemaDefinition {
 		return &protocol.DataSchemaDefinition{Type: "integer", Minimum: &minimum, Maximum: &maximum}
 	}
 	boolean := &protocol.DataSchemaDefinition{Type: "boolean"}
 	names := make([]string, 0, len(definitions))
-	for _, definition := range Definitions("windows") {
+	for _, definition := range Definitions(platform) {
 		names = append(names, string(definition.Name))
 	}
 	count, channels, label := len(names), 64, protocol.MaxIdentifierBytes
@@ -232,13 +236,13 @@ func ConfigDefinition() protocol.DataSchemaDefinition {
 	return protocol.DataSchemaDefinition{ID: SchemaConfigV1, Type: "object", Title: "Metrics configuration", Properties: []protocol.DataSchemaProperty{
 		{Name: "version", Required: true, Schema: integer(1, 1)},
 		{Name: "revision", Required: true, Schema: &protocol.DataSchemaDefinition{Type: "string", Format: "uint64"}},
-		{Name: "platform", Required: true, Schema: &protocol.DataSchemaDefinition{Type: "string", Enum: []string{"windows"}}},
+		{Name: "platform", Required: true, Schema: &protocol.DataSchemaDefinition{Type: "string", Enum: []string{platform}}},
 		{Name: "settings", Required: true, Schema: &protocol.DataSchemaDefinition{Type: "array", Items: setting, MinItems: &count, MaxItems: &count}},
 		{Name: "notification_channels", Required: true, Schema: &protocol.DataSchemaDefinition{Type: "array", MaxItems: &channels, Items: &protocol.DataSchemaDefinition{Type: "string", MaxLength: &label}}},
 	}}
 }
 
-func validPlatform(value string) bool { return value == "windows" }
+func validPlatform(value string) bool { return value == "windows" || value == "linux" }
 
 func platforms(values ...string) map[string]bool {
 	result := make(map[string]bool, len(values))

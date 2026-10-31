@@ -8,7 +8,18 @@
 - `notifications.go`：父节点通知 Stream 的 durable subscription 和有界 inbox。
 - `platform/windows`：Windows collector/actuator；平台写操作只发生在标准 write 通过值校验、CAS 和授权后，并回读确认实际值。
 - `windows`：Wails UI，边界只暴露版本化 JSON。
-- `cmd/mfh-metrics`：Windows 无 UI 运行入口。
+- `platform/linux`：只读 Linux CPU、内存和本地网络接口采集器。
+- `cmd/mfh-metrics`：Windows / Linux 无 UI 运行入口，编译时选择平台。
+
+## Linux 云端探针
+
+Linux 仅发布 `cpu_percent`、`memory_percent`、`network_online`、`network_type` 四个只读标准 Variable；不发布音量、亮度或电池，不提供 actuator。配置 Variable 按实际平台声明四项设置，Windows 的十项配置合同不变。
+
+CPU 使用 `/proc/stat` 两次采样的增量，排除 guest 重复计数，将 idle/iowait 计为非忙时间；首次采样只建立基线，不伪造 0。内存使用 `(MemTotal - MemAvailable) / MemTotal`，不是仅看 MemFree。读失败、计数回退或非法输入由公共 Controller 显式发布 unavailable/stale。
+
+网络状态表示存在 UP 且有非回环、非链路本地单播地址的本地接口，不证明公网或某个目标可达；没有 ICMP/HTTP 探测、网速、磁盘、温度、历史存储或告警。本轮实测范围为 Ubuntu 24.04 x86_64 的主机进程，不承诺容器 cgroup 配额指标。
+
+云端 Metrics 使用独立状态和账户，以 `127.0.0.1:7331` 连接同机 Hub，不新增公网监听。当前 CLI 保留显式 ID / Legacy Join Permit；首次准入完成后长期服务不再携带一次性 Permit。权限仍沿用 Hub，不能因为同机部署而跳过认证。
 
 ## Build and test
 
