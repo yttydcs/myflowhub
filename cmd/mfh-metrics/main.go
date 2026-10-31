@@ -11,13 +11,11 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"runtime"
 	"strconv"
 	"syscall"
 	"time"
 
 	metrics "github.com/yttydcs/myflowhub/apps/nodes/metrics"
-	metricswindows "github.com/yttydcs/myflowhub/apps/nodes/metrics/platform/windows"
 	"github.com/yttydcs/myflowhub/protocol"
 	"github.com/yttydcs/myflowhub/runtime/auth"
 	"github.com/yttydcs/myflowhub/runtime/link"
@@ -71,9 +69,6 @@ func run(ctx context.Context, options options) error {
 			"node_id": strconv.FormatUint(uint64(nodeID), 10), "public_key": base64.RawStdEncoding.EncodeToString(state.Identity.PublicKey),
 		})
 	}
-	if runtime.GOOS != "windows" {
-		return errors.New("mfh-metrics currently requires Windows; Android uses the metrics mobile binding")
-	}
 	parentID := protocol.NodeID(options.parentID)
 	if err := parentID.Validate(); err != nil {
 		return err
@@ -90,11 +85,14 @@ func run(ctx context.Context, options options) error {
 	if err != nil {
 		return err
 	}
-	platform := metricswindows.New()
+	collector, actuator, platform, err := nativePlatform()
+	if err != nil {
+		return err
+	}
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	service, err := metrics.Start(ctx, metrics.RuntimeConfig{
 		StateDirectory: options.stateDirectory, NodeID: nodeID, ParentID: parentID, ParentKey: parentKey,
-		Permit: permit, Endpoint: link.Endpoint(options.endpoint), Platform: "windows", Collector: platform, Actuator: platform, Logger: logger,
+		Permit: permit, Endpoint: link.Endpoint(options.endpoint), Platform: platform, Collector: collector, Actuator: actuator, Logger: logger,
 	})
 	if err != nil {
 		return err

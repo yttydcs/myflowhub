@@ -22,20 +22,25 @@ import (
 )
 
 func TestMetricsCommandProcessPublishesToPersistentHub(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("the standalone MetricsNode command is the Windows product entry")
-	}
-	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
+	if runtime.GOOS != "windows" && runtime.GOOS != "linux" {
+		t.Skip("the standalone MetricsNode command supports Windows and Linux")
 	}
 	temporary := t.TempDir()
-	binary := filepath.Join(temporary, "mfh-metrics.exe")
-	build := exec.Command("go", "build", "-o", binary, "./cmd/mfh-metrics")
-	build.Dir = root
-	build.Env = append(os.Environ(), "GOWORK=off")
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build MetricsNode command: %v\n%s", err, output)
+	binary := os.Getenv("MFH_METRICS_TEST_BINARY")
+	if binary == "" {
+		root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		binary = filepath.Join(temporary, "mfh-metrics.exe")
+		build := exec.Command("go", "build", "-o", binary, "./cmd/mfh-metrics")
+		build.Dir = root
+		build.Env = append(os.Environ(), "GOWORK=off")
+		if output, err := build.CombinedOutput(); err != nil {
+			t.Fatalf("build MetricsNode command: %v\n%s", err, output)
+		}
+	} else if !filepath.IsAbs(binary) {
+		t.Fatal("MFH_METRICS_TEST_BINARY must be absolute")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -114,6 +119,16 @@ func TestMetricsCommandProcessPublishesToPersistentHub(t *testing.T) {
 				}
 				if sample.Definition == nil || sample.Definition.Type != "number" || string(sample.Value) == "-1" {
 					t.Fatalf("unexpected process metric: %+v", sample)
+				}
+				if sample.Status != "ready" {
+					time.Sleep(50 * time.Millisecond)
+					continue
+				}
+				if sample.SourceTimeUnixMS == nil {
+					t.Fatal("ready process metric has no source time")
+				}
+				if err := protocol.ValidateVariableValue(*sample.Definition, sample.Value); err != nil {
+					t.Fatal(err)
 				}
 				return
 			case <-attemptCtx.Done():

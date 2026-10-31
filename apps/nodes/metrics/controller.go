@@ -234,12 +234,12 @@ func (c *Controller) Close() error {
 
 func (c *Controller) registerResources() error {
 	owner := c.node.ID()
-	configPayload, err := protocol.EncodeVariablePayload(ConfigDefinition(), &c.config, protocol.DefaultMaxPayload)
+	configPayload, err := protocol.EncodeVariablePayload(configDefinition(c.config.Platform), &c.config, protocol.DefaultMaxPayload)
 	if err != nil {
 		return err
 	}
 	c.configVariable, err = c.resources.Variable(resource.VariableSpec{
-		Name: ResourceConfig, Definition: ConfigDefinition(),
+		Name: ResourceConfig, Definition: configDefinition(c.config.Platform),
 		ReadPermission: "metrics.config.read", MaxPayloadBytes: protocol.DefaultMaxPayload, Initial: resource.VariableState{Value: configPayload, Status: "ready"},
 	})
 	if err != nil {
@@ -418,7 +418,7 @@ func (c *Controller) updateConfig(ctx context.Context, input []byte) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
-	variablePayload, err := protocol.EncodeVariablePayload(ConfigDefinition(), &next, protocol.DefaultMaxPayload)
+	variablePayload, err := protocol.EncodeVariablePayload(configDefinition(next.Platform), &next, protocol.DefaultMaxPayload)
 	if err != nil {
 		return nil, err
 	}
