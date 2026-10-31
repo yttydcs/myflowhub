@@ -34,7 +34,7 @@ func TestTopologyApplyEnvelopeOverflowAndRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	treeState := tree.TopologySnapshot{Local: 1, Version: tree.TopologyVersion{MembershipEpoch: 1}}
-	current, err := buildTopologySnapshot(treeState, "", wrapped.instanceID, 1, *state.Definition)
+	current, err := buildTopologySnapshot(treeState, "", nil, wrapped.instanceID, 1, *state.Definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestTopologyApplyEnvelopeOverflowAndRecovery(t *testing.T) {
 		t.Fatal("regressed Apply emitted an event")
 	}
 	treeState.Relations = []tree.Relation{{Node: 2, Parent: 1}}
-	next, err := buildTopologySnapshot(treeState, "", wrapped.instanceID, 2, *state.Definition)
+	next, err := buildTopologySnapshot(treeState, "", nil, wrapped.instanceID, 2, *state.Definition)
 	if err != nil || next.valueErr != nil {
 		t.Fatalf("domain value must fit before envelope: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestTopologyApplyEnvelopeOverflowAndRecovery(t *testing.T) {
 		t.Fatalf("overflow disabled shallow query: %v", err)
 	}
 	treeState.Relations = nil
-	recovered, err := buildTopologySnapshot(treeState, "", wrapped.instanceID, 3, *state.Definition)
+	recovered, err := buildTopologySnapshot(treeState, "", nil, wrapped.instanceID, 3, *state.Definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestTopologyDepthCacheIsBoundedAndIsolated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot, err := buildTopologySnapshot(tree.TopologySnapshot{Local: 1, Version: tree.TopologyVersion{MembershipEpoch: 1}}, "", strings.Repeat("a", 32), 1, definition)
+	snapshot, err := buildTopologySnapshot(tree.TopologySnapshot{Local: 1, Version: tree.TopologyVersion{MembershipEpoch: 1}}, "", nil, strings.Repeat("a", 32), 1, definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func BenchmarkTopologySnapshot(b *testing.B) {
 		for id := 3; id <= count; id++ {
 			state.Relations = append(state.Relations, tree.Relation{Node: protocol.NodeID(id), Parent: 2})
 		}
-		snapshot, err := buildTopologySnapshot(state, "", strings.Repeat("a", 32), 1, definition)
+		snapshot, err := buildTopologySnapshot(state, "", nil, strings.Repeat("a", 32), 1, definition)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -166,7 +166,7 @@ func BenchmarkTopologySnapshot(b *testing.B) {
 					case "depth-miss":
 						snapshot.encode(2)
 					case "rebuild":
-						if _, err := buildTopologySnapshot(state, "", snapshot.instanceID, 1, definition); err != nil {
+						if _, err := buildTopologySnapshot(state, "", nil, snapshot.instanceID, 1, definition); err != nil {
 							b.Fatal(err)
 						}
 					}

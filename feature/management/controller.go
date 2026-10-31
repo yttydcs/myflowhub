@@ -294,6 +294,9 @@ func (c *Controller) updateConfig(_ context.Context, input []byte) ([]byte, erro
 	if err := protocol.DecodeJSONPayload(input, protocol.DefaultMaxPayload, &request); err != nil {
 		return nil, err
 	}
+	if _, err := nodeDisplayNames(request.Values); err != nil {
+		return nil, err
+	}
 	next, err := c.settings.Replace(request)
 	if err != nil {
 		return nil, err
