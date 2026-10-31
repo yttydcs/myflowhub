@@ -78,6 +78,19 @@ import that stylesheet. Existing Tabs, ScrollArea and Badge retain their behavio
 - The Desktop's unlayered `.input` and `.button-*` styles retain layout ownership;
   their compact styling is maintained by the consumer/style integration owner.
 
+## Nested settings dialogs
+
+Workspace display selectors live in `WidgetSettings.tsx`, using Radix Dialog.
+The settings portal stays outside clipped widget panes; its Select portal is
+layered above the dialog. Display changes update the View, not the remote value.
+
+`package.json` overrides keep `@radix-ui/react-focus-scope` and
+`@radix-ui/react-dismissable-layer` on a single shared implementation. Separate
+physical copies keep independent focus/layer stacks, even at the same version,
+and can cause Dialog and Select to repeatedly steal focus from each other.
+Keep these packages aligned when upgrading Radix and verify the nested selector
+with `src/components/Workspace.test.tsx`.
+
 ## Focused verification
 
 Run `npm test -- src/components/ui/controls.test.tsx` from the frontend directory.

@@ -123,7 +123,7 @@ export function VariablePanel({ api, resource, rendererID, disabledReason, showF
       </div>
       {Array.isArray(displayedValue) && <span className="variable-item-count">{displayedValue.length} 项</span>}
       {writing ? !autoApply && <span className="variable-draft-state">正在应用…</span> : showUnapplied && <span className="variable-draft-state">未应用</span>}
-      {snapshot && !writable && <span className="variable-readonly">只读</span>}
+      {snapshot && !writable && !headerTarget && <span className="variable-readonly">只读</span>}
     </div>
   return <div className="value-renderer variable-panel">
     {headerTarget ? createPortal(header, headerTarget) : header}
@@ -171,9 +171,13 @@ export function VariablePanel({ api, resource, rendererID, disabledReason, showF
   </div>
 }
 
-export function VariableRendererSelector({ api, resource, rendererID, onRendererChange }: { api: DesktopAPI; resource: ResourceDescriptor; rendererID?: string; onRendererChange(id: string): void }) {
+export function VariableRendererSelector({ api, resource, rendererID, onRendererChange, showDetails = false }: { api: DesktopAPI; resource: ResourceDescriptor; rendererID?: string; onRendererChange(id: string): void; showDetails?: boolean }) {
   const { state } = useVariable(api, resource)
   const selection = selectVariableRenderer(resource, state.snapshot?.definition, rendererID)
-  if (selection.choices.length < 2) return null
-  return <div className="widget-renderer-selector"><Select aria-label="显示方式" value={selection.selected.id} onValueChange={onRendererChange} options={selection.choices.map((choice) => ({ value: choice.id, label: choice.label }))} /></div>
+  const writable = resource.capabilities.some((capability) => capability.name === 'write') && !state.snapshot?.definition?.read_only
+  if (selection.choices.length < 2 && !showDetails) return null
+  return <>
+    <div className="widget-renderer-selector"><Select aria-label="显示方式" disabled={selection.choices.length < 2} value={selection.selected.id} onValueChange={onRendererChange} options={selection.choices.map((choice) => ({ value: choice.id, label: choice.label }))} /></div>
+    {showDetails && <p className="renderer-note">{!state.snapshot ? '正在读取资源状态…' : writable ? '可读写资源，数值可在组件中直接调整。' : '只读资源，仅可调整显示方式，不能修改数值。'}</p>}
+  </>
 }

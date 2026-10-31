@@ -8,6 +8,7 @@ import {
   lastWorkspaceLeafID,
   removeWorkspaceWidget,
   resizeWorkspaceSplitPair,
+  snapWorkspaceSplitRatio,
   validateWorkspaceView,
   workspaceDropTargetPriority,
   workspaceLayoutMinimumSize,
@@ -30,6 +31,30 @@ const view = (ids: string[], layout_root?: ViewLayoutNode): ViewDefinition => ({
 })
 
 const leaf = (id: string): ViewLayoutNode => ({ kind: 'leaf', widget_id: id })
+
+describe('split ratio snapping', () => {
+  it.each([0.25, 1 / 3, 0.5, 2 / 3, 0.75])('snaps to %s from either direction within eight pixels', (target) => {
+    expect(snapWorkspaceSplitRatio(target - 0.006, 1000, 0.1, 0.9)).toBe(target)
+    expect(snapWorkspaceSplitRatio(target + 0.006, 1000, 0.1, 0.9)).toBe(target)
+  })
+
+  it.each([500, 1000, 2000])('uses a fixed pixel radius for a %spx pair', (size) => {
+    expect(snapWorkspaceSplitRatio(0.5 + 6 / size, size, 0.1, 0.9)).toBe(0.5)
+    expect(snapWorkspaceSplitRatio(0.5 + 12 / size, size, 0.1, 0.9)).toBe(0.5 + 12 / size)
+  })
+
+  it('never snaps beyond panel minimum sizes and clamps out-of-range positions', () => {
+    expect(snapWorkspaceSplitRatio(0.254, 1000, 0.252, 0.748)).toBe(0.254)
+    expect(snapWorkspaceSplitRatio(0.746, 1000, 0.252, 0.748)).toBe(0.746)
+    expect(snapWorkspaceSplitRatio(-0.2, 1000, 0.3, 0.7)).toBe(0.3)
+    expect(snapWorkspaceSplitRatio(1.2, 1000, 0.3, 0.7)).toBe(0.7)
+  })
+
+  it('keeps free ratios and ignores missing geometry', () => {
+    expect(snapWorkspaceSplitRatio(0.42, 1000, 0.1, 0.9)).toBe(0.42)
+    expect(snapWorkspaceSplitRatio(0.506, 0, 0.1, 0.9)).toBe(0.506)
+  })
+})
 
 describe('workspace layout domain', () => {
   it('reorders compact cards without changing split geometry or card sizes', () => {

@@ -1,5 +1,5 @@
 import { DndContext } from '@dnd-kit/core'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import type { DesktopAPI } from '../api'
@@ -74,7 +74,33 @@ function renderResourceWorkspace(
   return { ...rendered, candidate, onChange }
 }
 
+function setupSplitResize(axis: 'horizontal' | 'vertical') {
+  const frames: FrameRequestCallback[] = []
+  const animation = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    frames.push(callback)
+    return frames.length
+  })
+  const onChange = renderWorkspace(view({ kind: 'split', axis, weights: [0.5, 0.5], children: [leaf('a'), leaf('b')] }))
+  const separator = screen.getByRole('separator')
+  const grid = separator.parentElement!
+  const [leading, , trailing] = Array.from(grid.children) as HTMLElement[]
+  vi.spyOn(leading!, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 496, 496))
+  vi.spyOn(trailing!, 'getBoundingClientRect').mockReturnValue(axis === 'horizontal' ? new DOMRect(504, 0, 496, 496) : new DOMRect(0, 504, 496, 496))
+  let captured = false
+  separator.setPointerCapture = vi.fn(() => { captured = true })
+  separator.hasPointerCapture = vi.fn(() => captured)
+  separator.releasePointerCapture = vi.fn(() => { captured = false })
+  return { frames, animation, onChange, separator, grid }
+}
+
 describe('workspace panels', () => {
+  it('shows layout and save controls without a widget count in the toolbar', () => {
+    renderWorkspace(view(leaf('a'), ['a']))
+    expect(screen.queryByText(/^\d+ widgets$/)).not.toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: '视图布局' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '保存视图' })).toBeEnabled()
+    expect(screen.getByText('未保存')).toBeInTheDocument()
+  })
   it('switches modes without remounting variable inputs and resets manual compact size with Home', async () => {
     const descriptor = variableResource(false)
     const { api } = variableAPI(snapshot(37, '1', { type: 'number' }))
@@ -231,6 +257,65 @@ describe('workspace panels', () => {
     }))
   })
 
+  it.each(['horizontal', 'vertical'] as const)('snaps %s pointer previews and the committed ratio while Alt allows fine adjustment', (axis) => {
+    const { frames, animation, onChange, separator } = setupSplitResize(axis)
+    try {
+      expect(separator).not.toHaveClass('is-resizing')
+      fireEvent.pointerDown(separator, { pointerId: 1, clientX: 500, clientY: 500 })
+      expect(separator).toHaveClass('is-resizing')
+      expect(separator).toHaveFocus()
+      const position = axis === 'horizontal' ? { clientX: 506, clientY: 500 } : { clientX: 500, clientY: 506 }
+      fireEvent.pointerMove(separator, { pointerId: 1, ...position })
+      act(() => frames.shift()?.(0))
+      expect(separator).toHaveAttribute('aria-valuenow', '50')
+      expect(onChange).not.toHaveBeenCalled()
+      fireEvent.pointerMove(separator, { pointerId: 1, ...position, altKey: true })
+      act(() => frames.shift()?.(16))
+      expect(separator).toHaveAttribute('aria-valuenow', '51')
+      fireEvent.pointerMove(separator, { pointerId: 1, ...position })
+      act(() => frames.shift()?.(32))
+      expect(separator).toHaveAttribute('aria-valuenow', '50')
+      fireEvent.pointerUp(separator, { pointerId: 1, ...position })
+      expect(separator).not.toHaveClass('is-resizing')
+      expect(onChange).toHaveBeenCalledTimes(1)
+      expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ layout_root: expect.objectContaining({ weights: [0.5, 0.5] }) }))
+    } finally {
+      animation.mockRestore()
+    }
+  })
+
+  it('also bypasses snapping on pointer release when Alt is held', () => {
+    const { animation, onChange, separator } = setupSplitResize('horizontal')
+    try {
+      fireEvent.pointerDown(separator, { pointerId: 1, clientX: 500, clientY: 500 })
+      fireEvent.pointerUp(separator, { pointerId: 1, clientX: 506, clientY: 500, altKey: true })
+      expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+        layout_root: expect.objectContaining({ weights: [expect.closeTo(502 / 992, 5), expect.closeTo(490 / 992, 5)] }),
+      }))
+    } finally {
+      animation.mockRestore()
+    }
+  })
+
+  it.each(['cancel', 'lost capture', 'Escape'])('clears the resize indicator and discards its preview on %s', (reason) => {
+    const { frames, animation, onChange, separator, grid } = setupSplitResize('horizontal')
+    try {
+      const original = grid.style.gridTemplateColumns
+      fireEvent.pointerDown(separator, { pointerId: 1, clientX: 400, clientY: 500 })
+      act(() => frames.shift()?.(0))
+      expect(grid.style.gridTemplateColumns).not.toBe(original)
+      if (reason === 'Escape') fireEvent.keyDown(separator, { key: 'Escape' })
+      else if (reason === 'cancel') fireEvent.pointerCancel(separator, { pointerId: 1 })
+      else fireEvent.lostPointerCapture(separator, { pointerId: 1 })
+      expect(separator).not.toHaveClass('is-resizing')
+      expect(grid.style.gridTemplateColumns).toBe(original)
+      fireEvent.pointerUp(separator, { pointerId: 1, clientX: 400, clientY: 500 })
+      expect(onChange).not.toHaveBeenCalled()
+    } finally {
+      animation.mockRestore()
+    }
+  })
+
   it('renders the hypothetical layout preview without replacing live panels', () => {
     const current = view({ kind: 'split', axis: 'horizontal', weights: [0.5, 0.5], children: [leaf('a'), leaf('b')] })
     const preview = view({
@@ -242,7 +327,7 @@ describe('workspace panels', () => {
     expect(document.querySelector('.workspace-preview-leaf.is-highlighted')).toBeInTheDocument()
   })
 
-  it('persists renderer selection on the matching View widget', async () => {
+  it('moves display and read-only details into settings and persists the matching widget renderer', async () => {
     const onChange = vi.fn()
     const candidate = view(leaf('health'), ['health'])
     candidate.widgets[0] = { ...candidate.widgets[0]!, resource_name: 'system/health', renderer: 'mfh.variable.auto.v2' }
@@ -268,15 +353,42 @@ describe('workspace panels', () => {
       </DndContext>,
     )
 
-    const selector = await screen.findByRole('combobox', { name: /显示方式/ })
-    expect(selector.closest('.widget-header')).not.toBeNull()
+    const settings = screen.getByRole('button', { name: '设置 health' })
+    expect(settings.closest('.widget-header')).not.toBeNull()
+    expect(screen.queryByRole('combobox', { name: '显示方式' })).not.toBeInTheDocument()
+    await waitFor(() => expect(document.querySelector('.widget-header .variable-readonly')).toBeNull())
+    fireEvent.click(settings)
+    const dialog = screen.getByRole('dialog', { name: 'health 设置' })
+    const selector = await within(dialog).findByRole('combobox', { name: '显示方式' })
+    expect(selector.closest('.widget-header')).toBeNull()
+    expect(await within(dialog).findByText('只读资源，仅可调整显示方式，不能修改数值。')).toBeInTheDocument()
     expect(document.querySelector('.widget-body .widget-renderer-selector')).not.toBeInTheDocument()
-    expect(screen.queryByText('突出运行状态与组件检查')).not.toBeInTheDocument()
     fireEvent.keyDown(selector, { key: 'ArrowDown' })
     fireEvent.click(await screen.findByRole('option', { name: '文本' }))
     await waitFor(() => expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
       widgets: [expect.objectContaining({ id: 'health', renderer: 'mfh.variable.text.v2' })],
     })))
+    fireEvent.click(within(dialog).getByRole('button', { name: '完成' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(settings).toHaveFocus())
+  })
+
+  it('closes settings with Escape without remounting the editor or writing its draft', async () => {
+    const { api } = variableAPI(snapshot(37, '1', { type: 'number' }))
+    renderResourceWorkspace(variableResource(false), api)
+    const input = await screen.findByRole('spinbutton')
+    fireEvent.change(input, { target: { value: '45' } })
+    const settings = screen.getByRole('button', { name: /设置 / })
+    fireEvent.click(settings)
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('combobox', { name: '显示方式' })).toBeInTheDocument()
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('spinbutton')).toBe(input)
+    expect(input).toHaveValue(45)
+    expect(api.snapshot).toHaveBeenCalledTimes(1)
+    expect(api.operate).not.toHaveBeenCalled()
+    await waitFor(() => expect(settings).toHaveFocus())
   })
 
   it('derives compact pane density from ResizeObserver without changing the View', async () => {
