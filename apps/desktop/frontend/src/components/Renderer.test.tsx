@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { describe, expect, it, vi } from 'vitest'
 import type { DesktopAPI } from '../api'
 import type { ResourceDescriptor, ResourceEvent } from '../types'
-import { MAX_VISIBLE_EVENTS, prependBoundedEvents, ResourceOperationPanel, ResourceRenderer, ResourceRendererSelector, SchemaEditor } from './Renderer'
+import { MAX_VISIBLE_EVENTS, NodeRenderer, prependBoundedEvents, ResourceOperationPanel, ResourceRenderer, ResourceRendererSelector, SchemaEditor } from './Renderer'
 
 function mockAPI(overrides: Partial<DesktopAPI> = {}): DesktopAPI {
   return {
@@ -94,6 +94,18 @@ function deferred<T>() {
   const promise = new Promise<T>((success, failure) => { resolve = success; reject = failure })
   return { promise, resolve, reject }
 }
+
+describe('node overview', () => {
+  it.each(['1', '7111512540555700228', '18446744073709551615'])('keeps node ID %s in the facts instead of the fixed-size icon', (nodeID) => {
+    const { container } = render(<NodeRenderer node={{ node_id: nodeID, role: 'node', generation: 1, has_children: false }} resources={[]} />)
+    const orbit = container.querySelector('.node-orbit')!
+    expect(orbit).toHaveAttribute('aria-hidden', 'true')
+    expect(orbit.querySelector('svg')).toBeInTheDocument()
+    expect(orbit.textContent).toBe('')
+    const nodeIDRow = screen.getByText('Node ID').closest('div')!
+    expect(within(nodeIDRow).getByText(nodeID)).toBeInTheDocument()
+  })
+})
 
 describe('schema-driven resource renderer', () => {
   it('keeps the live event buffer newest-first and bounded', () => {

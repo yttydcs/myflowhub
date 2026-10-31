@@ -282,6 +282,24 @@ export function resizeWorkspaceSplitPair(
   return replaceNodeAtPath(root, splitPath, { ...split, weights: normalizeWeights(weights) })
 }
 
+// Keep the attraction radius consistent across screen sizes. Keyboard resizing
+// does not use snapping, so precise ratios remain available without a mouse.
+export function snapWorkspaceSplitRatio(ratio: number, pairSize: number, minimum: number, maximum: number): number {
+  const bounded = Math.min(maximum, Math.max(minimum, ratio))
+  if (!Number.isFinite(pairSize) || pairSize <= 0) return bounded
+  let closest = bounded
+  let distance = 8 / pairSize
+  for (const target of [0.25, 1 / 3, 0.5, 2 / 3, 0.75]) {
+    if (target < minimum || target > maximum) continue
+    const delta = Math.abs(target - bounded)
+    if (delta <= distance) {
+      closest = target
+      distance = delta
+    }
+  }
+  return closest
+}
+
 export function workspaceLayoutMinimumSize(
   node: ViewLayoutNode,
   leafWidth = DEFAULT_WORKSPACE_LEAF_WIDTH,

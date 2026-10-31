@@ -750,14 +750,14 @@ export function ResourceRenderer({
   </div>
 }
 
-export function ResourceRendererSelector({ api, resource, rendererID, onRendererChange }: Pick<RendererProps, 'resource' | 'rendererID'> & { api?: DesktopAPI; onRendererChange(rendererID: string): void }) {
-  if (resource.type === 'mfh.variable') return api ? <VariableRendererSelector api={api} resource={resource} rendererID={rendererID ?? defaultRenderer(resource)} onRendererChange={onRendererChange} /> : null
+export function ResourceRendererSelector({ api, resource, rendererID, onRendererChange, showDetails = false }: Pick<RendererProps, 'resource' | 'rendererID'> & { api?: DesktopAPI; onRendererChange(rendererID: string): void; showDetails?: boolean }) {
+  if (resource.type === 'mfh.variable') return api ? <VariableRendererSelector api={api} resource={resource} rendererID={rendererID ?? defaultRenderer(resource)} onRendererChange={onRendererChange} showDetails={showDetails} /> : null
   const selection = selectResourceRenderer(resource, rendererID)
-  if (selection.choices.length < 2) return null
+  if (selection.choices.length < 2 && !showDetails) return null
   return (
     <label className="widget-renderer-selector">
       <span className="sr-only">显示方式</span>
-      <Select aria-label="显示方式" value={selection.selected.id} onValueChange={onRendererChange} options={selection.choices.map((choice) => ({ value: choice.id, label: choice.label }))} />
+      <Select aria-label="显示方式" disabled={selection.choices.length < 2} value={selection.selected.id} onValueChange={onRendererChange} options={selection.choices.map((choice) => ({ value: choice.id, label: choice.label }))} />
     </label>
   )
 }
@@ -769,7 +769,7 @@ export function NodeRenderer({ node, resources }: { node: TopologyNode; resource
     return [...byType.entries()]
   }, [resources])
   return <div className="node-overview">
-    <div className="node-orbit"><SquareTerminal aria-hidden="true" size={28} /><span>{node.node_id}</span></div>
+    <div className="node-orbit" aria-hidden="true"><SquareTerminal size={28} /></div>
     <dl className="inspector-facts">
       <div><dt>Node ID</dt><dd>{node.node_id}</dd></div>
       <div><dt>角色</dt><dd>{node.role}</dd></div>

@@ -22,12 +22,13 @@ import {
   lastWorkspaceLeafID,
   removeWorkspaceWidget,
   resizeWorkspaceSplitPair,
+  snapWorkspaceSplitRatio,
   workspaceLayoutMinimumSize,
   type WorkspaceDockSide,
 } from '../workspace-layout'
-import { ResourceRenderer, ResourceRendererSelector } from './Renderer'
+import { ResourceRenderer } from './Renderer'
+import { WidgetSettings } from './WidgetSettings'
 import { CatalogContext, DiscoveryStatus, MissingResource } from '../discovery/DiscoveryStatus'
-import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
@@ -155,7 +156,6 @@ function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove,
           {resource?.type !== 'mfh.variable' && <strong>{label}</strong>}
           <small className="sr-only">{widget.owner_node_id} / {widget.resource_name}</small>
         </div>
-        {resource && <ResourceRendererSelector api={api} resource={resource} rendererID={widget.renderer} onRendererChange={onRendererChange} />}
         {resource && resource.type !== 'mfh.variable' && actions.length > 0 && (
           <div className="widget-actions" aria-label="Resource actions">
             {visibleActions.map((action) => <button type="button" className={focusedCapability === action.capability ? 'is-active' : ''} disabled={action.disabled} title={action.label} aria-label={action.label} key={action.capability} onClick={() => setFocusedCapability(action.capability)}>{action.capability}</button>)}
@@ -163,6 +163,7 @@ function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove,
           </div>
         )}
         <div className="widget-controls">
+          {resource && <WidgetSettings api={api} resource={resource} label={label} rendererID={widget.renderer} onRendererChange={onRendererChange} />}
           <button aria-label="移除组件" onClick={onRemove}><Trash2 aria-hidden="true" size={13} /></button>
         </div>
       </header>
@@ -234,6 +235,8 @@ function SplitSeparator({ node, path, index, containerRef, draftWeights, onDraft
   })
   const pendingRef = useRef<{ ratio: number; minimum: number; maximum: number }>()
   const animationRef = useRef<number>()
+  const pointerRef = useRef<number>()
+  const [resizing, setResizing] = useState(false)
 
   const pair = () => {
     const parent = containerRef.current
@@ -260,13 +263,15 @@ function SplitSeparator({ node, path, index, containerRef, draftWeights, onDraft
     }
   }
 
-  const ratioAt = (clientX: number, clientY: number) => {
+  const ratioAt = (clientX: number, clientY: number, bypassSnap = false) => {
     const geometry = pair()
     if (!geometry) return undefined
     const coordinate = geometry.horizontal ? clientX : clientY
     const raw = (coordinate - geometry.start - WORKSPACE_SEPARATOR_SIZE / 2) / geometry.pairSize
     return {
-      ratio: Math.min(geometry.maximum, Math.max(geometry.minimum, raw)),
+      ratio: bypassSnap
+        ? Math.min(geometry.maximum, Math.max(geometry.minimum, raw))
+        : snapWorkspaceSplitRatio(raw, geometry.pairSize, geometry.minimum, geometry.maximum),
       minimum: geometry.minimum,
       maximum: geometry.maximum,
     }
@@ -297,31 +302,49 @@ function SplitSeparator({ node, path, index, containerRef, draftWeights, onDraft
 
   useEffect(() => () => cancelAnimation(), [])
 
+  const endResize = () => {
+    pointerRef.current = undefined
+    setResizing(false)
+    cancelAnimation()
+  }
   const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || pointerRef.current !== undefined) return
     event.preventDefault()
+    event.currentTarget.focus()
     event.currentTarget.setPointerCapture(event.pointerId)
-    const next = ratioAt(event.clientX, event.clientY)
+    pointerRef.current = event.pointerId
+    setResizing(true)
+    const next = ratioAt(event.clientX, event.clientY, event.altKey)
     if (next) schedulePreview(next)
   }
   const pointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
-    const next = ratioAt(event.clientX, event.clientY)
+    if (pointerRef.current !== event.pointerId || !event.currentTarget.hasPointerCapture(event.pointerId)) return
+    const next = ratioAt(event.clientX, event.clientY, event.altKey)
     if (next) schedulePreview(next)
   }
   const pointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
-    const next = ratioAt(event.clientX, event.clientY) || pendingRef.current
+    if (pointerRef.current !== event.pointerId || !event.currentTarget.hasPointerCapture(event.pointerId)) return
+    const next = ratioAt(event.clientX, event.clientY, event.altKey) || pendingRef.current
+    endResize()
     event.currentTarget.releasePointerCapture(event.pointerId)
-    cancelAnimation()
     if (next) onCommit(next.ratio, next.minimum, next.maximum)
     else onCancel()
   }
   const pointerCancel = (event: PointerEvent<HTMLDivElement>) => {
+    if (pointerRef.current !== event.pointerId) return
+    endResize()
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
-    cancelAnimation()
     onCancel()
   }
   const keyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape' && pointerRef.current !== undefined) {
+      event.preventDefault()
+      const pointerID = pointerRef.current
+      endResize()
+      if (event.currentTarget.hasPointerCapture(pointerID)) event.currentTarget.releasePointerCapture(pointerID)
+      onCancel()
+      return
+    }
     const geometry = pair()
     const minimum = geometry?.minimum ?? 0.05
     const maximum = geometry?.maximum ?? 0.95
@@ -346,7 +369,8 @@ function SplitSeparator({ node, path, index, containerRef, draftWeights, onDraft
   return (
     <div
       ref={droppable.setNodeRef}
-      className={`workspace-splitter is-${orientation} ${droppable.isOver ? 'is-drop-target' : ''}`}
+      className={`workspace-splitter is-${orientation} ${resizing ? 'is-resizing' : ''} ${droppable.isOver ? 'is-drop-target' : ''}`}
+      title="拖动调整比例，接近常用比例时吸附；按住 Alt 微调，双击等分，Esc 取消"
       role="separator"
       aria-label={node.axis === 'horizontal' ? `调整 ${beforeWidgetID} 与 ${afterWidgetID} 的左右比例` : `调整 ${beforeWidgetID} 与 ${afterWidgetID} 的上下比例`}
       aria-orientation={orientation}
@@ -360,6 +384,7 @@ function SplitSeparator({ node, path, index, containerRef, draftWeights, onDraft
       onPointerMove={pointerMove}
       onPointerUp={pointerUp}
       onPointerCancel={pointerCancel}
+      onLostPointerCapture={pointerCancel}
       onKeyDown={keyDown}
       onDoubleClick={() => onCommit(0.5, 0.05, 0.95)}
     >
@@ -506,7 +531,6 @@ export function Workspace({ id, api, resources, view, dirty, saving, dockPreview
           <Select aria-label="视图布局" className="workspace-layout-select" value={view.layout_mode || 'split'} options={[{ value: 'compact', label: '紧凑卡片' }, { value: 'split', label: '铺满分栏' }]} onValueChange={(value) => {
             if ((value === 'compact' || value === 'split') && value !== (view.layout_mode || 'split')) onChange({ ...view, layout_mode: value })
           }} />
-          <Badge>{view.widgets.length} widgets</Badge>
           {dirty && <span className="dirty-dot" role="status">未保存</span>}
           <Button size="sm" onClick={onSave} disabled={saving || !dirty}><Save aria-hidden="true" size={14} />{saving ? '保存中…' : '保存视图'}</Button>
         </div>
