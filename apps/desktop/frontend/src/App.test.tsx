@@ -71,6 +71,50 @@ describe('desktop resource workspace', () => {
     document.documentElement.removeAttribute('data-theme')
   })
 
+  it('opens saved views in viewing mode, cancels structure edits and returns to viewing only on successful save', async () => {
+    const api = mockAPI({ version: 2, active_profile_id: profile.id, profiles: [profile], updated_at_unix_ms: 1, credential_mode: 'session-only' })
+    const saved: ViewDefinition = { id: 'saved', name: 'Saved', revision: 1, widgets: [] }
+    vi.mocked(api.views).mockResolvedValue({ version: 3, views: [saved] })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<App api={api} />)
+    fireEvent.click(await screen.findByRole('button', { name: '编辑视图' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '视图名称' }), { target: { value: 'Draft' } })
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    expect(screen.getByRole('textbox', { name: '视图名称' })).toHaveValue('Saved')
+    expect(screen.getByRole('button', { name: '编辑视图' })).toBeInTheDocument()
+    expect(api.saveView).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '编辑视图' }))
+    vi.mocked(api.saveView).mockRejectedValueOnce(new Error('save failed'))
+    fireEvent.click(screen.getByRole('button', { name: '保存视图' }))
+    expect(await screen.findByText('save failed')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '保存视图' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: '保存视图' }))
+    expect(await screen.findByRole('button', { name: '编辑视图' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '新建视图' }))
+    expect(screen.getByRole('button', { name: '保存视图' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: '视图布局' })).toBeInTheDocument()
+  })
+
+  it('keeps edits made during an in-flight save in editing mode and cancels to the acknowledged version', async () => {
+    const api = mockAPI({ version: 2, active_profile_id: profile.id, profiles: [profile], updated_at_unix_ms: 1, credential_mode: 'session-only' })
+    let resolve!: (view: ViewDefinition) => void
+    vi.mocked(api.saveView).mockImplementationOnce(() => new Promise(done => { resolve = done }))
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<App api={api} />)
+    const input = await screen.findByRole('textbox', { name: '视图名称' })
+    fireEvent.change(input, { target: { value: 'Submitted' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存视图' }))
+    const submitted = vi.mocked(api.saveView).mock.calls[0]![0]
+    fireEvent.change(input, { target: { value: 'Newer draft' } })
+    resolve({ ...submitted, revision: 1 })
+    await waitFor(() => expect(screen.getByRole('button', { name: '保存视图' })).toBeEnabled())
+    expect(input).toHaveValue('Newer draft')
+    expect(screen.queryByRole('button', { name: '编辑视图' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    expect(input).toHaveValue('Submitted')
+    expect(screen.getByRole('button', { name: '编辑视图' })).toBeInTheDocument()
+  })
+
   it('separates existing Profiles from a minimal first connection form', async () => {
     const settings: Settings = { version: 2, profiles: [], updated_at_unix_ms: 1, credential_mode: 'session-only' }
     render(<App api={mockAPI(settings)} />)

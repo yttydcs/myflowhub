@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { createContext, useContext, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Info, RefreshCw, RotateCcw } from 'lucide-react'
 import type { DesktopAPI } from '../api'
@@ -14,13 +14,16 @@ import { VariableEditor } from './VariableEditor'
 import { MAX_VARIABLE_BYTES, validateVariableJSON, validateVariableValue, sameValue } from './protocol'
 import { setUnsavedChanges } from '../unsaved'
 
+export const VariableStructureInteraction = createContext({ current: false })
+
 const pretty = (value: unknown) => JSON.stringify(value, null, 2)
 function friendlyTime(milliseconds: number): string {
   const date = new Date(milliseconds)
   return Number.isFinite(date.getTime()) ? date.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '时间未知'
 }
 
-export function VariablePanel({ api, resource, rendererID, disabledReason, showFooter = true, autoApply = false, headerTarget, showAdvancedEditor = true }: { api: DesktopAPI; resource: ResourceDescriptor; rendererID?: string; disabledReason?: string; showFooter?: boolean; autoApply?: boolean; headerTarget?: HTMLElement | null; showAdvancedEditor?: boolean }) {
+export function VariablePanel({ api, resource, rendererID, disabledReason, showFooter = true, autoApply = false, headerTarget, showAdvancedEditor = true, titleOverride, inline = false }: { titleOverride?: string; inline?: boolean; api: DesktopAPI; resource: ResourceDescriptor; rendererID?: string; disabledReason?: string; showFooter?: boolean; autoApply?: boolean; headerTarget?: HTMLElement | null; showAdvancedEditor?: boolean }) {
+  const structuralInteraction = useContext(VariableStructureInteraction)
   const { key, controller, state } = useVariable(api, resource)
   const { snapshot, dirty, writing, blocked, conflict } = state
   const statusID = useId()
@@ -57,11 +60,11 @@ export function VariablePanel({ api, resource, rendererID, disabledReason, showF
   useEffect(() => setRaw(pretty(state.draft) ?? ''), [key, state.draft])
   useEffect(() => setInputError(''), [key])
   const writable = resource.capabilities.some((capability) => capability.name === 'write') && !definition?.read_only
-  const selection = selectVariableRenderer(resource, definition, rendererID)
+  const selection = selectVariableRenderer(resource, definition, inline && !writable && (definition?.type === 'number' || definition?.type === 'integer') && (!rendererID || rendererID === 'mfh.variable' || rendererID.includes('.auto.')) ? 'mfh.variable.number.v2' : rendererID)
   const commitAutoApply = () => {
     cancelAutoApply()
     const intent = localDraft.current
-    if (!autoApply || !controller || !intent || intent.controller !== controller || disabledReason) return
+    if (structuralInteraction.current || !autoApply || !controller || !intent || intent.controller !== controller || disabledReason) return
     // Defer one event turn so the latest field validation has reached React.
     // Enter followed by blur cancels the first timer and submits only once.
     pendingApply.current = setTimeout(() => {
@@ -93,8 +96,8 @@ export function VariablePanel({ api, resource, rendererID, disabledReason, showF
     cancelAutoApply()
     controller?.reset(); setRaw(pretty(snapshot?.value) ?? ''); setInputError(''); setFieldErrors({}); setEditorReset((value) => value + 1)
   }
-  const label = definition?.title || '草稿值'
-  const title = definition?.title?.trim() || resource.id.name.split('/').at(-1) || resource.id.name
+  const label = titleOverride || definition?.title || '草稿值'
+  const title = titleOverride || definition?.title?.trim() || resource.presentation?.label || resource.id.name.split('/').at(-1) || resource.id.name
   const editingValue = writable && snapshot?.status !== 'unavailable' && state.draft !== undefined && state.base?.instance_id === snapshot?.instance_id
   const displayedValue = editingValue ? state.draft : snapshot?.value
   const hasDraftChanges = dirty || Boolean(inputError) || Object.keys(fieldErrors).length > 0
@@ -140,7 +143,7 @@ export function VariablePanel({ api, resource, rendererID, disabledReason, showF
         {showAdvancedEditor && (definition.type === 'object' || definition.type === 'array') && <label className="variable-advanced"><Checkbox aria-label="高级 JSON 编辑" checked={advanced} onCheckedChange={setAdvanced} />高级 JSON 编辑</label>}
         {state.base?.instance_id !== snapshot.instance_id ? <p>旧实例草稿，请先重置。</p> : state.draft === undefined ? <p>没有可编辑的已确认值。</p> : showAdvancedEditor && advanced
           ? <label className={`schema-field${autoApply && writing ? ' is-loading-input' : ''}`}><span className="sr-only">{label} · JSON</span><Textarea aria-label={label} rows={6} maxLength={MAX_VARIABLE_BYTES} value={raw} onChange={(event) => editJSON(event.target.value)} onBlur={autoApply ? commitAutoApply : undefined} aria-busy={autoApply && writing || undefined} /></label>
-          : <VariableEditor key={`${key}/${snapshot.instance_id}/${editorReset}`} definition={definition} value={state.draft as import('../generated/variable-contract.generated').JSONValue} hideLabel onChange={edit} onCommit={autoApply ? commitAutoApply : undefined} confirmedValue={autoApply ? confirmedBeforeWrite.current : undefined} busy={autoApply && writing} onValidity={onValidity} rendererID={selection.selected.id} />}
+          : <VariableEditor key={`${key}/${snapshot.instance_id}/${editorReset}`} definition={definition} label={titleOverride || undefined} value={state.draft as import('../generated/variable-contract.generated').JSONValue} hideLabel onChange={edit} onCommit={autoApply ? commitAutoApply : undefined} confirmedValue={autoApply ? confirmedBeforeWrite.current : undefined} busy={autoApply && writing} onValidity={onValidity} rendererID={selection.selected.id} />}
 
       </fieldset>}
     </>}

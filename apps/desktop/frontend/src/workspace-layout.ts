@@ -65,6 +65,8 @@ export function workspacePanelDockSide(
 }
 
 export function workspaceDropTargetPriority(id: string): number {
+  if (id.startsWith('workspace-variable-row:')) return -2
+  if (id.startsWith('workspace-variable-body:')) return -1
   if (id.startsWith('workspace-divider:')) return 0
   if (id.startsWith('workspace-root-edge:')) return 1
   if (id.startsWith('workspace-panel:')) return 2
@@ -110,7 +112,26 @@ export function validateWorkspaceView(view: ViewDefinition): void {
     throw new WorkspaceLayoutError(`view supports at most ${MAX_WORKSPACE_WIDGETS} widgets`)
   }
   const widgetIDs = new Set<string>()
+  const referenceIDs = new Set<string>()
+  const validTitle = (title?: string) => title === undefined || (typeof title === 'string' && new TextEncoder().encode(title).length <= 160)
   for (const widget of view.widgets) {
+    if (!validTitle(widget.title)) throw new WorkspaceLayoutError('卡片名称不能超过 160 字节')
+    if (widget.kind !== undefined && widget.kind !== 'variable-list') throw new WorkspaceLayoutError('未知卡片类型')
+    if (widget.kind !== 'variable-list' && widget.variables !== undefined) throw new WorkspaceLayoutError('单变量卡片不能包含变量列表')
+    if (widget.kind === 'variable-list' && (widget.owner_node_id || widget.resource_name || widget.renderer || widget.variable_id || widget.settings !== undefined)) throw new WorkspaceLayoutError('列表卡片不能包含单资源绑定')
+    const variables = widget.kind === 'variable-list' ? (widget.variables || []) : [{ ...widget, id: widget.variable_id || widget.id }]
+    if (!Array.isArray(variables) || variables.length > 64) throw new WorkspaceLayoutError('每张卡片最多 64 个变量')
+    const resources = new Set<string>()
+    for (const variable of variables) {
+      if (!variable.id || referenceIDs.has(variable.id)) throw new WorkspaceLayoutError('变量引用 ID 必须唯一')
+      referenceIDs.add(variable.id)
+      if (referenceIDs.size > 512) throw new WorkspaceLayoutError('每个视图最多 512 个变量引用')
+      if (!validTitle(variable.title) || !/^\d+$/.test(variable.owner_node_id) || BigInt(variable.owner_node_id) <= 0n || !variable.resource_name || new TextEncoder().encode(variable.resource_name).length > 255 || !variable.renderer?.trim()) throw new WorkspaceLayoutError('变量引用或名称无效')
+      const key = JSON.stringify([variable.owner_node_id, variable.resource_name])
+      if (resources.has(key)) throw new WorkspaceLayoutError('同一卡片不能重复添加变量')
+      resources.add(key)
+      if (widget.kind === 'variable-list' && !variable.renderer.startsWith('mfh.variable')) throw new WorkspaceLayoutError('列表卡片仅支持变量')
+    }
     const size = widget.compact_size
     if (size && (!Number.isInteger(size.columns) || size.columns < 1 || size.columns > 4 || (size.height !== undefined && (!Number.isInteger(size.height) || size.height < 104 || size.height > 1200)))) throw new WorkspaceLayoutError('compact size requires 1–4 columns and a height of 104–1200 pixels')
     if (!widget.id) throw new WorkspaceLayoutError('widget ID is required')

@@ -33,6 +33,7 @@ function renderWorkspace(candidate: ViewDefinition, onChange = vi.fn(), dockPrev
         api={{} as DesktopAPI}
         resources={[]}
         view={candidate}
+        editing
         dirty
         saving={false}
         dockPreview={dockPreview ? { view: dockPreview, widgetID: 'c', description: '停靠预览' } : undefined}
@@ -63,6 +64,7 @@ function renderResourceWorkspace(
         api={api}
         resources={[descriptor]}
         view={candidate}
+        editing
         dirty
         saving={false}
         onChange={onChange}
@@ -108,7 +110,7 @@ describe('workspace panels', () => {
     initial.widgets[0] = { ...initial.widgets[0]!, owner_node_id: descriptor.id.owner_node_id, resource_name: descriptor.id.name }
     function Harness() {
       const [current, setCurrent] = useState(initial)
-      return <DndContext><button onClick={() => setCurrent({ ...current, layout_mode: current.layout_mode === 'compact' ? 'split' : 'compact' })}>切换测试模式</button><output data-testid="layout">{JSON.stringify(current)}</output><Workspace api={api} resources={[descriptor]} view={current} dirty saving={false} onChange={setCurrent} onSave={vi.fn()} onError={vi.fn()} /></DndContext>
+      return <DndContext><button onClick={() => setCurrent({ ...current, layout_mode: current.layout_mode === 'compact' ? 'split' : 'compact' })}>切换测试模式</button><output data-testid="layout">{JSON.stringify(current)}</output><Workspace api={api} resources={[descriptor]} view={current} editing dirty saving={false} onChange={setCurrent} onSave={vi.fn()} onError={vi.fn()} /></DndContext>
     }
     render(<Harness />)
     const input = await screen.findByRole('spinbutton')
@@ -344,6 +346,7 @@ describe('workspace panels', () => {
           api={{ snapshot: vi.fn().mockResolvedValue({ version: 1, instance_id: 'a'.repeat(32), revision: '1', definition: { type: 'boolean' }, value: false, status: 'ready', observed_at_unix_ms: 1 }) } as unknown as DesktopAPI}
           resources={[descriptor]}
           view={candidate}
+          editing
           dirty
           saving={false}
           onChange={onChange}

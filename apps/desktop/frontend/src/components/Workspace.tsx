@@ -2,6 +2,7 @@ import { useDraggable, useDroppable } from '@dnd-kit/core'
 import {
   useEffect,
   useContext,
+  createContext,
   useMemo,
   useRef,
   useState,
@@ -10,7 +11,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from 'react'
-import { GripVertical, Grid2X2, Plus, Save, Trash2, X } from 'lucide-react'
+import { GripVertical, Grid2X2, Pencil, Plus, Save, Trash2, Undo2, X } from 'lucide-react'
 import type { DesktopAPI } from '../api'
 import { deriveResourceActions } from '../lib/resource-actions'
 import { resourceKey } from '../lib/utils'
@@ -33,6 +34,11 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { CompactCard, CompactLayoutContext } from './CompactCard'
+import { VariableCardsProvider, VariableCard, ViewEditorContext, type VariableDropPreview } from './VariableCards'
+import { VariableStructureInteraction } from '../variable/VariablePanel'
+import { addEmptyVariableCard } from '../workspace-variables'
+
+const CardContext = createContext<{ view: ViewDefinition; resources: Map<string, ResourceDescriptor>; preview?: VariableDropPreview | null; onChange(view: ViewDefinition): void } | undefined>(undefined)
 
 export type WorkspaceDockPreview = {
   view: ViewDefinition
@@ -48,6 +54,12 @@ type Props = {
   view: ViewDefinition
   dirty: boolean
   saving: boolean
+  editing?: boolean
+  onEdit?(): void
+  onCancel?(): void
+  onUndo?(): void
+  canUndo?: boolean
+  variablePreview?: VariableDropPreview | null
   dockPreview?: WorkspaceDockPreview | null
   onChange(view: ViewDefinition): void
   onSave(): void
@@ -71,6 +83,7 @@ type WorkspaceWidgetProps = {
   widget: ViewWidget
   onRemove(): void
   onRendererChange(rendererID: string): void
+  onTitleChange?(title?: string): void
 }
 
 function paneDOMID(widgetID: string): string {
@@ -78,10 +91,11 @@ function paneDOMID(widgetID: string): string {
 }
 
 function widgetLabel(widget: ViewWidget, resource?: ResourceDescriptor): string {
-  return resource?.presentation?.label || widget.resource_name.split('/').at(-1) || widget.resource_name
+  return widget.title || resource?.presentation?.label || widget.resource_name.split('/').at(-1) || widget.resource_name
 }
 
-function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove, onRendererChange }: WorkspaceWidgetProps) {
+function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove, onRendererChange, onTitleChange }: WorkspaceWidgetProps) {
+  const { editing } = useContext(ViewEditorContext)
   const discovery = useContext(CatalogContext)
   const catalog = discovery?.states.get(widget.owner_node_id)
   const reference = resourceKey(widget.owner_node_id, widget.resource_name)
@@ -94,6 +108,7 @@ function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove,
   const unavailable = !!discovery && (!currentResource || catalog?.status !== 'loaded')
   const draggable = useDraggable({
     id: `workspace-drag:${widget.id}`,
+    disabled: !editing,
     data: { kind: 'workspace-widget', widgetID: widget.id, label: widgetLabel(widget, resource) },
   })
   const droppable = useDroppable({
@@ -143,7 +158,7 @@ function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove,
       aria-label={`组件 ${label}`}
     >
       <header className="widget-header">
-        <button
+        {editing && <button
           ref={draggable.setActivatorNodeRef}
           className="widget-drag-handle"
           {...draggable.listeners}
@@ -151,7 +166,7 @@ function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove,
           aria-label={`拖动 ${label} 调整面板位置`}
         >
           <GripVertical aria-hidden="true" size={14} />
-        </button>
+        </button>}
         <div className="widget-title" ref={setVariableHeaderTarget} title={`${widget.owner_node_id} / ${widget.resource_name}`}>
           {resource?.type !== 'mfh.variable' && <strong>{label}</strong>}
           <small className="sr-only">{widget.owner_node_id} / {widget.resource_name}</small>
@@ -162,10 +177,10 @@ function WorkspaceWidgetPane({ api, resource: currentResource, widget, onRemove,
             {overflowActions.length > 0 && <details><summary aria-label="更多 Resource actions">+{overflowActions.length}</summary><div>{overflowActions.map((action) => <button type="button" disabled={action.disabled} title={action.label} key={action.capability} onClick={() => setFocusedCapability(action.capability)}>{action.capability}</button>)}</div></details>}
           </div>
         )}
-        <div className="widget-controls">
-          {resource && <WidgetSettings api={api} resource={resource} label={label} rendererID={widget.renderer} onRendererChange={onRendererChange} />}
+        {editing && <div className="widget-controls">
+          <WidgetSettings api={api} resource={resource} label={label} title={widget.title} onTitleChange={onTitleChange} rendererID={widget.renderer} onRendererChange={onRendererChange} />
           <button aria-label="移除组件" onClick={onRemove}><Trash2 aria-hidden="true" size={13} /></button>
-        </div>
+        </div>}
       </header>
       <div className="widget-body">
         {resource && unavailable && <DiscoveryStatus state={catalog?.status === 'loaded' ? { status: 'error', stale: true, error: '目录中已找不到该资源；保留未保存输入' } : catalog} label={`Node ${widget.owner_node_id} 资源目录`} onRetry={() => discovery?.retry(widget.owner_node_id)} />}
@@ -187,9 +202,11 @@ function LayoutLeaf({ api, widget, resource, onRemove, onRendererChange }: {
   onRemove(): void
   onRendererChange(rendererID: string): void
 }) {
+  const context = useContext(CardContext)!
+  const variable = widget.kind === 'variable-list' || resource?.type === 'mfh.variable' || widget.renderer.startsWith('mfh.variable')
   return (
     <CompactCard widget={widget}>
-      <WorkspaceWidgetPane api={api} widget={widget} resource={resource} onRemove={onRemove} onRendererChange={onRendererChange} />
+      {variable ? <VariableCard api={api} view={context.view} widget={widget} resources={context.resources} preview={context.preview} onChange={context.onChange} onRemove={onRemove} /> : <WorkspaceWidgetPane api={api} widget={widget} resource={resource} onRemove={onRemove} onRendererChange={onRendererChange} onTitleChange={title => context.onChange({ ...context.view, widgets: context.view.widgets.map(item => item.id === widget.id ? { ...item, title } : item) })} />}
     </CompactCard>
   )
 }
@@ -221,6 +238,7 @@ function SplitSeparator({ node, path, index, containerRef, draftWeights, onDraft
   onCommit(ratio: number, minimum: number, maximum: number): void
   onCancel(): void
 }) {
+  const { editing } = useContext(ViewEditorContext)
   const beforeWidgetID = lastWorkspaceLeafID(node.children[index]!)
   const afterWidgetID = firstWorkspaceLeafID(node.children[index + 1]!)
   const droppable = useDroppable({
@@ -369,7 +387,7 @@ function SplitSeparator({ node, path, index, containerRef, draftWeights, onDraft
   return (
     <div
       ref={droppable.setNodeRef}
-      className={`workspace-splitter is-${orientation} ${resizing ? 'is-resizing' : ''} ${droppable.isOver ? 'is-drop-target' : ''}`}
+      className={`workspace-splitter${!editing ? ' is-locked' : ''} is-${orientation} ${resizing ? 'is-resizing' : ''} ${droppable.isOver ? 'is-drop-target' : ''}`}
       title="拖动调整比例，接近常用比例时吸附；按住 Alt 微调，双击等分，Esc 取消"
       role="separator"
       aria-label={node.axis === 'horizontal' ? `调整 ${beforeWidgetID} 与 ${afterWidgetID} 的左右比例` : `调整 ${beforeWidgetID} 与 ${afterWidgetID} 的上下比例`}
@@ -379,14 +397,15 @@ function SplitSeparator({ node, path, index, containerRef, draftWeights, onDraft
       aria-valuemax={95}
       aria-valuenow={percent}
       aria-valuetext={node.axis === 'horizontal' ? `前一面板 ${percent}%，后一面板 ${100 - percent}%` : `上方面板 ${percent}%，下方面板 ${100 - percent}%`}
-      tabIndex={0}
-      onPointerDown={pointerDown}
+      tabIndex={editing ? 0 : -1}
+      aria-disabled={!editing}
+      onPointerDown={editing ? pointerDown : undefined}
       onPointerMove={pointerMove}
       onPointerUp={pointerUp}
       onPointerCancel={pointerCancel}
       onLostPointerCapture={pointerCancel}
-      onKeyDown={keyDown}
-      onDoubleClick={() => onCommit(0.5, 0.05, 0.95)}
+      onKeyDown={editing ? keyDown : undefined}
+      onDoubleClick={editing ? () => onCommit(0.5, 0.05, 0.95) : undefined}
     >
       <span aria-hidden="true" />
     </div>
@@ -488,7 +507,15 @@ function RootEdgeTarget({ side }: { side: WorkspaceDockSide }) {
   return <div ref={droppable.setNodeRef} className={`workspace-root-edge is-${side} ${droppable.isOver ? 'is-over' : ''}`} aria-hidden="true" />
 }
 
-export function Workspace({ id, api, resources, view, dirty, saving, dockPreview, onChange, onSave, onError }: Props) {
+export function Workspace({ id, api, resources, view, dirty, saving, editing = false, onEdit, onCancel, onUndo, canUndo, variablePreview, dockPreview, onChange, onSave, onError }: Props) {
+  const structuralInteraction = useRef(false)
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const release = () => { timer = setTimeout(() => { structuralInteraction.current = false }, 0) }
+    document.addEventListener('pointerup', release, true)
+    document.addEventListener('pointercancel', release, true)
+    return () => { document.removeEventListener('pointerup', release, true); document.removeEventListener('pointercancel', release, true); clearTimeout(timer) }
+  }, [])
   const background = useDroppable({ id: 'workspace-drop', data: { kind: 'workspace-background' } })
   const compact = view.layout_mode === 'compact'
   const gridRef = useRef<HTMLDivElement>(null)
@@ -521,18 +548,29 @@ export function Workspace({ id, api, resources, view, dirty, saving, dockPreview
   }))
 
   return (
-    <section id={id} className="workspace" aria-label="资源工作区" tabIndex={-1}>
+    <VariableStructureInteraction.Provider value={structuralInteraction}>
+    <ViewEditorContext.Provider value={{ editing, saving }}>
+    <VariableCardsProvider key={view.id} api={api} view={view} resources={resourceIndex}>
+    <CardContext.Provider value={{ view, resources: resourceIndex, preview: variablePreview, onChange }}>
+    <section id={id} className={`workspace ${editing ? 'is-editing' : 'is-viewing'}`} aria-label="资源工作区" tabIndex={-1} onPointerDownCapture={event => {
+      const target = event.target as HTMLElement
+      if (target.closest('.widget-drag-handle, .compact-card-resize, .workspace-splitter, .widget-controls, .variable-row-controls, .workspace-toolbar')) structuralInteraction.current = true
+    }}>
       <header className="workspace-toolbar">
         <div className="view-name">
           <Grid2X2 aria-hidden="true" size={16} />
-          <Input aria-label="视图名称" name="view-name" autoComplete="off" value={view.name} onChange={(event) => onChange({ ...view, name: event.target.value })} />
+          <Input readOnly={!editing} aria-label="视图名称" name="view-name" autoComplete="off" value={view.name} onChange={(event) => { if (editing) onChange({ ...view, name: event.target.value }) }} />
         </div>
         <div className="toolbar-meta">
+          {editing && <><Button variant="ghost" size="sm" onClick={() => apply(() => addEmptyVariableCard(view))}><Plus size={13} aria-hidden="true" />变量列表卡片</Button>
           <Select aria-label="视图布局" className="workspace-layout-select" value={view.layout_mode || 'split'} options={[{ value: 'compact', label: '紧凑卡片' }, { value: 'split', label: '铺满分栏' }]} onValueChange={(value) => {
             if ((value === 'compact' || value === 'split') && value !== (view.layout_mode || 'split')) onChange({ ...view, layout_mode: value })
           }} />
           {dirty && <span className="dirty-dot" role="status">未保存</span>}
-          <Button size="sm" onClick={onSave} disabled={saving || !dirty}><Save aria-hidden="true" size={14} />{saving ? '保存中…' : '保存视图'}</Button>
+          {onUndo && <Button variant="ghost" size="sm" aria-label="撤销视图修改" disabled={!canUndo || saving} onClick={onUndo}><Undo2 size={14} aria-hidden="true" /></Button>}
+          <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving}>取消</Button>
+          <Button size="sm" onClick={onSave} disabled={saving}><Save aria-hidden="true" size={14} />{saving ? '保存中…' : '保存视图'}</Button></>}
+          {!editing && <Button size="sm" onClick={onEdit}><Pencil size={14} aria-hidden="true" />编辑视图</Button>}
         </div>
       </header>
       <p className="sr-only" role="status" aria-live="polite">{dockPreview?.description || ''}</p>
@@ -549,7 +587,7 @@ export function Workspace({ id, api, resources, view, dirty, saving, dockPreview
           : (
             <div ref={gridRef} className={`workspace-layout-stage${compact ? ' is-compact' : ''}`} style={compact ? { '--compact-columns': columns } as CSSProperties : { minWidth: minimum.width, minHeight: minimum.height }}>
               <CompactLayoutContext.Provider value={compact ? {
-                columns, columnWidth: (gridWidth - 12 * (columns - 1)) / columns,
+                columns, editable: editing, columnWidth: (gridWidth - 12 * (columns - 1)) / columns,
                 order: view.widgets.map(widget => widget.id), insert: dockPreview?.compactInsert,
                 onResize: (id, size) => apply(() => ({ ...view, widgets: view.widgets.map(widget => widget.id === id ? { ...widget, compact_size: size } : widget) })),
               } : undefined}>
@@ -580,6 +618,10 @@ export function Workspace({ id, api, resources, view, dirty, saving, dockPreview
           )}
       </div>
     </section>
+    </CardContext.Provider>
+    </VariableCardsProvider>
+    </ViewEditorContext.Provider>
+    </VariableStructureInteraction.Provider>
   )
 }
 

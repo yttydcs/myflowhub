@@ -101,8 +101,21 @@ export type WorkspaceSelection =
   | { kind: 'resource'; resource: ResourceDescriptor }
   | null
 
+export type ViewVariable = {
+  id: string
+  owner_node_id: string
+  resource_name: string
+  renderer: string
+  title?: string
+  settings?: unknown
+}
+
 export type ViewWidget = {
   id: string
+  title?: string
+  kind?: 'variable-list'
+  variables?: ViewVariable[]
+  variable_id?: string
   owner_node_id: string
   resource_name: string
   renderer: string

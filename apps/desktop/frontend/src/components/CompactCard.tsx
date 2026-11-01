@@ -5,6 +5,7 @@ import type { ViewWidget } from '../types'
 type Size = NonNullable<ViewWidget['compact_size']>
 export const CompactLayoutContext = createContext<{
   columns: number
+  editable: boolean
   columnWidth: number
   order: string[]
   insert?: { targetID: string; before: boolean }
@@ -50,7 +51,7 @@ export function CompactCard({ widget, children }: { widget: ViewWidget; children
   } as CSSProperties : undefined
   return <div ref={root} className={`workspace-layout-leaf${layout && size?.height ? ' is-sized' : ''}${insertion}`} style={style}>
     {children}
-    {layout && <button className="compact-card-resize" aria-label={`调整 ${widget.resource_name} 卡片尺寸`} title="拖动调整大小；方向键调整，Home 或双击恢复自动大小"
+    {layout?.editable && <button className="compact-card-resize" aria-label={`调整 ${widget.resource_name} 卡片尺寸`} title="拖动调整大小；方向键调整，Home 或双击恢复自动大小"
       onPointerDown={(event) => {
         if (event.button !== 0) return
         const bounds = root.current?.querySelector('article')?.getBoundingClientRect()
