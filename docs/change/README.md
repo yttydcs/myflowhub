@@ -29,6 +29,7 @@
 - [MetricsNode](#metricsnode)
 
 ## Docs / Workspace
+- [2026-11-01 Desktop 多变量卡片与视图编辑模式](2026-11-01_desktop-variable-cards.md)
 - [2026-10-19 Desktop 紧凑布局与模式切换](2026-10-19_desktop-compact-layout.md)
 - [2026-09-06_depth-scoped-topology-discovery.md](2026-09-06_depth-scoped-topology-discovery.md)
 - [2026-09-06_platform-retirement-and-attached-bindings.md](2026-09-06_platform-retirement-and-attached-bindings.md)

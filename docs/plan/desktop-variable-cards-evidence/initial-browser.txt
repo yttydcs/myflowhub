@@ -1,0 +1,2 @@
+PASS: mode transitions, valid/cancelled/invalid drops, merge/add/duplicate/reorder/move/split, stable draft DOM, card layout drag, rename, failed/successful save, cancel, narrow viewport, reopen.
+Structural changes made zero writes; intentional viewing-mode operation verified with mock API only. No page errors. Screenshots: D:\project\MyFlowHub3\artifacts\variable-cards-{editing,viewing,narrow,overview-dark}.png

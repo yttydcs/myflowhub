@@ -1,0 +1,131 @@
+{
+  "comparisonBase": "cf1436115c10a6d3c6ecca3334c1a0e009aa7247",
+  "candidateHEAD": "4b3a216bdd708b710401e9c3464c8ad6c3bfc815",
+  "files": [
+    {
+      "path": "apps/desktop/frontend/dist/assets/index-B-SFZkbr.js",
+      "mode": "100644",
+      "blob": "28f6a352d387d0c37b8c98d44dff1cf05c90d9e6"
+    },
+    {
+      "path": "apps/desktop/frontend/dist/assets/index-CaDP-eVD.js",
+      "mode": null,
+      "blob": null
+    },
+    {
+      "path": "apps/desktop/frontend/dist/assets/index-D5Kth4yX.css",
+      "mode": "100644",
+      "blob": "2d290aa541ced7c1e169693667c85ecb0dbdc27a"
+    },
+    {
+      "path": "apps/desktop/frontend/dist/assets/index-Dv57idlR.css",
+      "mode": null,
+      "blob": null
+    },
+    {
+      "path": "apps/desktop/frontend/dist/index.html",
+      "mode": "100644",
+      "blob": "ab54effaf7429c5042e029c724141f6530250dee"
+    },
+    {
+      "path": "apps/desktop/frontend/src/App.discovery.test.tsx",
+      "mode": "100644",
+      "blob": "7ebf7607a589a5f55bc23fca2f1da4c1779a0c28"
+    },
+    {
+      "path": "apps/desktop/frontend/src/App.test.tsx",
+      "mode": "100644",
+      "blob": "35528217cf16228738dbbc71f5a511bfd7e490b8"
+    },
+    {
+      "path": "apps/desktop/frontend/src/App.tsx",
+      "mode": "100644",
+      "blob": "3ec0143b1dbb38de22f19d1fcc90357a4373e9c8"
+    },
+    {
+      "path": "apps/desktop/frontend/src/components/CompactCard.tsx",
+      "mode": "100644",
+      "blob": "9948436ba28220a719b08bc17fb0e93fb2953cfa"
+    },
+    {
+      "path": "apps/desktop/frontend/src/components/VariableCards.test.tsx",
+      "mode": "100644",
+      "blob": "78716f493f93f37abc320845a51c271964488a00"
+    },
+    {
+      "path": "apps/desktop/frontend/src/components/VariableCards.tsx",
+      "mode": "100644",
+      "blob": "1763b57ec5a91de46311a7b9d997c3b007170a87"
+    },
+    {
+      "path": "apps/desktop/frontend/src/components/WidgetSettings.tsx",
+      "mode": "100644",
+      "blob": "517fea74697c803769299c90ef5e37a0191cd453"
+    },
+    {
+      "path": "apps/desktop/frontend/src/components/Workspace.test.tsx",
+      "mode": "100644",
+      "blob": "b10ffa9f8030a8fb6a8ba612d73e58ea3ce5ac99"
+    },
+    {
+      "path": "apps/desktop/frontend/src/components/Workspace.tsx",
+      "mode": "100644",
+      "blob": "265239c685fa6222d38b28749f2e800107f33785"
+    },
+    {
+      "path": "apps/desktop/frontend/src/components/variable-cards.css",
+      "mode": "100644",
+      "blob": "cd772663966462ebb58992f088ce592ae2798c7c"
+    },
+    {
+      "path": "apps/desktop/frontend/src/types.ts",
+      "mode": "100644",
+      "blob": "6760405ab0e66d3078e0ee6d46ebf30b8337b255"
+    },
+    {
+      "path": "apps/desktop/frontend/src/variable/VariablePanel.tsx",
+      "mode": "100644",
+      "blob": "21b79fba62dad8495de18692a841bd6eb10a21f3"
+    },
+    {
+      "path": "apps/desktop/frontend/src/workspace-layout.ts",
+      "mode": "100644",
+      "blob": "bfd450870f9c0e350274fe85fd00c917b250762d"
+    },
+    {
+      "path": "apps/desktop/frontend/src/workspace-variables.test.ts",
+      "mode": "100644",
+      "blob": "819c1e9f84d26c5144b1d6b0e6ec8cddf0057563"
+    },
+    {
+      "path": "apps/desktop/frontend/src/workspace-variables.ts",
+      "mode": "100644",
+      "blob": "2a957c73f91802ec5b9c27f04831bdc756206148"
+    },
+    {
+      "path": "apps/desktop/frontend/test/variable-cards-browser.tsx",
+      "mode": "100644",
+      "blob": "4edf7fd9db33847c11b5ec3c6d6f933f54a50481"
+    },
+    {
+      "path": "apps/desktop/frontend/test/variable-cards.html",
+      "mode": "100644",
+      "blob": "a1ebeb5392b5b3d9590ebc2187a535205391c1ec"
+    },
+    {
+      "path": "apps/desktop/frontend/test/verify-variable-cards.cjs",
+      "mode": "100644",
+      "blob": "f127ba22e4fa9b7590075749ad197df3a2f00f07"
+    },
+    {
+      "path": "apps/desktop/views.go",
+      "mode": "100644",
+      "blob": "3fa974df375a3e5c5f35f0cef6bd2acdf70e647d"
+    },
+    {
+      "path": "apps/desktop/views_variable_cards_test.go",
+      "mode": "100644",
+      "blob": "cd10e4b38eab441153f793eb544f6bb730f2dcaa"
+    }
+  ]
+}

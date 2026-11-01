@@ -1,0 +1,6 @@
+{
+  "planDefinitionSHA256": "1a48f81cc9a2ea90dfda434a117bbbe3f007b47dc5b9637864bc364affe66218",
+  "rule": "UTF-8/LF text of desktop-variable-cards.md before the progress heading; includes approved scope, Task/write sets, AC definitions and constraints; excludes progress/review/evidence metadata",
+  "productManifestSHA256": "acfcc5ef30c22e974313d0d285162fb7271b9b46daf0383c3e5f9755823df43d",
+  "productManifestNormalization": "UTF-8 with CRLF normalized to LF before SHA-256"
+}

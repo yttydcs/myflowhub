@@ -90,6 +90,15 @@ Variable 的格式和校验语法由平台统一定义，提供者声明某个�
     授权状态，不能取代 owner 裁决。Renderer 必须按 type、schema、capability、content type 和 pane 条件匹配专用展示，
     例如文件文本/代码、图片或 metadata fallback，不得按 Resource name 特判内容语义。
 
+20. 单变量卡片与多变量列表卡片可以混排；列表每行为“名称＋值/控件”，不是第三种布局模式，必须继续支持紧凑/分栏。
+    单卡默认采用变量名称，支持卡片标题覆盖；列表有独立标题，行有独立别名。清空覆盖恢复默认，仅修改当前 View 引用，不改真实变量。
+21. 标题手柄调整整卡布局，变量手柄进行行排序、跨卡移动、拖出独立成卡。Explorer 拖入新增引用，卡片间拖动移动引用；
+    投到单变量卡片内容区转为列表。同卡禁止同一 owner/name 重复；跨卡可重复引用。列表剩一项不自动降级，移空保留容器，提供显式单卡转换和非拖拽等价入口。
+22. 新建 View 进入编辑，打开已有 View 默认查看；查看隐藏结构入口、拖动手柄和缩放，但仍可操作获授权变量。
+    Explorer 仅在有效放下后自动进入编辑，不自动保存；取消拖动或无效释放不改变模式。保存成功且无更新草稿时回到查看；失败或保存期间继续修改则保留编辑。
+23. 取消编辑只恢复 View 结构，不回滚已写入的真实值。重组、重排、拆分、切换布局必须保留未提交输入，不因结构操作触发变量写入。
+    异步保存不得覆盖新编辑或跨 Profile 的工作区状态。
+
 ## Non-functional Requirements
 
 - 视觉遵循矿物蓝 + 石墨灰、平面分栏、低噪声、克制圆角、清晰层级和系统字体/CJK fallback；不使用
@@ -139,6 +148,8 @@ Variable 的格式和校验语法由平台统一定义，提供者声明某个�
 - 至少 6 层 Node fixture 可展开、搜索、聚焦并用 breadcrumb 返回；Arrow/Home/End/Enter/Space 键盘门禁通过。
 - 新 View 为紧凑卡片，下拉框/开关不被拉伸到视口高度；卡片排序、跨列和高度保存后恢复，窗口收窄不覆盖保存尺寸。
   两种模式切换保留分栏比例、紧凑顺序和未提交输入，非法模式/尺寸不得覆盖有效 View。
+- 单卡/列表在两种布局混排，标题与别名清空恢复默认；合并、排序、跨卡移动、拆分保留引用身份、同一个无效数字输入元素和草稿，结构操作写入数为零。
+- 新建/打开/保存/取消模式切换符合要求；有效外部拖入才自动编辑，无效释放/取消不切换。查看模式结构锁定而变量提交可用；保存失败/迟到响应不会丢新草稿。
 - 铺满分栏中，首个 Resource 加入后占满工作区，直接添加后续 Resource 默认在 root 右侧；拖拽可生成
   `A | C | B`、`A | (B / C)` 和 `(A | B | C) / D`，无需左右/上下/交换按钮。任意嵌套 separator
   连续拖动和键盘调整后的权重保存 View 并在重启后恢复一致。
@@ -179,10 +190,14 @@ Variable 的格式和校验语法由平台统一定义，提供者声明某个�
 
 ## Related Intake
 
+- [Desktop 多变量卡片、重命名与视图编辑模式](../intake/2026-10-31_desktop-variable-cards.md)
+
 - [Desktop Explorer 可折叠分区与 Resource path tree](../intake/2026-08-30_desktop-explorer-collapsible-resource-tree.md)
 - [可扩展资源平台与 Desktop 工作区重构](../intake/2026-08-28_extensible-resources-and-desktop-workspace-redesign.md)
 
 ## Related Changes
+
+- [Desktop 多变量卡片与视图编辑模式归档](../change/2026-11-01_desktop-variable-cards.md)
 
 - [Desktop Profile 入口生产化](../change/2026-08-31_desktop-profile-entry-production.md)
 - [Desktop Explorer 可折叠分区与 Resource path tree](../change/2026-08-30_desktop-explorer-collapsible-resource-tree.md)
