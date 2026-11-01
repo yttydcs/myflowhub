@@ -37,7 +37,7 @@
 - 不可变纯领域操作独立于渲染；重组先校验后移除来源，失败不丢数据。引用和布局 ID 的不变量在前端与 Go 持久化边界复核，保留原原子存储保护。
 - 复用原变量 controller、schema、授权与订阅路径，不复制 wire/runtime 或绕过 owner 裁决；portal 宿主清理/ResizeObserver 生命周期有对应释放路径。
 - 沿用 React/dnd-kit/CSS，无新增库；新增结构操作有菜单/键盘路径和 live feedback。视觉顺序不被误报为完整读屏验收。
-- 遵守 `guide.md` 中文提交、canonical 路径及 `GOWORK=off` 约定；未操作主线 Flow 文档。`git diff --check` 通过。
+- 遵守 `guide.md` 中文提交、canonical 路径及 `GOWORK=off` 约定；未操作主线 Flow 文档。固定 base 到 HEAD 的源码/文档 `git diff --check`（排除 `apps/desktop/frontend/dist/**`）通过。全产物检查会报告生成 JS 第 30/34/38/42/46 行各两个空格的空白行；与 base 的旧 bundle 位置/内容相同，是既有生成器输出，未手改 dist 掩盖该提示。
 - 无发现需阻止合并的本轮硬性规范违反。既有大 bundle 警告保留为非阻塞性能风险，不扩展到无关重构。
 
 ## 验证命令与新鲜度
