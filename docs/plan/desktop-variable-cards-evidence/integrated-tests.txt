@@ -1,0 +1,91 @@
+
+> myflowhub-desktop-frontend@2.0.0 test
+> vitest run --maxWorkers=4
+
+
+ RUN  v3.2.7 D:/project/MyFlowHub3/repo/MyFlowHub/apps/desktop/frontend
+
+ ✓ src/components/Renderer.test.tsx (25 tests) 1373ms
+ ✓ src/components/Workspace.test.tsx (28 tests) 3760ms
+   ✓ workspace panels > shows layout and save controls without a widget count in the toolbar  316ms
+   ✓ workspace panels > switches modes without remounting variable inputs and resets manual compact size with Home  349ms
+   ✓ workspace panels > moves display and read-only details into settings and persists the matching widget renderer  755ms
+ ✓ src/variable/VariablePanel.test.tsx (51 tests) 7620ms
+   ✓ unknown node Variable rendering > auto-applies only local View edits while an Inspector keeps manual drafts  711ms
+   ✓ unknown node Variable rendering > waits for Enter or blur and never submits an older valid number after invalid input  1230ms
+   ✓ unknown node Variable rendering > cancels pending auto-apply when the View closes while an Inspector retains the session  778ms
+   ✓ unknown node Variable rendering > keeps an uncertain auto-write visible and requires refresh before explicit retry  654ms
+   ✓ unknown node Variable rendering > does not auto-apply after an observed value conflicts with the pending draft  628ms
+   ✓ unknown node Variable rendering > edits object fields without defaulting missing, null, false, zero or empty strings  334ms
+   ✓ unknown node Variable rendering > edits typed array items in the form and resets an invalid numeric draft  329ms
+ ✓ src/discovery/controller.test.ts (20 tests) 98ms
+ ✓ src/App.test.tsx (19 tests) 9065ms
+   ✓ desktop resource workspace > opens saved views in viewing mode, cancels structure edits and returns to viewing only on successful save  1586ms
+   ✓ desktop resource workspace > keeps edits made during an in-flight save in editing mode and cancels to the acknowledged version  1038ms
+   ✓ desktop resource workspace > discovers resources, previews them in the inspector, and adds them through a keyboard-equivalent action  727ms
+   ✓ desktop resource workspace > focuses a descriptor capability without API calls, executes explicitly, and fails stale after refresh  759ms
+   ✓ desktop resource workspace > returns from a focused Collection action to the Resource preview  314ms
+   ✓ desktop resource workspace > does not restore a stale action after closing and reselecting the same Resource  384ms
+   ✓ desktop resource workspace > clears a focused action when selecting a different Resource  577ms
+   ✓ desktop resource workspace > creates and deletes profiles from the full settings tab  1249ms
+   ✓ desktop resource workspace > keeps Node ID and parent identity out of the default enrollment form and requires explicit TOFU  310ms
+   ✓ desktop resource workspace > does not switch profiles while unsaved workspace changes are rejected  559ms
+   ✓ desktop resource workspace > persists the theme per active profile without duplicating Profile controls in the top bar  483ms
+ ✓ src/variable/write-outcomes.test.ts (17 tests) 933ms
+ ✓ src/App.discovery.test.tsx (19 tests) 9325ms
+   ✓ desktop discovery integration > refreshes an initially empty parent from the node heading without collapsing it or repeating in-flight requests  652ms
+   ✓ desktop discovery integration > uses the current direct parent, renders a saved reference before topology, and loads catalogs only on usage  1031ms
+   ✓ desktop discovery integration > loads a six-level path through mouse and keyboard, reuses collapse caches, and never searches the network  885ms
+   ✓ desktop discovery integration > deduplicates repeated star expansion and displays busy and retry states instead of leaves  485ms
+   ✓ desktop discovery integration > expresses unsupported and catalog errors, then shows empty only after successful retries  627ms
+   ✓ desktop discovery integration > uses explicit roots and depth zero only for the full-subtree action  546ms
+   ✓ desktop discovery integration > retains layout and command input across catalog failure, automatic reconnect and successful recovery  515ms
+   ✓ desktop discovery integration > follows current parent changes by default but retains explicitly chosen scopes  871ms
+   ✓ desktop discovery integration > keeps the tree visible when a selected node catalog is slow  326ms
+   ✓ desktop discovery integration > switches Profiles while old topology, catalog and View responses are delayed  595ms
+   ✓ desktop discovery integration > never loads Profile A View owners on Profile B while B views are delayed  353ms
+   ✓ desktop discovery integration > preserves a new V2 draft when a slow V1 save finishes after create  422ms
+   ✓ desktop discovery integration > preserves a new V2 draft when a slow V1 save finishes after open  689ms
+   ✓ desktop discovery integration > preserves edits to V1 made during its own save and advances only its acknowledged revision  613ms
+ ✓ src/components/ui/controls.test.tsx (15 tests) 2374ms
+   ✓ Desktop shadcn controls > portals the menu, skips disabled options with arrows, commits with Enter and restores focus  539ms
+   ✓ Desktop shadcn controls > round-trips empty and sentinel-looking business values through indexed options  603ms
+ ✓ src/workspace-layout.test.ts (25 tests) 122ms
+ ✓ src/components/Explorer.test.tsx (11 tests) 4115ms
+   ✓ split Node and Resource explorer > starts a resource drag from its name only after movement, while clicks still select it  389ms
+   ✓ split Node and Resource explorer > renders path-derived namespace, Resource, and hybrid rows while preserving add actions  413ms
+   ✓ split Node and Resource explorer > implements WAI-ARIA Resource tree navigation without conflating focus and selection  678ms
+   ✓ split Node and Resource explorer > opens a descriptor-driven menu only for real Resources without selecting, adding, or operating  801ms
+   ✓ split Node and Resource explorer > shows matching Resource ancestors during search and restores saved expansion when cleared  490ms
+ ✓ src/workspace-variables.test.ts (17 tests) 21ms
+ ✓ src/rendering/collection.test.ts (13 tests) 41ms
+ ✓ src/variable/controller.test.ts (14 tests) 1750ms
+ ✓ src/components/VariableCards.test.tsx (5 tests) 1266ms
+   ✓ variable cards and editor modes > keeps actual DOM editors and invalid input across merge, move, split, layout and mode changes without writes  544ms
+ ✓ src/rendering/schema.test.ts (10 tests) 14ms
+ ✓ src/api.test.ts (30 tests) 27ms
+ ✓ src/components/AdmissionConsole.test.tsx (4 tests) 387ms
+ ✓ src/store.test.ts (6 tests) 32ms
+ ✓ src/lib/resource-tree.test.ts (5 tests) 87ms
+ ✓ src/preferences.test.ts (6 tests) 19ms
+ ✓ src/components/ResourceOverview.test.tsx (3 tests) 1035ms
+   ✓ virtualized resource overview > retains watched rows across discovery resets and releases them when explicitly stopped  319ms
+   ✓ virtualized resource overview > browses 2000 resources with bounded DOM while filtering and scrolling leave subscriptions alive  585ms
+ ✓ src/components/ExplorerSplitPane.test.tsx (2 tests) 90ms
+ ✓ src/subscription-poller.test.ts (10 tests) 41ms
+ ✓ src/rendering/registry.test.ts (4 tests) 8ms
+ ✓ src/discovery/topology.test.ts (27 tests) 57ms
+ ✓ src/components/PolicyConsole.test.tsx (2 tests) 383ms
+   ✓ PolicyConsole > loads Authority policy collections and creates an explicit Subject binding  331ms
+ ✓ src/lib/resource-actions.test.ts (2 tests) 31ms
+ ✓ src/variable/protocol.test.ts (177 tests) 75ms
+ ✓ src/variable/overview-store.test.ts (1 test) 536ms
+   ✓ independent overview subscription lifetime > keeps 2000 subscriptions receiving while no row is mounted and shares the editor session  525ms
+ ✓ src/lib/explorer-split.test.ts (2 tests) 4ms
+ ✓ src/profile-id.test.ts (3 tests) 9ms
+ ✓ src/components/BrandMark.test.tsx (1 test) 36ms
+
+ Test Files  32 passed (32)
+      Tests  574 passed (574)
+   Start at  11:56:10
+   Duration  55.28s (transform 4.73s, setup 30.64s, collect 22.27s, tests 44.74s, environment 91.52s, prepare 10.22s)

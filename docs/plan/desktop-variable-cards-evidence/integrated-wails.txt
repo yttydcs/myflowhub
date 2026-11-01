@@ -1,0 +1,32 @@
+Wails CLI v2.11.0
+
+
+# Build Options
+
+Platform(s)        | windows/amd64
+Compiler           | C:\Program Files\Go\bin\go.exe
+Skip Bindings      | false
+Build Mode         | production
+Devtools           | false
+Frontend Directory | D:\project\MyFlowHub3\repo\MyFlowHub\apps\desktop\frontend
+Obfuscated         | false
+Skip Frontend      | true
+Compress           | false
+Package            | true
+Clean Bin Dir      | false
+LDFlags            |
+Tags               | []
+Race Detector      | false
+Output File        | MyFlowHub-Desktop-variable-cards.exe
+
+
+# Building target: windows/amd64
+
+  • Generating bindings: Done.
+  • Generating application assets: Done.
+  • Compiling application: Done.
+ INFO  Wails is now using the new Go WebView2Loader. If you encounter any issues with it, please report them to https://github.com/wailsapp/wails/issues/2004. You could also use the old legacy loader with `-tags native_webview2loader`, but keep in mind this will be deprecated in the near future.
+Built 'D:\project\MyFlowHub3\repo\MyFlowHub\apps\desktop\build\bin\MyFlowHub-Desktop-variable-cards.exe' in 16.326s.
+
+ ♥   If Wails is useful to you or your company, please consider sponsoring the project:
+https://github.com/sponsors/leaanthony

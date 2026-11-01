@@ -21,6 +21,11 @@
 | [收尾重跑前端测试](closeout-tests.txt) | 相同候选，32 文件、574 测试 |
 | [收尾重跑 TS/Vite](closeout-build.txt) | 与初次相同 dist assets |
 | [收尾重跑 Go](closeout-go.txt) | `GOWORK=off go test . -count=1` |
+| [集成主线前端测试](integrated-tests.txt) | 32 文件、574 测试 |
+| [集成主线 TS/Vite](integrated-build.txt) | 产品 dist 与候选一致，仍有既有 bundle 警告 |
+| [集成主线 Go](integrated-go.txt) | `GOWORK=off go test . -count=1` |
+| [集成主线 Wails](integrated-wails.txt) | `GOWORK=off`、已验证 dist、Windows exe |
+| [集成结果元数据](integration-result.json) | merge/产品等价、原有修改保护、清理与未 push 状态；不包含无关文件正文 |
 
 ## 浏览器截图
 

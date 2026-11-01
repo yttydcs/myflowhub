@@ -52,6 +52,16 @@ Requirements review：passed；Standards review：passed，依据与候选/计�
 
 ## 本地合并与清理记录
 
-归档内容与当前两轴审查已完成，待从控制面执行本地合并及清理。主线初始有 255 个已修改/未跟踪文件，已在工作区 artifacts 记录路径/哈希；不批量暂存或提交它们。仅 `docs/intake/README.md` 与 `docs/plan/README.md` 两个索引与本轮相交，将窄范围暂存保护，合并后恢复并核对去除本轮新增链接后的内容一致。已有其他 stash 与其他 worktree 不在清理范围。
+| 项目 | 实际结果 |
+| --- | --- |
+| 实施与归档提交 | `4b3a216` 产品；`bbe7855` 归档/审查/长期证据；提交信息使用中文 |
+| 主线合并 | `master`，no-ff merge `2944af806e78730198453e5b71bd475844a90653`；无产品冲突，整个 tracked tree 与归档候选一致 |
+| 集成复验 | canonical 主线重跑 574 前端测试、TS/Vite、`GOWORK=off` Go 测试和 Wails Windows 构建全部通过；详见 [review 集成绑定](../plan/desktop-variable-cards-review.md#集成绑定)及附件 |
+| 原有修改保护 | 原 255 个文件均保留：253 个字节相同；两个重叠索引去除本轮各一条链接后内容相同。原有内容未纳入提交，index 恢复为未暂存 |
+| 恢复冲突 | 仅临时 stash 恢复 intake 索引时出现追加行冲突；保留 Flow 与 Desktop 双方条目，验证原文未丢。没有产品代码冲突/额外修补 |
+| stash | 本次两个索引的临时 stash 已删除；原有三个 stash 完整保留 |
+| 清理 | 本次 `worktrees/desktop-variable-cards` 与 `feat/desktop-variable-cards` 已删除；其他 worktree/分支不动 |
+| exe | 主线重新构建，保存在 canonical `apps/desktop/build/bin/`，并复制到工作区 `artifacts/desktop-variable-cards/`；SHA-256：`ca783fcbc420a172bd4ecad3c4d8ec93bed0aaa81d7527745861d81777ec7680` |
+| 远端 | 未改 remote、未 push；本次新增提交仅在本地。主线保留用户原有脏文件，不能声称工作区全干净 |
 
-合并后需校验产品 manifest 每个 blob/删除与主线 tree 等价、链接有效、原有修改完整，再清理本轮 worktree/分支。最终实际状态在本节追加，不预先声称成功。远端状态始终不变：本次不 push。
+最终仅追加本次收尾证据的文档提交；不改变产品与计划定义身份。[集成结果元数据](../plan/desktop-variable-cards-evidence/integration-result.json)保留不含原有文件正文的检查摘要；工作区 artifacts 另存初始路径/哈希及两个索引的本地保护副本，未外发。

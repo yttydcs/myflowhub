@@ -56,4 +56,10 @@
 
 ## 集成绑定
 
-待控制面本地合并及逐 blob 等价检查后记录结果；只有通过并保存必要证据才清理本次 worktree。最终状态见[归档](../change/2026-11-01_desktop-variable-cards.md)。
+2026-11-01 控制面 `master` 以 `2944af806e78730198453e5b71bd475844a90653` 完成本地 no-ff 合并（归档候选 `bbe7855`）。主线原 HEAD 未前进，产品合并没有冲突；合并整个 tracked tree 与候选完全相同，25 个 manifest 路径的 blob/删除逐一相同，实际 apps/go.mod/go.sum 无未提交变化，故原两轴结论继续有效。
+
+在集成后的 canonical 主线另行重跑：前端 32 文件/574 测试、TS/Vite、`GOWORK=off go test . -count=1`、`GOWORK=off wails build -s -m -nosyncgomod -platform windows/amd64 -o MyFlowHub-Desktop-variable-cards.exe` 全部通过；[主线测试](desktop-variable-cards-evidence/integrated-tests.txt)、[构建](desktop-variable-cards-evidence/integrated-build.txt)、[Go](desktop-variable-cards-evidence/integrated-go.txt)、[Wails](desktop-variable-cards-evidence/integrated-wails.txt)。未重复浏览器或真实设备测试。
+
+主线原有 255 个修改/未跟踪文件全部保留：253 个逐字节相同；两个重叠索引去掉本轮各一条链接后 UTF-8/LF 内容相同。仅窄范围保护这两个索引；恢复时 intake 索引发生一处追加行冲突，保留 Flow 与 Desktop 双方条目并核对原文，未改产品内容。恢复后取消索引暂存，本次临时 stash 已移除，原有三个 stash 保留。安全检查与证据保留完成后，已删除 `feat/desktop-variable-cards` 及其 worktree，其他 worktree 不动。
+
+[集成结果元数据](desktop-variable-cards-evidence/integration-result.json)与[归档](../change/2026-11-01_desktop-variable-cards.md)记录最终状态；后续仅追加本次收尾证据的文档提交，不改变产品/计划定义身份。

@@ -1,0 +1,39 @@
+{
+  "mergeCommit": "2944af806e78730198453e5b71bd475844a90653",
+  "comparisonBase": "cf1436115c10a6d3c6ecca3334c1a0e009aa7247",
+  "productCommit": "4b3a216bdd708b710401e9c3464c8ad6c3bfc815",
+  "archiveCommit": "bbe785512494804b55a73f747271df174fd6dc83",
+  "mergedTree": "e9dc4f157d251cafa6d2933e8a5dac9224df86f8",
+  "archiveCandidateTree": "e9dc4f157d251cafa6d2933e8a5dac9224df86f8",
+  "productAppsTree": "c605e2bd40068a6d37646c053313b5a672f3d057",
+  "productManifestPathsVerified": 25,
+  "preservation": {
+    "checked": 255,
+    "unrelatedFilesExact": true,
+    "indexFilesEqualAfterRemovingOwnedLinks": true
+  },
+  "productConflictResolution": false,
+  "stashRestoreConflictOnly": [
+    "docs/intake/README.md"
+  ],
+  "originalStashesRetained": 3,
+  "temporaryStashRemoved": true,
+  "featureWorktreeRemoved": true,
+  "featureBranchRemoved": true,
+  "otherWorktreesUntouched": true,
+  "integratedChecks": {
+    "frontend": {
+      "files": 32,
+      "tests": 574,
+      "status": "passed"
+    },
+    "typescriptVite": "passed",
+    "desktopGo": "passed",
+    "windowsWailsBuild": "passed",
+    "browser": "reused unchanged candidate evidence, not rerun",
+    "realProfileDeviceGUI": "not performed; not marked passed"
+  },
+  "exeSHA256": "ca783fcbc420a172bd4ecad3c4d8ec93bed0aaa81d7527745861d81777ec7680",
+  "remoteChanged": false,
+  "pushPerformed": false
+}
