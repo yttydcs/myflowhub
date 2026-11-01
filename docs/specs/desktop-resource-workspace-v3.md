@@ -53,7 +53,7 @@ Resource tree 构建必须保持 O(total path segments)，扁平化保持 O(visi
 
 `ViewDocument.version` 固定为 `3`。一个 View 保存：
 
-- `widgets`：Resource reference、renderer、可选非秘密 settings；数组顺序同时表示紧凑卡片顺序；
+- `widgets`：单 Resource 卡片或 `kind=variable-list` 容器；Resource reference、renderer、可选非秘密 settings 保存在单卡或列表成员中；数组顺序同时表示紧凑卡片顺序；
 - `layout_root`：铺满分栏的权威布局拓扑，在紧凑模式中也保留并校验；
 - 可选 `layout_mode=compact|split`：新建 View 默认 compact，缺省字段表示既有 split 模式；
 - 可选 widget `compact_size={columns,height?}`：跨列数为 1–4 整数，高度为 104–1200 px 整数；缺省时单列、自动高度；
@@ -95,6 +95,29 @@ v3 `ViewWidget` 不再保存 `x/y/w/h`。这些字段只存在于 v1/v2 解码�
 View 必须有 root，空 View 不得有 root。每个 View 最多 64 个 leaf、总节点不超过 127、深度不超过 32。
 同轴 split 不得直接嵌套；删除或移动后必须折叠零/单子节点并合并同轴节点。
 
+## Variable card composition and edit session
+
+卡片类型与 `layout_mode` 正交。列表仍只占一个 layout leaf，不是 tab stack 或新的 layout node kind。
+
+- 单卡可选 `title` 和 `variable_id`；后者缺省时引用 ID 为 widget ID，以兼容旧 v3 文件。
+- 列表使用 `kind=variable-list`、可选 `title`、`variables`（缺省等价空列表）；不得混用单卡 owner/name/renderer/settings/variable_id。
+- 每个成员保存 `id`、`owner_node_id`、`resource_name`、`renderer`，以及可选 `title`、`settings`。成员 renderer 须为变量 renderer。
+- 引用 ID 在 View 内唯一，跨卡移动、单卡合并、拆出/显式转换保持不变；widget ID 仍唯一绑定 layout leaf。
+- 每卡最多 64 个变量、每 View 最多 512 引用；原 64 卡、32 深度、127 布局节点上限不变。标题/别名最多 160 UTF-8 bytes。
+- 同卡 `(owner_node_id, resource_name)` 不得重复；同一资源可在不同卡片出现。Go boundary 再校验并原子保存。
+- 清空标题/别名恢复默认显示；不写真实变量名称/值。列表剩一项或零项不自动降级/删除，单行列表可显式转单卡。
+
+变量手柄优先命中行/卡片正文（行按前后半区插入），然后才按布局目标拆出；单变量内容区接收引用时转列表。
+标题手柄仅调整布局，沿用 divider > root-edge > panel-edge > background 的布局命中规则；不触发变量合并。
+外部变量拖入复制引用，内部变量拖动移动引用，失败必须在移除来源前拒绝。提供设置菜单添加/跨卡移动/拆出等价入口。
+
+查看/编辑模式不持久化：新建进入编辑，已有 View 打开默认查看；查看隐藏结构入口/手柄/缩放，但变量控件仍按统一变量提交契约操作。
+外部资源仅有效 drop 后进入编辑，无效释放/取消不改变模式、不自动保存。保存成功且期间没有新修改才回到查看；失败保留草稿；
+保存期间新修改保留编辑态并推进已确认 revision。取消恢复最近确认保存的结构，不回滚真实变量值；结构历史最多保留 50 步。
+
+编辑器由按稳定引用 ID 平铺的 portal provider 承载，布局 slot 只移动稳定 DOM host，避免跨卡/布局树变化 remount 丢失控件本地无效输入。
+结构手势引发的 blur 不得触发变量提交；重组、重排、拆出和模式切换不能调用 write。变量状态/错误独立显示，View 不保存值或草稿。
+
 ## Legacy migration and rollback
 
 加载先读取 version，再使用对应版本的严格结构解码；未知字段、多个 JSON 值和未知版本都拒绝。
@@ -111,6 +134,9 @@ pre-v3 snapshot；snapshot 或原子提交失败时，旧 `views.json` 保持不
 
 旧 Desktop 不能读取 v3。代码回滚后必须先停止 Desktop，再恢复 pre-v3 snapshot；恢复会丢失迁移后新增的
 v3-only 嵌套布局。
+
+本轮增加的字段仍属于 version 3 的可选扩展，新版可读未扩展旧文件；旧二进制使用严格字段解码，不能读取保存了新字段的文件。
+因此即使文件已经是 v3，试运行前也须另行备份 Profile 的 `views.json`；pre-v3 snapshot 不等于本轮升级前备份。
 
 ## Compact layout
 
@@ -154,7 +180,7 @@ Home 或双击清除 `compact_size`。手动高度内正文滚动，标题保持
 3. panel edge；
 4. empty/background workspace。
 
-面板中心是无效投放区，不创建隐藏 stack。拖动预览以 hypothetical layout tree 使用和最终 renderer 相同
+对整卡布局拖动，面板中心是无效投放区，不创建隐藏 stack。变量引用拖到变量卡片正文则按上文合并/插入，而非布局停靠。拖动预览以 hypothetical layout tree 使用和最终 renderer 相同
 的 track 规则渲染，必须显示实际未来 pane rectangle；相同 intent 的连续 pointer move 不重复提交状态。
 取消拖动清理 preview，Resource 在 drop 前消失时显式失败或 no-op，不创建损坏 leaf。
 
@@ -209,7 +235,10 @@ conflict、每 Profile 隔离、32 View 上限、原子 temp/sync/backup/rename 
 - 拖拽生成 `A | C | B`、`A | (B / C)`、`(A | B | C) / D`；
 - 三个以上 pane 可任意插入、移动、删除和调整相邻比例；
 - divider、workspace edge、panel edge preview 与实际 drop 结果一致；
-- no layout buttons、center no stack；
+- no layout buttons、center no stack；变量正文合并与卡片边缘布局目标可区分，标题手柄不误合并；
+- 单卡/列表/空容器保存往返，重复变量、重复引用 ID、超限和混合绑定字段被拒绝；
+- 有效/无效/取消拖入、新建/重开/保存/取消、失败与在途保存期间新编辑符合会话契约；
+- 结构操作零 write，跨卡、拆出和布局切换保留同一无效输入 DOM；查看模式变量显式提交可用；
 - pointer/keyboard resize 平滑，release-only commit；
 - v1/v2 保留所有 widgets 迁移，v3 保存/重开/重启一致；
 - malformed/unknown View 不覆盖，pre-v3 rollback snapshot 可用；

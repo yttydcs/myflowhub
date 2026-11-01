@@ -15,7 +15,7 @@
 
 - [high-rate-variable-transport-and-definition-cache.md](high-rate-variable-transport-and-definition-cache.md)：2000@1Hz队列溢出、采样积压、重复schema解析、缓存深拷贝及原生与后端证据边界。
 
-- [desktop-variable-confirmation-and-split-layout.md](desktop-variable-confirmation-and-split-layout.md)：共享变量提交归属、控件确认时机、fr 留白、紧凑卡片高度、模式切换丢草稿与窄窗口 grid 溢出。
+- [desktop-variable-confirmation-and-split-layout.md](desktop-variable-confirmation-and-split-layout.md)：共享变量提交归属、控件确认时机、fr 留白、紧凑卡片高度、跨卡/布局切换丢草稿、portal host、结构 blur 与窄窗口工具栏遮挡/grid 溢出。
 
 - [partial-discovery-and-async-ownership.md](partial-discovery-and-async-ownership.md)：部分树边界、排队请求清理、跨Profile View引用与迟到保存导致的状态/草稿覆盖。
 

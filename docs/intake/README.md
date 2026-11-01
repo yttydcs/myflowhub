@@ -4,6 +4,7 @@
 
 ## Current Records
 
+- [Desktop 多变量卡片、重命名与编辑模式（2026-10-31 请求；2026-11-01 收尾）](2026-10-31_desktop-variable-cards.md)
 - [Desktop 紧凑布局与视图模式切换（2026-10-19 验收通过）](2026-10-19_desktop-compact-layout.md)
 
 - [产品定义与首版范围讨论（P01—P33 已确认；A 验收定稿，2000 变量每秒更新一次，进入实施规划）](2026-09-06_product-definition-grill.md)

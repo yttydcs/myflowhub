@@ -53,6 +53,20 @@ type ViewWidget struct {
 	Renderer     string           `json:"renderer"`
 	Settings     json.RawMessage  `json:"settings,omitempty"`
 	CompactSize  *ViewCompactSize `json:"compact_size,omitempty"`
+	Title        string           `json:"title,omitempty"`
+	Kind         string           `json:"kind,omitempty"`
+	Variables    []ViewVariable   `json:"variables,omitempty"`
+	VariableID   string           `json:"variable_id,omitempty"`
+}
+
+// ViewVariable is a display reference, never a live value or a write draft.
+type ViewVariable struct {
+	ID           string          `json:"id"`
+	OwnerNodeID  string          `json:"owner_node_id"`
+	ResourceName string          `json:"resource_name"`
+	Renderer     string          `json:"renderer"`
+	Title        string          `json:"title,omitempty"`
+	Settings     json.RawMessage `json:"settings,omitempty"`
 }
 
 type ViewCompactSize struct {
@@ -224,6 +238,7 @@ func validateView(view ViewDefinition) error {
 		return fmt.Errorf("view supports at most %d widgets", maxWidgetsPerView)
 	}
 	widgetIDs := make(map[string]struct{}, len(view.Widgets))
+	referenceIDs := make(map[string]struct{})
 	for index, widget := range view.Widgets {
 		if err := validateViewWidget(widget, index); err != nil {
 			return err
@@ -232,6 +247,23 @@ func validateView(view ViewDefinition) error {
 			return fmt.Errorf("duplicate widget %q", widget.ID)
 		}
 		widgetIDs[widget.ID] = struct{}{}
+		variables := widget.Variables
+		if widget.Kind == "" {
+			id := widget.VariableID
+			if id == "" {
+				id = widget.ID
+			}
+			variables = []ViewVariable{{ID: id}}
+		}
+		for _, variable := range variables {
+			if _, exists := referenceIDs[variable.ID]; exists {
+				return fmt.Errorf("duplicate variable reference %q", variable.ID)
+			}
+			referenceIDs[variable.ID] = struct{}{}
+		}
+		if len(referenceIDs) > 512 {
+			return errors.New("view supports at most 512 variable references")
+		}
 	}
 	if len(view.Widgets) == 0 {
 		if view.LayoutRoot != nil {
@@ -272,6 +304,47 @@ func validateViewWidget(widget ViewWidget, index int) error {
 	}
 	if !profileIDPattern.MatchString(widget.ID) {
 		return fmt.Errorf("widgets[%d] id is invalid", index)
+	}
+	if len(widget.Title) > 160 {
+		return errors.New("card title exceeds 160 bytes")
+	}
+	if widget.Kind != "" && widget.Kind != "variable-list" {
+		return errors.New("unknown widget kind")
+	}
+	if widget.Kind == "variable-list" {
+		if widget.OwnerNodeID != "" || widget.ResourceName != "" || widget.Renderer != "" || widget.VariableID != "" || len(widget.Settings) != 0 {
+			return errors.New("variable-list contains single-resource fields")
+		}
+		if len(widget.Variables) > 64 {
+			return errors.New("card supports at most 64 variables")
+		}
+		seen := make(map[string]bool)
+		for _, variable := range widget.Variables {
+			if !profileIDPattern.MatchString(variable.ID) || len(variable.Title) > 160 {
+				return errors.New("invalid variable id or title")
+			}
+			if _, err := parsePositiveInt64(variable.OwnerNodeID, "variable owner_node_id"); err != nil {
+				return err
+			}
+			if variable.ResourceName == "" || len(variable.ResourceName) > 255 || !strings.HasPrefix(variable.Renderer, "mfh.variable") {
+				return errors.New("invalid variable resource or renderer")
+			}
+			if len(variable.Settings) > 64<<10 || (len(variable.Settings) > 0 && !json.Valid(variable.Settings)) {
+				return errors.New("invalid variable settings")
+			}
+			key := variable.OwnerNodeID + "\x00" + variable.ResourceName
+			if seen[key] {
+				return errors.New("duplicate variable in card")
+			}
+			seen[key] = true
+		}
+		return nil
+	}
+	if widget.Variables != nil {
+		return errors.New("single-resource card contains variables")
+	}
+	if widget.VariableID != "" && !profileIDPattern.MatchString(widget.VariableID) {
+		return errors.New("invalid variable reference id")
 	}
 	if _, err := parsePositiveInt64(widget.OwnerNodeID, "widget owner_node_id"); err != nil {
 		return err

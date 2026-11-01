@@ -27,6 +27,8 @@ import { Inspector } from './components/Inspector'
 import { ResourceOverview } from './components/ResourceOverview'
 import { LoginScreen } from './components/LoginScreen'
 import { Settings as DesktopSettings } from './components/Settings'
+import type { VariableDropPreview } from './components/VariableCards'
+import { cardTitle, transferVariable, uniqueReferenceID, widgetVariables, type VariableSource, type VariableTarget } from './workspace-variables'
 import { ViewManager, Workspace, type WorkspaceDockPreview } from './components/Workspace'
 import { Button } from './components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
@@ -51,11 +53,13 @@ type ActiveWorkspaceDrag = {
   source: WorkspaceDockSource
   widgetID: string
   label: string
+  variableSource?: VariableSource
 }
 
 type WorkspaceDropData = {
-  kind?: 'workspace-divider' | 'workspace-root-edge' | 'workspace-panel' | 'workspace-background'
+  kind?: 'workspace-divider' | 'workspace-root-edge' | 'workspace-panel' | 'workspace-background' | 'workspace-variable-row' | 'workspace-variable-body'
   widgetID?: string
+  variableID?: string
   side?: WorkspaceDockSide
   parentPath?: number[]
   insertionIndex?: number
@@ -69,8 +73,12 @@ type InspectorState = {
 }
 
 const workspaceCollisionDetection: CollisionDetection = (args) => {
-  const pointerCollisions = pointerWithin(args)
-  if (pointerCollisions.length === 0) return args.pointerCoordinates ? [] : closestCenter(args)
+  const data = args.active.data.current
+  const variable = data?.kind === 'workspace-variable' || (data?.kind === 'resource' && data.resource?.type === 'mfh.variable')
+  const droppableContainers = args.droppableContainers.filter(container => variable || !String(container.id).startsWith('workspace-variable-'))
+  const filtered = { ...args, droppableContainers }
+  const pointerCollisions = pointerWithin(filtered)
+  if (pointerCollisions.length === 0) return args.pointerCoordinates ? [] : closestCenter(filtered)
   return [...pointerCollisions].sort((left, right) => workspaceDropTargetPriority(String(left.id)) - workspaceDropTargetPriority(String(right.id)))
 }
 
@@ -83,6 +91,7 @@ function dragDataLabel(data: Record<string, unknown> | undefined): string {
 
 function dropDataLabel(data: Record<string, unknown> | undefined): string {
   const candidate = data as WorkspaceDropData | undefined
+  if (candidate?.kind === 'workspace-variable-row' || candidate?.kind === 'workspace-variable-body') return '变量卡片内；放下以添加或移动变量'
   if (candidate?.kind === 'workspace-divider') return `分隔线 ${candidate.beforeWidgetID} 与 ${candidate.afterWidgetID} 之间`
   if (candidate?.kind === 'workspace-root-edge' && candidate.side) return `工作区${dockSideLabel(candidate.side)}`
   if (candidate?.kind === 'workspace-panel' && candidate.widgetID) return `面板 ${candidate.widgetID}；移动到边缘选择停靠方向`
@@ -182,6 +191,9 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const [activeContent, setActiveContent] = useState<'workspace' | 'overview' | 'settings'>('workspace')
   const [preferences, setPreferences] = useState<UIPreferences>(defaultUIPreferences())
   const [dirty, setDirty] = useState(false)
+  const [editingView, setEditingView] = useState(true)
+  const editBaseline = useRef(view)
+  const [viewHistory, setViewHistory] = useState<ViewDefinition[]>([])
   const variableDirty = useSyncExternalStore(subscribeUnsavedChanges, hasUnsavedChanges)
   const unsaved = dirty || variableDirty
   const unsavedReport = useRef(Promise.resolve())
@@ -189,6 +201,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const [savingView, setSavingView] = useState(false)
   const [activeWorkspaceDrag, setActiveWorkspaceDrag] = useState<ActiveWorkspaceDrag | null>(null)
   const [dockIntent, setDockIntent] = useState<WorkspaceDockIntent | null>(null)
+  const [variableTarget, setVariableTarget] = useState<VariableTarget | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => { if (!busy) changingConnection.current = false }, [busy])
@@ -201,6 +214,10 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const invalidateProfile = () => {
     profileGeneration.current += 1
     setViewProfile(undefined)
+    setActiveWorkspaceDrag(null)
+    setDockIntent(null)
+    setVariableTarget(null)
+    setViewHistory([])
     setInspector({ selection: null, focusedAction: null })
     invalidateDiscovery()
   }
@@ -258,6 +275,9 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     setViews(document.views)
     viewEditGeneration.current += 1
     setView(activeView)
+    editBaseline.current = activeView
+    setEditingView(document.views.length === 0)
+    setViewHistory([])
     setViewProfile({ id: profileID, generation })
     setDirty(false)
   }, [api])
@@ -331,7 +351,7 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   useEffect(() => {
     if (!discoveryState.scope || contextProfile.current !== activeProfile?.id) return
     const selectedOwner = selection?.kind === 'resource' ? selection.resource.id.owner_node_id : selection?.kind === 'node' ? selection.node.node_id : catalogOwner || discoveryState.scope
-    const owners = new Set([selectedOwner, ...(viewReady ? view.widgets.map((widget) => widget.owner_node_id) : [])])
+    const owners = new Set([selectedOwner, ...(viewReady ? view.widgets.flatMap(widget => widgetVariables(widget).map(variable => variable.owner_node_id)) : [])])
     discovery.setCatalogOwners(owners)
     for (const owner of owners) void discovery.catalog(owner)
   }, [activeProfile?.id, discovery, discoveryState.scope, discoveryState.session, catalogOwner, selection, view.widgets, viewReady])
@@ -559,6 +579,10 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     try {
       if (!viewReady) return
       validateWorkspaceView(next)
+      if (next === view) return
+      if (!editingView) editBaseline.current = view
+      setEditingView(true)
+      setViewHistory(history => [...history.slice(-49), view])
       viewEditGeneration.current += 1
       setView(next)
       setDirty(true)
@@ -569,7 +593,8 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const addResource = (resource: ResourceDescriptor) => {
     setActiveContent('workspace')
     try {
-      changeView(addWorkspaceWidget(view, resourceWidget(resource, view.widgets)))
+      const widget = resourceWidget(resource, view.widgets)
+      changeView(addWorkspaceWidget(view, { ...widget, id: uniqueReferenceID(view, widget.id) }))
     } catch (current) {
       setError(errorText(current))
     }
@@ -596,17 +621,23 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
       widgetID?: string
       label?: string
       resource?: ResourceDescriptor
+      variableID?: string
     } | undefined
-    if (data?.kind === 'workspace-widget' && data.widgetID) {
+    if (data?.kind === 'workspace-variable' && data.widgetID && data.variableID && editingView) {
+      return { source: { kind: 'existing', widgetID: data.widgetID }, widgetID: data.variableID, label: data.label || '变量', variableSource: { kind: 'variable', widgetID: data.widgetID, variableID: data.variableID } }
+    }
+    if (data?.kind === 'workspace-widget' && data.widgetID && editingView) {
       const widget = view.widgets.find((candidate) => candidate.id === data.widgetID)
-      return widget ? { source: { kind: 'existing', widgetID: widget.id }, widgetID: widget.id, label: data.label || widget.resource_name } : null
+      return widget ? { source: { kind: 'existing', widgetID: widget.id }, widgetID: widget.id, label: data.label || cardTitle(widget) } : null
     }
     if (data?.kind === 'resource' && data.resource) {
-      const widget = resourceWidget(data.resource, view.widgets)
+      const candidate = resourceWidget(data.resource, view.widgets)
+      const widget = { ...candidate, id: uniqueReferenceID(view, candidate.id) }
       return {
         source: { kind: 'new', widget },
         widgetID: widget.id,
         label: data.resource.presentation?.label || data.resource.id.name,
+        variableSource: data.resource.type === 'mfh.variable' ? { kind: 'catalog', variable: widget } : undefined,
       }
     }
     return null
@@ -641,26 +672,48 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
       return side ? { kind: 'panel-edge', targetWidgetID: data.widgetID, side } : null
     }
     if (data?.kind === 'workspace-background') {
-      return view.layout_root ? null : { kind: 'empty-workspace' }
+      return view.layout_root ? { kind: 'root-edge', side: 'right' } : { kind: 'empty-workspace' }
     }
     return null
+  }
+  const resolveVariableTarget = (event: DragMoveEvent | DragEndEvent): VariableTarget | null => {
+    const data = event.over?.data.current as WorkspaceDropData | undefined
+    if ((data?.kind === 'workspace-variable-body' || data?.kind === 'workspace-variable-row') && data.widgetID) {
+      let beforeID = data.variableID
+      const point = dragPoint(event)
+      if (data.kind === 'workspace-variable-row' && beforeID && point && event.over && point.y >= event.over.rect.top + event.over.rect.height / 2) {
+        const widget = view.widgets.find(widget => widget.id === data.widgetID)
+        if (!widget) return null
+        const items = widgetVariables(widget)
+        beforeID = items[items.findIndex(item => item.id === beforeID) + 1]?.id
+      }
+      return { kind: 'list', widgetID: data.widgetID, beforeID }
+    }
+    const intent = resolveDockIntent(event)
+    return intent ? { kind: 'layout', intent } : null
   }
   const dragStart = (event: DragStartEvent) => {
     setActiveWorkspaceDrag(activeDrag(event))
     setDockIntent(null)
+    setVariableTarget(null)
   }
   const dragMove = (event: DragMoveEvent) => {
-    const next = resolveDockIntent(event)
+    const variable = (activeWorkspaceDrag || activeDrag(event))?.variableSource
+    const target = variable ? resolveVariableTarget(event) : null
+    setVariableTarget(current => JSON.stringify(current) === JSON.stringify(target) ? current : target)
+    const next = variable ? target?.kind === 'layout' ? target.intent : null : resolveDockIntent(event)
     setDockIntent((current) => sameWorkspaceDockIntent(current, next) ? current : next)
   }
   const dragEnd = (event: DragEndEvent) => {
     const currentDrag = activeWorkspaceDrag || activeDrag(event)
-    const intent = resolveDockIntent(event) || dockIntent
+    const intent = resolveDockIntent(event)
+    const target = currentDrag?.variableSource ? resolveVariableTarget(event) : null
     setActiveWorkspaceDrag(null)
     setDockIntent(null)
-    if (!currentDrag || !intent) return
+    setVariableTarget(null)
+    if (!currentDrag || (!currentDrag.variableSource && !intent) || (currentDrag.variableSource && !target)) return
     try {
-      const next = dockWorkspaceView(view, currentDrag.source, intent)
+      const next = currentDrag.variableSource && target ? transferVariable(view, currentDrag.variableSource, target) : dockWorkspaceView(view, currentDrag.source, intent!)
       if (next !== view) {
         setActiveContent('workspace')
         changeView(next)
@@ -672,19 +725,32 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
   const dragCancel = () => {
     setActiveWorkspaceDrag(null)
     setDockIntent(null)
+    setVariableTarget(null)
   }
+  const variablePreview = useMemo<VariableDropPreview | null>(() => {
+    if (!activeWorkspaceDrag?.variableSource || variableTarget?.kind !== 'list') return null
+    const widget = view.widgets.find(item => item.id === variableTarget.widgetID)
+    try {
+      const next = transferVariable(view, activeWorkspaceDrag.variableSource, variableTarget)
+      if (next === view) return null
+      return { ...variableTarget, description: widget?.kind === 'variable-list' ? `加入 ${activeWorkspaceDrag.label}` : `加入 ${activeWorkspaceDrag.label}，组成多变量卡片` }
+    } catch (error) {
+      return { ...variableTarget, description: errorText(error) }
+    }
+  }, [activeWorkspaceDrag, variableTarget, view])
   const dockPreview = useMemo<WorkspaceDockPreview | null>(() => {
     if (!activeWorkspaceDrag || !dockIntent) return null
     try {
-      const next = dockWorkspaceView(view, activeWorkspaceDrag.source, dockIntent)
+      const next = activeWorkspaceDrag.variableSource ? transferVariable(view, activeWorkspaceDrag.variableSource, { kind: 'layout', intent: dockIntent }) : dockWorkspaceView(view, activeWorkspaceDrag.source, dockIntent)
       if (next === view) return null
-      return { view: next, widgetID: activeWorkspaceDrag.widgetID, description: dockDescription(dockIntent), compactInsert: dockIntent.kind === 'compact-card' ? { targetID: dockIntent.targetWidgetID, before: dockIntent.before } : undefined }
+      const widgetID = next.widgets.find(widget => !view.widgets.some(current => current.id === widget.id))?.id || activeWorkspaceDrag.widgetID
+      return { view: next, widgetID, description: activeWorkspaceDrag.variableSource ? `独立为卡片：${dockDescription(dockIntent)}` : dockDescription(dockIntent), compactInsert: dockIntent.kind === 'compact-card' ? { targetID: dockIntent.targetWidgetID, before: dockIntent.before } : undefined }
     } catch {
       return null
     }
   }, [activeWorkspaceDrag, dockIntent, view])
   const saveView = async () => {
-    if (!viewReady || savingView) return
+    if (!viewReady || !editingView || savingView) return
     const generation = profileGeneration.current
     const editGeneration = viewEditGeneration.current
     const submitted = view
@@ -700,10 +766,15 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
       if (currentView.current.id === submitted.id) {
         if (editGeneration === viewEditGeneration.current) {
           setView(saved)
+          editBaseline.current = saved
+          setViewHistory([])
+          setEditingView(false)
           setDirty(false)
         } else {
           // Keep edits made during the save, but advance the optimistic revision
           // so their next explicit save can succeed against the acknowledged version.
+          editBaseline.current = saved
+          setViewHistory([])
           setView((current) => current.id === submitted.id ? { ...current, revision: saved.revision } : current)
         }
       }
@@ -721,7 +792,10 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     let index = views.length + 1
     while (views.some((item) => item.id === `view-${index}`)) index += 1
     viewEditGeneration.current += 1
+    editBaseline.current = views.find(item => item.id === view.id) || views[0] || newView(index)
     setView(newView(index))
+    setEditingView(true)
+    setViewHistory([])
     setDirty(true)
     setActiveContent('workspace')
   }
@@ -729,7 +803,12 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
     if (!window.confirm(`删除视图“${target.name}”？此操作不可恢复。`)) return
     if (target.revision === 0) {
       viewEditGeneration.current += 1
-      setView(views[0] || newView())
+      const fallback = views[0] || newView()
+      setView(fallback)
+      editBaseline.current = fallback
+      setEditingView(views.length === 0)
+      setViewHistory([])
+      dragCancel()
       setDirty(false)
       return
     }
@@ -738,7 +817,12 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
       const next = views.filter((item) => item.id !== target.id)
       setViews(next)
       viewEditGeneration.current += 1
-      setView(next[0] || newView(1))
+      const fallback = next[0] || newView(1)
+      setView(fallback)
+      editBaseline.current = fallback
+      setEditingView(next.length === 0)
+      setViewHistory([])
+      dragCancel()
       setDirty(false)
     } catch (current) {
       setError(errorText(current))
@@ -833,6 +917,10 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                     if (!viewReady || !confirmDiscard()) return
                     viewEditGeneration.current += 1
                     setView(target)
+                    editBaseline.current = target
+                    setEditingView(false)
+                    setViewHistory([])
+                    dragCancel()
                     setDirty(false)
                     setActiveContent('workspace')
                   }}
@@ -896,6 +984,27 @@ export function App({ api = productionApi }: { api?: DesktopAPI }) {
                   view={view}
                   dirty={dirty}
                   saving={savingView}
+                  editing={editingView}
+                  onEdit={() => { editBaseline.current = view; viewEditGeneration.current += 1; setViewHistory([]); setEditingView(true) }}
+                  onCancel={() => {
+                    if (dirty && !window.confirm('放弃本次视图结构修改？已写入的变量值不会回滚。')) return
+                    viewEditGeneration.current += 1
+                    setView(editBaseline.current)
+                    setViewHistory([])
+                    setDirty(false)
+                    setEditingView(false)
+                    dragCancel()
+                  }}
+                  canUndo={viewHistory.length > 0}
+                  onUndo={() => {
+                    const previous = viewHistory.at(-1)
+                    if (!previous) return
+                    viewEditGeneration.current += 1
+                    setView(previous)
+                    setViewHistory(history => history.slice(0, -1))
+                    setDirty(JSON.stringify(previous) !== JSON.stringify(editBaseline.current))
+                  }}
+                  variablePreview={variablePreview}
                   dockPreview={dockPreview}
                   onChange={changeView}
                   onSave={() => void saveView()}

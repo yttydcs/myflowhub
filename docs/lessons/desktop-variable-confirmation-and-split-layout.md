@@ -6,7 +6,7 @@
 
 ## Lookup Hints
 
-关键词：autoApply、draftVersion、Enter/blur、IME、subscription-before-response、minmax、fractional fr、右侧留白、卡片高度留白、模式切换丢草稿、compact、remount。先检查 VariablePanel/VariableEditor/controller、ui/slider、Workspace.splitGridStyle、CompactCard 及外层 grid 轨道。
+关键词：autoApply、draftVersion、Enter/blur、IME、subscription-before-response、minmax、fractional fr、右侧留白、卡片高度留白、模式切换丢草稿、compact、remount、跨卡草稿、portal host、结构 blur、toolbar 换行遮挡。先检查 VariablePanel/VariableEditor/controller、VariableCards/HostSlot、Workspace 工具栏与 splitGridStyle、CompactCard 及外层 grid 轨道。
 
 ## Symptoms
 
@@ -44,6 +44,15 @@
 - 解决：两种模式分别保存布局，保持 renderer 实例，用 display:contents/grid order 重新排布 leaf；内容测量决定卡片行跨度，长内容内部滚动。Workspace 显式使用 minmax(0, 1fr) 列，窗口缩放仅影响展示，不写回保存尺寸。
 - 证据：真实浏览器下拉框从视口高度缩为约 112px，数组约 247px；1480/850 宽度、保存重载、拖拽排序、尺寸恢复通过；组件测试验证切换后仍为同一输入元素且 snapshot 只调用一次。
 - 防回归：固定大小截图不足以覆盖此类问题，必须同时验证容器边界、交互与持久化。CSS order 不会改变 DOM/Tab 顺序；若新增读屏顺序要求，需专门设计，不能仅依赖视觉排序。
+
+## 2026-11-01：跨卡组合仍需保留编辑器身份
+
+- 症状/触发：跨卡移动、单卡转列表或拆出时，即使 reference key 不变，React 父级变化仍会卸载 editor；未通过数字校验的本地输入最容易丢失。点击结构手柄引发 blur 时还可能误提交真实变量。
+- 根因：React key 只在同级集合标识身份，不能跨父节点复用实例；共享 controller 也不包含控件本地无效文本。结构编辑和变量写入共享焦点，但不是同一提交意图。
+- 快速检查：操作前后比对 `beforeInput === afterInput`、原始无效文本与 mock write 计数，不只比较 controller draft 或截图。区分标题手柄、变量手柄与卡片正文目标。
+- 解决：按稳定引用 ID 平铺 portal 内容，卡片 slot 只移动稳定 DOM host；结构 pointerdown 在 capture 阶段标记，避免随后 blur 触发 auto-apply。引用 ID 跟随跨卡/拆出移动，值和草稿不进入 View。
+- 防回归：覆盖合并/行排序/跨卡/拆出/切换布局、取消/无效 drop、查看模式正常变量提交；结构路径计数为零，显式值操作计数为一。窄窗口同时核对工具栏换行和内容起始位置，不能只测右边界。
+- 证据：[本轮权威审查](../plan/desktop-variable-cards-review.md)及其保留的浏览器日志/截图。真实设备、全部复杂值及读屏顺序未由该模拟验证覆盖。
 
 ## Related Docs
 
